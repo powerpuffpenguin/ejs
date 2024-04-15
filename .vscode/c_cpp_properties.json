@@ -1,0 +1,9 @@
+{
+    "configurations": [
+        {
+            "compileCommands": ".vscode/compile_commands.json",
+            "includePath": ["src"]
+        }
+    ],
+    "version": 4
+}

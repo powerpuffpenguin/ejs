@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "*.json": "jsonc",
+        "event.h": "c",
+        "dns.h": "c",
+        "string.h": "c",
+        "error.h": "c"
+    }
+}

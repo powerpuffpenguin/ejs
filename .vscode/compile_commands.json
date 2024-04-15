@@ -1,0 +1,21 @@
+[
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-isystem", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-isystem", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-isystem", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-isystem", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/dns.c.o", "src/ejs/dns.c"],
+  "file": "src/ejs/dns.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-isystem", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-isystem", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/core.c.o", "src/ejs/core.c"],
+  "file": "src/ejs/core.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-isystem", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-isystem", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/error.c.o", "src/ejs/error.c"],
+  "file": "src/ejs/error.c"
+}]
