@@ -1,5 +1,5 @@
-#ifndef _EMBEDDED_JS_CORE_DNS_H_
-#define _EMBEDDED_JS_CORE_DNS_H_
+#ifndef _EMBEDDED_JS_DNS_H_
+#define _EMBEDDED_JS_DNS_H_
 #include <event2/event.h>
 #include <event2/dns.h>
 #include <netinet/in.h>

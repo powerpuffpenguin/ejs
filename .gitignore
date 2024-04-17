@@ -1,7 +1,7 @@
 # Xmake cache
 .xmake/
 build/
-
+src/js/
 # MacOS Cache
 .DS_Store
 

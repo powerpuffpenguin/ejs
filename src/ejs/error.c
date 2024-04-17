@@ -1,6 +1,6 @@
 #include "error.h"
 
-const char *ejs_error(const int err)
+const char *ejs_error(const EJS_ERROR_RET err)
 {
     switch (err)
     {
@@ -9,6 +9,13 @@ const char *ejs_error(const int err)
 
     case EJS_ERROR_MALLOC:
         return "malloc fail";
+
+    case EJS_ERROR_DUK_CREATE_HEAP:
+        return "duk_create_heap_default fail";
+    case EJS_ERROR_DUK_CHECK_STACK_TOP:
+        return "duk_check_stack_top fail";
+    case EJS_ERROR_DUK_EXTRAS_INIT:
+        return "duk extras init fail";
 
     case EJS_ERROR_EVENT_BASE_NEW:
         return "event_base_new fail";

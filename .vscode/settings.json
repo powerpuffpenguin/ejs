@@ -4,6 +4,18 @@
         "event.h": "c",
         "dns.h": "c",
         "string.h": "c",
-        "error.h": "c"
+        "error.h": "c",
+        "stdio.h": "c",
+        "__locale": "c",
+        "strings.h": "c",
+        "queue": "c",
+        "ios": "c",
+        "*.tcc": "c",
+        "string": "c",
+        "bitset": "c",
+        "thread": "c",
+        "locale": "c",
+        "iterator": "c",
+        "memory": "c"
     }
 }
