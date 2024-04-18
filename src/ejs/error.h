@@ -1,8 +1,10 @@
 #ifndef _EMBEDDED_JS_ERROR_H_
 #define _EMBEDDED_JS_ERROR_H_
 #include <stdint.h>
-typedef int EJS_ERROR_RET;
-const char *ejs_error(const EJS_ERROR_RET err);
+#include "../duk/duktape.h"
+#define EJS_ERROR_RET duk_ret_t
+
+const char *ejs_error(const duk_ret_t err);
 
 #define EJS_SAFE_SET_ERROR(p, err) \
     if (p)                         \
@@ -10,6 +12,7 @@ const char *ejs_error(const EJS_ERROR_RET err);
 #define EJS_ERROR_OK 0
 
 #define EJS_ERROR_MALLOC 100
+#define EJS_ERROR_GETCWD 101
 
 #define EJS_ERROR_DUK_CREATE_HEAP 200
 #define EJS_ERROR_DUK_CHECK_STACK_TOP 201

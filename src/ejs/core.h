@@ -24,11 +24,16 @@ duk_ret_t ejs_core_new(duk_context *ctx, int argc, char **argv);
 void ejs_core_delete(ejs_core_t *core);
 
 /**
- * Load and run the script
+ * load and run main.js
  */
-EJS_ERROR_RET ejs_core_run(ejs_core_t *core, int argc, char **argv);
+duk_ret_t ejs_core_run(ejs_core_t *core, const char *path);
+/**
+ * run main.js
+ */
+duk_ret_t ejs_core_run_source(ejs_core_t *core, const char *source);
+
 /**
  * dispatch event loop
  */
-EJS_ERROR_RET ejs_core_dispatch(ejs_core_t *core);
+duk_ret_t ejs_core_dispatch(ejs_core_t *core);
 #endif

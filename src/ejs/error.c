@@ -9,6 +9,8 @@ const char *ejs_error(const EJS_ERROR_RET err)
 
     case EJS_ERROR_MALLOC:
         return "malloc fail";
+    case EJS_ERROR_GETCWD:
+        return "getcwd fail";
 
     case EJS_ERROR_DUK_CREATE_HEAP:
         return "duk_create_heap_default fail";

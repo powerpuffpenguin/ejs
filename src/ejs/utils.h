@@ -30,4 +30,5 @@
 #define EJS_VAR_FREE(p) \
     if (p)              \
     free(p)
+
 #endif

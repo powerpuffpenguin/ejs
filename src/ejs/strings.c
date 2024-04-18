@@ -69,7 +69,7 @@ void ejs_string_set(ejs_string_t *l, ejs_string_t *r)
         l->reference->used++;
     }
 }
-void ejs_string_substr(ejs_string_t *sub, ejs_string_t *s, size_t offset, size_t n)
+void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t offset, size_t n)
 {
     if (sub == s)
     {

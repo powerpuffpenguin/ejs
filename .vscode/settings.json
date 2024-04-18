@@ -16,6 +16,14 @@
         "thread": "c",
         "locale": "c",
         "iterator": "c",
-        "memory": "c"
+        "memory": "c",
+        "duk_module_node.h": "c",
+        "utility": "c",
+        "typeinfo": "c",
+        "chrono": "c",
+        "algorithm": "c",
+        "__bit_reference": "c",
+        "map": "c",
+        "unordered_map": "c"
     }
 }

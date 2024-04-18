@@ -51,7 +51,6 @@ static EJS_ERROR_RET ejs_path_clean_impl(ejs_string_t *path, ejs_string_t *out_p
     }
     BOOL rooted = path->c[0] == '/';
     int n = path->len;
-
     // Invariants:
     //	reading from path; r is index of next byte to process.
     //	writing to buf; w is index of next byte to write.
@@ -93,6 +92,8 @@ static EJS_ERROR_RET ejs_path_clean_impl(ejs_string_t *path, ejs_string_t *out_p
             r += 2;
             if (out.w > dotdot)
             {
+                // can backtrack
+                out.w--;
                 while (out.w > dotdot && lazybuf_index(&out, out.w) != '/')
                 {
                     out.w--;
@@ -152,7 +153,6 @@ static EJS_ERROR_RET ejs_path_clean_impl(ejs_string_t *path, ejs_string_t *out_p
         ejs_string_set_lstring(out_path, ".", 1);
         return ret;
     }
-
     if (out.buf)
     {
         ejs_string_set_lstring(out_path, out.buf, out.w);
@@ -167,7 +167,7 @@ static EJS_ERROR_RET ejs_path_clean_impl(ejs_string_t *path, ejs_string_t *out_p
     }
     return ret;
 }
-EJS_ERROR_RET ejs_path_clean(ejs_string_t *path, ejs_string_t *out_path, ejs_stirng_reference_t *reference)
+EJS_ERROR_RET ejs_path_clean(const ejs_string_t *path, ejs_string_t *out_path, ejs_stirng_reference_t *reference)
 {
     ejs_string_t tmp = *path;
     while (tmp.len >= 2 && tmp.c[0] == '.' && tmp.c[1] == '/')
@@ -177,7 +177,8 @@ EJS_ERROR_RET ejs_path_clean(ejs_string_t *path, ejs_string_t *out_path, ejs_sti
     }
     return ejs_path_clean_impl(&tmp, out_path, reference);
 }
-static int lastSlash(ejs_string_t *s)
+
+static int lastSlash(const ejs_string_t *s)
 {
     int i = s->len - 1;
     while (i >= 0 && s->c[i] != '/')
@@ -186,7 +187,7 @@ static int lastSlash(ejs_string_t *s)
     }
     return i;
 }
-void ejs_path_dir(ejs_string_t *path, ejs_string_t *dir)
+void ejs_path_dir(const ejs_string_t *path, ejs_string_t *dir)
 {
     int i = lastSlash(path);
     if (i == 0)
@@ -214,3 +215,97 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, int n, ejs_string_t *join, ejs_sti
 
     return EJS_ERROR_OK;
 }
+#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
+static EJS_ERROR_RET ejs_path_from_windows_impl(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
+{
+    char *p = malloc(s->len);
+    if (!p)
+    {
+        return EJS_ERROR_MALLOC;
+    }
+    memcpy(p, s->c, s->len);
+    for (size_t i = 0; i < s->len; i++)
+    {
+        if (p[i] == '\\')
+        {
+            p[i] = '/';
+        }
+    }
+
+    ejs_string_destory(out);
+    reference->c = p;
+    reference->len = s->len;
+    reference->used = 1;
+
+    out->c = p;
+    out->len = s->len;
+    out->reference = reference;
+    return EJS_ERROR_OK;
+}
+
+EJS_ERROR_RET ejs_path_from_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
+{
+    for (size_t i = 0; i < s->len; i++)
+    {
+        if (s->c[i] == '\\')
+        {
+            return ejs_path_from_windows_impl(s, out, reference);
+        }
+    }
+    ejs_string_set(out, s);
+    return EJS_ERROR_OK;
+}
+static EJS_ERROR_RET ejs_path_to_windows_impl(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
+{
+    char *p = malloc(s->len);
+    if (!p)
+    {
+        return EJS_ERROR_MALLOC;
+    }
+    memcpy(p, s->c, s->len);
+    for (size_t i = 0; i < s->len; i++)
+    {
+        if (p[i] == '/')
+        {
+            p[i] = '\\';
+        }
+    }
+
+    ejs_string_destory(out);
+    reference->c = p;
+    reference->len = s->len;
+    reference->used = 1;
+
+    out->c = p;
+    out->len = s->len;
+    out->reference = reference;
+    return EJS_ERROR_OK;
+}
+
+EJS_ERROR_RET ejs_path_to_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
+{
+    for (size_t i = 0; i < s->len; i++)
+    {
+        if (s->c[i] == '/')
+        {
+            return ejs_path_to_windows_impl(s, out, reference);
+        }
+    }
+    ejs_string_set(out, s);
+    return EJS_ERROR_OK;
+}
+BOOL ejs_path_is_windows_abs(ejs_string_t *s)
+{
+    if (s->len > 1 &&
+        s->c[1] == ':' &&
+        (('a' <= s->c[0] && s->c[0] <= 'z') ||
+         ('A' <= s->c[0] && s->c[0] <= 'Z')))
+    {
+        if (s->len == 2 || s->c[2] == '\\' || s->c[2] == '/')
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+#endif

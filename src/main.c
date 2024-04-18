@@ -25,40 +25,42 @@ int main(int argc, char **argv)
     }
     // initialize core code
     duk_ret_t err = ejs_core_new(ctx, argc, argv);
-
-    // if (!core)
-    // {
-    //     duk_destroy_heap(ctx);
-    //     puts(ejs_error(err));
-    //     return -1;
-    // }
+    if (err)
+    {
+        puts(duk_safe_to_string(ctx, -1));
+        duk_destroy_heap(ctx);
+        return err;
+    }
+    ejs_core_t *core = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
     int ret = 0;
 
-    // err = ejs_core_run(core, argc, argv + 1);
-    // if (err)
-    // {
-    //     puts(ejs_error(err));
-    //     ret = -1;
-    //     goto END;
-    // }
+    // run main.js
+    err = ejs_core_run_source(core, "console.log('filename',__filename);console.log('dirname',__dirname)");
+    // err = ejs_core_run(core, argv[1]);
+    if (err)
+    {
+        puts(duk_safe_to_string(ctx, -1));
+        goto END;
+    }
 
     // dispatch event loop
-    // err = ejs_core_dispatch(core);
-    // if (err)
-    // {
-    //     if (err != EJS_ERROR_NO_EVENT)
-    //     {
-    //         puts(ejs_error(err));
-    //         ret = -1;
-    //     }
-    // }
-    // else
-    // {
-    //     ret = -1;
-    // }
+    err = ejs_core_dispatch(core);
+    if (err)
+    {
+        if (err != EJS_ERROR_NO_EVENT)
+        {
+            puts(ejs_error(err));
+            ret = -1;
+        }
+    }
+    else
+    {
+        ret = -1;
+    }
 
 END:
     // delete resources
-    // ejs_core_delete(core);
+    ejs_core_delete(core);
     return ret;
 }

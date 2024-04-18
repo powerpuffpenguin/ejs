@@ -4,11 +4,15 @@
 #include "stash.h"
 #include "config.h"
 #include "_duk.h"
+#include "duk.h"
 #include "js/tsc.h"
+#include "strings.h"
+#include "path.h"
 
 #include <stdlib.h>
 #include <string.h>
-#include "../duk/duk_console.h"
+#include <unistd.h>
+#include "../duk/duk_module_node.h"
 
 typedef struct
 {
@@ -21,22 +25,8 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
 {
     ejs_core_new_args_t *args = duk_require_pointer(ctx, 0);
     duk_pop(ctx);
-    // ejs_core_t *core = (ejs_core_t *)malloc(sizeof(ejs_core_t));
-    // if (!core)
-    // {
-    //     duk_push_error_object(ctx, DUK_ERR_ERROR, ejs_error(EJS_ERROR_MALLOC));
-    //     duk_throw(ctx);
-    // }
-    // memset(core, 0, sizeof(ejs_core_t));
-    // core->base = event_base_new();
-    // if (!core->base)
-    // {
-    //     duk_push_error_object(ctx, DUK_ERR_ERROR, ejs_error(EJS_ERROR_EVENT_BASE_NEW));
-    //     duk_throw(ctx);
-    // }
 
     duk_push_heap_stash(ctx);
-
     // ejs
     duk_eval_lstring(ctx, js_ejs_js_tsc_min_js, js_ejs_js_tsc_min_js_len);
     {
@@ -55,15 +45,41 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
     }
     duk_dup_top(ctx);
     duk_put_prop_lstring(ctx, -3, EJS_STASH_EJS);
+
+    // Error
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_ERROR);
+    duk_put_prop_lstring(ctx, -3, EJS_STASH_EJS_ERROR);
+
     // ejs to global
     duk_put_global_lstring(ctx, EJS_STASH_EJS);
 
-    // console
-    duk_console_init(ctx, 0);
+    // module init
+    duk_push_object(ctx);
+    duk_put_prop_lstring(ctx, -2, EJS_STASH_MODULE);
 
-    _ejs_dump_context_stdout(ctx);
+    // console module
+    _ejs_init(ctx);
 
-    return 0;
+    // core
+    ejs_core_t *core = (ejs_core_t *)malloc(sizeof(ejs_core_t));
+    if (!core)
+    {
+        ejs_throw_cause(ctx, EJS_ERROR_MALLOC, ejs_error(EJS_ERROR_MALLOC));
+    }
+    memset(core, 0, sizeof(ejs_core_t));
+    args->core = core;
+    core->duk = args->ctx;
+    core->base = event_base_new();
+    if (!core->base)
+    {
+        ejs_throw_cause(ctx, EJS_ERROR_EVENT_BASE_NEW, ejs_error(EJS_ERROR_EVENT_BASE_NEW));
+    }
+    duk_push_pointer(ctx, core);
+    duk_put_prop_lstring(ctx, -2, EJS_STASH_CORE);
+
+    // ejs_dump_context_stdout(ctx);
+    duk_push_pointer(ctx, core);
+    return 1;
 }
 duk_ret_t ejs_core_new(duk_context *ctx, int argc, char **argv)
 {
@@ -88,15 +104,16 @@ duk_ret_t ejs_core_new(duk_context *ctx, int argc, char **argv)
         return err;
     }
 
-    duk_eval_string(ctx,
-                    "var e=new ejs.Error('abc',{cause:123});"
-                    "console.log(ejs.os);"
-                    "ejs.os='abc';"
-                    "console.log(ejs.os);"
-                    "");
+    // duk_eval_string(ctx,
+    //                 "var e=new ejs.Error('abc',{cause:123});"
+    //                 "console.log(ejs.os);"
+    //                 "ejs.os='abc';"
+    //                 "console.log(ejs.os);"
+    //                 "");
+
     // duk_eval_string(ctx,
     //                 "class a{}");
-    _ejs_dump_context_stdout(ctx);
+    // ejs_dump_context_stdout(ctx);
     //     ejs_core_t *core = (ejs_core_t *)malloc(sizeof(ejs_core_t));
     //     if (!core)
     //     {
@@ -148,7 +165,8 @@ duk_ret_t ejs_core_new(duk_context *ctx, int argc, char **argv)
     //     return core;
     // ERR:
     //     ejs_core_delete(core);
-    return EJS_ERROR_OK;
+    // return EJS_ERROR_OK;
+    return DUK_EXEC_SUCCESS;
 }
 void ejs_core_delete(ejs_core_t *core)
 {
@@ -157,7 +175,7 @@ void ejs_core_delete(ejs_core_t *core)
     free(core);
 }
 
-EJS_ERROR_RET ejs_core_dispatch(ejs_core_t *core)
+duk_ret_t ejs_core_dispatch(ejs_core_t *core)
 {
     int err = event_base_dispatch(core->base);
     if (err == 0)
@@ -166,10 +184,163 @@ EJS_ERROR_RET ejs_core_dispatch(ejs_core_t *core)
     }
     return err > 0 ? EJS_ERROR_NO_EVENT : EJS_ERROR_NO_EVENT_BASE_DISPATCH;
 }
-EJS_ERROR_RET ejs_core_run(ejs_core_t *core, int argc, char **argv)
+duk_ret_t ejs_core_run(ejs_core_t *core, const char *path)
 {
 
     // duk_peval_string(core->duk, "try{var m=require('./a.js');console.log(m)}catch(e){console.log('error:',e,e.message);throw e}");
-    _ejs_dump_context_stdout(core->duk);
+    ejs_dump_context_stdout(core->duk);
     return EJS_ERROR_OK;
+}
+typedef struct
+{
+    const char *path;
+    const char *source;
+    size_t len;
+
+    ejs_string_t path_s;
+    ejs_stirng_reference_t path_r;
+#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
+    ejs_stirng_reference_t path_windows_r;
+#endif
+} ejs_core_run_source_t;
+
+static duk_ret_t ejs_core_get_path_impl(duk_context *ctx)
+{
+    ejs_core_run_source_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_ARGS);
+    if (duk_is_array(ctx, -1) && duk_get_length(ctx, -1) >= 2)
+    {
+        duk_swap_top(ctx, -3);
+        duk_pop_2(ctx);
+
+        duk_get_prop_index(ctx, -1, 1);
+        duk_swap_top(ctx, -2);
+        duk_pop(ctx);
+        size_t len;
+        const char *path = duk_get_lstring(ctx, -1, &len);
+        ejs_string_set_lstring(&args->path_s, path, len);
+    }
+    else
+    {
+        duk_pop_3(ctx);
+    }
+#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
+    int err = ejs_path_from_windows(&args->path_s, &args->path_s, &args->path_windows_r);
+    if (err)
+    {
+        ejs_throw_cause(ctx, err, ejs_error(err));
+    }
+#endif
+#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
+    if (ejs_path_is_windows_abs(&args->path_s))
+    {
+        args->path_s.c += 2;
+        args->path_s.len -= 2;
+#else
+    if (args->path_s.len > 0 && args->path_s.c[0] == '/')
+    {
+#endif
+        EJS_CONST_LSTRING(s, "", 0);
+        ejs_stirng_reference_t r;
+
+        EJS_ERROR_RET err = ejs_path_clean(&args->path_s, &s, &r);
+        if (err)
+        {
+            ejs_throw_cause(ctx, err, ejs_error(err));
+        }
+
+        if (args->path_s.len != s.len || memcpy(args->path_s.c, s.c, s.len))
+        {
+            duk_pop(ctx);
+#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
+            duk_push_lstring(ctx, args->path_s.c - 2, 2);
+            duk_push_lstring(ctx, s.c, s.len);
+            duk_concat(ctx, 2);
+#else
+            duk_push_lstring(ctx, s.c, s.len);
+#endif
+        }
+        ejs_string_destory(&s);
+        return 1;
+    }
+    if (args->path_s.len == 0)
+    {
+        ejs_string_destory(&args->path_s);
+    }
+
+    char dir[MAXPATHLEN];
+    if (!getcwd(dir, MAXPATHLEN))
+    {
+        ejs_throw_cause_format(ctx, EJS_ERROR_GETCWD, "getcwd error(%d): %s", errno, strerror(errno));
+    }
+    size_t len = strlen(dir);
+#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
+    for (size_t i = 0; i < len; i++)
+    {
+        if (dir[i] == '\\')
+        {
+            dir[i] == '/';
+        }
+    }
+#endif
+    duk_push_lstring(ctx, dir, len);
+    while (args->path_s.len >= 2 && args->path_s.c[0] == '.' && args->path_s.c[1] == '/')
+    {
+        args->path_s.c += 2;
+        args->path_s.len -= 2;
+    }
+    if (args->path_s.len == 0)
+    {
+        return 1;
+    }
+    duk_idx_t count = 2;
+    if (dir[len - 1] != '/' && args->path_s.c[0] != '/')
+    {
+        duk_push_lstring(ctx, "/", 1);
+        count++;
+    }
+    duk_push_lstring(ctx, args->path_s.c, args->path_s.len);
+    duk_concat(ctx, count);
+
+    return 1;
+}
+
+static duk_ret_t ejs_core_run_path_source_impl(duk_context *ctx)
+{
+    ejs_core_run_source_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    duk_push_lstring(ctx, args->source, args->len);
+    duk_module_node_peval_main(ctx, args->path);
+    return 1;
+}
+static duk_ret_t ejs_core_run_source_impl(duk_context *ctx)
+{
+    ejs_core_run_source_t *args = duk_require_pointer(ctx, -1);
+
+    duk_push_c_lightfunc(ctx, ejs_core_get_path_impl, 1, 1, 0);
+    duk_swap_top(ctx, -2);
+    duk_call(ctx, 1);
+
+    args->path = duk_get_string(ctx, -1);
+
+    duk_push_c_lightfunc(ctx, ejs_core_run_path_source_impl, 1, 1, 0);
+    duk_push_pointer(ctx, args);
+
+    duk_call(ctx, 1);
+    return 1;
+}
+duk_ret_t ejs_core_run_source(ejs_core_t *core, const char *source)
+{
+    EJS_VAR_TYPE(ejs_core_run_source_t, args);
+    args.source = source;
+    args.len = strlen(source);
+    duk_push_c_lightfunc(core->duk, ejs_core_run_source_impl, 1, 1, 0);
+    duk_push_pointer(core->duk, &args);
+    duk_ret_t err = duk_pcall(core->duk, 1);
+    ejs_string_destory(&args.path_s);
+    return err;
 }

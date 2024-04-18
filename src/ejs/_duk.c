@@ -7,13 +7,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include "config.h"
-
-void _ejs_dump_context_stdout(duk_context *ctx)
-{
-    duk_push_context_dump(ctx);
-    fprintf(stdout, "%s\n", duk_safe_to_string(ctx, -1));
-    duk_pop(ctx);
-}
+#include "duk.h"
 
 typedef struct
 {
@@ -36,8 +30,8 @@ static duk_ret_t cb_resolve_module_impl(duk_context *ctx)
     EJS_CONST_LSTRING(requested_id, c, len);
     EJS_CONST_LSTRING(path, "", 0);
     ejs_stirng_reference_t reference;
-    _ejs_dump_context_stdout(ctx);
-    EJS_ERROR_RET err = ejs_path_clean(&requested_id, &path, &reference);
+    ejs_dump_context_stdout(ctx);
+    duk_ret_t err = ejs_path_clean(&requested_id, &path, &reference);
     if (err)
     {
         duk_push_error_object(ctx, DUK_ERR_ERROR, ejs_error(err));
@@ -115,7 +109,7 @@ static duk_ret_t cb_resolve_module(duk_context *ctx)
     {
         duk_throw(ctx);
     }
-    // _ejs_dump_context_stdout(ctx);
+    // ejs_dump_context_stdout(ctx);
     return 1; /*nrets*/
 }
 
@@ -208,11 +202,11 @@ static duk_ret_t cb_load_module(duk_context *ctx)
     duk_pop_2(ctx);
     duk_ret_t ret = cb_load_module_js(ctx);
 
-    _ejs_dump_context_stdout(ctx);
+    ejs_dump_context_stdout(ctx);
 
     return ret; /*nrets*/
 }
-duk_ret_t _ejs_init(duk_context *ctx)
+void _ejs_init(duk_context *ctx)
 {
     duk_console_init(ctx, 0);
 
@@ -222,7 +216,4 @@ duk_ret_t _ejs_init(duk_context *ctx)
     duk_push_c_function(ctx, cb_load_module, DUK_VARARGS);
     duk_put_prop_string(ctx, -2, "load");
     duk_module_node_init(ctx);
-
-    duk_push_int(ctx, EJS_ERROR_OK);
-    return 0;
 }
