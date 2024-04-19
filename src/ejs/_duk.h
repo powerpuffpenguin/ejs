@@ -4,7 +4,6 @@
 
 void _ejs_init(duk_context *ctx);
 
-// ... string ... -> ... string
-void _ejs_path_clean(duk_context *ctx);
+
 
 #endif

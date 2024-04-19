@@ -35,12 +35,34 @@ void ejs_throw_cause_format(duk_context *ctx, EJS_ERROR_RET cause, const char *f
     va_start(ap, fmt);
     duk_push_vsprintf(ctx, fmt, ap);
     va_end(ap);
-    ejs_dump_context_stdout(ctx);
 
     duk_push_object(ctx);
     duk_push_int(ctx, cause);
     duk_put_prop_lstring(ctx, -2, "cause", 5);
     duk_new(ctx, 2);
+    duk_throw(ctx);
+}
+void ejs_throw_os(duk_context *ctx, int err, const char *message)
+{
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_OS_ERROR);
+    duk_push_int(ctx, err);
+    duk_push_string(ctx, message);
+    duk_new(ctx, 2);
+    duk_throw(ctx);
+}
+void ejs_throw_os_format(duk_context *ctx, int err, const char *fmt, ...)
+{
+    va_list ap;
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_OS_ERROR);
+    duk_push_int(ctx, err);
+
+    va_start(ap, fmt);
+    duk_push_vsprintf(ctx, fmt, ap);
+    va_end(ap);
+
     duk_throw(ctx);
 }
 duk_bool_t ejs_filepath_is_abs(duk_context *ctx, duk_idx_t idx)
@@ -184,7 +206,7 @@ static duk_ret_t ejs_filepath_abs_impl(duk_context *ctx)
     char *dir = malloc(MAXPATHLEN);
     if (!dir)
     {
-        ejs_throw_cause(ctx, EJS_ERROR_MALLOC, ejs_error(EJS_ERROR_MALLOC));
+        ejs_throw_os(ctx, errno, strerror(errno));
     }
     args->dir_r.c = dir;
     args->dir_r.len = MAXPATHLEN;

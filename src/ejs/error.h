@@ -2,14 +2,13 @@
 #define _EMBEDDED_JS_ERROR_H_
 #include <stdint.h>
 #include "../duk/duktape.h"
-#define EJS_ERROR_RET duk_ret_t
+#define EJS_ERROR_RET size_t
 
-const char *ejs_error(const duk_ret_t err);
+const char *ejs_error(const size_t err);
 
-#define EJS_SAFE_SET_ERROR(p, err) \
-    if (p)                         \
-    *p = (err)
 #define EJS_ERROR_OK 0
+#define EJS_ERROR_OS 1
+#define EJS_ERROR_SHORT_READ 20
 
 #define EJS_ERROR_MALLOC 100
 #define EJS_ERROR_GETCWD 101

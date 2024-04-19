@@ -13,6 +13,9 @@ void ejs_dump_context_stdout(duk_context *ctx);
 void ejs_throw_cause(duk_context *ctx, EJS_ERROR_RET cause, const char *message);
 void ejs_throw_cause_format(duk_context *ctx, EJS_ERROR_RET cause, const char *fmt, ...);
 
+void ejs_throw_os(duk_context *ctx, int err, const char *message);
+void ejs_throw_os_format(duk_context *ctx, int err, const char *fmt, ...);
+
 /**
  * * ok  ... -> ... retval
  * * err  ...

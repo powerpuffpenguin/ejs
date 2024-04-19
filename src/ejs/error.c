@@ -6,6 +6,11 @@ const char *ejs_error(const EJS_ERROR_RET err)
     {
     case EJS_ERROR_OK:
         return "ok";
+    case EJS_ERROR_OS:
+        return "os error";
+
+    case EJS_ERROR_SHORT_READ:
+        return "short read";
 
     case EJS_ERROR_MALLOC:
         return "malloc fail";

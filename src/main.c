@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "ejs/core.h"
+#include "ejs/utils.h"
 #include "ejs/error.h"
 
 int main(int argc, char **argv)
@@ -23,8 +24,14 @@ int main(int argc, char **argv)
         puts("duk_create_heap_default fail");
         return -1;
     }
+
+    // set options
+    EJS_VAR_TYPE(ejs_core_options_t, opts);
+    opts.argc = argc;
+    opts.argv = argv;
+
     // initialize core code
-    duk_ret_t err = ejs_core_new(ctx, argc, argv);
+    duk_ret_t err = ejs_core_new(ctx, &opts);
     if (err)
     {
         puts(duk_safe_to_string(ctx, -1));
@@ -36,8 +43,8 @@ int main(int argc, char **argv)
     int ret = 0;
 
     // run main.js
-    err = ejs_core_run_source(core, "console.log('filename',__filename);console.log('dirname',__dirname)");
-    // err = ejs_core_run(core, argv[1]);
+    // err = ejs_core_run_source(core, "console.log('ok');");
+    err = ejs_core_run(core, argv[1]);
     if (err)
     {
         puts(duk_safe_to_string(ctx, -1));

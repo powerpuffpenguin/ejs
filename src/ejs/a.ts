@@ -3,8 +3,8 @@ export class Err extends Error {
         super(message, options)
         this.cause = options?.cause
     }
-    get message() {
-        return "abc"
+    get x() {
+        return this.cause
     }
     toString() {
         return JSON.stringify({
@@ -12,4 +12,14 @@ export class Err extends Error {
             cause: this.cause,
         })
     }
+}
+class MyErr extends Err {
+    /**
+     *
+     */
+    constructor(readonly errno: any, message?: string) {
+        super(message, { cause: errno });
+        
+    }
+    get xx() { return '1' }
 }

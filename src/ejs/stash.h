@@ -6,6 +6,7 @@
 #define EJS_STASH_EJS_OS "os", 2
 #define EJS_STASH_EJS_ARCH "arch", 4
 #define EJS_STASH_EJS_ERROR "Error", 5
+#define EJS_STASH_EJS_OS_ERROR "OsError", 7
 
 #define EJS_STASH_MODULE "module", 6
 
