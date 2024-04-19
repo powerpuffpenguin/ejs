@@ -8,7 +8,13 @@ void ejs_path_dir(const ejs_string_t *path, ejs_string_t *dir);
 EJS_ERROR_RET ejs_path_join(ejs_string_t **s, int n, ejs_string_t *join, ejs_stirng_reference_t *reference);
 
 #ifdef EJS_CONFIG_SEPARATOR_WINDOWS
+/**
+ * s and out can point to the same pointer, and if the reference is valid at this time, the memory will not be reallocated but the value pointed to by s will be directly modified.
+ */
 EJS_ERROR_RET ejs_path_from_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference);
+/**
+ * s and out can point to the same pointer, and if the reference is valid at this time, the memory will not be reallocated but the value pointed to by s will be directly modified.
+ */
 EJS_ERROR_RET ejs_path_to_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference);
 BOOL ejs_path_is_windows_abs(ejs_string_t *s);
 #endif

@@ -199,14 +199,18 @@ typedef struct
 
     ejs_string_t path_s;
     ejs_stirng_reference_t path_r;
+
+    ejs_string_t abs_s;
+    ejs_stirng_reference_t abs_r;
+
 #ifdef EJS_CONFIG_SEPARATOR_WINDOWS
     ejs_stirng_reference_t path_windows_r;
+    ejs_stirng_reference_t path_windows_abs_r;
 #endif
 } ejs_core_run_source_t;
 
 static duk_ret_t ejs_core_get_path_impl(duk_context *ctx)
 {
-    ejs_core_run_source_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
     duk_push_heap_stash(ctx);
@@ -220,92 +224,15 @@ static duk_ret_t ejs_core_get_path_impl(duk_context *ctx)
         duk_get_prop_index(ctx, -1, 1);
         duk_swap_top(ctx, -2);
         duk_pop(ctx);
-        size_t len;
-        const char *path = duk_get_lstring(ctx, -1, &len);
-        ejs_string_set_lstring(&args->path_s, path, len);
     }
     else
     {
         duk_pop_3(ctx);
+        duk_push_lstring(ctx, "", 0);
     }
-#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
-    int err = ejs_path_from_windows(&args->path_s, &args->path_s, &args->path_windows_r);
-    if (err)
-    {
-        ejs_throw_cause(ctx, err, ejs_error(err));
-    }
-#endif
-#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
-    if (ejs_path_is_windows_abs(&args->path_s))
-    {
-        args->path_s.c += 2;
-        args->path_s.len -= 2;
-#else
-    if (args->path_s.len > 0 && args->path_s.c[0] == '/')
-    {
-#endif
-        EJS_CONST_LSTRING(s, "", 0);
-        ejs_stirng_reference_t r;
+    ejs_filepath_abs(ctx, -1);
 
-        EJS_ERROR_RET err = ejs_path_clean(&args->path_s, &s, &r);
-        if (err)
-        {
-            ejs_throw_cause(ctx, err, ejs_error(err));
-        }
-
-        if (args->path_s.len != s.len || memcpy(args->path_s.c, s.c, s.len))
-        {
-            duk_pop(ctx);
-#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
-            duk_push_lstring(ctx, args->path_s.c - 2, 2);
-            duk_push_lstring(ctx, s.c, s.len);
-            duk_concat(ctx, 2);
-#else
-            duk_push_lstring(ctx, s.c, s.len);
-#endif
-        }
-        ejs_string_destory(&s);
-        return 1;
-    }
-    if (args->path_s.len == 0)
-    {
-        ejs_string_destory(&args->path_s);
-    }
-
-    char dir[MAXPATHLEN];
-    if (!getcwd(dir, MAXPATHLEN))
-    {
-        ejs_throw_cause_format(ctx, EJS_ERROR_GETCWD, "getcwd error(%d): %s", errno, strerror(errno));
-    }
-    size_t len = strlen(dir);
-#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
-    for (size_t i = 0; i < len; i++)
-    {
-        if (dir[i] == '\\')
-        {
-            dir[i] == '/';
-        }
-    }
-#endif
-    duk_push_lstring(ctx, dir, len);
-    while (args->path_s.len >= 2 && args->path_s.c[0] == '.' && args->path_s.c[1] == '/')
-    {
-        args->path_s.c += 2;
-        args->path_s.len -= 2;
-    }
-    if (args->path_s.len == 0)
-    {
-        return 1;
-    }
-    duk_idx_t count = 2;
-    if (dir[len - 1] != '/' && args->path_s.c[0] != '/')
-    {
-        duk_push_lstring(ctx, "/", 1);
-        count++;
-    }
-    duk_push_lstring(ctx, args->path_s.c, args->path_s.len);
-    duk_concat(ctx, count);
-
+    ejs_dump_context_stdout(ctx);
     return 1;
 }
 
@@ -341,6 +268,13 @@ duk_ret_t ejs_core_run_source(ejs_core_t *core, const char *source)
     duk_push_c_lightfunc(core->duk, ejs_core_run_source_impl, 1, 1, 0);
     duk_push_pointer(core->duk, &args);
     duk_ret_t err = duk_pcall(core->duk, 1);
-    ejs_string_destory(&args.path_s);
+    if (args.path_s.reference)
+    {
+        ejs_string_destory(&args.path_s);
+    }
+    if (args.abs_s.reference)
+    {
+        ejs_string_destory(&args.abs_s);
+    }
     return err;
 }

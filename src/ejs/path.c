@@ -155,11 +155,12 @@ static EJS_ERROR_RET ejs_path_clean_impl(ejs_string_t *path, ejs_string_t *out_p
     }
     if (out.buf)
     {
+        size_t len = path->len;
         ejs_string_set_lstring(out_path, out.buf, out.w);
         out_path->reference = reference;
         reference->used = 1;
         reference->c = out.buf;
-        reference->len = path->len;
+        reference->len = len;
     }
     else
     {
@@ -218,13 +219,26 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, int n, ejs_string_t *join, ejs_sti
 #ifdef EJS_CONFIG_SEPARATOR_WINDOWS
 static EJS_ERROR_RET ejs_path_from_windows_impl(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
 {
+    size_t len = s->len;
+    if (s == out && s->reference)
+    {
+        for (size_t i = 0; i < len; i++)
+        {
+            if (s->c[i] == '\\')
+            {
+                s->c[i] = '/';
+            }
+        }
+        return EJS_ERROR_OK;
+    }
+
     char *p = malloc(s->len);
     if (!p)
     {
         return EJS_ERROR_MALLOC;
     }
-    memcpy(p, s->c, s->len);
-    for (size_t i = 0; i < s->len; i++)
+    memcpy(p, s->c, len);
+    for (size_t i = 0; i < len; i++)
     {
         if (p[i] == '\\')
         {
@@ -234,11 +248,11 @@ static EJS_ERROR_RET ejs_path_from_windows_impl(ejs_string_t *s, ejs_string_t *o
 
     ejs_string_destory(out);
     reference->c = p;
-    reference->len = s->len;
+    reference->len = len;
     reference->used = 1;
 
     out->c = p;
-    out->len = s->len;
+    out->len = len;
     out->reference = reference;
     return EJS_ERROR_OK;
 }
@@ -257,13 +271,26 @@ EJS_ERROR_RET ejs_path_from_windows(ejs_string_t *s, ejs_string_t *out, ejs_stir
 }
 static EJS_ERROR_RET ejs_path_to_windows_impl(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
 {
+    size_t len = s->len;
+    if (s == out && s->reference)
+    {
+        for (size_t i = 0; i < len; i++)
+        {
+            if (s->c[i] == '/')
+            {
+                s->c[i] = '\\';
+            }
+        }
+        return EJS_ERROR_OK;
+    }
+
     char *p = malloc(s->len);
     if (!p)
     {
         return EJS_ERROR_MALLOC;
     }
-    memcpy(p, s->c, s->len);
-    for (size_t i = 0; i < s->len; i++)
+    memcpy(p, s->c, len);
+    for (size_t i = 0; i < len; i++)
     {
         if (p[i] == '/')
         {
@@ -273,11 +300,11 @@ static EJS_ERROR_RET ejs_path_to_windows_impl(ejs_string_t *s, ejs_string_t *out
 
     ejs_string_destory(out);
     reference->c = p;
-    reference->len = s->len;
+    reference->len = len;
     reference->used = 1;
 
     out->c = p;
-    out->len = s->len;
+    out->len = len;
     out->reference = reference;
     return EJS_ERROR_OK;
 }
