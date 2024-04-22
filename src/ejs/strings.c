@@ -69,20 +69,20 @@ void ejs_string_set(ejs_string_t *l, ejs_string_t *r)
         l->reference->used++;
     }
 }
-void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t offset, size_t n)
+void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t start, size_t end)
 {
     if (sub == s)
     {
-        sub->len = n;
-        sub->c += offset;
+        sub->len = end - start;
+        sub->c += start;
         return;
     }
     if (sub->reference)
     {
         ejs_string_destory(sub);
     }
-    sub->c = s->c + offset;
-    sub->len = n;
+    sub->c = s->c + start;
+    sub->len = end - start;
     sub->reference = s->reference;
     if (sub->reference)
     {

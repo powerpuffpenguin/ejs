@@ -188,23 +188,41 @@ static int lastSlash(const ejs_string_t *s)
     }
     return i;
 }
-void ejs_path_dir(const ejs_string_t *path, ejs_string_t *dir)
+void ejs_path_split(const ejs_string_t *path, ejs_string_t *dir, ejs_string_t *file)
 {
-    int i = lastSlash(path);
-    if (i == 0)
+    if (dir == file)
     {
-        ejs_string_set_lstring(dir, "", 0);
+        dir = 0;
     }
-    else
+    int i = lastSlash(path);
+    if (dir)
     {
+        if (file)
+        {
+            if (file == path)
+            {
+                ejs_string_substr(dir, path, 0, i + 1);
+                ejs_string_substr(file, path, i + 1, path->len);
+                return;
+            }
+            else
+            {
+                ejs_string_substr(file, path, i + 1, path->len);
+            }
+        }
         ejs_string_substr(dir, path, 0, i + 1);
+        return;
+    }
+    if (file)
+    {
+        ejs_string_substr(file, path, i + 1, path->len);
     }
 }
 
-EJS_ERROR_RET ejs_path_join(ejs_string_t **s, int n, ejs_string_t *join, ejs_stirng_reference_t *reference)
+EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_stirng_reference_t *reference)
 {
-    int size = 0;
-    for (int i = 0; i < n; i++)
+    size_t size = 0;
+    for (size_t i = 0; i < n; i++)
     {
         size += s[i]->len;
     }

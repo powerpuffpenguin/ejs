@@ -41,6 +41,7 @@
         "__tree": "c",
         "__tuple": "c",
         "limits": "c",
-        "utils.h": "c"
+        "utils.h": "c",
+        "iosfwd": "c"
     }
 }
