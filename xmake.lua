@@ -6,6 +6,7 @@ set_languages("c99")
 
 add_requires("libevent ~2.1.12")
 
+
 add_repositories("local-repo third_party_repo")
 add_requires("wolfssl ~5.6.6")
 
@@ -17,7 +18,28 @@ target("ejs")
     set_kind("binary")
     add_files("src/duk/*.c")
     add_files("src/ejs/*.c")
-    add_files("src/*.c")
+    add_files("src/main.c")
+    if not is_arch("x86_64") then
+        add_ldflags("-static", {force = true})
+    end
+     if is_mode("debug") then
+        add_defines("DEBUG")
+    end
+    if plat ~= nil then 
+        add_defines('EJS_CONFIG_OS="'..plat..'", '..plat:len())
+    end
+        if arch ~= nil then 
+        add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
+    end
+    add_packages("libevent","wolfssl")
+
+target("ejs_test")
+    set_kind("binary")
+    add_files("src/duk/*.c")
+    add_files("src/ejs/*.c")
+    add_files("src/ejs_test/*.c")
+    add_files("src/cutest/CuTest.c")
+    add_files("src/main_test.c")
     if not is_arch("x86_64") then
         add_ldflags("-static", {force = true})
     end

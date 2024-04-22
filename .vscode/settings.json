@@ -25,6 +25,22 @@
         "__bit_reference": "c",
         "map": "c",
         "unordered_map": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "path.h": "c",
+        "ejs": "c",
+        "array": "c",
+        "functional": "c",
+        "istream": "c",
+        "ostream": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "__functional_base": "c",
+        "__functional_base_03": "c",
+        "__hash_table": "c",
+        "__tree": "c",
+        "__tuple": "c",
+        "limits": "c",
+        "utils.h": "c"
     }
 }
