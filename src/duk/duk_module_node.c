@@ -6,7 +6,7 @@
 
 #include "duktape.h"
 #include "duk_module_node.h"
-
+#include "duk_module_node_ejs.h"
 #if DUK_VERSION >= 19999
 static duk_int_t duk__eval_module_source(duk_context *ctx, void *udata);
 #else
@@ -243,7 +243,8 @@ static duk_int_t duk__eval_module_source(duk_context *ctx) {
 	(void) duk_get_prop_string(ctx, -4, "require");   /* require */
 	duk_dup(ctx, -5);                                 /* module */
 	(void) duk_get_prop_string(ctx, -6, "filename");  /* __filename */
-	duk_push_undefined(ctx);                          /* __dirname */
+	// duk_push_undefined(ctx);                          /* __dirname */
+	ejs_duk_module_node_push_dir(ctx);
 	duk_call(ctx, 5);
 
 	/* [ ... module source result(ignore) ] */

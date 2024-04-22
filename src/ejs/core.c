@@ -183,7 +183,10 @@ static duk_ret_t ejs_core_run_path_source_impl(duk_context *ctx)
     ejs_core_run_source_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
     duk_push_lstring(ctx, args->source, args->len);
-    duk_module_node_peval_main(ctx, args->path);
+    if (duk_module_node_peval_main(ctx, args->path))
+    {
+        duk_throw(ctx);
+    }
     return 1;
 }
 static duk_ret_t ejs_core_run_source_impl(duk_context *ctx)
