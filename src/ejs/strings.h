@@ -30,7 +30,7 @@ void ejs_string_println(ejs_string_t *s);
     ejs_string_t s;               \
     ejs_stirng_reference_t r;     \
     ejs_string_init(&s, c, len, &r)
-void ejs_string_set(ejs_string_t *l, ejs_string_t *r);
+void ejs_string_set(ejs_string_t *l, const ejs_string_t *r);
 void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t start, size_t end);
 void ejs_string_set_string(ejs_string_t *s, const char *c);
 void ejs_string_set_lstring(ejs_string_t *s, const char *c, size_t len);

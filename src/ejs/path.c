@@ -170,13 +170,16 @@ static EJS_ERROR_RET ejs_path_clean_impl(ejs_string_t *path, ejs_string_t *out_p
 }
 EJS_ERROR_RET ejs_path_clean(const ejs_string_t *path, ejs_string_t *out_path, ejs_stirng_reference_t *reference)
 {
-    ejs_string_t tmp = *path;
+    EJS_VAR_TYPE(ejs_string_t, tmp);
+    ejs_string_set(&tmp, path);
     while (tmp.len >= 2 && tmp.c[0] == '.' && tmp.c[1] == '/')
     {
         tmp.c += 2;
         tmp.len -= 2;
     }
-    return ejs_path_clean_impl(&tmp, out_path, reference);
+    EJS_ERROR_RET ret = ejs_path_clean_impl(&tmp, out_path, reference);
+    ejs_string_destory(&tmp);
+    return ret;
 }
 
 static int lastSlash(const ejs_string_t *s)
@@ -224,7 +227,10 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_
     size_t size = 0;
     for (size_t i = 0; i < n; i++)
     {
-        size += s[i]->len;
+        if (s[i])
+        {
+            size += s[i]->len;
+        }
     }
     if (size == 0)
     {
@@ -232,6 +238,47 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_
         return EJS_ERROR_OK;
     }
 
+    char *buf = malloc(size + n - 1);
+    if (!buf)
+    {
+        return EJS_ERROR_MALLOC;
+    }
+    size_t len = 0;
+    for (size_t i = 0; i < n; i++)
+    {
+        if (len > 0 || (s[i] && s[i]->len))
+        {
+            if (len > 0)
+            {
+                buf[len++] = '/';
+            }
+            if (s[i]->len)
+            {
+                memmove(buf + len, s[i]->c, s[i]->len);
+                len += s[i]->len;
+            }
+        }
+    }
+    ejs_string_destory(join);
+    join->c = buf;
+    join->len = len;
+    join->reference = reference;
+    reference->c = buf;
+    reference->len = size + n - 1;
+    reference->used = 1;
+
+    ejs_stirng_reference_t r;
+    EJS_ERROR_RET err = ejs_path_clean(join, join, &r);
+    if (err)
+    {
+        ejs_string_destory(join);
+        return err;
+    }
+    if (join->reference == &r)
+    {
+        join->reference = reference;
+        *reference = r;
+    }
     return EJS_ERROR_OK;
 }
 #ifdef EJS_CONFIG_SEPARATOR_WINDOWS

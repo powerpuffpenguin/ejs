@@ -51,7 +51,7 @@ void ejs_string_println(ejs_string_t *s)
     }
     printf("\n");
 }
-void ejs_string_set(ejs_string_t *l, ejs_string_t *r)
+void ejs_string_set(ejs_string_t *l, const ejs_string_t *r)
 {
     if (l == r)
     {
