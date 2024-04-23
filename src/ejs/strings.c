@@ -20,7 +20,7 @@ void ejs_string_init(ejs_string_t *s, const char *c, size_t len, ejs_stirng_refe
     }
 }
 
-void ejs_string_destory(ejs_string_t *s)
+void ejs_string_destroy(ejs_string_t *s)
 {
     ejs_stirng_reference_t *r = s->reference;
     if (r)
@@ -59,7 +59,7 @@ void ejs_string_set(ejs_string_t *l, const ejs_string_t *r)
     }
     if (l->reference)
     {
-        ejs_string_destory(l);
+        ejs_string_destroy(l);
     }
     l->c = r->c;
     l->len = r->len;
@@ -79,7 +79,7 @@ void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t start, s
     }
     if (sub->reference)
     {
-        ejs_string_destory(sub);
+        ejs_string_destroy(sub);
     }
     sub->c = s->c + start;
     sub->len = end - start;
@@ -93,7 +93,7 @@ void ejs_string_set_string(ejs_string_t *s, const char *c)
 {
     if (s->reference)
     {
-        ejs_string_destory(s);
+        ejs_string_destroy(s);
     }
     s->reference = NULL;
     s->c = (char *)c;
@@ -103,7 +103,7 @@ void ejs_string_set_lstring(ejs_string_t *s, const char *c, size_t len)
 {
     if (s->reference)
     {
-        ejs_string_destory(s);
+        ejs_string_destroy(s);
     }
     s->reference = NULL;
     s->c = (char *)c;

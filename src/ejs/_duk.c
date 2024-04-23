@@ -8,108 +8,76 @@
 #include <sys/stat.h>
 #include "config.h"
 #include "duk.h"
+#include "stash.h"
 
 typedef struct
 {
-    void *path;
-    void *dir;
-    void *join;
+    ejs_string_t requested;
+    ejs_string_t parent;
+    ejs_string_t resolved;
+    ejs_stirng_reference_t r;
 } cb_resolve_module_args_t;
+void cb_resolve_module_args_destroy(cb_resolve_module_args_t *args)
+{
+    if (args->resolved.reference)
+    {
+        // EJS_STRING_DESTROY
+    }
+}
 static duk_ret_t cb_resolve_module_impl(duk_context *ctx)
 {
     cb_resolve_module_args_t *args = (cb_resolve_module_args_t *)duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
-    duk_size_t len;
-    const char *c = duk_get_lstring(ctx, 0, &len);
-    if (!len)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "require('') invalid");
-        duk_throw(ctx);
-    }
-    EJS_CONST_LSTRING(requested_id, c, len);
-    EJS_CONST_LSTRING(path, "", 0);
-    ejs_stirng_reference_t reference;
-    ejs_dump_context_stdout(ctx);
-    duk_ret_t err = ejs_path_clean(&requested_id, &path, &reference);
+    ejs_string_println(&args->parent);
+    ejs_string_println(&args->requested);
+
+    ejs_path_split(&args->parent, &args->parent, NULL);
+
+    ejs_string_t *s[2] = {&args->parent, &args->requested};
+    EJS_ERROR_RET err = ejs_path_join(s, 2, &args->resolved, &args->r);
     if (err)
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, ejs_error(err));
-        duk_throw(ctx);
-    }
-    if (path.reference)
-    {
-        args->path = path.reference->c;
-    }
-    // native module
-    if (('a' <= path.c[0] & path.c[0] <= 'z') || ('A' <= path.c[0] & path.c[0] <= 'Z'))
-    {
-        duk_push_lstring(ctx, path.c, path.len);
-        return 1;
+        ejs_throw_os(ctx, err, ejs_error(err));
     }
 
-    c = duk_get_lstring(ctx, 1, &len);
-    // no parent
-    if (!len)
-    {
-        duk_push_lstring(ctx, path.c, path.len);
-        return 1;
-    }
-    EJS_CONST_LSTRING(parent_id, c, len);
-    EJS_CONST_LSTRING(dir, "", 0);
-    ejs_path_split(&parent_id, &dir, NULL);
-    ejs_stirng_reference_t reference_dir;
-    EJS_CONST_LSTRING(clean_dir, "", 0);
-    err = ejs_path_clean(&dir, &clean_dir, &reference_dir);
-    if (err)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, ejs_error(err));
-        duk_throw(ctx);
-    }
-    if (clean_dir.reference)
-    {
-        args->dir = clean_dir.reference->c;
-    }
-
-    // join
-    ejs_string_t *elem[2];
-    elem[0] = &clean_dir;
-    elem[1] = &path;
-    EJS_CONST_LSTRING(join, "", 0);
-    ejs_stirng_reference_t reference_join;
-    err = ejs_path_join(elem, 2, &join, &reference_join);
-    if (err)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, ejs_error(err));
-        duk_throw(ctx);
-    }
-    if (join.reference)
-    {
-        args->dir = join.reference->c;
-    }
-    duk_push_lstring(ctx, join.c, join.len);
+    duk_push_lstring(ctx, args->resolved.c, args->resolved.len);
     return 1;
 }
 static duk_ret_t cb_resolve_module(duk_context *ctx)
 {
+    /*
+     *  Entry stack: [ requested_id parent_id ]
+     */
+
+    // found native
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    duk_dup(ctx, -2);
+    duk_get_prop(ctx, -2);
+
+    if (duk_is_c_function(ctx, -1))
+    {
+        duk_pop_3(ctx);
+        return 1;
+    }
+    duk_pop_2(ctx);
+
+    // abs
     EJS_VAR_TYPE(cb_resolve_module_args_t, args);
 
-    duk_push_pointer(ctx, &args);
+    duk_size_t len;
+    const char *s = duk_get_lstring(ctx, -1, &len);
+    ejs_string_set_lstring(&args.parent, s, len);
+    s = duk_get_lstring(ctx, -2, &len);
+    ejs_string_set_lstring(&args.requested, s, len);
 
-    duk_idx_t ret = duk_get_top(ctx);
-    duk_push_c_lightfunc(ctx, cb_resolve_module_impl, ret, ret, 0);
-    duk_insert(ctx, 0);
-
-    ret = duk_pcall(ctx, ret);
-    EJS_VAR_FREE(args.path);
-    EJS_VAR_FREE(args.dir);
-    EJS_VAR_FREE(args.join);
-
-    if (ret)
-    {
-        duk_throw(ctx);
-    }
-    // ejs_dump_context_stdout(ctx);
+    ejs_call_function(ctx, cb_resolve_module_impl, &args, NULL);
+    ejs_dump_context_stdout(ctx);
+    exit(1);
     return 1; /*nrets*/
 }
 
@@ -180,6 +148,7 @@ static duk_ret_t cb_load_module_js(duk_context *ctx)
 }
 static duk_ret_t cb_load_module(duk_context *ctx)
 {
+    puts("--------cb_load_module");
     /*
      *  Entry stack: [ resolved_id exports module ]
      */

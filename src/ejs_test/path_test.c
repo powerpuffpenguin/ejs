@@ -195,7 +195,7 @@ static EJS_TESTS_GROUP_FUNC(path, join, t)
         {
             CuFail(t, test->path);
         }
-        ejs_string_destory(&join);
+        ejs_string_destroy(&join);
     }
 }
 typedef struct
@@ -299,7 +299,7 @@ static EJS_TESTS_GROUP_FUNC(path, dir, t)
         {
             CuFail(t, test->path);
         }
-        ejs_string_destory(&dir);
+        ejs_string_destroy(&dir);
     }
 }
 typedef struct

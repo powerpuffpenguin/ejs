@@ -178,7 +178,7 @@ EJS_ERROR_RET ejs_path_clean(const ejs_string_t *path, ejs_string_t *out_path, e
         tmp.len -= 2;
     }
     EJS_ERROR_RET ret = ejs_path_clean_impl(&tmp, out_path, reference);
-    ejs_string_destory(&tmp);
+    ejs_string_destroy(&tmp);
     return ret;
 }
 
@@ -259,7 +259,7 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_
             }
         }
     }
-    ejs_string_destory(join);
+    ejs_string_destroy(join);
     join->c = buf;
     join->len = len;
     join->reference = reference;
@@ -271,7 +271,7 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_
     EJS_ERROR_RET err = ejs_path_clean(join, join, &r);
     if (err)
     {
-        ejs_string_destory(join);
+        ejs_string_destroy(join);
         return err;
     }
     if (join->reference == &r)
@@ -366,7 +366,7 @@ static EJS_ERROR_RET ejs_path_from_windows_impl(ejs_string_t *s, ejs_string_t *o
         }
     }
 
-    ejs_string_destory(out);
+    ejs_string_destroy(out);
     reference->c = p;
     reference->len = len;
     reference->used = 1;
@@ -418,7 +418,7 @@ static EJS_ERROR_RET ejs_path_to_windows_impl(ejs_string_t *s, ejs_string_t *out
         }
     }
 
-    ejs_string_destory(out);
+    ejs_string_destroy(out);
     reference->c = p;
     reference->len = len;
     reference->used = 1;

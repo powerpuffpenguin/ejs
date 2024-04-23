@@ -18,10 +18,10 @@ typedef struct
 } ejs_string_t;
 
 void ejs_string_init(ejs_string_t *s, const char *c, size_t len, ejs_stirng_reference_t *r);
-#define EJS_STRING_DESTORY(s) \
+#define EJS_STRING_DESTROY(s) \
     if ((s)->reference)       \
-    ejs_string_destory((s))
-void ejs_string_destory(ejs_string_t *s);
+    ejs_string_destroy((s))
+void ejs_string_destroy(ejs_string_t *s);
 void ejs_string_println(ejs_string_t *s);
 #define EJS_CONST_LSTRING(s, c, len) \
     ejs_string_t s;                  \

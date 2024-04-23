@@ -116,7 +116,7 @@ typedef struct
 } ejs_filepath_clean_args_t;
 static void ejs_filepath_clean_args_destroy(ejs_filepath_clean_args_t *args)
 {
-    EJS_STRING_DESTORY(&args->path_s);
+    EJS_STRING_DESTROY(&args->path_s);
 }
 static duk_ret_t ejs_filepath_clean_impl(duk_context *ctx)
 {
@@ -196,7 +196,7 @@ typedef struct
 } ejs_filepath_abs_args_t;
 static void ejs_filepath_abs_args_destroy(ejs_filepath_abs_args_t *args)
 {
-    EJS_STRING_DESTORY(&args->dir_s);
+    EJS_STRING_DESTROY(&args->dir_s);
 }
 static duk_ret_t ejs_filepath_abs_impl(duk_context *ctx)
 {
@@ -249,7 +249,7 @@ static duk_ret_t ejs_filepath_abs_impl(duk_context *ctx)
             args->dir_s.len += args->len + 1;
         }
         duk_push_lstring(ctx, dir, args->dir_s.len);
-        EJS_STRING_DESTORY(&args->dir_s);
+        EJS_STRING_DESTROY(&args->dir_s);
     }
     else
     {
