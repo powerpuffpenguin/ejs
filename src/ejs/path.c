@@ -281,6 +281,61 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_
     }
     return EJS_ERROR_OK;
 }
+
+void ejs_path_ext(const ejs_string_t *path, ejs_string_t *ext)
+{
+    char c;
+    for (size_t i = 0; i < path->len; i++)
+    {
+        c = path->c[path->len - 1 - i];
+        switch (c)
+        {
+        case '/':
+            ejs_string_set_lstring(ext, "", 0);
+            return;
+        case '.':
+            ejs_string_substr(ext, path, path->len - 1 - i, path->len);
+            return;
+        }
+    }
+    ejs_string_set_lstring(ext, "", 0);
+}
+void ejs_path_base(const ejs_string_t *path, ejs_string_t *base)
+{
+    if (path->len == 0)
+    {
+        ejs_string_set_lstring(base, ".", 1);
+        return;
+    }
+    ejs_string_set(base, path);
+    // Strip trailing slashes.
+    while (base->len > 0 && base->c[base->len - 1] == '/')
+    {
+        base->len--;
+    }
+    // Find the last element
+    int i = lastSlash(base);
+    if (i >= 0)
+    {
+        i++;
+        base->c += i;
+        base->len -= i;
+    }
+    if (path->len == 0)
+    {
+        ejs_string_set_lstring(base, "/", 1);
+        return;
+    }
+}
+EJS_ERROR_RET ejs_path_dir(const ejs_string_t *path, ejs_string_t *dir, ejs_stirng_reference_t *reference)
+{
+    ejs_path_split(path, dir, NULL);
+    return ejs_path_clean(dir, dir, reference);
+}
+BOOL ejs_path_is_abs(const ejs_string_t *path)
+{
+    return (path->len > 0 && path->c[0] == '/') ? TRUE : FALSE;
+}
 #ifdef EJS_CONFIG_SEPARATOR_WINDOWS
 static EJS_ERROR_RET ejs_path_from_windows_impl(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
 {

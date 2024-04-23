@@ -1,8 +1,10 @@
 #ifndef _EMBEDDED_JS_UTILS_H_
 #define _EMBEDDED_JS_UTILS_H_
 
+#include <stdint.h>
+
 #ifndef BOOL
-#define BOOL unsigned char
+#define BOOL uint8_t
 #endif
 #ifndef TRUE
 #define TRUE 1

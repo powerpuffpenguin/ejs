@@ -57,7 +57,7 @@ static duk_ret_t cb_resolve_module_impl(duk_context *ctx)
     }
     EJS_CONST_LSTRING(parent_id, c, len);
     EJS_CONST_LSTRING(dir, "", 0);
-    ejs_path_dir(&parent_id, &dir);
+    ejs_path_split(&parent_id, &dir, NULL);
     ejs_stirng_reference_t reference_dir;
     EJS_CONST_LSTRING(clean_dir, "", 0);
     err = ejs_path_clean(&dir, &clean_dir, &reference_dir);

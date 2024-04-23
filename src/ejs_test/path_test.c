@@ -198,12 +198,147 @@ static EJS_TESTS_GROUP_FUNC(path, join, t)
         ejs_string_destory(&join);
     }
 }
+typedef struct
+{
+    const char *path, *ext;
+} ext_test_t;
+
+ext_test_t exttests[] = {
+    {"path.go", ".go"},
+    {"path.pb.go", ".go"},
+    {"a.dir/b", ""},
+    {"a.dir/b.go", ".go"},
+    {"a.dir/", ""},
+};
+static EJS_TESTS_GROUP_FUNC(path, ext, t)
+{
+    size_t count = sizeof(exttests) / sizeof(ext_test_t);
+
+    EJS_VAR_TYPE(ejs_string_t, s);
+    for (size_t i = 0; i < count; i++)
+    {
+        ext_test_t *test = exttests + i;
+        ejs_string_set_lstring(&s, test->path, strlen(test->path));
+        ejs_path_ext(&s, &s);
+        if (s.len == strlen(test->ext))
+        {
+            CuAssertTrue(t, !memcmp(s.c, test->ext, s.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+    }
+}
+path_test_t basetests[] = {
+    // Already clean
+    {"", "."},
+    {".", "."},
+    {"/.", "."},
+    {"/", "/"},
+    {"////", "/"},
+    {"x/", "x"},
+    {"abc", "abc"},
+    {"abc/def", "def"},
+    {"a/b/.x", ".x"},
+    {"a/b/c.", "c."},
+    {"a/b/c.x", "c.x"},
+};
+static EJS_TESTS_GROUP_FUNC(path, base, t)
+{
+    size_t count = sizeof(basetests) / sizeof(path_test_t);
+
+    for (size_t i = 0; i < count; i++)
+    {
+        path_test_t *test = basetests + i;
+
+        EJS_CONST_LSTRING(s, test->path, strlen(test->path));
+        ejs_path_base(&s, &s);
+        if (s.len == strlen(test->result))
+        {
+            CuAssertTrue(t, !memcmp(s.c, test->result, s.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+    }
+}
+path_test_t dirtests[] = {
+    {"", "."},
+    {".", "."},
+    {"/.", "/"},
+    {"/", "/"},
+    {"////", "/"},
+    {"/foo", "/"},
+    {"x/", "x"},
+    {"abc", "."},
+    {"abc/def", "abc"},
+    {"abc////def", "abc"},
+    {"a/b/.x", "a/b"},
+    {"a/b/c.", "a/b"},
+    {"a/b/c.x", "a/b"},
+};
+static EJS_TESTS_GROUP_FUNC(path, dir, t)
+{
+    size_t count = sizeof(dirtests) / sizeof(path_test_t);
+
+    for (size_t i = 0; i < count; i++)
+    {
+        path_test_t *test = dirtests + i;
+
+        EJS_CONST_LSTRING(path, test->path, strlen(test->path));
+        ejs_stirng_reference_t r;
+        EJS_VAR_TYPE(ejs_string_t, dir);
+        CuAssertTrue(t, !ejs_path_dir(&path, &dir, &r));
+        if (dir.len == strlen(test->result))
+        {
+            CuAssertTrue(t, !memcmp(dir.c, test->result, dir.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+        ejs_string_destory(&dir);
+    }
+}
+typedef struct
+{
+    const char *path;
+    BOOL abs;
+} is_abs_t;
+is_abs_t isAbsTests[] = {
+    {"", FALSE},
+    {"/", TRUE},
+    {"/usr/bin/gcc", TRUE},
+    {"..", FALSE},
+    {"/a/../bb", TRUE},
+    {".", FALSE},
+    {"./", FALSE},
+    {"lala", FALSE},
+};
+static EJS_TESTS_GROUP_FUNC(path, is_abs, t)
+{
+    size_t count = sizeof(isAbsTests) / sizeof(is_abs_t);
+
+    EJS_VAR_TYPE(ejs_string_t, path);
+    for (size_t i = 0; i < count; i++)
+    {
+        is_abs_t *test = isAbsTests + i;
+        ejs_string_set_lstring(&path, test->path, strlen(test->path));
+        CuAssertIntEquals(t, test->abs, ejs_path_is_abs(&path));
+    }
+}
 EJS_TESTS_GROUP(path)
 {
     CuSuite *suite = CuSuiteNew();
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, clean);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, split);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, join);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, path, ext);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, path, base);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, path, dir);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, path, is_abs);
 
     return suite;
 }
