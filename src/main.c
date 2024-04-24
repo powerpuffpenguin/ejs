@@ -2,7 +2,26 @@
 #include "ejs/core.h"
 #include "ejs/utils.h"
 #include "ejs/error.h"
-
+static duk_ret_t native_debug_init(duk_context *ctx)
+{
+    /*
+     *  Entry stack: [ require exports ]
+     */
+    duk_push_string(ctx, "__ejs/debug");
+    duk_put_prop_string(ctx, -2, "name");
+    return 0;
+}
+static duk_ret_t native_debug_init2(duk_context *ctx)
+{
+    duk_push_string(ctx, "__ejs/debug2");
+    duk_put_prop_string(ctx, -2, "name");
+    return 0;
+}
+static void on_register(duk_context *ctx, ejs_register_f f)
+{
+    f(ctx, "__ejs/debug", native_debug_init);
+    f(ctx, "__ejs/debug2", native_debug_init2);
+}
 int main(int argc, const char **argv)
 {
     if (argc < 2)
@@ -34,6 +53,8 @@ int main(int argc, const char **argv)
     const char *modulev[] = {"node_modules"};
     opts.modulec = sizeof(modulev) / sizeof(const char *);
     opts.modulev = modulev;
+    // Register a custom native module in this callback
+    opts.on_register = on_register;
 
     // initialize core code
     duk_ret_t err = ejs_core_new(ctx, &opts);
@@ -48,7 +69,11 @@ int main(int argc, const char **argv)
     int ret = 0;
 
     // run main.js
-    // err = ejs_core_run_source(core, "console.log('ok',__dirname,__filename);require('./ab/../a0')");
+    err = ejs_core_run_source(core, "console.log('this is a.js');"
+                                    "console.log('__dirname', __dirname);"
+                                    "console.log('__filename', __filename);"
+                                    "console.log(require('__ejs/debug'));"
+                                    "console.log(require('__ejs/debug2'));");
     err = ejs_core_run(core, argv[1]);
     if (err)
     {

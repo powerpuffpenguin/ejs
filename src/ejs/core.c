@@ -1,10 +1,8 @@
 #include "core.h"
 #include "utils.h"
-#include "error.h"
 #include "stash.h"
 #include "config.h"
 #include "_duk.h"
-#include "duk.h"
 #include "js/tsc.h"
 #include "strings.h"
 #include "path.h"
@@ -14,6 +12,61 @@
 #include <unistd.h>
 #include "../duk/duk_module_node.h"
 
+static BOOL check_module_name(const char *name, duk_size_t *len)
+{
+    if (!name)
+    {
+        return FALSE;
+    }
+    *len = strlen(name);
+    if (*len < 1 || name[0] == '.' || name[0] == '/' || name[0] == '\\')
+    {
+        return FALSE;
+    }
+    return TRUE;
+}
+static void register_module(duk_context *ctx, const char *name, duk_c_function init)
+{
+    if (!init)
+    {
+        ejs_throw_cause_format(ctx, EJS_ERROR_INVALID_MODULE_FUNC, NULL);
+    }
+    duk_size_t len;
+    if (!check_module_name(name, &len))
+    {
+        if (name)
+        {
+            ejs_throw_cause_format(ctx, EJS_ERROR_INVALID_MODULE_NAME, "invalid module name: %s", name);
+        }
+        else
+        {
+            ejs_throw_cause_format(ctx, EJS_ERROR_INVALID_MODULE_NAME, "invalid module name: ");
+        }
+    }
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, -1, name, len);
+    if (duk_is_c_function(ctx, -1))
+    {
+        ejs_throw_cause_format(ctx, EJS_ERROR_MODULE_NAME_REPEAT, "module name repeat: %s", name);
+    }
+    duk_pop(ctx);
+    duk_push_c_lightfunc(ctx, init, 2, 2, 0);
+    duk_put_prop_lstring(ctx, -2, name, len);
+
+    duk_pop(ctx);
+}
+static duk_ret_t on_register(duk_context *ctx)
+{
+    ejs_on_register_f on_register = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    on_register(ctx, register_module);
+    return 0;
+}
 static duk_ret_t native_strerror(duk_context *ctx)
 {
     duk_push_string(ctx, strerror(duk_get_int_default(ctx, 0, 0)));
@@ -118,6 +171,14 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
     }
     duk_push_pointer(ctx, core);
     duk_put_prop_lstring(ctx, -2, EJS_STASH_CORE);
+
+    if (args->opts->on_register)
+    {
+        duk_push_c_lightfunc(ctx, on_register, 1, 1, 0);
+        duk_push_pointer(ctx, args->opts->on_register);
+        duk_call(ctx, 1);
+        duk_pop(ctx);
+    }
 
     duk_push_pointer(ctx, core);
     return 1;

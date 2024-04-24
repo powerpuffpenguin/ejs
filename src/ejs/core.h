@@ -3,6 +3,7 @@
 
 #include "dns.h"
 #include "error.h"
+#include "duk.h"
 
 #include "../duk/duktape.h"
 
@@ -17,7 +18,8 @@ extern "C"
         duk_context *duk;
         uint32_t flags;
     } ejs_core_t;
-
+    typedef void (*ejs_register_f)(duk_context *ctx, const char *name, duk_c_function init);
+    typedef void (*ejs_on_register_f)(duk_context *ctx, ejs_register_f f);
     typedef struct
     {
         // Startup parameters, usually set directly to the parameter value of the ‘main’ function
@@ -29,6 +31,9 @@ extern "C"
 
         // Use an externally created event_base. ejs_core_delete will not delete externally created event_base
         struct event_base *base;
+
+        // Register a custom native module in this callback
+        ejs_on_register_f on_register;
     } ejs_core_options_t;
 
     /**

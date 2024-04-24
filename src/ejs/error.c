@@ -28,6 +28,10 @@ DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
         return "package.json format unknow";
     case EJS_ERROR_MODULE_PACKAGE_READ_FAIL:
         return "an exception occurred while reading the package.json";
+    case EJS_ERROR_MODULE_NAME_REPEAT:
+        return "module name repeat";
+    case EJS_ERROR_INVALID_MODULE_FUNC:
+        return "invalid module init func";
 
     case EJS_ERROR_MALLOC:
         return "malloc fail";

@@ -221,6 +221,15 @@ static duk_ret_t read_package_impl(duk_context *ctx)
     {
         return 1;
     }
+    else if (duk_is_array(ctx, -1) && duk_get_length(ctx, -1) == 1)
+    {
+        duk_get_prop_index(ctx, -1, 0);
+        if (!duk_is_string(ctx, -1))
+        {
+            ejs_throw_cause(ctx, EJS_ERROR_MODULE_UNKNOW_PACKAGE, NULL);
+        }
+        return 1;
+    }
     duk_pop_2(ctx);
     duk_push_lstring(ctx, "index.js", 8);
     return 1;
@@ -351,6 +360,7 @@ static duk_ret_t cb_resolve_module(duk_context *ctx)
     {
         return cb_resolve_module_relative(ctx);
     }
+
     // found native
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE);
@@ -359,7 +369,7 @@ static duk_ret_t cb_resolve_module(duk_context *ctx)
 
     duk_dup(ctx, -3);
     duk_get_prop(ctx, -2);
-    if (duk_is_c_function(ctx, -1))
+    if (duk_is_lightfunc(ctx, -1))
     {
         duk_pop_3(ctx);
         return 1;
@@ -418,8 +428,6 @@ static duk_ret_t cb_load_module_js(duk_context *ctx)
 }
 static duk_ret_t cb_load_module(duk_context *ctx)
 {
-    puts("--------cb_load_module");
-    ejs_dump_context_stdout(ctx);
     /*
      *  Entry stack: [ resolved_id exports module ]
      */
@@ -438,15 +446,29 @@ static duk_ret_t cb_load_module(duk_context *ctx)
         duk_pop_2(ctx);
         return cb_load_module_js(ctx);
     }
-    puts("not abs");
-    exit(1);
-    // // load external module
-    // duk_pop_2(ctx);
-    // duk_ret_t ret = cb_load_module_js(ctx);
 
-    // ejs_dump_context_stdout(ctx);
+    // found native
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
 
-    return 0; /*nrets*/
+    duk_dup(ctx, 0);
+    duk_get_prop(ctx, -2);
+    if (!duk_is_lightfunc(ctx, -1))
+    {
+        ejs_throw_cause_format(ctx, EJS_ERROR_INVALID_MODULE_FUNC, NULL);
+    }
+    duk_swap_top(ctx, 0);
+
+    duk_get_prop_lstring(ctx, 2, "require", 7);
+    duk_swap_top(ctx, 2);
+    duk_swap(ctx, 1, 2);
+
+    duk_pop_3(ctx);
+
+    duk_call(ctx, 2);
+    return 0;
 }
 void _ejs_init(duk_context *ctx)
 {
