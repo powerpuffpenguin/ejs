@@ -42,6 +42,7 @@
         "__tuple": "c",
         "limits": "c",
         "utils.h": "c",
-        "iosfwd": "c"
+        "iosfwd": "c",
+        "set": "c"
     }
 }

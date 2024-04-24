@@ -18,8 +18,16 @@ const char *ejs_error(const EJS_ERROR_RET err)
         return "invalid module file";
     case EJS_ERROR_LARGE_MODULE:
         return "module size exceeds  limit";
-        case EJS_ERROR_MODULE_READ_FAIL:
+    case EJS_ERROR_MODULE_READ_FAIL:
         return "an exception occurred while reading the module";
+    case EJS_ERROR_MODULE_NOT_EXISTS:
+        return "module not exists";
+    case EJS_ERROR_MODULE_NO_PACKAGE:
+        return "not found package.json";
+    case EJS_ERROR_MODULE_UNKNOW_PACKAGE:
+        return "package.json format unknow";
+    case EJS_ERROR_MODULE_PACKAGE_READ_FAIL:
+        return "an exception occurred while reading the package.json";
 
     case EJS_ERROR_MALLOC:
         return "malloc fail";

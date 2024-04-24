@@ -12,4 +12,7 @@
 #define EJS_STASH_FOUND "found", 5
 
 #define EJS_STASH_CORE "core", 4
+
+#define EJS_STASH_JSON "JSON", 4
+
 #endif

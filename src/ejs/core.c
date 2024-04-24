@@ -69,6 +69,10 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
     // ejs to global
     duk_put_global_lstring(ctx, EJS_STASH_EJS);
 
+    // JSON
+    duk_get_global_lstring(ctx, EJS_STASH_JSON);
+    duk_put_prop_lstring(ctx, -2, EJS_STASH_JSON);
+
     // module found path
     duk_push_array(ctx);
     if (args->opts)
