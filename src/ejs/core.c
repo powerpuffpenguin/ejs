@@ -69,6 +69,20 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
     // ejs to global
     duk_put_global_lstring(ctx, EJS_STASH_EJS);
 
+    // module found path
+    duk_push_array(ctx);
+    if (args->opts)
+    {
+        for (int i = 0; i < args->opts->modulec; i++)
+        {
+            duk_push_string(ctx, args->opts->modulev[i]);
+            ejs_filepath_abs(ctx, -1);
+            duk_put_prop_index(ctx, -3, i);
+            duk_pop(ctx);
+        }
+    }
+    duk_put_prop_lstring(ctx, -2, EJS_STASH_FOUND);
+
     // module init
     duk_push_object(ctx);
     duk_put_prop_lstring(ctx, -2, EJS_STASH_MODULE);
@@ -94,7 +108,7 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         core->base = event_base_new();
         if (!core->base)
         {
-            ejs_throw_cause(ctx, EJS_ERROR_EVENT_BASE_NEW, ejs_error(EJS_ERROR_EVENT_BASE_NEW));
+            ejs_throw_cause(ctx, EJS_ERROR_EVENT_BASE_NEW, NULL);
         }
         core->flags = 0x1;
     }
@@ -249,7 +263,7 @@ static duk_ret_t ejs_core_run_impl(duk_context *ctx)
     fclose(f);
     if (readed != args->len)
     {
-        ejs_throw_cause(ctx, EJS_ERROR_SHORT_READ, ejs_error(EJS_ERROR_SHORT_READ));
+        ejs_throw_cause(ctx, EJS_ERROR_SHORT_READ, NULL);
     }
     ejs_call_function(ctx, ejs_core_run_source_impl, args, NULL);
     return 1;

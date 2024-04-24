@@ -45,4 +45,10 @@ void ejs_filepath_clean(duk_context *ctx, duk_idx_t idx);
  * * err ... string ...
  */
 void ejs_filepath_abs(duk_context *ctx, duk_idx_t idx);
+
+/**
+ * * ok  ... string ... -> ... string
+ * * err ... string ...
+ */
+void ejs_filepath_dir(duk_context *ctx, duk_idx_t idx);
 #endif

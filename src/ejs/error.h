@@ -9,6 +9,10 @@ const char *ejs_error(const size_t err);
 #define EJS_ERROR_OK 0
 #define EJS_ERROR_OS 1
 #define EJS_ERROR_SHORT_READ 20
+#define EJS_ERROR_INVALID_MODULE_NAME 40
+#define EJS_ERROR_INVALID_MODULE_FILE 41
+#define EJS_ERROR_LARGE_MODULE 42
+#define EJS_ERROR_MODULE_READ_FAIL 43
 
 #define EJS_ERROR_MALLOC 100
 #define EJS_ERROR_GETCWD 101

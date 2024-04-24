@@ -12,6 +12,15 @@ const char *ejs_error(const EJS_ERROR_RET err)
     case EJS_ERROR_SHORT_READ:
         return "short read";
 
+    case EJS_ERROR_INVALID_MODULE_NAME:
+        return "invalid module name";
+    case EJS_ERROR_INVALID_MODULE_FILE:
+        return "invalid module file";
+    case EJS_ERROR_LARGE_MODULE:
+        return "module size exceeds  limit";
+        case EJS_ERROR_MODULE_READ_FAIL:
+        return "an exception occurred while reading the module";
+
     case EJS_ERROR_MALLOC:
         return "malloc fail";
     case EJS_ERROR_GETCWD:

@@ -3,7 +3,7 @@
 #include "ejs/utils.h"
 #include "ejs/error.h"
 
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
     if (argc < 2)
     {
@@ -27,8 +27,13 @@ int main(int argc, char **argv)
 
     // set options
     EJS_VAR_TYPE(ejs_core_options_t, opts);
+    // process startup parameters
     opts.argc = argc;
     opts.argv = argv;
+    // module search path
+    const char *modulev[] = {"node_modules"};
+    opts.modulec = sizeof(modulev) / sizeof(const char *);
+    opts.modulev = modulev;
 
     // initialize core code
     duk_ret_t err = ejs_core_new(ctx, &opts);
@@ -43,7 +48,7 @@ int main(int argc, char **argv)
     int ret = 0;
 
     // run main.js
-    // err = ejs_core_run_source(core, "console.log('ok');");
+    // err = ejs_core_run_source(core, "console.log('ok',__dirname,__filename);require('./ab/../a0')");
     err = ejs_core_run(core, argv[1]);
     if (err)
     {

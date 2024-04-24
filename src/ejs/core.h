@@ -14,8 +14,14 @@ typedef struct
 
 typedef struct
 {
+    // Startup parameters, usually set directly to the parameter value of the ‘main’ function
+    const char **argv;
     int argc;
-    char **argv;
+    // Module search path
+    const char **modulev;
+    int modulec;
+
+    // Use an externally created event_base. ejs_core_delete will not delete externally created event_base
     struct event_base *base;
 } ejs_core_options_t;
 

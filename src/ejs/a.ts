@@ -19,7 +19,7 @@ class MyErr extends Err {
      */
     constructor(readonly errno: any, message?: string) {
         super(message, { cause: errno });
-        
+
     }
     get xx() { return '1' }
 }

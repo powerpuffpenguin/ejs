@@ -18,7 +18,7 @@ void ejs_throw_cause(duk_context *ctx, EJS_ERROR_RET cause, const char *message)
 {
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_ERROR);
-    duk_push_string(ctx, message);
+    duk_push_string(ctx, message ? message : ejs_error(cause));
     duk_push_object(ctx);
     duk_push_int(ctx, cause);
     duk_put_prop_lstring(ctx, -2, "cause", 5);
@@ -127,7 +127,7 @@ static duk_ret_t ejs_filepath_clean_impl(duk_context *ctx)
     EJS_ERROR_RET err = ejs_path_from_windows(&args->path_s, &args->path_s, &args->path_windows_r0);
     if (err)
     {
-        ejs_throw_cause(ctx, err, ejs_error(err));
+        ejs_throw_cause(ctx, err, NULL);
     }
     char root[2];
     BOOL abs = ejs_path_is_windows_abs(&args->path_s);
@@ -144,7 +144,7 @@ static duk_ret_t ejs_filepath_clean_impl(duk_context *ctx)
     err = ejs_path_clean(&args->path_s, &args->path_s, &args->out_r);
     if (err)
     {
-        ejs_throw_cause(ctx, err, ejs_error(err));
+        ejs_throw_cause(ctx, err, NULL);
     }
 #ifdef EJS_CONFIG_SEPARATOR_WINDOWS
     if (abs)
@@ -157,7 +157,7 @@ static duk_ret_t ejs_filepath_clean_impl(duk_context *ctx)
         err = ejs_path_to_windows(&args->path_s, &args->path_s, &args->path_windows_r1);
         if (err)
         {
-            ejs_throw_cause(ctx, err, ejs_error(err));
+            ejs_throw_cause(ctx, err, NULL);
         }
 
         duk_push_lstring(ctx, root, 2);
@@ -169,7 +169,7 @@ static duk_ret_t ejs_filepath_clean_impl(duk_context *ctx)
         err = ejs_path_to_windows(&args->path_s, &args->path_s, &args->path_windows_r1);
         if (err)
         {
-            ejs_throw_cause(ctx, err, ejs_error(err));
+            ejs_throw_cause(ctx, err, NULL);
         }
         duk_push_lstring(ctx, args->path_s.c, args->path_s.len);
     }

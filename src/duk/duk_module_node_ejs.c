@@ -26,7 +26,7 @@ void ejs_duk_module_node_push_dir(duk_context *ctx)
     {
         i = len - 1 - i;
 #ifdef EJS_CONFIG_SEPARATOR_WINDOWS
-        duk_dup_top(ctx, -1);
+        duk_dup_top(ctx);
         duk_substring(ctx, -1, 0, i);
 #else
         duk_dup_top(ctx);

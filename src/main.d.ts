@@ -1,4 +1,3 @@
-
 namespace ejs {
     export const os: string
     export const arch: string
@@ -45,5 +44,7 @@ namespace ejs {
      */
     export function __spreadArray(...a: Array<any>): any
 
-
+    export namespace Os {
+        export const ENOENT: number
+    }
 }

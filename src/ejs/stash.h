@@ -9,6 +9,7 @@
 #define EJS_STASH_EJS_OS_ERROR "OsError", 7
 
 #define EJS_STASH_MODULE "module", 6
+#define EJS_STASH_FOUND "found", 5
 
 #define EJS_STASH_CORE "core", 4
 #endif
