@@ -1,6 +1,6 @@
 #include "error.h"
 
-const char *ejs_error(const EJS_ERROR_RET err)
+DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
 {
     switch (err)
     {

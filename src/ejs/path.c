@@ -168,7 +168,7 @@ static EJS_ERROR_RET ejs_path_clean_impl(ejs_string_t *path, ejs_string_t *out_p
     }
     return ret;
 }
-EJS_ERROR_RET ejs_path_clean(const ejs_string_t *path, ejs_string_t *out_path, ejs_stirng_reference_t *reference)
+DUK_EXTERNAL EJS_ERROR_RET ejs_path_clean(const ejs_string_t *path, ejs_string_t *out_path, ejs_stirng_reference_t *reference)
 {
     EJS_VAR_TYPE(ejs_string_t, tmp);
     ejs_string_set(&tmp, path);
@@ -191,7 +191,7 @@ static int lastSlash(const ejs_string_t *s)
     }
     return i;
 }
-void ejs_path_split(const ejs_string_t *path, ejs_string_t *dir, ejs_string_t *file)
+DUK_EXTERNAL void ejs_path_split(const ejs_string_t *path, ejs_string_t *dir, ejs_string_t *file)
 {
     if (dir == file)
     {
@@ -222,7 +222,7 @@ void ejs_path_split(const ejs_string_t *path, ejs_string_t *dir, ejs_string_t *f
     }
 }
 
-EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_stirng_reference_t *reference)
+DUK_EXTERNAL EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_stirng_reference_t *reference)
 {
     size_t size = 0;
     for (size_t i = 0; i < n; i++)
@@ -282,7 +282,7 @@ EJS_ERROR_RET ejs_path_join(ejs_string_t **s, size_t n, ejs_string_t *join, ejs_
     return EJS_ERROR_OK;
 }
 
-void ejs_path_ext(const ejs_string_t *path, ejs_string_t *ext)
+DUK_EXTERNAL void ejs_path_ext(const ejs_string_t *path, ejs_string_t *ext)
 {
     char c;
     for (size_t i = 0; i < path->len; i++)
@@ -300,7 +300,7 @@ void ejs_path_ext(const ejs_string_t *path, ejs_string_t *ext)
     }
     ejs_string_set_lstring(ext, "", 0);
 }
-void ejs_path_base(const ejs_string_t *path, ejs_string_t *base)
+DUK_EXTERNAL void ejs_path_base(const ejs_string_t *path, ejs_string_t *base)
 {
     if (path->len == 0)
     {
@@ -327,12 +327,12 @@ void ejs_path_base(const ejs_string_t *path, ejs_string_t *base)
         return;
     }
 }
-EJS_ERROR_RET ejs_path_dir(const ejs_string_t *path, ejs_string_t *dir, ejs_stirng_reference_t *reference)
+DUK_EXTERNAL EJS_ERROR_RET ejs_path_dir(const ejs_string_t *path, ejs_string_t *dir, ejs_stirng_reference_t *reference)
 {
     ejs_path_split(path, dir, NULL);
     return ejs_path_clean(dir, dir, reference);
 }
-BOOL ejs_path_is_abs(const ejs_string_t *path)
+DUK_EXTERNAL BOOL ejs_path_is_abs(const ejs_string_t *path)
 {
     return (path->len > 0 && path->c[0] == '/') ? TRUE : FALSE;
 }
@@ -377,7 +377,7 @@ static EJS_ERROR_RET ejs_path_from_windows_impl(ejs_string_t *s, ejs_string_t *o
     return EJS_ERROR_OK;
 }
 
-EJS_ERROR_RET ejs_path_from_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
+DUK_EXTERNAL EJS_ERROR_RET ejs_path_from_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
 {
     for (size_t i = 0; i < s->len; i++)
     {
@@ -429,7 +429,7 @@ static EJS_ERROR_RET ejs_path_to_windows_impl(ejs_string_t *s, ejs_string_t *out
     return EJS_ERROR_OK;
 }
 
-EJS_ERROR_RET ejs_path_to_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
+DUK_EXTERNAL EJS_ERROR_RET ejs_path_to_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng_reference_t *reference)
 {
     for (size_t i = 0; i < s->len; i++)
     {
@@ -441,7 +441,7 @@ EJS_ERROR_RET ejs_path_to_windows(ejs_string_t *s, ejs_string_t *out, ejs_stirng
     ejs_string_set(out, s);
     return EJS_ERROR_OK;
 }
-BOOL ejs_path_is_windows_abs(ejs_string_t *s)
+DUK_EXTERNAL BOOL ejs_path_is_windows_abs(ejs_string_t *s)
 {
     if (s->len > 1 &&
         s->c[1] == ':' &&

@@ -122,7 +122,7 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
     duk_push_pointer(ctx, core);
     return 1;
 }
-duk_ret_t ejs_core_new(duk_context *ctx, ejs_core_options_t *opts)
+DUK_EXTERNAL duk_ret_t ejs_core_new(duk_context *ctx, ejs_core_options_t *opts)
 {
     EJS_VAR_TYPE(ejs_core_new_args_t, args);
     args.ctx = ctx;
@@ -144,7 +144,7 @@ duk_ret_t ejs_core_new(duk_context *ctx, ejs_core_options_t *opts)
     }
     return DUK_EXEC_SUCCESS;
 }
-void ejs_core_delete(ejs_core_t *core)
+DUK_EXTERNAL void ejs_core_delete(ejs_core_t *core)
 {
     if (core->base && (core->flags & 0x1))
     {
@@ -154,7 +154,7 @@ void ejs_core_delete(ejs_core_t *core)
     free(core);
 }
 
-EJS_ERROR_RET ejs_core_dispatch(ejs_core_t *core)
+DUK_EXTERNAL EJS_ERROR_RET ejs_core_dispatch(ejs_core_t *core)
 {
     int err = event_base_dispatch(core->base);
     if (err == 0)
@@ -221,7 +221,7 @@ static duk_ret_t ejs_core_run_source_impl(duk_context *ctx)
     ejs_call_function(ctx, ejs_core_run_path_source_impl, args, NULL);
     return 1;
 }
-duk_ret_t ejs_core_run_source(ejs_core_t *core, const char *source)
+DUK_EXTERNAL duk_ret_t ejs_core_run_source(ejs_core_t *core, const char *source)
 {
     EJS_VAR_TYPE(ejs_core_run_source_t, args);
     args.source = source;
@@ -272,7 +272,7 @@ static duk_ret_t ejs_core_run_impl(duk_context *ctx)
     ejs_call_function(ctx, ejs_core_run_source_impl, args, NULL);
     return 1;
 }
-duk_ret_t ejs_core_run(ejs_core_t *core, const char *path)
+DUK_EXTERNAL duk_ret_t ejs_core_run(ejs_core_t *core, const char *path)
 {
     EJS_VAR_TYPE(ejs_core_run_args_t, args);
     args.path = path;

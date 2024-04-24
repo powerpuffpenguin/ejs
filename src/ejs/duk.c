@@ -8,13 +8,13 @@
 #include <errno.h>
 #include <unistd.h>
 
-void ejs_dump_context_stdout(duk_context *ctx)
+DUK_EXTERNAL void ejs_dump_context_stdout(duk_context *ctx)
 {
     duk_push_context_dump(ctx);
     fprintf(stdout, "%s\n", duk_safe_to_string(ctx, -1));
     duk_pop(ctx);
 }
-void ejs_throw_cause(duk_context *ctx, EJS_ERROR_RET cause, const char *message)
+DUK_EXTERNAL void ejs_throw_cause(duk_context *ctx, EJS_ERROR_RET cause, const char *message)
 {
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_ERROR);
@@ -25,7 +25,7 @@ void ejs_throw_cause(duk_context *ctx, EJS_ERROR_RET cause, const char *message)
     duk_new(ctx, 2);
     duk_throw(ctx);
 }
-void ejs_throw_cause_format(duk_context *ctx, EJS_ERROR_RET cause, const char *fmt, ...)
+DUK_EXTERNAL void ejs_throw_cause_format(duk_context *ctx, EJS_ERROR_RET cause, const char *fmt, ...)
 {
     va_list ap;
 
@@ -42,7 +42,7 @@ void ejs_throw_cause_format(duk_context *ctx, EJS_ERROR_RET cause, const char *f
     duk_new(ctx, 2);
     duk_throw(ctx);
 }
-void ejs_throw_os(duk_context *ctx, int err, const char *message)
+DUK_EXTERNAL void ejs_throw_os(duk_context *ctx, int err, const char *message)
 {
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_OS_ERROR);
@@ -51,7 +51,7 @@ void ejs_throw_os(duk_context *ctx, int err, const char *message)
     duk_new(ctx, 2);
     duk_throw(ctx);
 }
-void ejs_throw_os_format(duk_context *ctx, int err, const char *fmt, ...)
+DUK_EXTERNAL void ejs_throw_os_format(duk_context *ctx, int err, const char *fmt, ...)
 {
     va_list ap;
 
@@ -65,7 +65,7 @@ void ejs_throw_os_format(duk_context *ctx, int err, const char *fmt, ...)
 
     duk_throw(ctx);
 }
-duk_bool_t ejs_filepath_is_abs(duk_context *ctx, duk_idx_t idx)
+DUK_EXTERNAL duk_bool_t ejs_filepath_is_abs(duk_context *ctx, duk_idx_t idx)
 {
     size_t len;
     const char *s = duk_require_lstring(ctx, idx, &len);
@@ -83,7 +83,7 @@ duk_bool_t ejs_filepath_is_abs(duk_context *ctx, duk_idx_t idx)
     }
     return FALSE;
 }
-void ejs_call_function(duk_context *ctx, duk_c_function func, void *args, ejs_finally_function finally_func)
+DUK_EXTERNAL void ejs_call_function(duk_context *ctx, duk_c_function func, void *args, ejs_finally_function finally_func)
 {
     duk_push_c_lightfunc(ctx, func, 1, 1, 0);
     duk_push_pointer(ctx, args);
@@ -97,8 +97,8 @@ void ejs_call_function(duk_context *ctx, duk_c_function func, void *args, ejs_fi
         duk_throw(ctx);
     }
 }
-duk_ret_t ejs_pcall_function(duk_context *ctx,
-                             duk_c_function func, void *args)
+DUK_EXTERNAL duk_ret_t ejs_pcall_function(duk_context *ctx,
+                                          duk_c_function func, void *args)
 {
     duk_push_c_lightfunc(ctx, func, 1, 1, 0);
     duk_push_pointer(ctx, args);
@@ -178,7 +178,7 @@ static duk_ret_t ejs_filepath_clean_impl(duk_context *ctx)
 #endif
     return 1;
 }
-void ejs_filepath_clean(duk_context *ctx, duk_idx_t idx)
+DUK_EXTERNAL void ejs_filepath_clean(duk_context *ctx, duk_idx_t idx)
 {
     EJS_VAR_TYPE(ejs_filepath_clean_args_t, args);
     args.path_s.c = (char *)duk_require_lstring(ctx, idx, &args.path_s.len);
@@ -271,7 +271,7 @@ static duk_ret_t ejs_filepath_abs_impl(duk_context *ctx)
     ejs_filepath_clean(ctx, -1);
     return 1;
 }
-void ejs_filepath_abs(duk_context *ctx, duk_idx_t idx)
+DUK_EXTERNAL void ejs_filepath_abs(duk_context *ctx, duk_idx_t idx)
 {
     if (ejs_filepath_is_abs(ctx, idx))
     {

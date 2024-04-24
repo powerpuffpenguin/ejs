@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-void ejs_string_init(ejs_string_t *s, const char *c, size_t len, ejs_stirng_reference_t *r)
+DUK_EXTERNAL void ejs_string_init(ejs_string_t *s, const char *c, size_t len, ejs_stirng_reference_t *r)
 {
     s->c = (char *)c;
     s->len = len;
@@ -51,7 +51,7 @@ void ejs_string_println(ejs_string_t *s)
     }
     printf("\n");
 }
-void ejs_string_set(ejs_string_t *l, const ejs_string_t *r)
+DUK_EXTERNAL void ejs_string_set(ejs_string_t *l, const ejs_string_t *r)
 {
     if (l == r)
     {
@@ -69,7 +69,7 @@ void ejs_string_set(ejs_string_t *l, const ejs_string_t *r)
         l->reference->used++;
     }
 }
-void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t start, size_t end)
+DUK_EXTERNAL void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t start, size_t end)
 {
     if (sub == s)
     {
@@ -89,7 +89,7 @@ void ejs_string_substr(ejs_string_t *sub, const ejs_string_t *s, size_t start, s
         sub->reference->used++;
     }
 }
-void ejs_string_set_string(ejs_string_t *s, const char *c)
+DUK_EXTERNAL void ejs_string_set_string(ejs_string_t *s, const char *c)
 {
     if (s->reference)
     {
@@ -99,7 +99,7 @@ void ejs_string_set_string(ejs_string_t *s, const char *c)
     s->c = (char *)c;
     s->len = strlen(c);
 }
-void ejs_string_set_lstring(ejs_string_t *s, const char *c, size_t len)
+DUK_EXTERNAL void ejs_string_set_lstring(ejs_string_t *s, const char *c, size_t len)
 {
     if (s->reference)
     {

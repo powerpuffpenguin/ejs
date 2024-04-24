@@ -2,9 +2,15 @@
 #define _EMBEDDED_JS_ERROR_H_
 #include <stdint.h>
 #include "../duk/duktape.h"
+
+#if defined(__cplusplus)
+extern "C"
+{
+#endif
+
 #define EJS_ERROR_RET size_t
 
-const char *ejs_error(const size_t err);
+    DUK_EXTERNAL const char *ejs_error(const size_t err);
 
 #define EJS_ERROR_OK 0
 #define EJS_ERROR_OS 1
@@ -28,5 +34,9 @@ const char *ejs_error(const size_t err);
 #define EJS_ERROR_EVENT_BASE_NEW 300
 #define EJS_ERROR_NO_EVENT 320
 #define EJS_ERROR_NO_EVENT_BASE_DISPATCH 321
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
