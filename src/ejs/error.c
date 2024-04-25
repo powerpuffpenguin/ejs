@@ -6,6 +6,9 @@ DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
     {
     case EJS_ERROR_OK:
         return "ok";
+    case EJS_ERROR_INVALID_ARGUMENT:
+        return "invalid argument";
+
     case EJS_ERROR_OS:
         return "os error";
 
@@ -47,6 +50,10 @@ DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
 
     case EJS_ERROR_EVENT_BASE_NEW:
         return "event_base_new fail";
+    case EJS_ERROR_EVENT_NEW:
+        return "event_new fail";
+    case EJS_ERROR_EVENT_ADD:
+        return "event_add fail";
     case EJS_ERROR_NO_EVENT:
         return "event_base_dispatch no event";
     case EJS_ERROR_NO_EVENT_BASE_DISPATCH:

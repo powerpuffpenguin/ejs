@@ -2,7 +2,7 @@
 #define _EMBEDDED_JS_STRING_H_
 #include <stdint.h>
 #include <stdlib.h>
-#include "utils.h"
+#include "defines.h"
 #include "../duk/duktape.h"
 
 #if defined(__cplusplus)

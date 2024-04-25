@@ -1,7 +1,5 @@
 #include <stdio.h>
 #include "ejs/core.h"
-#include "ejs/utils.h"
-#include "ejs/error.h"
 static duk_ret_t native_debug_init(duk_context *ctx)
 {
     /*
@@ -26,13 +24,7 @@ int main(int argc, const char **argv)
 {
     if (argc < 2)
     {
-        printf("no\n");
-        return 0;
-    }
-    size_t n = strlen(argv[1]);
-    if (n > 0 && argv[1][0] == '-')
-    {
-        printf("flags\n");
+        printf("Use \"%s filepath\" to execute the script.\n", argv[0]);
         return 0;
     }
 
@@ -69,11 +61,11 @@ int main(int argc, const char **argv)
     int ret = 0;
 
     // run main.js
-    err = ejs_core_run_source(core, "console.log('this is a.js');"
-                                    "console.log('__dirname', __dirname);"
-                                    "console.log('__filename', __filename);"
-                                    "console.log(require('__ejs/debug'));"
-                                    "console.log(require('__ejs/debug2'));");
+    // err = ejs_core_run_source(core, "console.log('this is a.js');"
+    //                                 "console.log('__dirname', __dirname);"
+    //                                 "console.log('__filename', __filename);"
+    //                                 "console.log(require('__ejs/debug'));"
+    //                                 "console.log(require('__ejs/debug2'));");
     err = ejs_core_run(core, argv[1]);
     if (err)
     {

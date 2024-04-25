@@ -4,6 +4,7 @@
 #include "dns.h"
 #include "error.h"
 #include "duk.h"
+#include "defines.h"
 
 #include "../duk/duktape.h"
 
@@ -62,7 +63,12 @@ extern "C"
      * dispatch event loop
      */
     DUK_EXTERNAL EJS_ERROR_RET ejs_core_dispatch(ejs_core_t *core);
+    /**
+     * return core version. vX.Y.Z
+     */
+    DUK_EXTERNAL const char *ejs_version();
 
+    DUK_EXTERNAL ejs_core_t *ejs_require_core(duk_context *ctx);
 #if defined(__cplusplus)
 }
 #endif

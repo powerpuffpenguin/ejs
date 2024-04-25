@@ -34,7 +34,7 @@ extern "C"
      * * ok  ... -> ... retval
      * * err  ... -> ... err
      */
-    DUK_EXTERNAL duk_ret_t ejs_pcall_function(duk_context *ctx,
+    DUK_EXTERNAL duk_int_t ejs_pcall_function(duk_context *ctx,
                                               duk_c_function func, void *args);
 
     /**

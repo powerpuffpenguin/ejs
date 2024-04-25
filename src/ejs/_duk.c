@@ -9,6 +9,7 @@
 #include "config.h"
 #include "duk.h"
 #include "stash.h"
+#include "_duk_timer.h"
 
 static BOOL is_relative(duk_context *ctx, const char *s, duk_size_t len)
 {
@@ -470,14 +471,21 @@ static duk_ret_t cb_load_module(duk_context *ctx)
     duk_call(ctx, 2);
     return 0;
 }
-void _ejs_init(duk_context *ctx)
+void _ejs_init_base(duk_context *ctx)
 {
+    // console
     duk_console_init(ctx, 0);
 
+    // node module
     duk_push_object(ctx);
     duk_push_c_function(ctx, cb_resolve_module, DUK_VARARGS);
     duk_put_prop_string(ctx, -2, "resolve");
     duk_push_c_function(ctx, cb_load_module, DUK_VARARGS);
     duk_put_prop_string(ctx, -2, "load");
     duk_module_node_init(ctx);
+}
+void _ejs_init_extras(duk_context *ctx)
+{
+    // timer
+    _ejs_init_timer(ctx);
 }

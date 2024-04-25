@@ -1,5 +1,5 @@
 #include "core.h"
-#include "utils.h"
+#include "defines.h"
 #include "stash.h"
 #include "config.h"
 #include "_duk.h"
@@ -11,7 +11,10 @@
 #include <string.h>
 #include <unistd.h>
 #include "../duk/duk_module_node.h"
-
+DUK_EXTERNAL const char *ejs_version()
+{
+    return "v0.0.1";
+}
 static BOOL check_module_name(const char *name, duk_size_t *len)
 {
     if (!name)
@@ -108,6 +111,9 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_OS);
         duk_push_lstring(ctx, EJS_CONFIG_ARCH);
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_ARCH);
+
+        duk_push_string(ctx, ejs_version());
+        duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_VERSION);
     }
     duk_dup_top(ctx);
     duk_put_prop_lstring(ctx, -3, EJS_STASH_EJS);
@@ -145,7 +151,7 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, EJS_STASH_MODULE);
 
     // console module
-    _ejs_init(ctx);
+    _ejs_init_base(ctx);
 
     // core
     ejs_core_t *core = (ejs_core_t *)malloc(sizeof(ejs_core_t));
@@ -171,6 +177,9 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
     }
     duk_push_pointer(ctx, core);
     duk_put_prop_lstring(ctx, -2, EJS_STASH_CORE);
+
+    // extras
+    _ejs_init_extras(ctx);
 
     if (args->opts->on_register)
     {
@@ -343,4 +352,12 @@ DUK_EXTERNAL duk_ret_t ejs_core_run(ejs_core_t *core, const char *path)
         free(args.source);
     }
     return err;
+}
+DUK_EXTERNAL ejs_core_t *ejs_require_core(duk_context *ctx)
+{
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_CORE);
+    ejs_core_t *core = duk_require_pointer(ctx, -1);
+    duk_pop_2(ctx);
+    return core;
 }

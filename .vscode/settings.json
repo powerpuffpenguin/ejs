@@ -43,6 +43,9 @@
         "limits": "c",
         "utils.h": "c",
         "iosfwd": "c",
-        "set": "c"
+        "set": "c",
+        "defines.h": "c",
+        "duktape.h": "c",
+        "stash.h": "c"
     }
 }

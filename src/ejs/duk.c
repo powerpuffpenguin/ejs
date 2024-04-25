@@ -1,7 +1,7 @@
 #include "config.h"
 #include "duk.h"
 #include "stash.h"
-#include "utils.h"
+#include "defines.h"
 #include "strings.h"
 #include "path.h"
 
@@ -97,13 +97,12 @@ DUK_EXTERNAL void ejs_call_function(duk_context *ctx, duk_c_function func, void 
         duk_throw(ctx);
     }
 }
-DUK_EXTERNAL duk_ret_t ejs_pcall_function(duk_context *ctx,
+DUK_EXTERNAL duk_int_t ejs_pcall_function(duk_context *ctx,
                                           duk_c_function func, void *args)
 {
     duk_push_c_lightfunc(ctx, func, 1, 1, 0);
     duk_push_pointer(ctx, args);
-    duk_ret_t err = duk_pcall(ctx, 1);
-    return err;
+    return duk_pcall(ctx, 1);
 }
 typedef struct
 {
