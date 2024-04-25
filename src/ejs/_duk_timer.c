@@ -89,7 +89,7 @@ static duk_ret_t timer_handler_impl(duk_context *ctx)
             .tv_sec = 0,
             .tv_usec = 0,
         };
-        if (event_assign(ev, timer->core->base, -1, EVLOOP_ONCE, timer_handler, timer))
+        if (event_assign(ev, timer->core->base, -1, EV_TIMEOUT, timer_handler, timer))
         {
             free(ev);
             ejs_throw_cause(ctx, EJS_ERROR_EVENT_ASSIGN, "event_new timer fail");
@@ -161,13 +161,12 @@ static duk_ret_t set_timer_impl(duk_context *ctx)
         .tv_sec = ms / 1000,
         .tv_usec = ((duk_int_t)(ms * 1000)) % (1000 * 1000),
     };
-    short flags = EVLOOP_ONCE;
+    short flags = EV_TIMEOUT;
     if (timer->flags & _EJS_TIMER_INTERVAL_)
     {
         if (!tv.tv_sec && !tv.tv_usec)
         {
             timer->flags |= _EJS_TIMER_INTERVAL_0_;
-            flags = EVLOOP_ONCE;
         }
         else
         {

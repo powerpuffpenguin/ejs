@@ -23,6 +23,4 @@ var interval = setInterval(function () {
     }
 }, 0);
 
-// // setTimeout(function () {
-// //     clearInterval(interval)
-// // }, 3000);
+
