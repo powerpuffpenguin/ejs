@@ -6,18 +6,23 @@
 
 var x = setTimeout(function () {
     console.log("setTimeout cb")
+    clearTimeout(x)
 });
-clearTimeout(x)
-// var timeout = setTimeout(function () {
-//     console.log("setTimeout cb 4")
-// }, 4000);
+// clearTimeout(x)
+var timeout = setTimeout(function () {
+    console.log("setTimeout cb 4")
+}, 4000);
 
 
 var i = 0
 var interval = setInterval(function () {
     console.log("setInterval cb", i++)
+
+    if (i == 3) {
+        clearInterval(interval)
+    }
 }, 0);
 
-setTimeout(function () {
-    clearInterval(interval)
-}, 3000);
+// // setTimeout(function () {
+// //     clearInterval(interval)
+// // }, 3000);

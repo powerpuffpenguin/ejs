@@ -4,23 +4,32 @@
 #include "stash.h"
 #include "duk.h"
 #include "js/timer.h"
+static void timer_handler(evutil_socket_t fs, short events, void *arg);
+#define _EJS_TIMER_INTERVAL_ 0x1
+#define _EJS_TIMER_INTERVAL_0_ 0x2
+#define _EJS_TIMER_INTERVAL_DEL_ 0x4
+
 typedef struct
 {
     ejs_core_t *core;
     struct event *ev;
-    BOOL interval;
+    uint8_t flags;
 } ejs_timer_t;
 static void timer_destroy(ejs_timer_t *timer)
 {
     if (timer->ev)
     {
-        event_del(timer->ev);
-        event_free(timer->ev);
+        if (!(timer->flags & _EJS_TIMER_INTERVAL_DEL_))
+        {
+            event_del(timer->ev);
+        }
+        free(timer->ev);
     }
     free(timer);
 }
 static duk_ret_t timer_finalizer(duk_context *ctx)
 {
+    // puts("timer_finalizer");
     duk_get_prop_lstring(ctx, 0, "p", 1);
     ejs_timer_t *p = duk_get_pointer_default(ctx, -1, NULL);
     if (p)
@@ -40,7 +49,7 @@ static duk_ret_t timer_handler_impl(duk_context *ctx)
     ejs_timer_t *timer = duk_require_pointer(ctx, 0);
 
     duk_push_heap_stash(ctx);
-    if (timer->interval)
+    if (timer->flags & _EJS_TIMER_INTERVAL_)
     {
         // puts("interval_handler");
         duk_get_prop_lstring(ctx, -1, EJS_STASH_INTERVAL);
@@ -49,6 +58,7 @@ static duk_ret_t timer_handler_impl(duk_context *ctx)
     {
         // puts("timeout_handler");
         duk_get_prop_lstring(ctx, -1, EJS_STASH_TIMEOUT);
+        timer->flags |= _EJS_TIMER_INTERVAL_DEL_;
     }
     duk_swap_top(ctx, -2);
     duk_pop(ctx);
@@ -64,12 +74,32 @@ static duk_ret_t timer_handler_impl(duk_context *ctx)
         duk_del_prop(ctx, 0);
         duk_throw(ctx);
     }
-    if (!timer->interval)
+    if (!(timer->flags & _EJS_TIMER_INTERVAL_))
     {
         duk_put_prop_lstring(ctx, -2, "p", 1);
         timer_destroy(timer);
         duk_push_pointer(ctx, timer);
         duk_del_prop(ctx, 0);
+    }
+    else if (timer->flags & _EJS_TIMER_INTERVAL_0_)
+    {
+        struct event *ev = timer->ev;
+        timer->ev = NULL;
+        struct timeval tv = {
+            .tv_sec = 0,
+            .tv_usec = 0,
+        };
+        if (event_assign(ev, timer->core->base, -1, EVLOOP_ONCE, timer_handler, timer))
+        {
+            free(ev);
+            ejs_throw_cause(ctx, EJS_ERROR_EVENT_ASSIGN, "event_new timer fail");
+        }
+        if (event_add(ev, &tv))
+        {
+            free(ev);
+            ejs_throw_cause(ctx, EJS_ERROR_EVENT_ADD, "event_add timer fail");
+        }
+        timer->ev = ev;
     }
     return 0;
 }
@@ -90,7 +120,7 @@ static void timer_handler(evutil_socket_t fs, short events, void *arg)
 
 typedef struct
 {
-    BOOL interval;
+    uint8_t flags;
     ejs_timer_t *timer;
 } set_timer_args_t;
 static duk_ret_t set_timer_impl(duk_context *ctx)
@@ -103,6 +133,7 @@ static duk_ret_t set_timer_impl(duk_context *ctx)
         ejs_throw_cause(ctx, EJS_ERROR_INVALID_ARGUMENT, "Callback must be a function");
     }
     duk_to_number(ctx, 1);
+
     duk_double_t ms = 0;
     if (!duk_is_nan(ctx, 1))
     {
@@ -123,33 +154,49 @@ static duk_ret_t set_timer_impl(duk_context *ctx)
         ejs_throw_cause(ctx, EJS_ERROR_MALLOC, "malloc timer fail");
     }
     timer->core = core;
-    timer->interval = args->interval;
+    timer->flags = args->flags;
     timer->ev = NULL;
     args->timer = timer;
     struct timeval tv = {
         .tv_sec = ms / 1000,
-        .tv_usec = (duk_int_t)(ms * 1000) % 1000,
+        .tv_usec = ((duk_int_t)(ms * 1000)) % (1000 * 1000),
     };
-    struct event *ev = event_new(core->base,
-                                 -1,
-                                 args->interval ? EV_PERSIST : 0,
-                                 timer_handler,
-                                 timer);
+    short flags = EVLOOP_ONCE;
+    if (timer->flags & _EJS_TIMER_INTERVAL_)
+    {
+        if (!tv.tv_sec && !tv.tv_usec)
+        {
+            timer->flags |= _EJS_TIMER_INTERVAL_0_;
+            flags = EVLOOP_ONCE;
+        }
+        else
+        {
+            flags = EV_PERSIST;
+        }
+    }
+    struct event *ev = malloc(event_get_struct_event_size());
     if (!ev)
     {
-        event_free(ev);
         ejs_throw_cause(ctx, EJS_ERROR_EVENT_NEW, "event_new timer fail");
+    };
+    if (event_assign(ev, core->base,
+                     -1,
+                     flags,
+                     timer_handler,
+                     timer))
+    {
+        free(ev);
+        ejs_throw_cause(ctx, EJS_ERROR_EVENT_ASSIGN, "event_assign timer fail");
     }
-
     if (event_add(ev, &tv))
     {
-        event_free(ev);
+        free(ev);
         ejs_throw_cause(ctx, EJS_ERROR_EVENT_ADD, "event_add timer fail");
     }
     timer->ev = ev;
 
     duk_push_heap_stash(ctx);
-    if (args->interval)
+    if (args->flags & _EJS_TIMER_INTERVAL_)
     {
         duk_get_prop_lstring(ctx, -1, EJS_STASH_INTERVAL);
     }
@@ -189,7 +236,7 @@ static duk_ret_t set_timer(duk_context *ctx, BOOL interval)
 
     set_timer_args_t args = {
         .timer = NULL,
-        .interval = interval,
+        .flags = interval ? _EJS_TIMER_INTERVAL_ : 0,
     };
     duk_push_pointer(ctx, &args);
     if (duk_pcall(ctx, 3))
@@ -218,12 +265,20 @@ static duk_ret_t clear_timer(duk_context *ctx, BOOL interval)
         return 0;
     }
     duk_push_heap_stash(ctx);
-    if (timer->interval)
+    if (interval)
     {
+        if (!(timer->flags & _EJS_TIMER_INTERVAL_))
+        {
+            return 0;
+        }
         duk_get_prop_lstring(ctx, -1, EJS_STASH_INTERVAL);
     }
     else
     {
+        if (timer->flags & _EJS_TIMER_INTERVAL_)
+        {
+            return 0;
+        }
         duk_get_prop_lstring(ctx, -1, EJS_STASH_TIMEOUT);
     }
     duk_swap_top(ctx, -2);
@@ -240,9 +295,6 @@ static duk_ret_t clear_timer(duk_context *ctx, BOOL interval)
     duk_swap_top(ctx, -2);
     duk_del_prop(ctx, -3);
 
-    duk_push_undefined(ctx);
-    duk_put_prop_lstring(ctx, -2, "p", 1);
-    timer_destroy(timer);
     return 0;
 }
 static duk_ret_t clearTimeout(duk_context *ctx)
