@@ -10,6 +10,7 @@
 #include "duk.h"
 #include "stash.h"
 #include "_duk_timer.h"
+#include "js/es6-shim.h"
 
 static BOOL is_relative(duk_context *ctx, const char *s, duk_size_t len)
 {
@@ -488,4 +489,10 @@ void _ejs_init_extras(duk_context *ctx)
 {
     // timer
     _ejs_init_timer(ctx);
+
+    // es6 shim
+    duk_eval_lstring(ctx, (const char *)js_ejs_js_es6_shim_min_js, js_ejs_js_es6_shim_min_js_len);
+    duk_push_global_object(ctx);
+    duk_call(ctx, 1);
+    duk_pop(ctx);
 }

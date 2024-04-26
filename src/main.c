@@ -72,7 +72,6 @@ int main(int argc, const char **argv)
         puts(duk_safe_to_string(ctx, -1));
         goto END;
     }
-
     // dispatch event loop
     err = ejs_core_dispatch(core);
     if (err)

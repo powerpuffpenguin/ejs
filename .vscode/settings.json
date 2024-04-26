@@ -46,6 +46,7 @@
         "set": "c",
         "defines.h": "c",
         "duktape.h": "c",
-        "stash.h": "c"
+        "stash.h": "c",
+        "jemalloc.h": "c"
     }
 }
