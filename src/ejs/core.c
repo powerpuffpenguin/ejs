@@ -75,6 +75,11 @@ static duk_ret_t native_strerror(duk_context *ctx)
     duk_push_string(ctx, strerror(duk_get_int_default(ctx, 0, 0)));
     return 1;
 }
+static duk_ret_t native_exit(duk_context *ctx)
+{
+    exit(duk_get_int_default(ctx, 0, 0));
+    return 0;
+}
 typedef struct
 {
     duk_context *ctx;
@@ -114,6 +119,9 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
 
         duk_push_string(ctx, ejs_version());
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_VERSION);
+
+        duk_push_c_lightfunc(ctx, native_exit, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "exit", 4);
     }
     duk_dup_top(ctx);
     duk_put_prop_lstring(ctx, -3, EJS_STASH_EJS);

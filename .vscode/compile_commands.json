@@ -1,6 +1,11 @@
 [
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
   "file": "src/duk/duk_module_node.c"
 },
@@ -41,6 +46,11 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_net.c.o", "src/ejs/_duk_net.c"],
+  "file": "src/ejs/_duk_net.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/duk.c.o", "src/ejs/duk.c"],
   "file": "src/ejs/duk.c"
 },
@@ -48,6 +58,11 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/error.c.o", "src/ejs/error.c"],
   "file": "src/ejs/error.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_helper.c.o", "src/ejs/_duk_helper.c"],
+  "file": "src/ejs/_duk_helper.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",
@@ -106,6 +121,11 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/_duk_net.c.o", "src/ejs/_duk_net.c"],
+  "file": "src/ejs/_duk_net.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/duk.c.o", "src/ejs/duk.c"],
   "file": "src/ejs/duk.c"
 },
@@ -113,6 +133,11 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/error.c.o", "src/ejs/error.c"],
   "file": "src/ejs/error.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-I", "/home/king/.xmake/packages/w/wolfssl/5.6.6/6e8aedca8d1f4f508187604c53963530/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/_duk_helper.c.o", "src/ejs/_duk_helper.c"],
+  "file": "src/ejs/_duk_helper.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",

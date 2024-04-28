@@ -15,7 +15,7 @@ plat=get_config("plat")
 arch=get_config("arch")
 
 target("ejs")
-    set_kind("binary")
+    set_kind("static")
     add_files("src/duk/*.c")
     add_files("src/ejs/*.c")
     add_files("src/main.c")
@@ -32,6 +32,16 @@ target("ejs")
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
     add_packages("libevent","wolfssl")
+
+target("example_ejs")
+    set_kind("binary")
+    set_basename("ejs")
+    add_files("src/main.c")
+     if is_mode("debug") then
+        add_defines("DEBUG")
+    end
+    add_packages("libevent")
+    add_deps("ejs")
 
 target("ejs_test")
     set_kind("binary")
