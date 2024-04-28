@@ -19,10 +19,8 @@ duk_ret_t _ejs_helper_bytes_equal(duk_context *ctx)
     duk_push_false(ctx);
     return 1;
 }
-duk_ret_t _ejs_helper_hex_string(duk_context *ctx)
+void _ejs_helper_c_hex_string(duk_context *ctx, const uint8_t *b, const duk_size_t length)
 {
-    duk_size_t length;
-    uint8_t *b = duk_require_buffer_data(ctx, 0, &length);
     if (length)
     {
         char *hexDigit = EJS_HEX_DIGIT;
@@ -41,5 +39,11 @@ duk_ret_t _ejs_helper_hex_string(duk_context *ctx)
         duk_pop(ctx);
         duk_push_lstring(ctx, "", 0);
     }
+}
+duk_ret_t _ejs_helper_hex_string(duk_context *ctx)
+{
+    duk_size_t length;
+    uint8_t *b = duk_require_buffer_data(ctx, 0, &length);
+    _ejs_helper_c_hex_string(ctx, b, length);
     return 1;
 }
