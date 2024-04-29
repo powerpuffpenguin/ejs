@@ -7,5 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "path": "^0.12.7",
+    "ts-loader": "^9.4.2",
+    "typescript": "^5.0.4",
+    "webpack-cli": "^5.1.1"
+  }
 }

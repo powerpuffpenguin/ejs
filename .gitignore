@@ -6,3 +6,4 @@ src/js/
 .DS_Store
 
 
+/bin/node_modules/
