@@ -719,25 +719,36 @@ m.test("IPNet.toString", function (assert) {
         finally { if (e_13) throw e_13.error; }
     }
 });
-// m.test("IPNet.contains", (assert) => {
-//     function make(ip: IP, net: IPNet, ok: boolean) {
-//         return {
-//             in: ip,
-//             net: net,
-//             ok: ok,
-//         }
-//     }
-//     const tests = [
-//         // make(IP.v4(172, 16, 1, 1), new IPNet(IP.v4(172, 16, 0, 0), IPMask.cidr(12, 32)!), true),
-//         make(IP.v4(172, 24, 0, 1), new IPNet(IP.v4(172, 16, 0, 0), IPMask.cidr(13, 32)!), false),
-//         // make(IP.v4(192, 168, 0, 3), new IPNet(IP.v4(192, 168, 0, 0), IPMask.v4(0, 0, 255, 252)), true),
-//         // make(IP.v4(192, 168, 0, 4), new IPNet(IP.v4(192, 168, 0, 0), IPMask.v4(0, 255, 0, 252)), false),
-//         // make(IP.parse("2001:db8:1:2::1")!, new IPNet(IP.parse("2001:db8:1::")!, IPMask.cidr(47, 128)!), true),
-//         // make(IP.parse("2001:db8:1:2::1")!, new IPNet(IP.parse("2001:db8:2::")!, IPMask.cidr(47, 128)!), false),
-//         // make(IP.parse("2001:db8:1:2::1")!, new IPNet(IP.parse("2001:db8:1::")!, new IPMask(IP.parse("ffff:0:ffff::")!.ip)), true),
-//         // make(IP.parse("2001:db8:1:2::1")!, new IPNet(IP.parse("2001:db8:1::")!, new IPMask(IP.parse("0:0:0:ffff::")!.ip)), false),
-//     ]
-//     for (const tt of tests) {
-//         assert.equal(tt.ok, tt.net.contains(tt.in), tt.in.toString())
-//     }
-// })
+m.test("IPNet.contains", function (assert) {
+    var e_14, _a;
+    function make(ip, net, ok) {
+        return {
+            in: ip,
+            net: net,
+            ok: ok,
+        };
+    }
+    var tests = [
+        make(net_1.IP.v4(172, 16, 1, 1), new net_1.IPNet(net_1.IP.v4(172, 16, 0, 0), net_1.IPMask.cidr(12, 32)), true),
+        make(net_1.IP.v4(172, 24, 0, 1), new net_1.IPNet(net_1.IP.v4(172, 16, 0, 0), net_1.IPMask.cidr(13, 32)), false),
+        make(net_1.IP.v4(192, 168, 0, 3), new net_1.IPNet(net_1.IP.v4(192, 168, 0, 0), net_1.IPMask.v4(0, 0, 255, 252)), true),
+        make(net_1.IP.v4(192, 168, 0, 4), new net_1.IPNet(net_1.IP.v4(192, 168, 0, 0), net_1.IPMask.v4(0, 255, 0, 252)), false),
+        make(net_1.IP.parse("2001:db8:1:2::1"), new net_1.IPNet(net_1.IP.parse("2001:db8:1::"), net_1.IPMask.cidr(47, 128)), true),
+        make(net_1.IP.parse("2001:db8:1:2::1"), new net_1.IPNet(net_1.IP.parse("2001:db8:2::"), net_1.IPMask.cidr(47, 128)), false),
+        make(net_1.IP.parse("2001:db8:1:2::1"), new net_1.IPNet(net_1.IP.parse("2001:db8:1::"), new net_1.IPMask(net_1.IP.parse("ffff:0:ffff::").ip)), true),
+        make(net_1.IP.parse("2001:db8:1:2::1"), new net_1.IPNet(net_1.IP.parse("2001:db8:1::"), new net_1.IPMask(net_1.IP.parse("0:0:0:ffff::").ip)), false),
+    ];
+    try {
+        for (var tests_13 = __values(tests), tests_13_1 = tests_13.next(); !tests_13_1.done; tests_13_1 = tests_13.next()) {
+            var tt = tests_13_1.value;
+            assert.equal(tt.ok, tt.net.contains(tt.in), tt.in.toString());
+        }
+    }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    finally {
+        try {
+            if (tests_13_1 && !tests_13_1.done && (_a = tests_13.return)) _a.call(tests_13);
+        }
+        finally { if (e_14) throw e_14.error; }
+    }
+});

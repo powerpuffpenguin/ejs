@@ -689,7 +689,7 @@ static duk_ret_t ipnet_contains(duk_context *ctx)
     uint8_t *mask = duk_require_buffer_data(ctx, 1, &mask_len);
 
     duk_size_t ip_len;
-    uint8_t *ip = duk_require_buffer_data(ctx, 0, &ip_len);
+    uint8_t *ip = duk_require_buffer_data(ctx, 2, &ip_len);
     switch (ip_len)
     {
     case IPv4len:
@@ -706,7 +706,6 @@ static duk_ret_t ipnet_contains(duk_context *ctx)
         break;
     }
     c_networkNumberAndMask(&ipnet, &ipnet_len, &mask, &mask_len);
-
     if (ipnet_len != ip_len)
     {
         duk_push_false(ctx);
@@ -715,7 +714,7 @@ static duk_ret_t ipnet_contains(duk_context *ctx)
 
     for (duk_size_t i = 0; i < ip_len; i++)
     {
-        if (ipnet[i] & mask[i] != ip[i] & mask[i])
+        if ((ipnet[i] & mask[i]) != (ip[i] & mask[i]))
         {
             duk_push_false(ctx);
             return 1;
