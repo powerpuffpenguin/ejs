@@ -127,6 +127,50 @@ var Assert = /** @class */ (function () {
         }
         throw assertQuit;
     };
+    Assert.prototype.notEqual = function (expect, actual) {
+        var msg = [];
+        for (var _i = 2; _i < arguments.length; _i++) {
+            msg[_i - 2] = arguments[_i];
+        }
+        var s_expect = JSON.stringify(expect);
+        var s_actual = JSON.stringify(actual);
+        if (s_expect != s_actual) {
+            return;
+        }
+        console.log("--- FAIL: ".concat(this.name));
+        console.log("  Error: equal");
+        console.log("  Expect not:", s_expect);
+        console.log("  Actual:", s_actual);
+        if (msg.length != 0) {
+            console.log.apply(console, __spreadArray(["  Message:"], __read(msg), false));
+        }
+        var stack = new Error().stack;
+        if (typeof stack === "string") {
+            console.log("  Stack:", stack);
+        }
+        throw assertQuit;
+    };
+    Assert.prototype.true = function (expr) {
+        var msg = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            msg[_i - 1] = arguments[_i];
+        }
+        if (expr) {
+            return;
+        }
+        console.log("--- FAIL: ".concat(this.name));
+        console.log("  Error: not equal");
+        console.log("  Expect:", true);
+        console.log("  Actual:", expr);
+        if (msg.length != 0) {
+            console.log.apply(console, __spreadArray(["  Message:"], __read(msg), false));
+        }
+        var stack = new Error().stack;
+        if (typeof stack === "string") {
+            console.log("  Stack:", stack);
+        }
+        throw assertQuit;
+    };
     return Assert;
 }());
 exports.Assert = Assert;

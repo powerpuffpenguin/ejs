@@ -57,6 +57,8 @@ namespace ejs {
 }
 
 declare module "ejs/net" {
+    export const IPv4len = 4;
+    export const IPv6len = 16;
     export class AddrError extends ejs.Error {
         constructor(readonly addr: string, message: string)
     }

@@ -6,11 +6,11 @@ declare namespace __duk {
 declare namespace deps {
     export function eq(a: Uint8Array, b: Uint8Array): boolean
     export function hex_string(b: Uint8Array): string
-    export function ipv4_string(ip: Uint8Array): string
-    export function ipv6_string(ip: Uint8Array): string
+    export function ip_string(ip: Uint8Array): string
     export function parse_ip(s: string): Uint8Array | undefined
     export function ip_4in6(ip: Uint8Array): boolean | undefined
     export function ip_mask(mask: Uint8Array, ip: Uint8Array): Uint8Array | undefined
+    export function networkNumberAndMask(ip: Uint8Array, mask: Uint8Array): [Uint8Array, Uint8Array] | undefined
     export function cidr_mask(ones: number, bits: number): Uint8Array | undefined
     export function mask_size(mask: Uint8Array): [number, number]
     export function ipnet_contains(net_ip: Uint8Array, mask: Uint8Array, ip: Uint8Array): boolean
@@ -317,20 +317,7 @@ export class IP {
      *   - the hexadecimal form of ip, without punctuation, if no other cases apply
      */
     toString(): string {
-        const p = this.ip;
-        if (p.length == 0) {
-            return "<undefined>";
-        }
-
-        // If IPv4, use dotted notation.
-        const p4 = this.to4()?.ip;
-        if (p4?.length == IPv4len) {
-            return deps.ipv4_string(p4!)
-        }
-        if (p.length != IPv6len) {
-            return "?" + deps.hex_string(this.ip);
-        }
-        return deps.ipv6_string(this.ip)
+        return deps.ip_string(this.ip)
     }
 
     /**
@@ -387,8 +374,6 @@ export function parseCIDR(s: string): [IP, IPNet] | undefined {
         return [ip, ipnet]
     }
 }
-
-
 
 /**
  * combines host and port into a network address of the
@@ -464,4 +449,17 @@ export function splitHostPort(hostport: string): [string, string] {
 
     port = hostport.substring(i + 1)
     return [host, port]
+}
+
+/**
+ * for test
+ * @internal
+ */
+export function networkNumberAndMask(n: IPNet): [IP, IPMask] | undefined {
+    const o = deps.networkNumberAndMask(n.ip.ip, n.mask.mask)
+    if (o) {
+        const [ip, mask] = o
+        return [new IP(ip), new IPMask(mask)]
+    }
+    return
 }

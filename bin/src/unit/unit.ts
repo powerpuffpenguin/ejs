@@ -38,6 +38,42 @@ export class Assert {
         }
         throw assertQuit
     }
+    notEqual<T>(expect: T, actual: T, ...msg: Array<any>) {
+        const s_expect = JSON.stringify(expect)
+        const s_actual = JSON.stringify(actual)
+        if (s_expect != s_actual) {
+            return
+        }
+        console.log(`--- FAIL: ${this.name}`)
+        console.log(`  Error: equal`)
+        console.log(`  Expect not:`, s_expect)
+        console.log(`  Actual:`, s_actual)
+        if (msg.length != 0) {
+            console.log(`  Message:`, ...msg)
+        }
+        const stack = new Error().stack
+        if (typeof stack === "string") {
+            console.log(`  Stack:`, stack)
+        }
+        throw assertQuit
+    }
+    true(expr: any, ...msg: Array<any>) {
+        if (expr) {
+            return
+        }
+        console.log(`--- FAIL: ${this.name}`)
+        console.log(`  Error: not equal`)
+        console.log(`  Expect:`, true)
+        console.log(`  Actual:`, expr)
+        if (msg.length != 0) {
+            console.log(`  Message:`, ...msg)
+        }
+        const stack = new Error().stack
+        if (typeof stack === "string") {
+            console.log(`  Stack:`, stack)
+        }
+        throw assertQuit
+    }
 }
 
 export class Module {

@@ -24,9 +24,9 @@ static int ubtoa(uint8_t *dst, int start, uint8_t v)
     dst[start] = v / 100 + '0';
     return 3;
 }
-static duk_ret_t c_ipv4_string(duk_context *ctx, const uint8_t *p4, duk_size_t len)
+static duk_ret_t c_ipv4_string(duk_context *ctx, const uint8_t *p4)
 {
-    uint8_t *b = duk_push_fixed_buffer(ctx, 15);
+    uint8_t *b = duk_push_dynamic_buffer(ctx, 15);
     int n = ubtoa(b, 0, p4[0]);
     b[n] = '.';
     n++;
@@ -40,18 +40,15 @@ static duk_ret_t c_ipv4_string(duk_context *ctx, const uint8_t *p4, duk_size_t l
     n++;
 
     n += ubtoa(b, n, p4[3]);
-
+    if (n != 15)
+    {
+        duk_resize_buffer(ctx, -1, n);
+    }
     duk_buffer_to_string(ctx, -1);
     return 1;
 }
-// (ip:Uint8Array)=>string
-static duk_ret_t ipv4_string(duk_context *ctx)
-{
-    duk_size_t len;
-    const uint8_t *p4 = duk_require_buffer_data(ctx, 0, &len);
-    return c_ipv4_string(ctx, p4, len);
-}
-static duk_ret_t c_ipv6_string(duk_context *ctx, const uint8_t *p, duk_size_t len)
+
+static duk_ret_t c_ipv6_string(duk_context *ctx, const uint8_t *p)
 {
     // Find longest run of zeros.
     int e0 = -1;
@@ -116,21 +113,47 @@ static duk_ret_t c_ipv6_string(duk_context *ctx, const uint8_t *p, duk_size_t le
             }
         }
     }
-    if (n != IPv6len)
+    if (n != 39)
     {
         duk_resize_buffer(ctx, -1, n);
     }
     duk_buffer_to_string(ctx, -1);
     return 1;
 }
+
+static duk_ret_t c_ip_string(duk_context *ctx, const uint8_t *p, duk_size_t len)
+{
+    switch (len)
+    {
+    case 0:
+        duk_push_lstring(ctx, "<undefined>", 11);
+        break;
+    case IPv6len:
+        if (memcmp(p, v4InV6Prefix, 12))
+        {
+            return c_ipv6_string(ctx, p);
+        }
+        else
+        {
+            return c_ipv4_string(ctx, p + 12);
+        }
+    case IPv4len:
+        return c_ipv4_string(ctx, p);
+    default:
+        duk_push_lstring(ctx, "?", 1);
+        _ejs_helper_c_hex_string(ctx, p, len);
+        duk_concat(ctx, 2);
+        break;
+    }
+    return 1;
+}
 // (ip:Uint8Array)=>string
-static duk_ret_t ipv6_string(duk_context *ctx)
+static duk_ret_t ip_string(duk_context *ctx)
 {
     duk_size_t len;
     const uint8_t *p = duk_require_buffer_data(ctx, 0, &len);
-    return c_ipv6_string(ctx, p, len);
+    return c_ip_string(ctx, p, len);
 }
-
 // Decimal to integer.
 // Returns number, characters consumed, success.
 static BOOL dtoi(const uint8_t *s, const duk_size_t len, int *out_n, int *out_i)
@@ -490,6 +513,7 @@ static duk_ret_t cidr_mask(duk_context *ctx)
 // return the number of 1 bits.
 static int simpleMaskLength(const uint8_t *mask, duk_size_t len)
 {
+
     int n = 0;
     uint8_t v;
     for (duk_size_t i = 0; i < len; i++)
@@ -502,7 +526,7 @@ static int simpleMaskLength(const uint8_t *mask, duk_size_t len)
         }
         // found non-ff byte
         // count 1 bits
-        while (v & 0x80 != 0)
+        while (v & 0x80)
         {
             n++;
             v <<= 1;
@@ -549,16 +573,16 @@ static duk_ret_t mask_size(duk_context *ctx)
     }
     return 1;
 }
-static void networkNumberAndMask(const uint8_t *ipnet, duk_size_t *ipnet_len, uint8_t *mask, duk_size_t *mask_len)
+static void c_networkNumberAndMask(uint8_t **ipnet, duk_size_t *ipnet_len, uint8_t **mask, duk_size_t *mask_len)
 {
     switch (*ipnet_len)
     {
     case IPv4len:
         break;
     case IPv6len:
-        if (!memcmp(ipnet, v4InV6Prefix, 12))
+        if (!memcmp(*ipnet, v4InV6Prefix, 12))
         {
-            ipnet += 12;
+            *ipnet += 12;
             *ipnet_len -= 12;
         }
         break;
@@ -581,7 +605,7 @@ static void networkNumberAndMask(const uint8_t *ipnet, duk_size_t *ipnet_len, ui
     case IPv6len:
         if (*ipnet_len == IPv4len)
         {
-            mask += 12;
+            *mask += 12;
             *mask_len -= 12;
         }
         break;
@@ -590,6 +614,25 @@ static void networkNumberAndMask(const uint8_t *ipnet, duk_size_t *ipnet_len, ui
         *mask_len = 0;
         return;
     }
+}
+
+static duk_ret_t networkNumberAndMask(duk_context *ctx)
+{
+    duk_size_t ipnet_len;
+    uint8_t *ipnet = duk_require_buffer_data(ctx, 0, &ipnet_len);
+    duk_size_t mask_len;
+    uint8_t *mask = duk_require_buffer_data(ctx, 1, &mask_len);
+    c_networkNumberAndMask(&ipnet, &ipnet_len, &mask, &mask_len);
+    if (ipnet_len == 0 || mask_len == 0)
+    {
+        return 0;
+    }
+    duk_push_array(ctx);
+    memmove(duk_push_dynamic_buffer(ctx, ipnet_len), ipnet, ipnet_len);
+    duk_put_prop_index(ctx, -2, 0);
+    memmove(duk_push_dynamic_buffer(ctx, mask_len), mask, mask_len);
+    duk_put_prop_index(ctx, -2, 1);
+    return 1;
 }
 
 // (net_ip: Uint8Array, mask: Uint8Array, ip: Uint8Array)=> boolean
@@ -618,7 +661,7 @@ static duk_ret_t ipnet_contains(duk_context *ctx)
         ip_len = 0;
         break;
     }
-    networkNumberAndMask(ipnet, &ipnet_len, mask, &mask_len);
+    c_networkNumberAndMask(&ipnet, &ipnet_len, &mask, &mask_len);
 
     if (ipnet_len != ip_len)
     {
@@ -645,22 +688,27 @@ static duk_ret_t ipnet_string(duk_context *ctx)
 
     duk_size_t mask_len;
     uint8_t *mask = duk_require_buffer_data(ctx, 1, &mask_len);
-
-    if (!ipnet_len || !mask_len)
+    if (!ipnet_len || !mask_len || (ipnet_len != IPv6len && ipnet_len != IPv4len))
     {
         duk_push_lstring(ctx, "<undefined>", 11);
     }
     else
     {
         int l = simpleMaskLength(mask, mask_len);
-
         if (ipnet_len == IPv6len)
         {
-            c_ipv6_string(ctx, ipnet, ipnet_len);
+            if (memcmp(ipnet, v4InV6Prefix, 12))
+            {
+                c_ipv6_string(ctx, ipnet);
+            }
+            else
+            {
+                c_ipv4_string(ctx, ipnet + 12);
+            }
         }
-        else
+        else if (ipnet_len == IPv4len)
         {
-            c_ipv4_string(ctx, ipnet, ipnet_len);
+            c_ipv4_string(ctx, ipnet);
         }
         duk_push_lstring(ctx, "/", 1);
         if (l == -1)
@@ -718,11 +766,10 @@ static duk_ret_t parse_cidr(duk_context *ctx)
     {
         return 0;
     }
-
-    duk_push_array(ctx);
+    duk_push_object(ctx);
     duk_swap_top(ctx, -3);
-    duk_put_prop_index(ctx, -3, 0);
-    duk_put_prop_index(ctx, -2, 1);
+    duk_put_prop_lstring(ctx, -3, "ip", 2);
+    duk_put_prop_lstring(ctx, -2, "mask", 4);
     return 1;
 }
 
@@ -746,10 +793,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, _ejs_helper_hex_string, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "hex_string", 10);
 
-        duk_push_c_lightfunc(ctx, ipv4_string, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "ipv4_string", 11);
-        duk_push_c_lightfunc(ctx, ipv6_string, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "ipv6_string", 11);
+        duk_push_c_lightfunc(ctx, ip_string, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "ip_string", 9);
         duk_push_c_lightfunc(ctx, parse_ip, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parse_ip", 8);
         duk_push_c_lightfunc(ctx, ip_4in6, 1, 1, 0);
@@ -757,6 +802,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, ip_mask, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ip_mask", 7);
 
+        duk_push_c_lightfunc(ctx, networkNumberAndMask, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "networkNumberAndMask", 20);
         duk_push_c_lightfunc(ctx, cidr_mask, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "cidr_mask", 9);
         duk_push_c_lightfunc(ctx, mask_size, 1, 1, 0);
