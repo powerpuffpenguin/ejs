@@ -5,6 +5,50 @@
 #include "js/net.h"
 #include "_duk_helper.h"
 static uint8_t v4InV6Prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+
+static duk_ret_t ip_equal(duk_context *ctx)
+{
+    duk_size_t a_len;
+    uint8_t *a = duk_require_buffer_data(ctx, 0, &a_len);
+    duk_size_t b_len;
+    uint8_t *b = duk_require_buffer_data(ctx, 1, &b_len);
+    if (a_len != b_len)
+    {
+        if (a_len == IPv4len && b_len == IPv6len)
+        {
+            if (memcmp(b, v4InV6Prefix, 12))
+            {
+                duk_push_false(ctx);
+                return 1;
+            }
+            b += 12;
+        }
+        else if (a_len == IPv6len && b_len == IPv4len)
+        {
+            if (memcmp(a, v4InV6Prefix, 12))
+            {
+                duk_push_false(ctx);
+                return 1;
+            }
+            a += 12;
+            a_len -= 12;
+        }
+        else
+        {
+            duk_push_false(ctx);
+            return 1;
+        }
+    }
+    if (memcmp(a, b, a_len))
+    {
+        duk_push_false(ctx);
+    }
+    else
+    {
+        duk_push_true(ctx);
+    }
+    return 1;
+}
 static int ubtoa(uint8_t *dst, int start, uint8_t v)
 {
     if (v < 10)
@@ -793,6 +837,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, _ejs_helper_hex_string, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "hex_string", 10);
 
+        duk_push_c_lightfunc(ctx, ip_equal, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ip_equal", 8);
         duk_push_c_lightfunc(ctx, ip_string, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "ip_string", 9);
         duk_push_c_lightfunc(ctx, parse_ip, 1, 1, 0);

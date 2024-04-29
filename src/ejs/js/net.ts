@@ -9,6 +9,7 @@ declare namespace deps {
     export function ip_string(ip: Uint8Array): string
     export function parse_ip(s: string): Uint8Array | undefined
     export function ip_4in6(ip: Uint8Array): boolean | undefined
+    export function ip_equal(a: Uint8Array, b: Uint8Array): boolean
     export function ip_mask(mask: Uint8Array, ip: Uint8Array): Uint8Array | undefined
     export function networkNumberAndMask(ip: Uint8Array, mask: Uint8Array): [Uint8Array, Uint8Array] | undefined
     export function cidr_mask(ones: number, bits: number): Uint8Array | undefined
@@ -144,11 +145,21 @@ export class IP {
      * Only IPv4 addresses have default masks; DefaultMask returns undefined if ip is not a valid IPv4 address.
      */
     defaultMask(): IPMask | undefined {
-        const ip = this.to4()
-        if (!ip) {
-            return
+        const b = this.ip
+        let v: number = 0
+        switch (b.length) {
+            case IPv4len:
+                v = b[0]
+                break
+            case IPv6len:
+                if (!deps.ip_4in6(b)) {
+                    return
+                }
+                v = b[12];
+                break
+            default:
+                break
         }
-        const v = ip.ip[0]
         if (v < 0x80) {
             return classAMask
         } else if (v < 0xC0) {
@@ -160,20 +171,7 @@ export class IP {
      * reports whether ip and o are the same IP address. An IPv4 address and that same address in IPv6 form are considered to be equal.
      */
     equal(o: IP): boolean {
-        const ip = this.ip
-        const x = o.ip
-        if (ip.length == o.length) {
-            return deps.eq(ip, x)
-        }
-        if (ip.length == IPv4len && x.length == IPv6len) {
-            return deps.eq(x.subarray(0, 12), v4InV6Prefix) &&
-                deps.eq(ip, x.subarray(12))
-        }
-        if (ip.length == IPv6len && x.length == IPv4len) {
-            return deps.eq(ip.subarray(0, 12), v4InV6Prefix) &&
-                deps.eq(ip.subarray(12), x)
-        }
-        return false
+        return deps.ip_equal(this.ip, o.ip)
     }
     /**
      * reports whether ip is a global unicast address.
