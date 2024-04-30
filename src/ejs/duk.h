@@ -29,14 +29,33 @@ extern "C"
     DUK_EXTERNAL void ejs_call_function(duk_context *ctx,
                                         duk_c_function func, void *args,
                                         ejs_finally_function finally_func);
-
     /**
      * * ok  ... -> ... retval
+     * * err  exit(1)
+     */
+    DUK_EXTERNAL void ejs_call_callback(duk_context *ctx,
+                                        duk_c_function func, void *args,
+                                        ejs_finally_function finally_func);
+    /**
+     * * ok  ... -> ... retval
+     * * err  exit(1)
+     */
+    DUK_EXTERNAL void ejs_call_callback_noresult(duk_context *ctx,
+                                                 duk_c_function func, void *args,
+                                                 ejs_finally_function finally_func);
+    /**
+     * * ok  ... -> ...
      * * err  ... -> ... err
      */
     DUK_EXTERNAL duk_int_t ejs_pcall_function(duk_context *ctx,
                                               duk_c_function func, void *args);
 
+    /**
+     * * ok  ... -> ... retval
+     * * err  ... -> ... err
+     */
+    DUK_EXTERNAL duk_int_t ejs_pcall_function_n(duk_context *ctx,
+                                                duk_c_function func, void *args, duk_idx_t n);
     /**
      * ... string ... -> ...
      */

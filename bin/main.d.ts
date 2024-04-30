@@ -182,6 +182,18 @@ declare module "ejs/net" {
          */
         readonly isUnspecified: boolean
         /**
+         * If ip is an IPv4 or IPv6 address, returns true.
+         */
+        readonly isValid: boolean
+        /**
+         * If ip is an IPv4 address, returns true.
+         */
+        readonly isV4: boolean
+        /**
+         * If ip is an IPv6 address, returns true.
+         */
+        readonly isV6: boolean
+        /**
          * converts the IPv4 address ip to a 4-byte representation.
          * @remarks
          * If ip is not an IPv4 address, To4 returns nil.
@@ -259,4 +271,29 @@ declare module "ejs/net" {
      * 
      */
     export function splitHostPort(hostport: string): [string, string]
+
+    export interface Addr {
+        /**
+         * name of the network (for example, "tcp", "udp")
+         */
+        network: string
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        address: string
+    }
+    export interface ListenOptions extends Addr {
+    }
+    /**
+     * Conn is a generic stream-oriented network connection.
+     */
+    export interface Conn {
+
+    }
+    export interface Listener {
+        readonly addr: Addr
+        close(): void
+        onAccept?: () => void
+    }
+    export function listen(opts: ListenOptions): Listener
 }

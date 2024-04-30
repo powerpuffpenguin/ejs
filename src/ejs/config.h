@@ -16,6 +16,10 @@
 #define EJS_CONFIG_ARCH "unknow-arch", 11
 #endif
 
+#ifndef EJS_LISTEN_BACKLOG
+#define EJS_LISTEN_BACKLOG 5
+#endif
+
 // #ifndef EJS_CONFIG_SEPARATOR_WINDOWS
 // #define EJS_CONFIG_SEPARATOR_WINDOWS
 // #endif

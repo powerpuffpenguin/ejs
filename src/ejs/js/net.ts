@@ -2,13 +2,15 @@ declare namespace __duk {
     class Error {
         constructor(message?: string)
     }
+    class OsError extends Error { }
+
 }
 declare namespace deps {
     export function eq(a: Uint8Array, b: Uint8Array): boolean
     export function hex_string(b: Uint8Array): string
     export function ip_string(ip: Uint8Array): string
     export function parse_ip(s: string): Uint8Array | undefined
-    export function ip_4in6(ip: Uint8Array): boolean | undefined
+    export function ip_4in6(ip: Uint8Array): boolean
     export function ip_equal(a: Uint8Array, b: Uint8Array): boolean
     export function ip_mask(mask: Uint8Array, ip: Uint8Array): Uint8Array | undefined
     export function networkNumberAndMask(ip: Uint8Array, mask: Uint8Array): [Uint8Array, Uint8Array] | undefined
@@ -17,6 +19,25 @@ declare namespace deps {
     export function ipnet_contains(net_ip: Uint8Array, mask: Uint8Array, ip: Uint8Array): boolean
     export function ipnet_string(net_ip: Uint8Array, mask: Uint8Array): string
     export function parse_cidr(s: string): { ip: Uint8Array, mask: Uint8Array } | undefined
+
+    export class TCPConn {
+        readonly __id = "TCPConn"
+    }
+    export class TCPListener {
+        readonly __id = "TCPListener"
+        cb?: (c: TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => void
+        err?: (e: any) => void
+    }
+    export interface TCPListenerOptions {
+        ip?: string
+        v6?: boolean
+        port: number
+        backlog: number
+    }
+    export function tcp_listen(opts: TCPListenerOptions): TCPListener
+    export function tcp_listen_close(l: TCPListener): void
+    export function tcp_listen_cb(l: TCPListener, enable: boolean): void
+    export function tcp_listen_err(l: TCPListener, enable: boolean): void
 }
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
@@ -69,7 +90,6 @@ const classAMask = IPMask.v4(0xff, 0, 0, 0);
 const classBMask = IPMask.v4(0xff, 0xff, 0, 0)
 const classCMask = IPMask.v4(0xff, 0xff, 0xff, 0)
 
-const v4InV6Prefix = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff])
 /**
  * An IP is a single IP address. Accept either 4-byte (IPv4) or 16-byte (IPv6) Uint8Array as input.
  */
@@ -272,7 +292,26 @@ export class IP {
     get isUnspecified(): boolean {
         return this.equal(IP.v4zero) || this.equal(IP.v6unspecified)
     }
-
+    /**
+     * If ip is an IPv4 or IPv6 address, returns true.
+     */
+    get isValid(): boolean {
+        return this.ip.length == IPv4len || this.ip.length == IPv6len
+    }
+    /**
+     * If ip is an IPv4 address, returns true.
+     */
+    get isV4(): boolean {
+        return this.ip.length == IPv4len || (
+            this.ip.length == IPv6len && deps.ip_4in6(this.ip)
+        )
+    }
+    /**
+     * If ip is an IPv6 address, returns true.
+     */
+    get isV6(): boolean {
+        return this.ip.length == IPv6len && !deps.ip_4in6(this.ip)
+    }
     /**
      * converts the IPv4 address ip to a 4-byte representation.
      * @remarks
@@ -460,4 +499,227 @@ export function networkNumberAndMask(n: IPNet): [IP, IPMask] | undefined {
         return [new IP(ip), new IPMask(mask)]
     }
     return
+}
+
+
+
+export interface Addr {
+    /**
+     * name of the network (for example, "tcp", "udp")
+     */
+    readonly network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    readonly address: string
+}
+export class NetAddr implements Addr {
+    constructor(readonly network: string, readonly address: string) {
+    }
+    toString(): string {
+        return this.address
+    }
+}
+export interface ListenOptions extends Addr {
+    /**
+     * @default 5
+     */
+    backlog?: number
+}
+export class TcpError extends __duk.Error {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "TcpError"
+    }
+}
+/**
+ * Conn is a generic stream-oriented network connection.
+ */
+export interface Conn {
+}
+export type OnAcceptCallback = (l: Listener, c: Conn) => void
+export type onErrorCallback = (e: any) => void
+export interface Listener {
+    readonly addr: Addr
+    close(): void
+    onAccept?: OnAcceptCallback
+    onError?: onErrorCallback
+}
+export class TCPListener implements Listener {
+    private l_?: deps.TCPListener
+    constructor(readonly addr: Addr, l: deps.TCPListener) {
+        l.cb = (c, remoteIP, remotePort, localIP, localPort) => {
+            this._onAccept(c, remoteIP, remotePort, localIP, localPort)
+        }
+        l.err = (e) => {
+            this._onError(e)
+        }
+        this.l_ = l
+    }
+    get isClosed(): boolean {
+        return this.l_ ? false : true
+    }
+    close(): void {
+        const l = this.l_
+        if (l) {
+            this.l_ = undefined
+            deps.tcp_listen_close(l)
+        }
+    }
+    private onAccept_?: OnAcceptCallback
+    private onError_?: onErrorCallback
+    set onAccept(f: OnAcceptCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onAccept_) {
+                return
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_cb(l, false)
+            }
+            this.onAccept_ = undefined
+        } else {
+            if (f === this.onAccept_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new TcpError("onAccept must be a function")
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_cb(l, true)
+            }
+            this.onAccept_ = f
+        }
+    }
+    set onError(f: onErrorCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onError_) {
+                return
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_err(l, false)
+            }
+            this.onError_ = undefined
+        } else {
+            if (f === this.onError_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new TcpError("onError must be a function")
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_err(l, true)
+            }
+            this.onError_ = f
+        }
+    }
+    get onAccept(): OnAcceptCallback | undefined {
+        return this.onAccept_
+    }
+    get onError(): onErrorCallback | undefined {
+        return this.onError_
+    }
+    private _onAccept(conn: deps.TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) {
+        if (remoteIP.startsWith('::ffff:')) {
+            remoteIP = remoteIP.substring(7)
+        }
+        if (localIP.startsWith('::ffff:')) {
+            localIP = localIP.substring(7)
+        }
+        const remoteAddr = new NetAddr('tcp', joinHostPort(remoteIP, remotePort))
+        const localAddr = new NetAddr('tcp', joinHostPort(localIP, localPort))
+
+        console.log("_onAccept", conn, localAddr, remoteAddr)
+    }
+    private _onError(e: any) {
+        const cb = this.onError_
+        if (cb) {
+            cb(e)
+        }
+    }
+}
+function listenTCP(opts: ListenOptions, v6?: boolean): Listener {
+    try {
+        const backlog = opts.backlog ?? 5
+        if (!Number.isSafeInteger(backlog) || backlog < 1) {
+            throw new TcpError(`listen backlog invalid: ${opts.backlog}`)
+        }
+        const [host, sport] = splitHostPort(opts.address)
+        let address = opts.address
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new TcpError(`listen port invalid: ${opts.address}`)
+        }
+        let ip: IP | undefined
+        if (host != "") {
+            ip = IP.parse(host)
+            if (!ip) {
+                throw new TcpError(`listen address invalid: ${opts.address}`)
+            }
+        }
+
+        if (ip) {
+            if (v6 === undefined) {
+                if (ip.isV4) {
+                    v6 = false
+                }
+            } else {
+                if (v6) {
+                    if (!ip.isV6) {
+                        throw new TcpError(`listen network restriction address must be ipv6: ${opts.address}`)
+                    }
+                    v6 = true
+                } else {
+                    if (!ip.isV4) {
+                        throw new TcpError(`listen network restriction address must be ipv4: ${opts.address}`)
+                    }
+                    v6 = false
+                }
+            }
+        }
+
+        const l = deps.tcp_listen({
+            ip: ip?.toString(),
+            port: port,
+            v6: v6,
+            backlog: backlog
+        })
+        if (host == "") {
+            if (v6 === undefined) {
+                address = `[::]${address}`
+            } else if (v6) {
+                address = `[::]${address}`
+            } else {
+                address = `0.0.0.0${address}`
+            }
+        }
+        try {
+            return new TCPListener(new NetAddr('tcp', address), l)
+        } catch (e) {
+            deps.tcp_listen_close(l)
+            throw e
+        }
+    } catch (e) {
+        if (e instanceof __duk.OsError) {
+            throw e;
+        } else if (e instanceof Error) {
+            throw new TcpError(e.message);
+        }
+        throw e;
+    }
+}
+export function listen(opts: ListenOptions): Listener {
+    switch (opts.network) {
+        case 'tcp':
+            return listenTCP(opts)
+        case 'tcp4':
+            return listenTCP(opts, false)
+        case 'tcp6':
+            return listenTCP(opts, true)
+        default:
+            throw new Error(`unknow network: ${opts.network}`);
+    }
 }

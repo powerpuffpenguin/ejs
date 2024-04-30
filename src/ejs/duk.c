@@ -97,12 +97,55 @@ DUK_EXTERNAL void ejs_call_function(duk_context *ctx, duk_c_function func, void 
         duk_throw(ctx);
     }
 }
+/**
+ * * ok  ... -> ...
+ * * err  exit(1)
+ */
+DUK_EXTERNAL void ejs_call_callback(duk_context *ctx,
+                                    duk_c_function func, void *args,
+                                    ejs_finally_function finally_func)
+{
+    duk_push_c_lightfunc(ctx, func, 1, 1, 0);
+    duk_push_pointer(ctx, args);
+    duk_ret_t err = duk_pcall(ctx, 1);
+    if (finally_func)
+    {
+        finally_func(args);
+    }
+    if (err)
+    {
+        puts(duk_safe_to_string(ctx, -1));
+        exit(1);
+    }
+}
+DUK_EXTERNAL void ejs_call_callback_noresult(duk_context *ctx,
+                                             duk_c_function func, void *args,
+                                             ejs_finally_function finally_func)
+{
+    ejs_call_callback(ctx, func, args, finally_func);
+    duk_pop(ctx);
+}
 DUK_EXTERNAL duk_int_t ejs_pcall_function(duk_context *ctx,
                                           duk_c_function func, void *args)
 {
     duk_push_c_lightfunc(ctx, func, 1, 1, 0);
     duk_push_pointer(ctx, args);
     return duk_pcall(ctx, 1);
+}
+DUK_EXTERNAL duk_int_t ejs_pcall_function_n(duk_context *ctx,
+                                            duk_c_function func, void *args, duk_idx_t n)
+{
+    duk_push_c_lightfunc(ctx, func, n, n, 0);
+    if (n == 2)
+    {
+        duk_swap_top(ctx, -2);
+    }
+    else
+    {
+        duk_insert(ctx, -n);
+    }
+    duk_push_pointer(ctx, args);
+    return duk_pcall(ctx, n);
 }
 typedef struct
 {

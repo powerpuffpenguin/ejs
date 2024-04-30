@@ -19,4 +19,5 @@
 #define EJS_STASH_INTERVAL "interval", 8
 #define EJS_STASH_TIMEOUT "timeout", 7
 
+#define EJS_STASH_NET_TCP_LISTENER "net.tcp_listener", 16
 #endif
