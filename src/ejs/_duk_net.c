@@ -831,6 +831,48 @@ static void tcp_connection_read_cb(struct bufferevent *bev, void *ptr)
 }
 typedef struct
 {
+    ejs_core_t *core;
+    struct bufferevent *bev;
+} tcp_connection_write_cb_args_t;
+static duk_ret_t tcp_connection_write_cb_impl(duk_context *ctx)
+{
+    tcp_connection_write_cb_args_t *args = duk_require_pointer(ctx, 0);
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
+    duk_push_pointer(ctx, args->bev);
+    duk_get_prop(ctx, -2);
+    if (!duk_is_object(ctx, -1))
+    {
+        return 0;
+    }
+    duk_swap_top(ctx, -4);
+    duk_pop_3(ctx);
+    duk_get_prop_lstring(ctx, -1, "busy", 4);
+    if (!duk_get_boolean_default(ctx, -1, 0))
+    {
+        return 0;
+    }
+
+    duk_get_prop_lstring(ctx, -2, "cbw", 3);
+    if (!duk_is_function(ctx, -1))
+    {
+        return 0;
+    }
+    duk_call(ctx, 0);
+    return 0;
+}
+static void tcp_connection_write_cb(struct bufferevent *bev, void *ptr)
+{
+    tcp_connection_write_cb_args_t args = {
+        .core = ptr,
+        .bev = bev,
+    };
+    ejs_call_callback_noresult(args.core->duk, tcp_connection_write_cb_impl, &args, NULL);
+}
+
+typedef struct
+{
     struct evconnlistener *listener;
 } tcp_listen_args_t;
 static duk_ret_t evconnlistener_tcp_destroy(duk_context *ctx)
@@ -852,6 +894,23 @@ static duk_ret_t bufferevent_destroy(duk_context *ctx)
         bufferevent_free(bev);
     }
     return 0;
+}
+static void push_tcp_connection(duk_context *ctx, ejs_core_t *core, struct bufferevent *bev)
+{
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, core);
+    duk_put_prop_lstring(ctx, -2, "core", 4);
+    duk_push_pointer(ctx, bev);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_object(ctx);
+    {
+        duk_push_uint(ctx, 0);
+        duk_put_prop_lstring(ctx, -2, "mw", 2);
+    }
+    duk_put_prop_lstring(ctx, -2, "md", 2);
+
+    duk_push_c_lightfunc(ctx, bufferevent_destroy, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
 }
 typedef struct
 {
@@ -934,16 +993,18 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
     {
         return 0;
     }
-    bufferevent_setcb(args->bev, tcp_connection_read_cb, NULL, tcp_connection_event_cb, args->core);
+    bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, args->core);
     bufferevent_enable(args->bev, EV_WRITE);
-    duk_push_object(ctx);
-    duk_push_pointer(ctx, args->core);
-    duk_put_prop_lstring(ctx, -2, "core", 4);
-    duk_push_pointer(ctx, args->bev);
-    duk_put_prop_lstring(ctx, -2, "p", 1);
-    duk_push_c_lightfunc(ctx, bufferevent_destroy, 1, 1, 0);
-    duk_set_finalizer(ctx, -2);
+
+    push_tcp_connection(ctx, args->core, args->bev);
     args->free = TRUE;
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
+    duk_push_pointer(ctx, args->bev);
+    duk_dup(ctx, -4);
+    duk_put_prop(ctx, -3);
+    duk_pop_2(ctx);
 
     if (args->socklen == sizeof(struct sockaddr_in6))
     {
@@ -980,8 +1041,11 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
         duk_push_string(ctx, ip);
         duk_push_int(ctx, ntohs(sin->sin_port));
     }
-    ejs_dump_context_stdout(ctx);
     duk_call(ctx, 5);
+    if (!duk_get_boolean(ctx, -1))
+    {
+        return 0;
+    }
     return 0;
 }
 
@@ -1209,6 +1273,89 @@ static duk_ret_t tcp_listen_err(duk_context *ctx)
     evconnlistener_set_error_cb(listener, enable ? evconnlistener_tcp_errorcb : 0);
     return 0;
 }
+
+static duk_ret_t tcp_conn_close(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    struct bufferevent *bev = duk_get_pointer_default(ctx, -1, 0);
+    if (!bev)
+    {
+        return 0;
+    }
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    duk_swap_top(ctx, -2);
+    duk_get_prop(ctx, -2);
+    if (!duk_equals(ctx, -1, -3))
+    {
+        return 0;
+    }
+    duk_pop(ctx);
+
+    duk_push_pointer(ctx, bev);
+    duk_push_undefined(ctx);
+    duk_set_finalizer(ctx, -4);
+
+    bufferevent_free(bev);
+    duk_del_prop(ctx, -2);
+    return 0;
+}
+static duk_ret_t tcp_conn_write(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    struct bufferevent *bev = duk_get_pointer_default(ctx, -1, 0);
+    if (!bev)
+    {
+        return 0;
+    }
+    duk_pop(ctx);
+    const uint8_t *data;
+    duk_size_t data_len;
+    if (duk_is_string(ctx, 1))
+    {
+        data = duk_require_lstring(ctx, 1, &data_len);
+    }
+    else
+    {
+        data = duk_require_buffer_data(ctx, 1, &data_len);
+    }
+    if (!data_len)
+    {
+        duk_push_uint(ctx, 0);
+        return 0;
+    }
+    duk_get_prop_lstring(ctx, 0, "md", 2);
+    duk_get_prop_lstring(ctx, -1, "mw", 2);
+    duk_size_t maxWriteBytes = duk_get_uint_default(ctx, -1, 0);
+    duk_pop_n(ctx, 4);
+
+    struct evbuffer *buf = bufferevent_get_output(bev);
+    size_t len = evbuffer_get_length(buf);
+    if (maxWriteBytes)
+    {
+        if (data_len > maxWriteBytes)
+        {
+            duk_push_lstring(ctx, "data too large", 14);
+            duk_throw(ctx);
+        }
+        else if (maxWriteBytes - len < data_len)
+        {
+            return 0;
+        }
+    }
+
+    int n = bufferevent_write(bev, data, data_len);
+    if (n < 0)
+    {
+        duk_push_lstring(ctx, "bufferevent_write fail", 22);
+        duk_throw(ctx);
+    }
+    duk_push_uint(ctx, data_len);
+    return 1;
+}
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
 {
     /*
@@ -1220,17 +1367,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
     duk_push_heap_stash(ctx);
     {
-        duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_LISTENER);
-        if (duk_is_object(ctx, -1))
-        {
-            duk_pop(ctx);
-        }
-        else
-        {
-            duk_push_object(ctx);
-            duk_put_prop_lstring(ctx, -3, EJS_STASH_NET_TCP_LISTENER);
-            duk_pop(ctx);
-        }
+        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_TCP_LISTENER);
+        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_TCP_CONN);
     }
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS);
     duk_swap_top(ctx, -2);
@@ -1278,6 +1416,11 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "tcp_listen_cb", 13);
         duk_push_c_lightfunc(ctx, tcp_listen_err, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_listen_err", 14);
+
+        duk_push_c_lightfunc(ctx, tcp_conn_close, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "tcp_conn_close", 14);
+        duk_push_c_lightfunc(ctx, tcp_conn_write, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "tcp_conn_write", 14);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

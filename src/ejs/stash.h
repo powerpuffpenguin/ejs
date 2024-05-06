@@ -19,5 +19,16 @@
 #define EJS_STASH_INTERVAL "interval", 8
 #define EJS_STASH_TIMEOUT "timeout", 7
 
+#define EJS_STASH_DEFINE_OBJECT(name)        \
+    duk_get_prop_lstring(ctx, -1, name);     \
+    if (!duk_is_object(ctx, -1))             \
+    {                                        \
+        duk_push_object(ctx);                \
+        duk_put_prop_lstring(ctx, -3, name); \
+    }                                        \
+    duk_pop(ctx)
+
 #define EJS_STASH_NET_TCP_LISTENER "net.tcp_listener", 16
+#define EJS_STASH_NET_TCP_CONN "net.tcp_conn", 12
+
 #endif

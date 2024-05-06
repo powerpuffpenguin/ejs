@@ -20,12 +20,21 @@ declare namespace deps {
     export function ipnet_string(net_ip: Uint8Array, mask: Uint8Array): string
     export function parse_cidr(s: string): { ip: Uint8Array, mask: Uint8Array } | undefined
 
+    export interface TCPConnMetadata {
+        /**
+         * max write bytes
+         */
+        mw: number
+    }
     export class TCPConn {
         readonly __id = "TCPConn"
+        busy?: boolean
+        cbw: () => void
+        md: TCPConnMetadata
     }
     export class TCPListener {
         readonly __id = "TCPListener"
-        cb?: (c: TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => void
+        cb?: (c: TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => boolean
         err?: (e: any) => void
     }
     export interface TCPListenerOptions {
@@ -38,6 +47,8 @@ declare namespace deps {
     export function tcp_listen_close(l: TCPListener): void
     export function tcp_listen_cb(l: TCPListener, enable: boolean): void
     export function tcp_listen_err(l: TCPListener, enable: boolean): void
+    export function tcp_conn_close(c: TCPConn): void
+    export function tcp_conn_write(c: TCPConn, data: string | Uint8Array | ArrayBuffer): number | undefined
 }
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
@@ -532,10 +543,90 @@ export class TcpError extends __duk.Error {
         (this as any).name = "TcpError"
     }
 }
+function throwTcpError(e: any): never {
+    if (typeof e === "string") {
+        throw new TcpError(e)
+    }
+    throw e
+}
 /**
  * Conn is a generic stream-oriented network connection.
  */
 export interface Conn {
+    readonly remoteAddr: Addr
+    readonly localAddr: Addr
+    close(): void
+    write(s: string | Uint8Array | ArrayBuffer): number | undefined
+}
+export class TCPConn implements Conn {
+    private c_?: deps.TCPConn
+    private md_: deps.TCPConnMetadata
+    constructor(readonly remoteAddr: Addr, readonly localAddr: Addr, conn: deps.TCPConn) {
+        this.c_ = conn
+        this.md_ = conn.md
+        conn.cbw = () => {
+            const f = this.onWritable
+            if (f) {
+                f()
+            }
+        }
+    }
+    get isClosed(): boolean {
+        return this.c_ ? false : true
+    }
+    close(): void {
+        const c = this.c_
+        if (c) {
+            this.c_ = undefined
+            deps.tcp_conn_close(c)
+        }
+    }
+    private _get(): deps.TCPConn {
+        const c = this.c_
+        if (!c) {
+            throw new TcpError(`conn already closed`)
+        }
+        return c
+    }
+    /**
+     * Write data returns the actual number of bytes written
+     * 
+     * @param data data to write
+     * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
+     */
+    write(data: string | Uint8Array | ArrayBuffer): number | undefined {
+        const c = this._get()
+        try {
+            const n = deps.tcp_conn_write(c, data)
+            if (n === undefined) {
+                c.busy = true
+            }
+            return n
+        } catch (e) {
+            throwTcpError(e)
+        }
+    }
+    /**
+     * Callback whenever the write buffer changes from unwritable to writable
+     */
+    onWritable?: () => void
+    /**
+     * Write buffer size
+     */
+    get maxWriteBytes(): number {
+        return this.md_.mw
+    }
+    set maxWriteBytes(v: number) {
+        if (!Number.isSafeInteger(v)) {
+            throw new TcpError("maxWriteBytes must be a safe integer")
+        } else if (v < 0) {
+            v = 0
+        }
+        if (v != this.md_.mw) {
+            this.md_.mw = v
+        }
+    }
+
 }
 export type OnAcceptCallback = (l: Listener, c: Conn) => void
 export type onErrorCallback = (e: any) => void
@@ -549,7 +640,7 @@ export class TCPListener implements Listener {
     private l_?: deps.TCPListener
     constructor(readonly addr: Addr, l: deps.TCPListener) {
         l.cb = (c, remoteIP, remotePort, localIP, localPort) => {
-            this._onAccept(c, remoteIP, remotePort, localIP, localPort)
+            return this._onAccept(c, remoteIP, remotePort, localIP, localPort)
         }
         l.err = (e) => {
             this._onError(e)
@@ -622,17 +713,29 @@ export class TCPListener implements Listener {
     get onError(): onErrorCallback | undefined {
         return this.onError_
     }
-    private _onAccept(conn: deps.TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) {
+    private _onAccept(conn: deps.TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number): boolean {
         if (remoteIP.startsWith('::ffff:')) {
             remoteIP = remoteIP.substring(7)
         }
         if (localIP.startsWith('::ffff:')) {
             localIP = localIP.substring(7)
         }
-        const remoteAddr = new NetAddr('tcp', joinHostPort(remoteIP, remotePort))
-        const localAddr = new NetAddr('tcp', joinHostPort(localIP, localPort))
 
-        console.log("_onAccept", conn, localAddr, remoteAddr)
+        const onAccept = this.onAccept_
+        if (!onAccept) {
+            return false
+        }
+        const c = new TCPConn(
+            new NetAddr('tcp', joinHostPort(remoteIP, remotePort)),
+            new NetAddr('tcp', joinHostPort(localIP, localPort)),
+            conn,
+        )
+        try {
+            onAccept(this, c)
+        } catch (e) {
+            throw e
+        }
+        return true
     }
     private _onError(e: any) {
         const cb = this.onError_

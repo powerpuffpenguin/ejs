@@ -283,17 +283,41 @@ declare module "ejs/net" {
         address: string
     }
     export interface ListenOptions extends Addr {
+        /**
+         * @default 5
+         */
+        backlog?: number
     }
     /**
      * Conn is a generic stream-oriented network connection.
      */
     export interface Conn {
-
+        readonly remoteAddr: Addr
+        readonly localAddr: Addr
+        readonly isClosed: boolean
+        close(): void
+        /**
+         * Write data returns the actual number of bytes written
+         * 
+         * @param data data to write
+         * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
+         */
+        write(data: string | Uint8Array | ArrayBuffer): number | undefined
+        /**
+         * Callback whenever the write buffer changes from unwritable to writable
+         */
+        onWritable?: () => void
+        /**
+         * Write buffer size
+         */
+        maxWriteBytes: number
     }
     export interface Listener {
         readonly addr: Addr
+        readonly isClosed: boolean
         close(): void
-        onAccept?: () => void
+        onAccept?: (c: Conn) => void
+        onError?: (e: any) => void
     }
     export function listen(opts: ListenOptions): Listener
 }

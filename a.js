@@ -9,7 +9,14 @@ var l = net.listen({
 console.log("listen on:", l.addr.toString())
 
 l.onAccept = function (l, c) {
-    console.log(l, c)
+    console.log("one in", c.remoteAddr, "->", c.localAddr, c.maxWriteBytes)
+    c.onWritable = function () {
+        console.log("onWritable")
+    }
+    setInterval(function () {
+        c.write("ok")
+    }, 1000)
+    // console.log(c.write("ok"))
 }
 // setTimeout(function () {
 //     l.close()
