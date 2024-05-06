@@ -646,26 +646,34 @@ export class TcpConn implements Conn {
             if (what & deps.BEV_EVENT_CONNECTED) {
                 if (what & deps.BEV_EVENT_TIMEOUT) {
                     console.log("connect timeout")
+                    this.close()
                 } else if (what & deps.BEV_EVENT_ERROR) {
                     console.log("connect error")
+                    this.close()
                 } else {
                     console.log("connect ok")
                 }
             } else if (what & deps.BEV_EVENT_WRITING) {
                 if (what & deps.BEV_EVENT_EOF) {
                     console.log("write eof")
+                    this.close()
                 } else if (what & deps.BEV_EVENT_TIMEOUT) {
                     console.log("write timeout")
+                    this.close()
                 } else if (what & deps.BEV_EVENT_ERROR) {
                     console.log("write error")
+                    this.close()
                 }
             } else if (what & deps.BEV_EVENT_READING) {
                 if (what & deps.BEV_EVENT_EOF) {
                     console.log("read eof")
+                    this.close()
                 } else if (what & deps.BEV_EVENT_TIMEOUT) {
                     console.log("read timeout")
+                    this.close()
                 } else if (what & deps.BEV_EVENT_ERROR) {
                     console.log("read error")
+                    this.close()
                 }
             }
             // const f = this.onError

@@ -27,14 +27,12 @@ l.onAccept = function (c) {
         r.drain(n + 2)
     }
     var i = 0
-    setInterval(function () {
-        console.log("xx")
-        try {
-            c.write("ok" + i + "中文測試abc")
-        } catch (e) {
-            console.log(e)
+    var timer = setInterval(function () {
+        if (c.isClosed) {
+            clearInterval(timer)
+            return
         }
-        console.log("xx end")
+        c.write("ok" + i + "中文測試abc")
         i++
     }, 1000)
     // console.log(c.write("ok"))

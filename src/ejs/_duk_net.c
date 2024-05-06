@@ -903,7 +903,7 @@ static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
     }
     duk_swap_top(ctx, -4);
     duk_pop_3(ctx);
-    duk_get_prop_lstring(ctx, -1, "err", 3);
+    duk_get_prop_lstring(ctx, -1, "cbe", 3);
     if (!duk_is_function(ctx, -1))
     {
         return 0;
