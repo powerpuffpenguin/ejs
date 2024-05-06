@@ -28,6 +28,13 @@ declare namespace deps {
     export function evbuffer_copy(b: evbuffer, dst: Uint8Array, skip?: number): number
     export function evbuffer_drain(b: evbuffer, n: number): void
 
+    export const BEV_EVENT_CONNECTED: number
+    export const BEV_EVENT_WRITING: number
+    export const BEV_EVENT_READING: number
+    export const BEV_EVENT_TIMEOUT: number
+    export const BEV_EVENT_EOF: number
+    export const BEV_EVENT_ERROR: number
+
     export interface TcpConnMetadata {
         /**
          * max write bytes
@@ -39,6 +46,7 @@ declare namespace deps {
         busy?: boolean
         cbw: () => void
         cbr: (b: evbuffer) => void
+        cbe?: (what: number) => void
         md: TcpConnMetadata
     }
     export class TcpListener {
@@ -59,7 +67,6 @@ declare namespace deps {
     export function tcp_conn_close(c: TcpConn): void
     export function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
     export function tcp_conn_cb(c: TcpConn, enable: boolean): void
-    export function tcp_conn_err(c: TcpConn, enable: boolean): void
 
 }
 export class AddrError extends __duk.Error {
@@ -635,7 +642,40 @@ export class TcpConn implements Conn {
         conn.cbr = (r) => {
             this._cbr(r)
         }
+        conn.cbe = (what) => {
+            if (what & deps.BEV_EVENT_CONNECTED) {
+                if (what & deps.BEV_EVENT_TIMEOUT) {
+                    console.log("connect timeout")
+                } else if (what & deps.BEV_EVENT_ERROR) {
+                    console.log("connect error")
+                } else {
+                    console.log("connect ok")
+                }
+            } else if (what & deps.BEV_EVENT_WRITING) {
+                if (what & deps.BEV_EVENT_EOF) {
+                    console.log("write eof")
+                } else if (what & deps.BEV_EVENT_TIMEOUT) {
+                    console.log("write timeout")
+                } else if (what & deps.BEV_EVENT_ERROR) {
+                    console.log("write error")
+                }
+            } else if (what & deps.BEV_EVENT_READING) {
+                if (what & deps.BEV_EVENT_EOF) {
+                    console.log("read eof")
+                } else if (what & deps.BEV_EVENT_TIMEOUT) {
+                    console.log("read timeout")
+                } else if (what & deps.BEV_EVENT_ERROR) {
+                    console.log("read error")
+                }
+            }
+            // const f = this.onError
+            // if (f) {
+            //     f(e, this)
+            // }
+            // this.close()
+        }
     }
+    onError?: (e: any, c: TcpConn) => void
     get isClosed(): boolean {
         return this.c_ ? false : true
     }

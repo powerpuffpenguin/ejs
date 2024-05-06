@@ -50,6 +50,7 @@
         "jemalloc.h": "c",
         "cmath": "c",
         "bufferevent.h": "c",
-        "buffer.h": "c"
+        "buffer.h": "c",
+        "optional": "c"
     }
 }

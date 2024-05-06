@@ -821,9 +821,109 @@ static duk_ret_t parse_cidr(duk_context *ctx)
     return 1;
 }
 
+typedef struct
+{
+    ejs_core_t *core;
+    struct bufferevent *bev;
+    short what;
+} tcp_connection_event_cb_args;
+static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
+{
+    tcp_connection_event_cb_args *args = duk_require_pointer(ctx, 0);
+
+    // if (args->what & BEV_EVENT_CONNECTED)
+    // {
+
+    //     if (args->what & BEV_EVENT_TIMEOUT)
+    //     {
+    //         puts("connect timeout");
+    //     }
+    //     else if (args->what & BEV_EVENT_ERROR)
+    //     {
+    //         int err = bufferevent_socket_get_dns_error(args->bev);
+    //         if (err)
+    //         {
+    //             printf("DNS error: %s\n", evutil_gai_strerror(err));
+    //         }
+    //         else
+    //         {
+    //             printf("connect: %s\n", evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+    //         }
+    //     }
+    //     else
+    //     {
+    //         puts("connect ok");
+    //     }
+    // }
+    // else if (args->what & BEV_EVENT_WRITING)
+    // {
+    //     if (args->what & BEV_EVENT_EOF)
+    //     {
+    //         puts("write on eof");
+    //     }
+    //     else if (args->what & BEV_EVENT_TIMEOUT)
+    //     {
+    //         puts("write timeout");
+    //     }
+    //     else if (args->what & BEV_EVENT_ERROR)
+    //     {
+    //         printf("write error: %s\n", evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+    //     }
+    // }
+    // else if (args->what & BEV_EVENT_READING)
+    // {
+    //     if (args->what & BEV_EVENT_EOF)
+    //     {
+    //         puts("read on eof");
+    //         duk_push_undefined(ctx);
+    //         duk_swap_top(ctx, -2);
+    //     }
+    //     else if (args->what & BEV_EVENT_TIMEOUT)
+    //     {
+    //         puts("read timeout");
+    //     }
+    //     else if (args->what & BEV_EVENT_ERROR)
+    //     {
+    //         printf("read error: %s\n", evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+    //     }
+    // }
+    // else
+    // {
+    //     duk_push_error_object(ctx, DUK_ERR_ERROR, "unknow tcp_connection_event_cb(%d)", args->what);
+    //     duk_throw(ctx);
+    // }
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
+    duk_push_pointer(ctx, args->bev);
+    duk_get_prop(ctx, -2);
+    if (!duk_is_object(ctx, -1))
+    {
+        return 0;
+    }
+    duk_swap_top(ctx, -4);
+    duk_pop_3(ctx);
+    duk_get_prop_lstring(ctx, -1, "err", 3);
+    if (!duk_is_function(ctx, -1))
+    {
+        return 0;
+    }
+    duk_push_uint(ctx, args->what);
+    duk_call(ctx, 1);
+    // ejs_dump_context_stdout(ctx);
+    // duk_swap_top(ctx, -2);
+    // duk_swap_top(ctx, -3);
+    // duk_call(ctx, 1);
+    return 0;
+}
 static void tcp_connection_event_cb(struct bufferevent *bev, short what, void *ptr)
 {
-    puts("tcp_connection_event_cb");
+    tcp_connection_event_cb_args args = {
+        .core = ptr,
+        .bev = bev,
+        .what = what,
+    };
+    ejs_call_callback_noresult(args.core->duk, tcp_connection_event_cb_impl, &args, NULL);
 }
 typedef struct
 {
@@ -1474,6 +1574,21 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, parse_cidr, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parse_cidr", 10);
+
+        // BEV_EVENT_
+        duk_push_uint(ctx, BEV_EVENT_CONNECTED);
+        duk_put_prop_lstring(ctx, -2, "BEV_EVENT_CONNECTED", 19);
+        duk_push_uint(ctx, BEV_EVENT_WRITING);
+        duk_put_prop_lstring(ctx, -2, "BEV_EVENT_WRITING", 17);
+        duk_push_uint(ctx, BEV_EVENT_READING);
+        duk_put_prop_lstring(ctx, -2, "BEV_EVENT_READING", 17);
+
+        duk_push_uint(ctx, BEV_EVENT_TIMEOUT);
+        duk_put_prop_lstring(ctx, -2, "BEV_EVENT_TIMEOUT", 17);
+        duk_push_uint(ctx, BEV_EVENT_EOF);
+        duk_put_prop_lstring(ctx, -2, "BEV_EVENT_EOF", 13);
+        duk_push_uint(ctx, BEV_EVENT_ERROR);
+        duk_put_prop_lstring(ctx, -2, "BEV_EVENT_ERROR", 15);
 
         // tcp
         duk_push_c_lightfunc(ctx, tcp_listen, 1, 1, 0);

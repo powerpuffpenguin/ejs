@@ -13,6 +13,9 @@ l.onAccept = function (c) {
     c.onWritable = function () {
         console.log("onWritable")
     }
+    c.onError = function (e) {
+        console.log(e)
+    }
     // c.onMessage = function (data) {
     //     console.log(new TextDecoder().decode(data))
     // }
@@ -25,7 +28,13 @@ l.onAccept = function (c) {
     }
     var i = 0
     setInterval(function () {
-        c.write("ok" + i + "中文測試abc")
+        console.log("xx")
+        try {
+            c.write("ok" + i + "中文測試abc")
+        } catch (e) {
+            console.log(e)
+        }
+        console.log("xx end")
         i++
     }, 1000)
     // console.log(c.write("ok"))

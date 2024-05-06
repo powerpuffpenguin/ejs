@@ -282,7 +282,15 @@ declare module "ejs/net" {
          */
         address: string
     }
-    export interface ListenOptions extends Addr {
+    export interface ListenOptions extends ListenBaseOptions {
+        /**
+         * name of the network (for example, "tcp", "udp")
+         */
+        network: string
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        address: string
         /**
          * @default 5
          */
@@ -306,6 +314,10 @@ declare module "ejs/net" {
          * Close the connection and release resources
          */
         close(): void
+        /**
+         * Callback when an error occurs
+         */
+        onError?: (e: any, c: Conn) => void
         /**
          * Write data returns the actual number of bytes written
          * 
@@ -335,6 +347,73 @@ declare module "ejs/net" {
         onAccept?: (c: Conn, l: Listener) => void
         onError?: (e: any, l: Listener) => void
     }
-    export TcpConn
+    export interface Readable {
+        readonly length: number
+        read(dst: Uint8Array): number
+        copy(dst: Uint8Array): number
+        drain(n: number): void
+    }
+    export class TcpConn implements Conn {
+        private constructor() { }
+        readonly remoteAddr: Addr
+        readonly localAddr: Addr
+
+        /**
+         * Returns whether the connection has been closed
+         */
+        readonly isClosed: boolean
+        /**
+         * Returns whether the connection has been closed
+         */
+        readonly isClosed: boolean
+        /**
+         * Close the connection and release resources
+         */
+        close(): void
+        /**
+         * Callback when an error occurs
+         */
+        onError?: (e: any, c: TcpConn) => void
+        /**
+         * Write data returns the actual number of bytes written
+         * 
+         * @param data data to write
+         * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
+         */
+        write(data: string | Uint8Array | ArrayBuffer): number | undefined
+        /**
+         * Callback whenever the write buffer changes from unwritable to writable
+         */
+        onWritable?: (c: Conn) => void
+        /**
+         * Write buffer size
+         */
+        maxWriteBytes: number
+        /**
+         * Callback when a message is received. If set to undefined, it will stop receiving data.
+         * @remarks
+         * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
+         */
+        onMessage?: (data: Uint8Array, c: Conn) => void
+
+        /**
+         * Read buffer
+         * @remarks
+         * If not set, a buffer of size 32k will be automatically created when reading.
+         */
+        buffer?: Uint8Array
+        /**
+         * Callback when there is data to read
+         */
+        onReadable?: (r: Readable, c: TcpConn) => void
+    }
+    export class TcpListener {
+        private constructor() { }
+        readonly addr: Addr
+        close(): void
+        onAccept?: (c: TcpConn, l: TcpListener) => void
+        onError?: (e: any, l: TcpListener) => void
+    }
     export function listen(opts: ListenOptions): Listener
+
 }
