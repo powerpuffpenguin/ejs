@@ -48,6 +48,8 @@
         "duktape.h": "c",
         "stash.h": "c",
         "jemalloc.h": "c",
-        "cmath": "c"
+        "cmath": "c",
+        "bufferevent.h": "c",
+        "buffer.h": "c"
     }
 }

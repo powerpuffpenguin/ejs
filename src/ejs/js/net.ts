@@ -20,35 +20,47 @@ declare namespace deps {
     export function ipnet_string(net_ip: Uint8Array, mask: Uint8Array): string
     export function parse_cidr(s: string): { ip: Uint8Array, mask: Uint8Array } | undefined
 
-    export interface TCPConnMetadata {
+    export class evbuffer {
+        readonly __id = "evbuffer"
+    }
+    export function evbuffer_len(b: evbuffer): number
+    export function evbuffer_read(b: evbuffer, dst: Uint8Array): number
+    export function evbuffer_copy(b: evbuffer, dst: Uint8Array, skip?: number): number
+    export function evbuffer_drain(b: evbuffer, n: number): void
+
+    export interface TcpConnMetadata {
         /**
          * max write bytes
          */
         mw: number
     }
-    export class TCPConn {
-        readonly __id = "TCPConn"
+    export class TcpConn {
+        readonly __id = "TcpConn"
         busy?: boolean
         cbw: () => void
-        md: TCPConnMetadata
+        cbr: (b: evbuffer) => void
+        md: TcpConnMetadata
     }
-    export class TCPListener {
-        readonly __id = "TCPListener"
-        cb?: (c: TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => boolean
+    export class TcpListener {
+        readonly __id = "TcpListener"
+        cb?: (c: TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => boolean
         err?: (e: any) => void
     }
-    export interface TCPListenerOptions {
+    export interface TcpListenerOptions {
         ip?: string
         v6?: boolean
         port: number
         backlog: number
     }
-    export function tcp_listen(opts: TCPListenerOptions): TCPListener
-    export function tcp_listen_close(l: TCPListener): void
-    export function tcp_listen_cb(l: TCPListener, enable: boolean): void
-    export function tcp_listen_err(l: TCPListener, enable: boolean): void
-    export function tcp_conn_close(c: TCPConn): void
-    export function tcp_conn_write(c: TCPConn, data: string | Uint8Array | ArrayBuffer): number | undefined
+    export function tcp_listen(opts: TcpListenerOptions): TcpListener
+    export function tcp_listen_close(l: TcpListener): void
+    export function tcp_listen_cb(l: TcpListener, enable: boolean): void
+    export function tcp_listen_err(l: TcpListener, enable: boolean): void
+    export function tcp_conn_close(c: TcpConn): void
+    export function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
+    export function tcp_conn_cb(c: TcpConn, enable: boolean): void
+    export function tcp_conn_err(c: TcpConn, enable: boolean): void
+
 }
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
@@ -555,20 +567,73 @@ function throwTcpError(e: any): never {
 export interface Conn {
     readonly remoteAddr: Addr
     readonly localAddr: Addr
+    /**
+     * Returns whether the connection has been closed
+     */
+    readonly isClosed: boolean
+    /**
+     * Close the connection and release resources
+     */
     close(): void
-    write(s: string | Uint8Array | ArrayBuffer): number | undefined
+    /**
+     * Write data returns the actual number of bytes written
+     * 
+     * @param data data to write
+     * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
+     */
+    write(data: string | Uint8Array | ArrayBuffer): number | undefined
+    /**
+     * Callback whenever the write buffer changes from unwritable to writable
+     */
+    onWritable?: (c: Conn) => void
+    /**
+     * Write buffer size
+     */
+    maxWriteBytes: number
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data.
+     * @remarks
+     * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
+     */
+    onMessage?: OnMessageCallback
 }
-export class TCPConn implements Conn {
-    private c_?: deps.TCPConn
-    private md_: deps.TCPConnMetadata
-    constructor(readonly remoteAddr: Addr, readonly localAddr: Addr, conn: deps.TCPConn) {
+export interface Readable {
+    readonly length: number
+    read(dst: Uint8Array): number
+    copy(dst: Uint8Array): number
+    drain(n: number): void
+}
+class evbufferReadable implements Readable {
+    constructor(readonly b: deps.evbuffer) { }
+    get length(): number {
+        return deps.evbuffer_len(this.b)
+    }
+    read(dst: Uint8Array): number {
+        return deps.evbuffer_read(this.b, dst)
+    }
+    copy(dst: Uint8Array, skip?: number): number {
+        return deps.evbuffer_copy(this.b, dst, skip)
+    }
+    drain(n: number) {
+        deps.evbuffer_drain(this.b, n)
+    }
+}
+export type OnReadableCallback = (r: Readable, c: Conn) => void
+export type OnMessageCallback = (data: Uint8Array, c: Conn) => void
+export class TcpConn implements Conn {
+    private c_?: deps.TcpConn
+    private md_: deps.TcpConnMetadata
+    constructor(readonly remoteAddr: Addr, readonly localAddr: Addr, conn: deps.TcpConn) {
         this.c_ = conn
         this.md_ = conn.md
         conn.cbw = () => {
             const f = this.onWritable
             if (f) {
-                f()
+                f(this)
             }
+        }
+        conn.cbr = (r) => {
+            this._cbr(r)
         }
     }
     get isClosed(): boolean {
@@ -581,7 +646,7 @@ export class TCPConn implements Conn {
             deps.tcp_conn_close(c)
         }
     }
-    private _get(): deps.TCPConn {
+    private _get(): deps.TcpConn {
         const c = this.c_
         if (!c) {
             throw new TcpError(`conn already closed`)
@@ -609,7 +674,7 @@ export class TCPConn implements Conn {
     /**
      * Callback whenever the write buffer changes from unwritable to writable
      */
-    onWritable?: () => void
+    onWritable?: (c: Conn) => void
     /**
      * Write buffer size
      */
@@ -626,19 +691,113 @@ export class TCPConn implements Conn {
             this.md_.mw = v
         }
     }
+    private _buffer(): Uint8Array {
+        let b = this.buffer
+        if (b && b.length > 0) {
+            return b
+        }
+        b = new Uint8Array(1024 * 32)
+        this.buffer = b
+        return b
+    }
+    buffer?: Uint8Array
+    private _cbr(r: deps.evbuffer) {
+        const onReadable = this.onReadable
+        if (onReadable) {
+            onReadable(new evbufferReadable(r), this)
+        }
 
+        const onMessage = this.onMessage_
+        if (onMessage) {
+            const b = this._buffer()
+            const n = deps.evbuffer_read(r, b)
+            switch (n) {
+                case 0:
+                    break
+                case b.length:
+                    onMessage(b, this)
+                    break
+                default:
+                    onMessage(b.length == n ? b : b.subarray(0, n), this)
+                    break
+            }
+        }
+    }
+    private onReadable_?: OnReadableCallback
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data. 
+     */
+    get onReadable(): OnReadableCallback | undefined {
+        return this.onReadable_
+    }
+    set onReadable(f: OnReadableCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onReadable_) {
+                return
+            }
+            const c = this.c_
+            if (c && !this.onMessage_) {
+                deps.tcp_conn_cb(c, false)
+            }
+            this.onReadable_ = undefined
+        } else {
+            if (f === this.onReadable_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new TcpError("onReadable must be a function")
+            }
+            const c = this.c_
+            if (c && !this.onMessage_) {
+                deps.tcp_conn_cb(c, true)
+            }
+            this.onReadable_ = f
+        }
+    }
+
+    private onMessage_?: OnMessageCallback
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data. 
+     */
+    get onMessage(): OnMessageCallback | undefined {
+        return this.onMessage_
+    }
+    set onMessage(f: OnMessageCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onMessage_) {
+                return
+            }
+            const c = this.c_
+            if (c && !this.onReadable_) {
+                deps.tcp_conn_cb(c, false)
+            }
+            this.onMessage_ = undefined
+        } else {
+            if (f === this.onMessage_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new TcpError("onMessage must be a function")
+            }
+            const c = this.c_
+            if (c && !this.onReadable_) {
+                deps.tcp_conn_cb(c, true)
+            }
+            this.onMessage_ = f
+        }
+    }
 }
-export type OnAcceptCallback = (l: Listener, c: Conn) => void
-export type onErrorCallback = (e: any) => void
+export type OnAcceptCallback = (c: Conn, l: Listener) => void
+export type onErrorCallback = (e: any, l: Listener) => void
 export interface Listener {
     readonly addr: Addr
     close(): void
     onAccept?: OnAcceptCallback
     onError?: onErrorCallback
 }
-export class TCPListener implements Listener {
-    private l_?: deps.TCPListener
-    constructor(readonly addr: Addr, l: deps.TCPListener) {
+export class TcpListener implements Listener {
+    private l_?: deps.TcpListener
+    constructor(readonly addr: Addr, l: deps.TcpListener) {
         l.cb = (c, remoteIP, remotePort, localIP, localPort) => {
             return this._onAccept(c, remoteIP, remotePort, localIP, localPort)
         }
@@ -713,7 +872,7 @@ export class TCPListener implements Listener {
     get onError(): onErrorCallback | undefined {
         return this.onError_
     }
-    private _onAccept(conn: deps.TCPConn, remoteIP: string, remotePort: number, localIP: string, localPort: number): boolean {
+    private _onAccept(conn: deps.TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number): boolean {
         if (remoteIP.startsWith('::ffff:')) {
             remoteIP = remoteIP.substring(7)
         }
@@ -725,13 +884,13 @@ export class TCPListener implements Listener {
         if (!onAccept) {
             return false
         }
-        const c = new TCPConn(
+        const c = new TcpConn(
             new NetAddr('tcp', joinHostPort(remoteIP, remotePort)),
             new NetAddr('tcp', joinHostPort(localIP, localPort)),
             conn,
         )
         try {
-            onAccept(this, c)
+            onAccept(c, this)
         } catch (e) {
             throw e
         }
@@ -740,7 +899,7 @@ export class TCPListener implements Listener {
     private _onError(e: any) {
         const cb = this.onError_
         if (cb) {
-            cb(e)
+            cb(e, this)
         }
     }
 }
@@ -800,7 +959,7 @@ function listenTCP(opts: ListenOptions, v6?: boolean): Listener {
             }
         }
         try {
-            return new TCPListener(new NetAddr('tcp', address), l)
+            return new TcpListener(new NetAddr('tcp', address), l)
         } catch (e) {
             deps.tcp_listen_close(l)
             throw e

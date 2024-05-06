@@ -294,7 +294,17 @@ declare module "ejs/net" {
     export interface Conn {
         readonly remoteAddr: Addr
         readonly localAddr: Addr
+        /**
+         * Returns whether the connection has been closed
+         */
         readonly isClosed: boolean
+        /**
+         * Returns whether the connection has been closed
+         */
+        readonly isClosed: boolean
+        /**
+         * Close the connection and release resources
+         */
         close(): void
         /**
          * Write data returns the actual number of bytes written
@@ -306,18 +316,25 @@ declare module "ejs/net" {
         /**
          * Callback whenever the write buffer changes from unwritable to writable
          */
-        onWritable?: () => void
+        onWritable?: (c: Conn) => void
         /**
          * Write buffer size
          */
         maxWriteBytes: number
+        /**
+         * Callback when a message is received. If set to undefined, it will stop receiving data.
+         * @remarks
+         * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
+         */
+        onMessage?: (data: Uint8Array, c: Conn) => void
     }
     export interface Listener {
         readonly addr: Addr
         readonly isClosed: boolean
         close(): void
-        onAccept?: (c: Conn) => void
-        onError?: (e: any) => void
+        onAccept?: (c: Conn, l: Listener) => void
+        onError?: (e: any, l: Listener) => void
     }
+    export TcpConn
     export function listen(opts: ListenOptions): Listener
 }
