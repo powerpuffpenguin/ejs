@@ -2,7 +2,7 @@ import { Command, Parser } from "./flags";
 
 import { command as unit } from "./unit/command";
 
-import { command as tcp_server } from "./examples/tcp_server";
+import { command as net_server } from "./examples/net_server";
 
 const root = new Command({
     use: "main.js",
@@ -13,7 +13,7 @@ const root = new Command({
 });
 root.add(
     unit,
-    tcp_server,
+    net_server,
 )
 
 new Parser(root).parse(ejs.args.slice(2))

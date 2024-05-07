@@ -35,6 +35,8 @@ declare namespace deps {
     export const BEV_EVENT_EOF: number
     export const BEV_EVENT_ERROR: number
 
+    export function socket_error_str(): string
+    export function connect_error_str(p: unknown): string
     export interface TcpConnMetadata {
         /**
          * max write bytes
@@ -48,6 +50,7 @@ declare namespace deps {
         cbr: (b: evbuffer) => void
         cbe?: (what: number) => void
         md: TcpConnMetadata
+        p: unknown
     }
     export class TcpListener {
         readonly __id = "TcpListener"
@@ -550,18 +553,54 @@ export class NetAddr implements Addr {
         return this.address
     }
 }
-export interface ListenOptions extends Addr {
+export interface ListenOptions {
+    /**
+     * name of the network (for example, "tcp", "udp")
+     */
+    network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
     /**
      * @default 5
      */
     backlog?: number
 }
-export class TcpError extends __duk.Error {
+export class NetError extends __duk.Error {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "NetError"
+    }
+    /**
+     * If true, it means that this is an error that occurred when connecting to the server.
+     */
+    connect?: boolean
+    /**
+     * If true, it means that this is an error that occurred while reading the data.
+     */
+    read?: boolean
+    /**
+     * If true it means this is an error that occurred while writing data
+     */
+    write?: boolean
+
+    /**
+     * If true, it means that the connection/read/write timeout occurred
+     */
+    timeout?: boolean
+    /**
+     * If true, it means that read/write encountered eof
+     */
+    eof?: boolean
+}
+export class TcpError extends NetError {
     constructor(message: string) {
         super(message);
         (this as any).name = "TcpError"
     }
 }
+
 function throwTcpError(e: any): never {
     if (typeof e === "string") {
         throw new TcpError(e)
@@ -643,44 +682,74 @@ export class TcpConn implements Conn {
             this._cbr(r)
         }
         conn.cbe = (what) => {
+            const f = this.onError
+            let e: TcpError
             if (what & deps.BEV_EVENT_CONNECTED) {
                 if (what & deps.BEV_EVENT_TIMEOUT) {
-                    console.log("connect timeout")
-                    this.close()
+                    if (f) {
+                        e = new TcpError(deps.connect_error_str(conn.p))
+                        e.connect = true
+                        e.timeout = true
+                    }
                 } else if (what & deps.BEV_EVENT_ERROR) {
-                    console.log("connect error")
-                    this.close()
+                    if (f) {
+                        e = new TcpError("connect error")
+                        e.connect = true
+                    }
                 } else {
                     console.log("connect ok")
+                    return
                 }
             } else if (what & deps.BEV_EVENT_WRITING) {
                 if (what & deps.BEV_EVENT_EOF) {
-                    console.log("write eof")
-                    this.close()
+                    if (f) {
+                        e = new TcpError("write eof")
+                        e.write = true
+                        e.eof = true
+                    }
                 } else if (what & deps.BEV_EVENT_TIMEOUT) {
-                    console.log("write timeout")
-                    this.close()
+                    if (f) {
+                        e = new TcpError("write timeout")
+                        e.write = true
+                        e.timeout = true
+                    }
                 } else if (what & deps.BEV_EVENT_ERROR) {
-                    console.log("write error")
-                    this.close()
+                    if (f) {
+                        e = new TcpError(deps.socket_error_str())
+                        e.write = true
+                    }
+                } else {
+                    return
                 }
             } else if (what & deps.BEV_EVENT_READING) {
                 if (what & deps.BEV_EVENT_EOF) {
-                    console.log("read eof")
-                    this.close()
+                    if (f) {
+                        e = new TcpError("read eof")
+                        e.read = true
+                        e.eof = true
+                    }
                 } else if (what & deps.BEV_EVENT_TIMEOUT) {
-                    console.log("read timeout")
-                    this.close()
+                    if (f) {
+                        e = new TcpError("read timeout")
+                        e.read = true
+                        e.timeout = true
+                    }
                 } else if (what & deps.BEV_EVENT_ERROR) {
-                    console.log("read error")
-                    this.close()
+                    if (f) {
+                        e = new TcpError(deps.socket_error_str())
+                        e.read = true
+                    }
+                } else {
+                    return
                 }
+            } else {
+                return
             }
-            // const f = this.onError
-            // if (f) {
-            //     f(e, this)
-            // }
-            // this.close()
+
+            if (f) {
+                f(e!, this)
+            }
+            this.close()
         }
     }
     onError?: (e: any, c: TcpConn) => void
@@ -836,12 +905,12 @@ export class TcpConn implements Conn {
     }
 }
 export type OnAcceptCallback = (c: Conn, l: Listener) => void
-export type onErrorCallback = (e: any, l: Listener) => void
+export type onErrorCallback<T> = (e: any, l: T) => void
 export interface Listener {
     readonly addr: Addr
     close(): void
     onAccept?: OnAcceptCallback
-    onError?: onErrorCallback
+    onError?: onErrorCallback<Listener>
 }
 export class TcpListener implements Listener {
     private l_?: deps.TcpListener
@@ -865,7 +934,7 @@ export class TcpListener implements Listener {
         }
     }
     private onAccept_?: OnAcceptCallback
-    private onError_?: onErrorCallback
+    private onError_?: onErrorCallback<Listener>
     set onAccept(f: OnAcceptCallback | undefined) {
         if (f === undefined || f === null) {
             if (!this.onAccept_) {
@@ -890,7 +959,7 @@ export class TcpListener implements Listener {
             this.onAccept_ = f
         }
     }
-    set onError(f: onErrorCallback | undefined) {
+    set onError(f: onErrorCallback<Listener> | undefined) {
         if (f === undefined || f === null) {
             if (!this.onError_) {
                 return
@@ -917,7 +986,7 @@ export class TcpListener implements Listener {
     get onAccept(): OnAcceptCallback | undefined {
         return this.onAccept_
     }
-    get onError(): onErrorCallback | undefined {
+    get onError(): onErrorCallback<Listener> | undefined {
         return this.onError_
     }
     private _onAccept(conn: deps.TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number): boolean {
@@ -951,7 +1020,7 @@ export class TcpListener implements Listener {
         }
     }
 }
-function listenTCP(opts: ListenOptions, v6?: boolean): Listener {
+function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
     try {
         const backlog = opts.backlog ?? 5
         if (!Number.isSafeInteger(backlog) || backlog < 1) {
@@ -1013,14 +1082,16 @@ function listenTCP(opts: ListenOptions, v6?: boolean): Listener {
             throw e
         }
     } catch (e) {
-        if (e instanceof __duk.OsError) {
-            throw e;
-        } else if (e instanceof Error) {
-            throw new TcpError(e.message);
-        }
-        throw e;
+        throwTcpError(e)
     }
 }
+type DialCallback = (c?: Conn, e?: any) => void
+function dialTCP(opts: DialOptions, cb: DialCallback, v6?: boolean): TcpConn {
+    throw new TcpError("test error");
+}
+/**
+ * Create a listening service
+ */
 export function listen(opts: ListenOptions): Listener {
     switch (opts.network) {
         case 'tcp':
@@ -1029,6 +1100,41 @@ export function listen(opts: ListenOptions): Listener {
             return listenTCP(opts, false)
         case 'tcp6':
             return listenTCP(opts, true)
+        default:
+            throw new Error(`unknow network: ${opts.network}`);
+    }
+}
+export interface DialOptions {
+    /**
+     * name of the network (for example, "tcp", "udp")
+     */
+    network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
+
+    /**
+     * The number of milliseconds for connection timeout. If it is less than or equal to 0, it will never timeout.
+     * @remarks
+     * Even if it is set to 0, the operating system will also return an error when it cannot connect to the socket for a period of time.
+     */
+    timeout?: number
+}
+/**
+ * Dial a listener to create a connection for bidirectional communication
+ */
+export function dial(opts: DialOptions, cb: DialCallback) {
+    if (typeof cb !== "function") {
+        throw new Error(`cb must be a function`)
+    }
+    switch (opts.network) {
+        case 'tcp':
+            return dialTCP(opts, cb)
+        case 'tcp4':
+            return dialTCP(opts, cb, false)
+        case 'tcp6':
+            return dialTCP(opts, cb, true)
         default:
             throw new Error(`unknow network: ${opts.network}`);
     }

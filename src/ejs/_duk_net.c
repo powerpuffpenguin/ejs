@@ -831,68 +831,6 @@ static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
 {
     tcp_connection_event_cb_args *args = duk_require_pointer(ctx, 0);
 
-    // if (args->what & BEV_EVENT_CONNECTED)
-    // {
-
-    //     if (args->what & BEV_EVENT_TIMEOUT)
-    //     {
-    //         puts("connect timeout");
-    //     }
-    //     else if (args->what & BEV_EVENT_ERROR)
-    //     {
-    //         int err = bufferevent_socket_get_dns_error(args->bev);
-    //         if (err)
-    //         {
-    //             printf("DNS error: %s\n", evutil_gai_strerror(err));
-    //         }
-    //         else
-    //         {
-    //             printf("connect: %s\n", evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-    //         }
-    //     }
-    //     else
-    //     {
-    //         puts("connect ok");
-    //     }
-    // }
-    // else if (args->what & BEV_EVENT_WRITING)
-    // {
-    //     if (args->what & BEV_EVENT_EOF)
-    //     {
-    //         puts("write on eof");
-    //     }
-    //     else if (args->what & BEV_EVENT_TIMEOUT)
-    //     {
-    //         puts("write timeout");
-    //     }
-    //     else if (args->what & BEV_EVENT_ERROR)
-    //     {
-    //         printf("write error: %s\n", evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-    //     }
-    // }
-    // else if (args->what & BEV_EVENT_READING)
-    // {
-    //     if (args->what & BEV_EVENT_EOF)
-    //     {
-    //         puts("read on eof");
-    //         duk_push_undefined(ctx);
-    //         duk_swap_top(ctx, -2);
-    //     }
-    //     else if (args->what & BEV_EVENT_TIMEOUT)
-    //     {
-    //         puts("read timeout");
-    //     }
-    //     else if (args->what & BEV_EVENT_ERROR)
-    //     {
-    //         printf("read error: %s\n", evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-    //     }
-    // }
-    // else
-    // {
-    //     duk_push_error_object(ctx, DUK_ERR_ERROR, "unknow tcp_connection_event_cb(%d)", args->what);
-    //     duk_throw(ctx);
-    // }
-
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
     duk_push_pointer(ctx, args->bev);
@@ -1290,7 +1228,7 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     }
     if (!args->listener)
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "couldn't create tcp listener");
+        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
         duk_throw(ctx);
     }
     duk_pop(ctx);
@@ -1514,6 +1452,26 @@ static duk_ret_t tcp_conn_cb(duk_context *ctx)
     }
     return 0;
 }
+static duk_ret_t socket_error_str(duk_context *ctx)
+{
+    duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+    return 1;
+}
+static duk_ret_t connect_error_str(duk_context *ctx)
+{
+    struct bufferevent *bev = duk_require_pointer(ctx, -1);
+    int err = bufferevent_socket_get_dns_error(bev);
+    if (err)
+    {
+        duk_push_string(ctx, evutil_gai_strerror(err));
+    }
+    else
+    {
+        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+    }
+    return 1;
+}
+
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
 {
     /*
@@ -1606,6 +1564,11 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "tcp_conn_write", 14);
         duk_push_c_lightfunc(ctx, tcp_conn_cb, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_cb", 11);
+
+        duk_push_c_lightfunc(ctx, socket_error_str, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "socket_error_str", 16);
+        duk_push_c_lightfunc(ctx, connect_error_str, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "connect_error_str", 17);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

@@ -272,6 +272,30 @@ declare module "ejs/net" {
      */
     export function splitHostPort(hostport: string): [string, string]
 
+    export class NetError extends ejs.Error {
+        constructor(message: string);
+        /**
+         * If true, it means that this is an error that occurred when connecting to the server.
+         */
+        connect?: boolean
+        /**
+         * If true, it means that this is an error that occurred while reading the data.
+         */
+        read?: boolean
+        /**
+         * If true it means this is an error that occurred while writing data
+         */
+        write?: boolean
+
+        /**
+         * If true, it means that the connection/read/write timeout occurred
+         */
+        timeout?: boolean
+        /**
+         * If true, it means that read/write encountered eof
+         */
+        eof?: boolean
+    }
     export interface Addr {
         /**
          * name of the network (for example, "tcp", "udp")
@@ -281,20 +305,6 @@ declare module "ejs/net" {
          * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
          */
         address: string
-    }
-    export interface ListenOptions extends ListenBaseOptions {
-        /**
-         * name of the network (for example, "tcp", "udp")
-         */
-        network: string
-        /**
-         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
-         */
-        address: string
-        /**
-         * @default 5
-         */
-        backlog?: number
     }
     /**
      * Conn is a generic stream-oriented network connection.
@@ -320,6 +330,8 @@ declare module "ejs/net" {
         onError?: (e: any, c: Conn) => void
         /**
          * Write data returns the actual number of bytes written
+         * @remarks
+         * This function either writes all the data or none of the bytes.
          * 
          * @param data data to write
          * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
@@ -347,6 +359,7 @@ declare module "ejs/net" {
         onAccept?: (c: Conn, l: Listener) => void
         onError?: (e: any, l: Listener) => void
     }
+    export class TcpError extends NetError { }
     export interface Readable {
         readonly length: number
         read(dst: Uint8Array): number
@@ -414,6 +427,42 @@ declare module "ejs/net" {
         onAccept?: (c: TcpConn, l: TcpListener) => void
         onError?: (e: any, l: TcpListener) => void
     }
+    export interface ListenOptions {
+        /**
+         * name of the network (for example, "tcp", "udp")
+         */
+        network: string
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        address: string
+        /**
+         * @default 5
+         */
+        backlog?: number
+    }
+    /**
+     * Create a listening service
+     */
     export function listen(opts: ListenOptions): Listener
-
+    export interface DialOptions {
+        /**
+         * name of the network (for example, "tcp", "udp")
+         */
+        network: string
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        address: string
+        /**
+         * The number of milliseconds for connection timeout. If it is less than or equal to 0, it will never timeout.
+         * @remarks
+         * Even if it is set to 0, the operating system will also return an error when it cannot connect to the socket for a period of time.
+         */
+        timeout?: number
+    }
+    /**
+     * Dial a listener to create a connection for bidirectional communication
+     */
+    export function dial(opts: DialOptions): Conn
 }
