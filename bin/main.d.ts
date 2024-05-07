@@ -470,4 +470,28 @@ declare module "ejs/net" {
      * Dial a listener to create a connection for bidirectional communication
      */
     export function dial(opts: DialOptions, cb: (conn?: Conn, e?: any) => void): void
+
+    export interface ResolverOptions {
+        /**
+         * upstream domain name server ip
+         */
+        nameserver?: Array<string>
+        /**
+         * Whether to load the dns server set by the system default settings
+         * @remarks
+         * Under Linux, the settings in /etc/resolv.conf will be loaded.
+         * @default true
+         */
+        system?: boolean
+    }
+    /**
+     * Used to resolve domain names supporting A or AAAA
+     */
+    export class Resolver {
+        constructor(opts: deps.ResolverOptions = { system: true })
+        readonly isClosed: boolean
+        close(): void
+        ipv4(name: string, cb: (ip?: Array<string>, e?: any) => void): void
+        ipv6(name: string, cb: (ip?: Array<string>, e?: any) => void): void
+    }
 }

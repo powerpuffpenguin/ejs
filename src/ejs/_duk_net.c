@@ -8,6 +8,7 @@
 #include <event2/listener.h>
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
+#include <event2/dns.h>
 
 static uint8_t v4InV6Prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
 
@@ -1625,6 +1626,91 @@ static duk_ret_t tcp_conect(duk_context *ctx)
     }
     return 1;
 }
+typedef struct
+{
+    struct evdns_base *dns;
+} resolver_new_args_t;
+static duk_ret_t resolver_destroy(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    struct evdns_base *dns = duk_get_pointer_default(ctx, -1, 0);
+    if (dns)
+    {
+        evdns_base_free(dns, 1);
+    }
+    return 0;
+}
+static duk_ret_t resolver_new_impl(duk_context *ctx)
+{
+    resolver_new_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_CORE);
+    ejs_core_t *core = duk_require_pointer(ctx, -1);
+    duk_get_prop_lstring(ctx, -2, EJS_STASH_NET_RESOLVER);
+    duk_swap_top(ctx, -3);
+    duk_pop_2(ctx);
+
+    int flags = EVDNS_BASE_NAMESERVERS_NO_DEFAULT | EVDNS_BASE_NAMESERVERS_NO_DEFAULT;
+
+    args->dns = evdns_base_new(core->base, flags);
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, args->dns);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_c_lightfunc(ctx, resolver_destroy, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    struct evdns_base *dns = args->dns;
+    args->dns = NULL;
+
+    duk_dup_top(ctx);
+    duk_push_pointer(ctx, dns);
+    duk_swap_top(ctx, -2);
+    duk_put_prop(ctx, -4);
+    return 1;
+}
+static duk_ret_t resolver_new(duk_context *ctx)
+{
+    EJS_VAR_TYPE(resolver_new_args_t, args);
+    if (ejs_pcall_function_n(ctx, resolver_new_impl, &args, 2))
+    {
+        if (args.dns)
+        {
+            evdns_base_free(args.dns, 1);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t resolver_free(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    struct evdns_base *dns = duk_get_pointer_default(ctx, -1, 0);
+    if (!dns)
+    {
+        return 0;
+    }
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_RESOLVER);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    duk_swap_top(ctx, -2);
+    duk_get_prop(ctx, -2);
+    if (!duk_equals(ctx, -1, -3))
+    {
+        return 0;
+    }
+    duk_pop(ctx);
+
+    duk_push_pointer(ctx, dns);
+    duk_push_undefined(ctx);
+    duk_set_finalizer(ctx, -4);
+
+    evdns_base_free(dns, 1);
+    duk_del_prop(ctx, -2);
+    return 0;
+}
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
 {
     /*
@@ -1636,6 +1722,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
     duk_push_heap_stash(ctx);
     {
+        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_RESOLVER);
+        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_RESOLVER_REQUEST);
         EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_TCP_LISTENER);
         EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_TCP_CONN);
     }
@@ -1729,6 +1817,12 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, tcp_conect, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conect", 10);
+
+        duk_push_c_lightfunc(ctx, resolver_new, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "resolver_new", 12);
+        duk_push_c_lightfunc(ctx, resolver_free, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "resolver_free", 13);
+        
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

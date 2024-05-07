@@ -79,7 +79,33 @@ declare namespace deps {
         v6: boolean
         port: number
     }
-    export function tcp_conect(opts: TcpConnectOptions): TcpConn;
+    export function tcp_conect(opts: TcpConnectOptions): TcpConn
+
+
+    export class Resolver {
+        readonly __id = "Resolver"
+    }
+    export interface ResolverOptions {
+        /**
+         * upstream domain name server ip
+         */
+        nameserver?: Array<string>
+        /**
+         * Whether to load the dns server set by the system default settings
+         * @remarks
+         * Under Linux, the settings in /etc/resolv.conf will be loaded.
+         * @default true
+         */
+        system?: boolean
+    }
+    export function resolver_new(opts: ResolverOptions): Resolver
+    export function resolver_free(r: Resolver): void
+    export interface ResolverIPOptions {
+        name: string
+        v6: boolean
+        cb: (ip?: Array<string>, e?: any) => void
+    }
+    export function resolver_ip(opts: ResolverIPOptions): void
 }
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
@@ -1266,5 +1292,37 @@ export function dial(opts: DialOptions, cb: DialCallback) {
             break
         default:
             throw new NetError(`unknow network: ${opts.network}`);
+    }
+}
+
+export class Resolver {
+    private r_?: deps.Resolver
+    constructor(opts: deps.ResolverOptions = { system: true }) {
+        const r = deps.resolver_new(opts)
+        this.r_ = r
+    }
+    get isClosed() {
+        return this.r_ ? false : true
+    }
+    close() {
+        const r = this.r_
+        if (r) {
+            this.r_ = undefined
+            deps.resolver_free(r)
+        }
+    }
+    ipv4(name: string, cb: (ip?: Array<string>, e?: any) => void): void {
+        const r = this.r_
+        if (!r) {
+            throw new NetError("Resolver already closed")
+        }
+        deps.resolver_ip({ name: name, v6: false, cb: cb })
+    }
+    ipv6(name: string, cb: (ip?: Array<string>, e?: any) => void): void {
+        const r = this.r_
+        if (!r) {
+            throw new NetError("Resolver already closed")
+        }
+        deps.resolver_ip({ name: name, v6: true, cb: cb })
     }
 }

@@ -28,6 +28,8 @@
     }                                        \
     duk_pop(ctx)
 
+#define EJS_STASH_NET_RESOLVER "net.resolver", 12
+#define EJS_STASH_NET_RESOLVER_REQUEST "net.resolver_r", 14
 #define EJS_STASH_NET_TCP_LISTENER "net.tcp_listener", 16
 #define EJS_STASH_NET_TCP_CONN "net.tcp_conn", 12
 
