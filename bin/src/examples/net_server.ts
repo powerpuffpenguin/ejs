@@ -3,7 +3,7 @@ import { Command } from "../flags";
 import * as net from "ejs/net";
 export const command = new Command({
     use: 'net-server',
-    short: 'tcp echo server example',
+    short: 'net echo server example',
     prepare(flags, _) {
         const address = flags.string({
             name: 'addr',
@@ -19,6 +19,12 @@ export const command = new Command({
             ],
             default: 'tcp',
         });
+        const count = flags.number({
+            name: 'count',
+            short: 'c',
+            usage: 'max service count',
+            default: -1,
+        });
         return () => {
             // create a listener
             const l = net.listen({
@@ -29,14 +35,17 @@ export const command = new Command({
             l.onError = (e) => {
                 console.log("accept err:", e)
             }
+            const max = count.value
             let i = 0
             // accept connection
             l.onAccept = (c) => {
                 onAccept(c)
-                // Shut down the service after processing 5 requests
-                i++
-                if (i == 5) {
-                    l.close()
+                // Shut down the service after processing max requests
+                if (max > 0) {
+                    i++
+                    if (i >= max) {
+                        l.close()
+                    }
                 }
             }
         }
@@ -68,6 +77,7 @@ class EchoService {
         // onMessage for read
         this.c.onMessage = (data, c) => {
             try {
+                console.log(`recv ${c.remoteAddr}:`, data)
                 if (c.write(data) === undefined) {
                     // write full，pause read
                     c.onMessage = undefined

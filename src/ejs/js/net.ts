@@ -3,7 +3,9 @@ declare namespace __duk {
         constructor(message?: string)
     }
     class OsError extends Error { }
-
+    namespace Os {
+        const ETIMEDOUT: number
+    }
 }
 declare namespace deps {
     export function eq(a: Uint8Array, b: Uint8Array): boolean
@@ -36,6 +38,7 @@ declare namespace deps {
     export const BEV_EVENT_ERROR: number
 
     export function socket_error_str(): string
+    export function socket_error(): number
     export function connect_error_str(p: unknown): string
     export interface TcpConnMetadata {
         /**
@@ -70,7 +73,13 @@ declare namespace deps {
     export function tcp_conn_close(c: TcpConn): void
     export function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
     export function tcp_conn_cb(c: TcpConn, enable: boolean): void
-
+    export function tcp_conn_localAddr(c: TcpConn): [string, number]
+    export interface TcpConnectOptions {
+        ip?: string
+        v6?: boolean
+        port: number
+    }
+    export function tcp_conect(opts: TcpConnectOptions): TcpConn;
 }
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
@@ -684,23 +693,7 @@ export class TcpConn implements Conn {
         conn.cbe = (what) => {
             const f = this.onError
             let e: TcpError
-            if (what & deps.BEV_EVENT_CONNECTED) {
-                if (what & deps.BEV_EVENT_TIMEOUT) {
-                    if (f) {
-                        e = new TcpError(deps.connect_error_str(conn.p))
-                        e.connect = true
-                        e.timeout = true
-                    }
-                } else if (what & deps.BEV_EVENT_ERROR) {
-                    if (f) {
-                        e = new TcpError("connect error")
-                        e.connect = true
-                    }
-                } else {
-                    console.log("connect ok")
-                    return
-                }
-            } else if (what & deps.BEV_EVENT_WRITING) {
+            if (what & deps.BEV_EVENT_WRITING) {
                 if (what & deps.BEV_EVENT_EOF) {
                     if (f) {
                         e = new TcpError("write eof")
@@ -715,7 +708,11 @@ export class TcpConn implements Conn {
                     }
                 } else if (what & deps.BEV_EVENT_ERROR) {
                     if (f) {
-                        e = new TcpError(deps.socket_error_str())
+                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                            e = new TcpError("write timeout")
+                        } else {
+                            e = new TcpError(deps.socket_error_str())
+                        }
                         e.write = true
                     }
                 } else {
@@ -736,7 +733,11 @@ export class TcpConn implements Conn {
                     }
                 } else if (what & deps.BEV_EVENT_ERROR) {
                     if (f) {
-                        e = new TcpError(deps.socket_error_str())
+                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                            e = new TcpError("read timeout")
+                        } else {
+                            e = new TcpError(deps.socket_error_str())
+                        }
                         e.read = true
                     }
                 } else {
@@ -1086,8 +1087,114 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
     }
 }
 type DialCallback = (c?: Conn, e?: any) => void
-function dialTCP(opts: DialOptions, cb: DialCallback, v6?: boolean): TcpConn {
-    throw new TcpError("test error");
+function dialTCP(opts: DialOptions, cb: DialCallback, v6?: boolean): void {
+    try {
+        const [host, sport] = splitHostPort(opts.address)
+        let address = opts.address
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new TcpError(`dial port invalid: ${opts.address}`)
+        }
+        let ip: IP | undefined
+        if (host != "") {
+            ip = IP.parse(host)
+            if (!ip) {
+                throw new TcpError(`dial address invalid: ${opts.address}`)
+            }
+        }
+        if (ip) {
+            if (v6 === undefined) {
+                if (ip.isV4) {
+                    v6 = false
+                }
+            } else {
+                if (v6) {
+                    if (!ip.isV6) {
+                        throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
+                    }
+                    v6 = true
+                } else {
+                    if (!ip.isV4) {
+                        throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
+                    }
+                    v6 = false
+                }
+            }
+        }
+        const c = deps.tcp_conect({
+            ip: ip?.toString(),
+            port: port,
+            v6: v6,
+        })
+        let timer: undefined | number
+        if (typeof opts.timeout === "number" && Number.isFinite(opts.timeout) && opts.timeout > 1) {
+            timer = setTimeout(() => {
+                deps.tcp_conn_close(c)
+
+                const e = new TcpError("connect timeout")
+                e.connect = true
+                e.timeout = true
+
+                cb(undefined, e)
+            }, opts.timeout)
+        }
+        c.cbe = (what) => {
+            if (timer !== undefined) {
+                clearTimeout(timer)
+                timer = undefined
+            }
+            if (what & deps.BEV_EVENT_TIMEOUT) {
+                deps.tcp_conn_close(c)
+
+                const e = new TcpError("connect timeout")
+                e.connect = true
+                e.timeout = true
+
+                cb(undefined, e)
+            } else if (what & deps.BEV_EVENT_ERROR) {
+                deps.tcp_conn_close(c)
+                if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                    const e = new TcpError("connect timeout")
+                    e.connect = true
+                    e.timeout = true
+
+                    cb(undefined, e)
+                } else {
+                    const e = new TcpError(deps.socket_error_str())
+                    e.connect = true
+                    cb(undefined, e)
+                }
+            } else {
+                if (host == "") {
+                    if (v6 === undefined) {
+                        address = `127.0.0.1${address}`
+                    } else if (v6) {
+                        address = `[::1]${address}`
+                    } else {
+                        address = `127.0.0.1${address}`
+                    }
+                }
+                let conn: undefined | TcpConn
+                try {
+                    let [ip, port] = deps.tcp_conn_localAddr(c)
+                    if (ip.startsWith('::ffff:')) {
+                        ip = ip.substring(7)
+                    }
+                    conn = new TcpConn(new NetAddr('tcp', address),
+                        new NetAddr('tcp', joinHostPort(ip, port)),
+                        c,
+                    )
+                } catch (e) {
+                    deps.tcp_conn_close(c)
+                    throw e
+                }
+                cb(conn)
+                return
+            }
+        }
+    } catch (e) {
+        throwTcpError(e)
+    }
 }
 /**
  * Create a listening service
@@ -1101,7 +1208,7 @@ export function listen(opts: ListenOptions): Listener {
         case 'tcp6':
             return listenTCP(opts, true)
         default:
-            throw new Error(`unknow network: ${opts.network}`);
+            throw new NetError(`unknow network: ${opts.network}`);
     }
 }
 export interface DialOptions {
@@ -1130,12 +1237,15 @@ export function dial(opts: DialOptions, cb: DialCallback) {
     }
     switch (opts.network) {
         case 'tcp':
-            return dialTCP(opts, cb)
+            dialTCP(opts, cb)
+            break
         case 'tcp4':
-            return dialTCP(opts, cb, false)
+            dialTCP(opts, cb, false)
+            break
         case 'tcp6':
-            return dialTCP(opts, cb, true)
+            dialTCP(opts, cb, true)
+            break
         default:
-            throw new Error(`unknow network: ${opts.network}`);
+            throw new NetError(`unknow network: ${opts.network}`);
     }
 }

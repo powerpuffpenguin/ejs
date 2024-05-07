@@ -827,6 +827,7 @@ typedef struct
     struct bufferevent *bev;
     short what;
 } tcp_connection_event_cb_args;
+
 static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
 {
     tcp_connection_event_cb_args *args = duk_require_pointer(ctx, 0);
@@ -848,10 +849,6 @@ static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
     }
     duk_push_uint(ctx, args->what);
     duk_call(ctx, 1);
-    // ejs_dump_context_stdout(ctx);
-    // duk_swap_top(ctx, -2);
-    // duk_swap_top(ctx, -3);
-    // duk_call(ctx, 1);
     return 0;
 }
 static void tcp_connection_event_cb(struct bufferevent *bev, short what, void *ptr)
@@ -1168,7 +1165,11 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
         sin.sin6_port = htons(port);
         if (ip)
         {
-            evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr);
+            if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
+            {
+                duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+                duk_throw(ctx);
+            }
         }
         else
         {
@@ -1192,7 +1193,11 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
             sin.sin6_port = htons(port);
             if (ip)
             {
-                evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr);
+                if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
+                {
+                    duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+                    duk_throw(ctx);
+                }
             }
             else
             {
@@ -1213,7 +1218,11 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
             sin.sin_port = htons(port);
             if (ip)
             {
-                evutil_inet_pton(AF_INET, ip, &sin.sin_addr);
+                if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr))
+                {
+                    duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+                    duk_throw(ctx);
+                }
             }
             else
             {
@@ -1452,9 +1461,47 @@ static duk_ret_t tcp_conn_cb(duk_context *ctx)
     }
     return 0;
 }
+static duk_ret_t tcp_conn_localAddr(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    struct bufferevent *bev = duk_require_pointer(ctx, -1);
+    duk_pop_2(ctx);
+
+    int s = bufferevent_getfd(bev);
+    struct sockaddr_in6 localAddress;
+    socklen_t addressLength = sizeof(localAddress);
+    duk_push_array(ctx);
+    getsockname(s, (struct sockaddr *)&localAddress, &addressLength);
+    if (addressLength == sizeof(struct sockaddr_in6))
+    {
+        struct sockaddr_in6 *sin = (struct sockaddr_in6 *)(&localAddress);
+        char ip[40] = {0};
+        evutil_inet_ntop(AF_INET6, &sin->sin6_addr, ip, 40);
+        duk_push_string(ctx, ip);
+        duk_put_prop_index(ctx, -2, 0);
+        duk_push_int(ctx, ntohs(sin->sin6_port));
+        duk_put_prop_index(ctx, -2, 1);
+    }
+    else
+    {
+        struct sockaddr_in *sin = (struct sockaddr_in *)(&localAddress);
+        char ip[16] = {0};
+        evutil_inet_ntop(AF_INET, &sin->sin_addr, ip, 16);
+        duk_push_string(ctx, ip);
+        duk_put_prop_index(ctx, -2, 0);
+        duk_push_int(ctx, ntohs(sin->sin_port));
+        duk_put_prop_index(ctx, -2, 1);
+    }
+    return 1;
+}
 static duk_ret_t socket_error_str(duk_context *ctx)
 {
     duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+    return 1;
+}
+static duk_ret_t socket_error(duk_context *ctx)
+{
+    duk_push_int(ctx, EVUTIL_SOCKET_ERROR());
     return 1;
 }
 static duk_ret_t connect_error_str(duk_context *ctx)
@@ -1472,6 +1519,159 @@ static duk_ret_t connect_error_str(duk_context *ctx)
     return 1;
 }
 
+typedef struct
+{
+    struct bufferevent *bev;
+    struct event *timeout;
+} tcp_conect_args_t;
+static duk_ret_t tcp_conect_impl(duk_context *ctx)
+{
+    tcp_conect_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "ip", 2);
+    const uint8_t *ip = NULL;
+    if (!duk_is_undefined(ctx, -1))
+    {
+        ip = duk_require_string(ctx, -1);
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "port", 4);
+    short port = duk_require_uint(ctx, -1);
+    duk_pop(ctx);
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_CORE);
+    ejs_core_t *core = duk_require_pointer(ctx, -1);
+    duk_get_prop_lstring(ctx, -2, EJS_STASH_NET_TCP_CONN);
+    duk_swap_top(ctx, -3);
+    duk_pop_2(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "v6", 2);
+    if (duk_is_undefined(ctx, -1))
+    {
+        // v4 or v6
+        struct sockaddr_in sin;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(port);
+        if (!ip)
+        {
+            ip = "127.0.0.1";
+        }
+        if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr) != 1)
+        {
+            duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+            duk_throw(ctx);
+        }
+        args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        if (!args->bev)
+        {
+            duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
+            duk_throw(ctx);
+        }
+        bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
+        bufferevent_enable(args->bev, EV_WRITE | EV_READ);
+
+        if (bufferevent_socket_connect(args->bev, (const struct sockaddr *)&sin, sizeof(sin)))
+        {
+            duk_push_lstring(ctx, "bufferevent_socket_connect fail", 31);
+            duk_throw(ctx);
+        }
+    }
+    else
+    {
+        duk_to_boolean(ctx, -1);
+        if (duk_get_boolean(ctx, -1))
+        {
+            // v6
+            struct sockaddr_in6 sin;
+            memset(&sin, 0, sizeof(sin));
+            sin.sin6_family = AF_INET6;
+            sin.sin6_port = htons(port);
+            if (!ip)
+            {
+                ip = "::1";
+            }
+            if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr) != 1)
+            {
+                duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+                duk_throw(ctx);
+            }
+
+            args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+            if (!args->bev)
+            {
+                duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
+                duk_throw(ctx);
+            }
+            bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
+            bufferevent_enable(args->bev, EV_WRITE);
+
+            if (bufferevent_socket_connect(args->bev, (const struct sockaddr *)&sin, sizeof(sin)))
+            {
+                duk_push_lstring(ctx, "bufferevent_socket_connect fail", 31);
+                duk_throw(ctx);
+            }
+        }
+        else
+        {
+            // v4
+            struct sockaddr_in sin;
+            memset(&sin, 0, sizeof(sin));
+            sin.sin_family = AF_INET;
+            sin.sin_port = htons(port);
+            if (!ip)
+            {
+                ip = "127.0.0.1";
+            }
+            if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr) != 1)
+            {
+                duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+                duk_throw(ctx);
+            }
+
+            args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+            if (!args->bev)
+            {
+                duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
+                duk_throw(ctx);
+            }
+            bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
+            bufferevent_enable(args->bev, EV_WRITE);
+
+            if (bufferevent_socket_connect(args->bev, (const struct sockaddr *)&sin, sizeof(sin)))
+            {
+                duk_push_lstring(ctx, "bufferevent_socket_connect fail", 31);
+                duk_throw(ctx);
+            }
+        }
+    }
+
+    duk_pop(ctx);
+    push_tcp_connection(ctx, core, args->bev);
+    struct bufferevent *bev = args->bev;
+    args->bev = NULL;
+    duk_dup_top(ctx);
+    duk_push_pointer(ctx, bev);
+    duk_swap_top(ctx, -2);
+    duk_put_prop(ctx, -4);
+    return 1;
+}
+static duk_ret_t tcp_conect(duk_context *ctx)
+{
+    EJS_VAR_TYPE(tcp_conect_args_t, args);
+    if (ejs_pcall_function_n(ctx, tcp_conect_impl, &args, 2))
+    {
+        if (args.bev)
+        {
+            bufferevent_free(args.bev);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
 {
     /*
@@ -1564,11 +1764,18 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "tcp_conn_write", 14);
         duk_push_c_lightfunc(ctx, tcp_conn_cb, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_cb", 11);
+        duk_push_c_lightfunc(ctx, tcp_conn_localAddr, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "tcp_conn_localAddr", 18);
 
         duk_push_c_lightfunc(ctx, socket_error_str, 0, 0, 0);
         duk_put_prop_lstring(ctx, -2, "socket_error_str", 16);
+        duk_push_c_lightfunc(ctx, socket_error, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "socket_error", 12);
         duk_push_c_lightfunc(ctx, connect_error_str, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "connect_error_str", 17);
+
+        duk_push_c_lightfunc(ctx, tcp_conect, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "tcp_conect", 10);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

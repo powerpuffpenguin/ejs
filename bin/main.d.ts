@@ -50,9 +50,14 @@ namespace ejs {
      * exit process
      */
     export function exit(code: number): never
+    /**
+     * Compare bytes for equality
+     */
+    export function equal(a: string | ArrayBufferLike, b: string | ArrayBufferLike): boolean
 
     export namespace Os {
         export const ENOENT: number
+        export const ETIMEDOUT: number
     }
 }
 
@@ -464,5 +469,5 @@ declare module "ejs/net" {
     /**
      * Dial a listener to create a connection for bidirectional communication
      */
-    export function dial(opts: DialOptions): Conn
+    export function dial(opts: DialOptions, cb: (conn?: Conn, e?: any) => void): void
 }

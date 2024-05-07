@@ -80,6 +80,41 @@ static duk_ret_t native_exit(duk_context *ctx)
     exit(duk_get_int_default(ctx, 0, 0));
     return 0;
 }
+static duk_ret_t native_equal(duk_context *ctx)
+{
+    duk_size_t a_len;
+    const uint8_t *a;
+    if (duk_is_string(ctx, 0))
+    {
+        a = duk_require_lstring(ctx, 0, &a_len);
+    }
+    else
+    {
+        a = duk_require_buffer_data(ctx, 0, &a_len);
+    }
+    duk_size_t b_len;
+    const uint8_t *b;
+    if (duk_is_string(ctx, 1))
+    {
+        b = duk_require_lstring(ctx, 1, &b_len);
+    }
+    else
+    {
+        b = duk_require_buffer_data(ctx, 1, &b_len);
+    }
+
+    duk_pop_2(ctx);
+    if (a_len == b_len && !memcmp(a, b, a_len))
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
+
 typedef struct
 {
     duk_context *ctx;
@@ -122,6 +157,18 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, native_exit, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "exit", 4);
+        duk_push_c_lightfunc(ctx, native_equal, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "equal", 5);
+
+        // Os
+        duk_push_object(ctx);
+        {
+            duk_push_int(ctx, ENOENT);
+            duk_put_prop_lstring(ctx, -2, "ENOENT", 6);
+            duk_push_int(ctx, ETIMEDOUT);
+            duk_put_prop_lstring(ctx, -2, "ETIMEDOUT", 9);
+        }
+        duk_put_prop_lstring(ctx, -2, "Os", 2);
     }
     duk_dup_top(ctx);
     duk_put_prop_lstring(ctx, -3, EJS_STASH_EJS);

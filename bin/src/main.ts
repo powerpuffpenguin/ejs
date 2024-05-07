@@ -3,6 +3,7 @@ import { Command, Parser } from "./flags";
 import { command as unit } from "./unit/command";
 
 import { command as net_server } from "./examples/net_server";
+import { command as net_client } from "./examples/net_client";
 
 const root = new Command({
     use: "main.js",
@@ -14,6 +15,7 @@ const root = new Command({
 root.add(
     unit,
     net_server,
+    net_client,
 )
 
 new Parser(root).parse(ejs.args.slice(2))

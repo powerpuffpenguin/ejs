@@ -27,8 +27,8 @@ exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
 exports.command = new flags_1.Command({
-    use: 'net-server',
-    short: 'net echo server example',
+    use: 'net-client',
+    short: 'net echo client example',
     prepare: function (flags, _) {
         var address = flags.string({
             name: 'addr',
@@ -47,47 +47,46 @@ exports.command = new flags_1.Command({
         var count = flags.number({
             name: 'count',
             short: 'c',
-            usage: 'max service count',
-            default: -1,
+            usage: 'send message count',
+            default: 10,
+        });
+        var timeout = flags.number({
+            name: "timeout",
+            usage: "connect timeout",
+            default: 1000,
         });
         return function () {
-            // create a listener
-            var l = net.listen({
+            net.dial({
                 network: network.value,
                 address: address.value,
-            });
-            console.log("tcp listen: ".concat(l.addr));
-            l.onError = function (e) {
-                console.log("accept err:", e);
-            };
-            var max = count.value;
-            var i = 0;
-            // accept connection
-            l.onAccept = function (c) {
-                onAccept(c);
-                // Shut down the service after processing max requests
-                if (max > 0) {
-                    i++;
-                    if (i >= max) {
-                        l.close();
-                    }
+                timeout: timeout.value,
+            }, function (c, e) {
+                if (!c) {
+                    console.log("connect error:", e);
+                    return;
                 }
-            };
+                console.log("connect success: ".concat(c.localAddr, " -> ").concat(c.remoteAddr));
+                c.onError = function (e) {
+                    console.log("err:", e);
+                };
+                new State(c, count.value).next();
+            });
         };
     },
 });
-var EchoService = /** @class */ (function () {
-    function EchoService(c) {
+var State = /** @class */ (function () {
+    function State(c, count) {
         var _this = this;
         this.c = c;
-        this.length_ = 0;
+        this.count = count;
+        this.step_ = 0;
+        this.serve();
         c.onWritable = function () {
             var data = _this.data_;
-            var len = _this.length_;
-            if (data && len) {
+            if (data) {
                 // Continue writing unsent data
                 try {
-                    c.write(data.subarray(0, len));
+                    c.write(data);
                 }
                 catch (e) {
                     console.log("write error", e);
@@ -98,38 +97,42 @@ var EchoService = /** @class */ (function () {
             _this.serve();
         };
     }
-    EchoService.prototype.serve = function () {
+    State.prototype.serve = function () {
         var _this = this;
-        // onMessage for read
         this.c.onMessage = function (data, c) {
-            try {
-                console.log("recv ".concat(c.remoteAddr, ":"), data);
-                if (c.write(data) === undefined) {
-                    // write full，pause read
-                    c.onMessage = undefined;
-                    // clone data
-                    var buf = _this.data_;
-                    if (!buf || buf.length < data.length) {
-                        buf = new Uint8Array(data.length);
-                        _this.data_ = buf;
-                    }
-                    buf.set(data);
-                    _this.length_ = data.length;
-                }
-            }
-            catch (e) {
-                console.log("write error", e);
+            var pre = _this.data_;
+            if (!pre) {
+                console.log("unexpected message:", data);
                 c.close();
+                return;
             }
+            else if (!ejs.equal(data, pre)) {
+                console.log("not matched message:", pre, data);
+                c.close();
+                return;
+            }
+            console.log("recv", data);
+            _this.data_ = undefined;
+            _this.next();
         };
     };
-    return EchoService;
-}());
-function onAccept(c) {
-    console.log("one in: ".concat(c.remoteAddr));
-    c.onError = function (e) {
-        console.log("one out", e);
+    State.prototype.next = function () {
+        if (this.step_ >= this.count) {
+            this.c.close();
+            return;
+        }
+        try {
+            this.step_++;
+            this.data_ = new TextEncoder().encode("\u9019\u500B\u7B2C ".concat(this.step_, " \u500B message"));
+            if (this.c.write(this.data_) === undefined) {
+                // write full，pause read
+                this.c.onMessage = undefined;
+            }
+        }
+        catch (e) {
+            console.log('write error', e);
+            this.c.close();
+        }
     };
-    // read and write net data
-    new EchoService(c).serve();
-}
+    return State;
+}());
