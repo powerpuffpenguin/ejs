@@ -75,8 +75,8 @@ declare namespace deps {
     export function tcp_conn_cb(c: TcpConn, enable: boolean): void
     export function tcp_conn_localAddr(c: TcpConn): [string, number]
     export interface TcpConnectOptions {
-        ip?: string
-        v6?: boolean
+        ip: string
+        v6: boolean
         port: number
     }
     export function tcp_conect(opts: TcpConnectOptions): TcpConn;
@@ -1087,61 +1087,90 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
     }
 }
 type DialCallback = (c?: Conn, e?: any) => void
-function dialTCP(opts: DialOptions, cb: DialCallback, v6?: boolean): void {
-    try {
+
+class TcpDialer {
+    c_?: deps.TcpConn
+    timer_?: number
+    constructor(readonly opts: DialOptions) {
+
+    }
+    dial(cb: DialCallback, v6?: boolean) {
+        const opts = this.opts
         const [host, sport] = splitHostPort(opts.address)
-        let address = opts.address
         const port = parseInt(sport)
         if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
             throw new TcpError(`dial port invalid: ${opts.address}`)
         }
-        let ip: IP | undefined
-        if (host != "") {
-            ip = IP.parse(host)
-            if (!ip) {
+        let ip: string | undefined
+        if (host == "") {
+            if (v6 === undefined) {
+                v6 = false
+                ip = `127.0.0.1`
+            } else if (v6) {
+                v6 = true
+                ip = `::1`
+            } else {
+                v6 = false
+                ip = `127.0.0.1`
+            }
+        } else {
+            const v = IP.parse(host)
+            if (!v) {
                 throw new TcpError(`dial address invalid: ${opts.address}`)
             }
-        }
-        if (ip) {
             if (v6 === undefined) {
-                if (ip.isV4) {
-                    v6 = false
-                }
+                v6 = v.isV6
             } else {
                 if (v6) {
-                    if (!ip.isV6) {
+                    if (!v.isV6) {
                         throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
                     }
                     v6 = true
                 } else {
-                    if (!ip.isV4) {
+                    if (!v.isV4) {
                         throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
                     }
                     v6 = false
                 }
             }
+            ip = v.toString()
         }
-        const c = deps.tcp_conect({
-            ip: ip?.toString(),
-            port: port,
-            v6: v6,
-        })
-        let timer: undefined | number
-        if (typeof opts.timeout === "number" && Number.isFinite(opts.timeout) && opts.timeout > 1) {
-            timer = setTimeout(() => {
-                deps.tcp_conn_close(c)
+        this._timer(cb, opts.timeout)
+        this._connect(cb,
+            {
+                ip: ip,
+                port: port,
+                v6: v6,
+            },
+        )
+    }
+    private _timer(cb: DialCallback, timeout?: number) {
+        if (typeof timeout === "number" && Number.isFinite(timeout) && timeout >= 1) {
+            this.timer_ = setTimeout(() => {
+                const c = this.c_
+                if (c) {
+                    this.c_ = undefined
+                    deps.tcp_conn_close(c)
+                }
 
                 const e = new TcpError("connect timeout")
                 e.connect = true
                 e.timeout = true
 
                 cb(undefined, e)
-            }, opts.timeout)
+            }, timeout)
         }
+    }
+    private _connect(cb: DialCallback,
+        opts: deps.TcpConnectOptions,
+    ) {
+        const c = deps.tcp_conect(opts)
+        this.c_ = c
         c.cbe = (what) => {
+            const timer = this.timer_
             if (timer !== undefined) {
+                this.timer_ = undefined
                 clearTimeout(timer)
-                timer = undefined
             }
             if (what & deps.BEV_EVENT_TIMEOUT) {
                 deps.tcp_conn_close(c)
@@ -1165,22 +1194,13 @@ function dialTCP(opts: DialOptions, cb: DialCallback, v6?: boolean): void {
                     cb(undefined, e)
                 }
             } else {
-                if (host == "") {
-                    if (v6 === undefined) {
-                        address = `127.0.0.1${address}`
-                    } else if (v6) {
-                        address = `[::1]${address}`
-                    } else {
-                        address = `127.0.0.1${address}`
-                    }
-                }
                 let conn: undefined | TcpConn
                 try {
                     let [ip, port] = deps.tcp_conn_localAddr(c)
                     if (ip.startsWith('::ffff:')) {
                         ip = ip.substring(7)
                     }
-                    conn = new TcpConn(new NetAddr('tcp', address),
+                    conn = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
                         new NetAddr('tcp', joinHostPort(ip, port)),
                         c,
                     )
@@ -1192,10 +1212,9 @@ function dialTCP(opts: DialOptions, cb: DialCallback, v6?: boolean): void {
                 return
             }
         }
-    } catch (e) {
-        throwTcpError(e)
     }
 }
+
 /**
  * Create a listening service
  */
@@ -1237,13 +1256,13 @@ export function dial(opts: DialOptions, cb: DialCallback) {
     }
     switch (opts.network) {
         case 'tcp':
-            dialTCP(opts, cb)
+            new TcpDialer(opts).dial(cb)
             break
         case 'tcp4':
-            dialTCP(opts, cb, false)
+            new TcpDialer(opts).dial(cb, false)
             break
         case 'tcp6':
-            dialTCP(opts, cb, true)
+            new TcpDialer(opts).dial(cb, true)
             break
         default:
             throw new NetError(`unknow network: ${opts.network}`);

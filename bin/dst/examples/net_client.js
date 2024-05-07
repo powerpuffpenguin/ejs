@@ -111,7 +111,7 @@ var State = /** @class */ (function () {
                 c.close();
                 return;
             }
-            console.log("recv", data);
+            console.log("recv:", new TextDecoder().decode(data), data);
             _this.data_ = undefined;
             _this.next();
         };
@@ -119,6 +119,7 @@ var State = /** @class */ (function () {
     State.prototype.next = function () {
         if (this.step_ >= this.count) {
             this.c.close();
+            console.log("completed");
             return;
         }
         try {

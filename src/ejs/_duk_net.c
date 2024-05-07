@@ -1530,11 +1530,7 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "ip", 2);
-    const uint8_t *ip = NULL;
-    if (!duk_is_undefined(ctx, -1))
-    {
-        ip = duk_require_string(ctx, -1);
-    }
+    const uint8_t *ip = duk_require_string(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "port", 4);
@@ -1549,22 +1545,19 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
     duk_pop_2(ctx);
 
     duk_get_prop_lstring(ctx, 0, "v6", 2);
-    if (duk_is_undefined(ctx, -1))
+    if (duk_require_boolean(ctx, -1))
     {
-        // v4 or v6
-        struct sockaddr_in sin;
+        // v6
+        struct sockaddr_in6 sin;
         memset(&sin, 0, sizeof(sin));
-        sin.sin_family = AF_INET;
-        sin.sin_port = htons(port);
-        if (!ip)
-        {
-            ip = "127.0.0.1";
-        }
-        if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr) != 1)
+        sin.sin6_family = AF_INET6;
+        sin.sin6_port = htons(port);
+        if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr) != 1)
         {
             duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
             duk_throw(ctx);
         }
+
         args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
         if (!args->bev)
         {
@@ -1572,7 +1565,7 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
             duk_throw(ctx);
         }
         bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
-        bufferevent_enable(args->bev, EV_WRITE | EV_READ);
+        bufferevent_enable(args->bev, EV_WRITE);
 
         if (bufferevent_socket_connect(args->bev, (const struct sockaddr *)&sin, sizeof(sin)))
         {
@@ -1582,70 +1575,30 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
     }
     else
     {
-        duk_to_boolean(ctx, -1);
-        if (duk_get_boolean(ctx, -1))
+        // v4
+        struct sockaddr_in sin;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(port);
+        if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr) != 1)
         {
-            // v6
-            struct sockaddr_in6 sin;
-            memset(&sin, 0, sizeof(sin));
-            sin.sin6_family = AF_INET6;
-            sin.sin6_port = htons(port);
-            if (!ip)
-            {
-                ip = "::1";
-            }
-            if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr) != 1)
-            {
-                duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
-                duk_throw(ctx);
-            }
-
-            args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
-            if (!args->bev)
-            {
-                duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
-                duk_throw(ctx);
-            }
-            bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
-            bufferevent_enable(args->bev, EV_WRITE);
-
-            if (bufferevent_socket_connect(args->bev, (const struct sockaddr *)&sin, sizeof(sin)))
-            {
-                duk_push_lstring(ctx, "bufferevent_socket_connect fail", 31);
-                duk_throw(ctx);
-            }
+            duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+            duk_throw(ctx);
         }
-        else
+
+        args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        if (!args->bev)
         {
-            // v4
-            struct sockaddr_in sin;
-            memset(&sin, 0, sizeof(sin));
-            sin.sin_family = AF_INET;
-            sin.sin_port = htons(port);
-            if (!ip)
-            {
-                ip = "127.0.0.1";
-            }
-            if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr) != 1)
-            {
-                duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
-                duk_throw(ctx);
-            }
+            duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
+            duk_throw(ctx);
+        }
+        bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
+        bufferevent_enable(args->bev, EV_WRITE);
 
-            args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
-            if (!args->bev)
-            {
-                duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
-                duk_throw(ctx);
-            }
-            bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
-            bufferevent_enable(args->bev, EV_WRITE);
-
-            if (bufferevent_socket_connect(args->bev, (const struct sockaddr *)&sin, sizeof(sin)))
-            {
-                duk_push_lstring(ctx, "bufferevent_socket_connect fail", 31);
-                duk_throw(ctx);
-            }
+        if (bufferevent_socket_connect(args->bev, (const struct sockaddr *)&sin, sizeof(sin)))
+        {
+            duk_push_lstring(ctx, "bufferevent_socket_connect fail", 31);
+            duk_throw(ctx);
         }
     }
 

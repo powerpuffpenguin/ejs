@@ -86,7 +86,7 @@ class State {
                 return
             }
 
-            console.log("recv", data)
+            console.log("recv:", new TextDecoder().decode(data), data)
 
             this.data_ = undefined
             this.next()
@@ -95,6 +95,7 @@ class State {
     next() {
         if (this.step_ >= this.count) {
             this.c.close()
+            console.log("completed")
             return
         }
         try {
