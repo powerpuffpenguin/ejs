@@ -82,6 +82,9 @@ declare namespace deps {
     export function tcp_conect(opts: TcpConnectOptions): TcpConn
 
 
+    export class Resolve {
+        readonly __id = "Resolve"
+    }
     export class Resolver {
         readonly __id = "Resolver"
     }
@@ -101,11 +104,13 @@ declare namespace deps {
     export function resolver_new(opts: ResolverOptions): Resolver
     export function resolver_free(r: Resolver): void
     export interface ResolverIPOptions {
+        r: Resolver
         name: string
         v6: boolean
-        cb: (ip?: Array<string>, e?: any) => void
+        cb: (ip: Array<string>, result: number, msg: string) => void
     }
-    export function resolver_ip(opts: ResolverIPOptions): void
+    export function resolver_ip(opts: ResolverIPOptions): Resolve
+    export function resolver_ip_cancel(r: Resolve): void
 }
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
@@ -628,6 +633,11 @@ export class NetError extends __duk.Error {
      * If true, it means that read/write encountered eof
      */
     eof?: boolean
+
+    /**
+     * Request canceled
+     */
+    cancel?: boolean
 }
 export class TcpError extends NetError {
     constructor(message: string) {
@@ -1294,7 +1304,43 @@ export function dial(opts: DialOptions, cb: DialCallback) {
             throw new NetError(`unknow network: ${opts.network}`);
     }
 }
+export interface ResolveOptions {
+    /**
+     * Name to be queried
+     */
+    name: string
+    /**
+     * If true, only query ipv4
+     */
+    v6?: boolean
+}
+export class ResolverError extends NetError {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "ResolverError"
+    }
+    /**
+     * resolve result
+     */
+    result?: number
+}
 
+function throwResolverError(e: any): never {
+    if (typeof e === "string") {
+        throw new ResolverError(e)
+    }
+    throw e
+}
+export class Resolve {
+    _r?: deps.Resolve
+    cancel() {
+        const r = this._r
+        if (r) {
+            this._r = undefined
+            deps.resolver_ip_cancel(r)
+        }
+    }
+}
 export class Resolver {
     private r_?: deps.Resolver
     constructor(opts: deps.ResolverOptions = { system: true }) {
@@ -1311,18 +1357,40 @@ export class Resolver {
             deps.resolver_free(r)
         }
     }
-    ipv4(name: string, cb: (ip?: Array<string>, e?: any) => void): void {
+    resolve(opts: ResolveOptions, cb: (ip?: Array<string>, e?: any) => void): Resolve {
         const r = this.r_
         if (!r) {
-            throw new NetError("Resolver already closed")
+            throw new ResolverError("Resolver already closed")
         }
-        deps.resolver_ip({ name: name, v6: false, cb: cb })
-    }
-    ipv6(name: string, cb: (ip?: Array<string>, e?: any) => void): void {
-        const r = this.r_
-        if (!r) {
-            throw new NetError("Resolver already closed")
+        if (typeof cb !== "function") {
+            throw new ResolverError("cb must be an function")
         }
-        deps.resolver_ip({ name: name, v6: true, cb: cb })
+        if (typeof opts.name !== "string" || opts.name == "") {
+            throw new ResolverError("resolve name invalid")
+        }
+        try {
+            const resolve = new Resolve()
+            resolve._r = deps.resolver_ip({
+                r: r,
+                name: opts.name,
+                v6: opts.v6 ?? false,
+                cb: (ip, result, msg) => {
+                    resolve._r = undefined
+                    if (result) {
+                        const e = new ResolverError(msg)
+                        if (result == 69) {
+                            e.cancel = true
+                        }
+                        e.result = result
+                        cb(undefined, e)
+                    } else {
+                        cb(ip)
+                    }
+                },
+            })
+            return resolve
+        } catch (e) {
+            throwResolverError(e)
+        }
     }
 }

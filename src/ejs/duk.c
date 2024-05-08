@@ -326,3 +326,134 @@ DUK_EXTERNAL void ejs_filepath_abs(duk_context *ctx, duk_idx_t idx)
                       ejs_filepath_abs_impl, &args,
                       (ejs_finally_function)ejs_filepath_abs_args_destroy);
 }
+
+DUK_EXTERNAL void *ejs_stash_put_pointer(duk_context *ctx, const char *key, duk_size_t key_len)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    void *p = duk_require_pointer(ctx, -1);
+    if (!p)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "ejs_stash_put_pointer expects -> {p:pointer}");
+        duk_throw(ctx);
+    }
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, key, key_len);
+    if (duk_is_object(ctx, -1))
+    {
+        duk_pop(ctx);
+        duk_push_object(ctx);
+        duk_dup_top(ctx);
+        duk_put_prop_lstring(ctx, -3, key, key_len);
+    }
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    //  ... val key {}
+    duk_swap_top(ctx, -2);
+    duk_dup(ctx, -3);
+    duk_put_prop(ctx, -3);
+
+    // ... val {key:val}
+    duk_pop(ctx);
+    return p;
+}
+DUK_EXTERNAL void *ejs_stash_delete_pointer(duk_context *ctx,
+                                            duk_bool_t clear_finalizer,
+                                            const char *key, duk_size_t key_len)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    void *p = duk_get_pointer_default(ctx, -1, 0);
+    if (!p)
+    {
+        return 0;
+    }
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, key, key_len);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    duk_swap_top(ctx, -2);
+    duk_get_prop(ctx, -2);
+    if (!duk_equals(ctx, -1, -3))
+    {
+        return 0;
+    }
+    duk_pop(ctx);
+
+    duk_push_pointer(ctx, p);
+    duk_del_prop(ctx, -2);
+    if (clear_finalizer)
+    {
+        duk_set_finalizer(ctx, -2);
+    }
+    else
+    {
+        duk_pop(ctx);
+    }
+    return p;
+}
+static duk_bool_t _ejs_stash_get_pointer(duk_context *ctx,
+                                         void *pointer,
+                                         const char *key, duk_size_t key_len,
+                                         duk_bool_t pop)
+{
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, key, key_len);
+    if (!duk_is_object(ctx, -1))
+    {
+        duk_pop_2(ctx);
+        return 0;
+    }
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    // {}
+    duk_push_pointer(ctx, pointer);
+    duk_get_prop(ctx, -2);
+    // {} val
+    if (!duk_is_object(ctx, -1))
+    {
+        duk_pop_2(ctx);
+        return 0;
+    }
+    duk_swap_top(ctx, -2);
+    // val {}
+    if (pop)
+    {
+        duk_get_prop_lstring(ctx, -2, "p", 1);
+        if (duk_get_pointer_default(ctx, -1, 0) != pointer)
+        {
+            duk_pop_3(ctx);
+            return 0;
+        }
+        // val {} key
+        duk_del_prop(ctx, -2);
+        duk_pop(ctx);
+    }
+    else
+    {
+        duk_pop(ctx);
+        // val
+        duk_get_prop_lstring(ctx, -1, "p", 1);
+        if (duk_get_pointer_default(ctx, -1, 0) != pointer)
+        {
+            duk_pop_2(ctx);
+            return 0;
+        }
+        duk_pop(ctx);
+    }
+    return 1;
+}
+DUK_EXTERNAL duk_bool_t ejs_stash_get_pointer(duk_context *ctx,
+                                              void *pointer,
+                                              const char *key, duk_size_t key_len)
+{
+    return _ejs_stash_get_pointer(ctx, pointer, key, key_len, 0);
+}
+DUK_EXTERNAL duk_bool_t ejs_stash_pop_pointer(duk_context *ctx,
+                                              void *pointer,
+                                              const char *key, duk_size_t key_len)
+{
+    return _ejs_stash_get_pointer(ctx, pointer, key, key_len, 1);
+}

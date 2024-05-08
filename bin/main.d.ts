@@ -300,6 +300,11 @@ declare module "ejs/net" {
          * If true, it means that read/write encountered eof
          */
         eof?: boolean
+
+        /**
+         * Request canceled
+         */
+        cancel?: boolean
     }
     export interface Addr {
         /**
@@ -484,6 +489,16 @@ declare module "ejs/net" {
          */
         system?: boolean
     }
+    export interface ResolveOptions {
+        /**
+         * Name to be queried
+         */
+        name: string
+        /**
+         * If true, query ipv6, else query ipv4
+         */
+        v6?: boolean
+    }
     /**
      * Used to resolve domain names supporting A or AAAA
      */
@@ -491,7 +506,11 @@ declare module "ejs/net" {
         constructor(opts: deps.ResolverOptions = { system: true })
         readonly isClosed: boolean
         close(): void
-        ipv4(name: string, cb: (ip?: Array<string>, e?: any) => void): void
-        ipv6(name: string, cb: (ip?: Array<string>, e?: any) => void): void
+        /**
+         * Query the A/AAAA record of a domain name
+         * @param opts Query options
+         * @param cb Query result callback
+         */
+        resolve(opts: ResolveOptions, cb: (ip?: Array<string>, e?: any) => void): void
     }
 }

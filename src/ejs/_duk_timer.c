@@ -151,7 +151,7 @@ static duk_ret_t set_timer_impl(duk_context *ctx)
     ejs_timer_t *timer = malloc(sizeof(ejs_timer_t));
     if (!timer)
     {
-        ejs_throw_cause(ctx, EJS_ERROR_MALLOC, "malloc timer fail");
+        ejs_throw_os(ctx, errno, strerror(errno));
     }
     timer->core = core;
     timer->flags = args->flags;

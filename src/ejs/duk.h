@@ -71,6 +71,36 @@ extern "C"
      */
     DUK_EXTERNAL void ejs_filepath_abs(duk_context *ctx, duk_idx_t idx);
 
+    /**
+     * Store the object associated with c into stash so that it can be called back later
+     * * ok ... {p:pointer} -> ... {p:pointer}
+     * * err ... {p:pointer}
+     */
+    DUK_EXTERNAL void *ejs_stash_put_pointer(duk_context *ctx, const char *key, duk_size_t key_len);
+    /**
+     * The object addresses associated with c are stored in stash to call back the js function. This function deletes these objects from stash.
+     * * ok ... {p:pointer} -> ... {p:pointer}
+     * * err ... {p:pointer}
+     */
+    DUK_EXTERNAL void *ejs_stash_delete_pointer(duk_context *ctx,
+                                                duk_bool_t clear_finalizer,
+                                                const char *key, duk_size_t key_len);
+    /**
+     * The object addresses associated with c are stored in stash to call back the js function. This function deletes these objects from stash.
+     * * ok  true(found) ... -> ... {p:pointer}
+     * * ok false(not found) ... -> ...
+     * * err ...
+     */
+    DUK_EXTERNAL duk_bool_t ejs_stash_get_pointer(duk_context *ctx,
+                                                  void *pointer,
+                                                  const char *key, duk_size_t key_len);
+    /**
+     * like ejs_stash_get_pointer, but will delete pointer from stash
+     */
+    DUK_EXTERNAL duk_bool_t ejs_stash_pop_pointer(duk_context *ctx,
+                                                  void *pointer,
+                                                  const char *key, duk_size_t key_len);
+
 #if defined(__cplusplus)
 }
 #endif

@@ -19,4 +19,11 @@ var net = require("ejs/net")
 // })
 
 var resolver = new net.Resolver()
-console.log(resolver)
+var req = resolver.resolve({
+    // name: 'www.baidu.com',
+    name: 'localhost',
+    // v6: true,
+}, function (ip, e) {
+    console.log(ip, e)
+})
+// resolver.close()
