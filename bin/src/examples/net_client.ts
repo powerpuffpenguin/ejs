@@ -1,5 +1,3 @@
-
-import { stat } from "fs";
 import { Command } from "../flags";
 import * as net from "ejs/net";
 export const command = new Command({
