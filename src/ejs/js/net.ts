@@ -57,7 +57,7 @@ declare namespace deps {
     }
     export class TcpListener {
         readonly __id = "TcpListener"
-        cb?: (c: TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => boolean
+        cb?: (c: TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => void
         err?: (e: any) => void
     }
     export interface TcpListenerOptions {
@@ -70,6 +70,7 @@ declare namespace deps {
     export function tcp_listen_close(l: TcpListener): void
     export function tcp_listen_cb(l: TcpListener, enable: boolean): void
     export function tcp_listen_err(l: TcpListener, enable: boolean): void
+    export function tcp_conn_stash(c: TcpConn, put: boolean): void
     export function tcp_conn_close(c: TcpConn): void
     export function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
     export function tcp_conn_cb(c: TcpConn, enable: boolean): void
@@ -816,11 +817,7 @@ export class TcpConn implements Conn {
     write(data: string | Uint8Array | ArrayBuffer): number | undefined {
         const c = this._get()
         try {
-            const n = deps.tcp_conn_write(c, data)
-            if (n === undefined) {
-                c.busy = true
-            }
-            return n
+            return deps.tcp_conn_write(c, data)
         } catch (e) {
             throwTcpError(e)
         }
@@ -953,7 +950,7 @@ export class TcpListener implements Listener {
     private l_?: deps.TcpListener
     constructor(readonly addr: Addr, l: deps.TcpListener) {
         l.cb = (c, remoteIP, remotePort, localIP, localPort) => {
-            return this._onAccept(c, remoteIP, remotePort, localIP, localPort)
+            this._onAccept(c, remoteIP, remotePort, localIP, localPort)
         }
         l.err = (e) => {
             this._onError(e)
@@ -1026,29 +1023,31 @@ export class TcpListener implements Listener {
     get onError(): onErrorCallback<Listener> | undefined {
         return this.onError_
     }
-    private _onAccept(conn: deps.TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number): boolean {
-        if (remoteIP.startsWith('::ffff:')) {
-            remoteIP = remoteIP.substring(7)
-        }
-        if (localIP.startsWith('::ffff:')) {
-            localIP = localIP.substring(7)
-        }
-
+    private _onAccept(conn: deps.TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) {
         const onAccept = this.onAccept_
         if (!onAccept) {
-            return false
+            deps.tcp_conn_stash(conn, false)
+            return
         }
-        const c = new TcpConn(
-            new NetAddr('tcp', joinHostPort(remoteIP, remotePort)),
-            new NetAddr('tcp', joinHostPort(localIP, localPort)),
-            conn,
-        )
+        let c: TcpConn
         try {
-            onAccept(c, this)
+            if (remoteIP.startsWith('::ffff:')) {
+                remoteIP = remoteIP.substring(7)
+            }
+            if (localIP.startsWith('::ffff:')) {
+                localIP = localIP.substring(7)
+            }
+            c = new TcpConn(
+                new NetAddr('tcp', joinHostPort(remoteIP, remotePort)),
+                new NetAddr('tcp', joinHostPort(localIP, localPort)),
+                conn,
+            )
         } catch (e) {
+            deps.tcp_conn_stash(conn, false)
             throw e
         }
-        return true
+        deps.tcp_conn_stash(conn, true)
+        onAccept(c, this)
     }
     private _onError(e: any) {
         const cb = this.onError_
@@ -1124,9 +1123,16 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
 }
 type DialCallback = (c?: Conn, e?: any) => void
 
+enum DialHost {
+    dns,
+    err,
+    end,
+}
 class TcpDialer {
     c_?: deps.TcpConn
     timer_?: number
+    r0_?: Resolve
+    r1_?: Resolve
     constructor(readonly opts: DialOptions) {
 
     }
@@ -1152,7 +1158,9 @@ class TcpDialer {
         } else {
             const v = IP.parse(host)
             if (!v) {
-                throw new TcpError(`dial address invalid: ${opts.address}`)
+                this._dialHost(cb, host, port, v6)
+                this._timer(cb, opts.timeout)
+                return
             }
             if (v6 === undefined) {
                 v6 = v.isV6
@@ -1180,9 +1188,117 @@ class TcpDialer {
             },
         )
     }
+
+    private _dialHost(cb: DialCallback, host: string, port: number, v6?: boolean) {
+        if (v6 === undefined) {
+            const resolver = Resolver.getDefault()
+            let state = DialHost.dns
+            let err: any
+            const resolve_cb = (ipv6: boolean, ip?: Array<string>, e?: any) => {
+                if (!ip) {
+                    switch (state) {
+                        case DialHost.dns:
+                            state = DialHost.err
+                            err = e
+                            break
+                        case DialHost.err:
+                            state = DialHost.end
+                            this._closeTimer()
+                            cb(undefined, err ?? e)
+                            break
+                    }
+                    return
+                } else if (ip.length === 0) {
+                    switch (state) {
+                        case DialHost.dns:
+                            state = DialHost.err
+                            err = e
+                            break
+                        case DialHost.err:
+                            state = DialHost.end
+                            this._closeTimer()
+                            cb(undefined, err ?? new TcpError(`unknow host: ${host}`))
+                            break
+                    }
+                    return
+                }
+                switch (state) {
+                    case DialHost.dns:
+                        state = DialHost.end
+                        break
+                    case DialHost.err:
+                        state = DialHost.end
+                        break
+                    default:
+                        return
+                }
+
+                let req = this.r0_
+                if (req) {
+                    req.cancel()
+                }
+                req = this.r1_
+                if (req) {
+                    req.cancel()
+                }
+
+                this._connect(cb,
+                    {
+                        ip: ip[0],
+                        port: port,
+                        v6: ipv6,
+                    },
+                )
+            }
+            this.r0_ = resolver.resolve({
+                name: host,
+                v6: true,
+            }, (ip, e) => {
+                resolve_cb(true, ip, e)
+            })
+            this.r1_ = resolver.resolve({
+                name: host,
+                v6: false,
+            }, (ip, e) => {
+                resolve_cb(false, ip, e)
+            })
+        } else {
+            this.r0_ = Resolver.getDefault().resolve({
+                name: host,
+                v6: v6,
+            }, (ip, e) => {
+                if (!ip) {
+                    this._closeTimer()
+                    cb(undefined, e)
+                    return
+                } else if (ip.length === 0) {
+                    this._closeTimer()
+                    cb(undefined, new TcpError(`unknow host: ${host}`))
+                    return
+                }
+
+                this._connect(cb,
+                    {
+                        ip: ip[0],
+                        port: port,
+                        v6: v6,
+                    },
+                )
+            })
+        }
+    }
     private _timer(cb: DialCallback, timeout?: number) {
         if (typeof timeout === "number" && Number.isFinite(timeout) && timeout >= 1) {
             this.timer_ = setTimeout(() => {
+                let req = this.r0_
+                if (req) {
+                    req.cancel()
+                }
+                req = this.r1_
+                if (req) {
+                    req.cancel()
+                }
+
                 const c = this.c_
                 if (c) {
                     this.c_ = undefined
@@ -1197,17 +1313,20 @@ class TcpDialer {
             }, timeout)
         }
     }
+    private _closeTimer() {
+        const timer = this.timer_
+        if (timer !== undefined) {
+            this.timer_ = undefined
+            clearTimeout(timer)
+        }
+    }
     private _connect(cb: DialCallback,
         opts: deps.TcpConnectOptions,
     ) {
         const c = deps.tcp_conect(opts)
         this.c_ = c
         c.cbe = (what) => {
-            const timer = this.timer_
-            if (timer !== undefined) {
-                this.timer_ = undefined
-                clearTimeout(timer)
-            }
+            this._closeTimer()
             if (what & deps.BEV_EVENT_TIMEOUT) {
                 deps.tcp_conn_close(c)
 
@@ -1310,7 +1429,7 @@ export interface ResolveOptions {
      */
     name: string
     /**
-     * If true, only query ipv4
+     * If true, query ipv6, else query ipv4
      */
     v6?: boolean
 }
@@ -1392,5 +1511,30 @@ export class Resolver {
         } catch (e) {
             throwResolverError(e)
         }
+    }
+    private static default_?: Resolver
+    static setDefault(v?: Resolve) {
+        const o = Resolver.default_
+        if (o === v) {
+            return
+        }
+        if (v === undefined || v === null) {
+            Resolver.default_ = undefined
+        } else if (v instanceof Resolver) {
+            Resolver.default_ = v
+        } else {
+            Resolver.default_ = undefined
+        }
+    }
+    static getDefault(): Resolver {
+        let v = Resolver.default_
+        if (!v) {
+            v = new Resolver({ system: true })
+            Resolver.default_ = v
+        }
+        return v
+    }
+    static get hasDefault(): boolean {
+        return Resolver.default_ ? true : false
     }
 }

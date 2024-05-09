@@ -503,6 +503,10 @@ declare module "ejs/net" {
      * Used to resolve domain names supporting A or AAAA
      */
     export class Resolver {
+        static setDefault(v?: Resolve)
+        static getDefault(): Resolver
+        static get hasDefault(): boolean
+
         constructor(opts: deps.ResolverOptions = { system: true })
         readonly isClosed: boolean
         close(): void

@@ -832,17 +832,12 @@ typedef struct
 static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
 {
     tcp_connection_event_cb_args *args = duk_require_pointer(ctx, 0);
-
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
-    duk_push_pointer(ctx, args->bev);
-    duk_get_prop(ctx, -2);
-    if (!duk_is_object(ctx, -1))
+    duk_pop(ctx);
+    if (!ejs_stash_get_pointer(ctx, args->bev, EJS_STASH_NET_TCP_CONN))
     {
         return 0;
     }
-    duk_swap_top(ctx, -4);
-    duk_pop_3(ctx);
+
     duk_get_prop_lstring(ctx, -1, "cbe", 3);
     if (!duk_is_function(ctx, -1))
     {
@@ -869,17 +864,13 @@ typedef struct
 static duk_ret_t tcp_connection_read_cb_impl(duk_context *ctx)
 {
     tcp_connection_cb_args_t *args = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
 
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
-    duk_push_pointer(ctx, args->bev);
-    duk_get_prop(ctx, -2);
-    if (!duk_is_object(ctx, -1))
+    if (!ejs_stash_get_pointer(ctx, args->bev, EJS_STASH_NET_TCP_CONN))
     {
         return 0;
     }
-    duk_swap_top(ctx, -4);
-    duk_pop_3(ctx);
+
     duk_get_prop_lstring(ctx, -1, "cbr", 3);
     if (!duk_is_function(ctx, -1))
     {
@@ -903,17 +894,12 @@ static void tcp_connection_read_cb(struct bufferevent *bev, void *ptr)
 static duk_ret_t tcp_connection_write_cb_impl(duk_context *ctx)
 {
     tcp_connection_cb_args_t *args = duk_require_pointer(ctx, 0);
-
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
-    duk_push_pointer(ctx, args->bev);
-    duk_get_prop(ctx, -2);
-    if (!duk_is_object(ctx, -1))
+    duk_pop(ctx);
+    if (!ejs_stash_get_pointer(ctx, args->bev, EJS_STASH_NET_TCP_CONN))
     {
         return 0;
     }
-    duk_swap_top(ctx, -4);
-    duk_pop_3(ctx);
+
     duk_get_prop_lstring(ctx, -1, "busy", 4);
     if (!duk_get_boolean_default(ctx, -1, 0))
     {
@@ -986,19 +972,15 @@ typedef struct
 static duk_ret_t evconnlistener_tcp_errorcb_impl(duk_context *ctx)
 {
     evconnlistener_tcp_errorcb_args_t *args = duk_require_pointer(ctx, 0);
-    int err = EVUTIL_SOCKET_ERROR();
-    const char *msg = evutil_socket_error_to_string(err);
-
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_LISTENER);
-    duk_push_pointer(ctx, args->listener);
-    duk_get_prop(ctx, -2);
-    if (!duk_is_object(ctx, -1))
+    duk_pop(ctx);
+    if (!ejs_stash_get_pointer(ctx, args->listener, EJS_STASH_NET_TCP_LISTENER))
     {
         return 0;
     }
-    duk_swap_top(ctx, -4);
-    duk_pop_3(ctx);
+
+    int err = EVUTIL_SOCKET_ERROR();
+    const char *msg = evutil_socket_error_to_string(err);
+
     duk_get_prop_lstring(ctx, -1, "err", 3);
     duk_push_string(ctx, msg);
     duk_call(ctx, 1);
@@ -1041,18 +1023,14 @@ static void evconnlistener_tcp_cb_args_destroy(void *ptr)
 static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
 {
     evconnlistener_tcp_cb_args_t *args = duk_require_pointer(ctx, 0);
-
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_LISTENER);
-    duk_push_pointer(ctx, args->listener);
-    duk_get_prop(ctx, -2);
-    if (!duk_is_object(ctx, -1))
+    duk_pop(ctx);
+    if (!ejs_stash_get_pointer(ctx, args->listener, EJS_STASH_NET_TCP_LISTENER))
     {
         return 0;
     }
-    duk_swap_top(ctx, -4);
-    duk_pop_3(ctx);
     duk_get_prop_lstring(ctx, -1, "cb", 2);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
 
     args->bev = bufferevent_socket_new(args->core->base, args->s, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
     if (!args->bev)
@@ -1064,13 +1042,6 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
 
     push_tcp_connection(ctx, args->core, args->bev);
     args->free = TRUE;
-
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_NET_TCP_CONN);
-    duk_push_pointer(ctx, args->bev);
-    duk_dup(ctx, -4);
-    duk_put_prop(ctx, -3);
-    duk_pop_2(ctx);
 
     if (args->socklen == sizeof(struct sockaddr_in6))
     {
@@ -1108,10 +1079,7 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
         duk_push_int(ctx, ntohs(sin->sin_port));
     }
     duk_call(ctx, 5);
-    if (!duk_get_boolean(ctx, -1))
-    {
-        return 0;
-    }
+
     return 0;
 }
 
@@ -1149,12 +1117,7 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     duk_int_t backlog = duk_require_int(ctx, -1);
     duk_pop(ctx);
 
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_CORE);
-    ejs_core_t *core = duk_require_pointer(ctx, -1);
-    duk_get_prop_lstring(ctx, -2, EJS_STASH_NET_TCP_LISTENER);
-    duk_swap_top(ctx, -3);
-    duk_pop_2(ctx);
+    ejs_core_t *core = ejs_require_core(ctx);
 
     duk_get_prop_lstring(ctx, 0, "v6", 2);
     if (duk_is_undefined(ctx, -1))
@@ -1246,23 +1209,23 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     evconnlistener_disable(args->listener);
 
     duk_push_object(ctx);
+    duk_push_pointer(ctx, args->listener);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_pointer(ctx, core);
     duk_put_prop_lstring(ctx, -2, "core", 4);
     duk_push_c_lightfunc(ctx, evconnlistener_tcp_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
+    args->listener = NULL;
 
-    duk_push_pointer(ctx, args->listener);
-    duk_dup(ctx, -2);
-    duk_put_prop(ctx, -4);
-
-    duk_push_pointer(ctx, args->listener);
-    duk_put_prop_lstring(ctx, -2, "p", 1);
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_LISTENER);
     return 1;
 }
 
 static duk_ret_t tcp_listen(duk_context *ctx)
 {
-    EJS_VAR_TYPE(tcp_listen_args_t, args);
+    tcp_listen_args_t args = {
+        .listener = NULL,
+    };
     if (ejs_pcall_function_n(ctx, tcp_listen_impl, &args, 2))
     {
         if (args.listener)
@@ -1332,6 +1295,23 @@ static duk_ret_t tcp_listen_err(duk_context *ctx)
     return 0;
 }
 
+static duk_ret_t tcp_conn_stash(duk_context *ctx)
+{
+    duk_bool_t put = duk_require_boolean(ctx, -1);
+    if (put)
+    {
+        duk_pop(ctx);
+        ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_CONN);
+    }
+    else
+    {
+        duk_get_prop_lstring(ctx, 0, "p", 1);
+        struct bufferevent *bev = duk_require_pointer(ctx, -1);
+        duk_set_finalizer(ctx, 0);
+        bufferevent_free(bev);
+    }
+    return 0;
+}
 static duk_ret_t tcp_conn_close(duk_context *ctx)
 {
     struct bufferevent *bev = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_TCP_CONN);
@@ -1350,6 +1330,7 @@ static duk_ret_t tcp_conn_write(duk_context *ctx)
         return 0;
     }
     duk_pop(ctx);
+
     const uint8_t *data;
     duk_size_t data_len;
     if (duk_is_string(ctx, 1))
@@ -1360,15 +1341,16 @@ static duk_ret_t tcp_conn_write(duk_context *ctx)
     {
         data = duk_require_buffer_data(ctx, 1, &data_len);
     }
+    duk_pop(ctx);
     if (!data_len)
     {
         duk_push_uint(ctx, 0);
-        return 0;
+        return 1;
     }
     duk_get_prop_lstring(ctx, 0, "md", 2);
     duk_get_prop_lstring(ctx, -1, "mw", 2);
     duk_size_t maxWriteBytes = duk_get_uint_default(ctx, -1, 0);
-    duk_pop_n(ctx, 4);
+    duk_pop_n(ctx, 2);
 
     struct evbuffer *buf = bufferevent_get_output(bev);
     size_t len = evbuffer_get_length(buf);
@@ -1381,16 +1363,18 @@ static duk_ret_t tcp_conn_write(duk_context *ctx)
         }
         else if (maxWriteBytes - len < data_len)
         {
+            duk_push_true(ctx);
+            duk_put_prop_lstring(ctx, 0, "busy", 4);
             return 0;
         }
     }
 
-    int n = bufferevent_write(bev, data, data_len);
-    if (n < 0)
+    if (bufferevent_write(bev, data, data_len))
     {
         duk_push_lstring(ctx, "bufferevent_write fail", 22);
         duk_throw(ctx);
     }
+
     duk_push_uint(ctx, data_len);
     return 1;
 }
@@ -1418,7 +1402,7 @@ static duk_ret_t tcp_conn_cb(duk_context *ctx)
     }
     else
     {
-        bufferevent_enable(bev, EV_READ);
+        bufferevent_disable(bev, EV_READ);
     }
     return 0;
 }
@@ -1498,13 +1482,7 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
     short port = duk_require_uint(ctx, -1);
     duk_pop(ctx);
 
-    duk_push_heap_stash(ctx);
-    duk_get_prop_lstring(ctx, -1, EJS_STASH_CORE);
-    ejs_core_t *core = duk_require_pointer(ctx, -1);
-    duk_get_prop_lstring(ctx, -2, EJS_STASH_NET_TCP_CONN);
-    duk_swap_top(ctx, -3);
-    duk_pop_2(ctx);
-
+    ejs_core_t *core = ejs_require_core(ctx);
     duk_get_prop_lstring(ctx, 0, "v6", 2);
     if (duk_require_boolean(ctx, -1))
     {
@@ -1563,14 +1541,13 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
         }
     }
 
-    duk_pop(ctx);
+    duk_pop_2(ctx);
+
     push_tcp_connection(ctx, core, args->bev);
     struct bufferevent *bev = args->bev;
     args->bev = NULL;
-    duk_dup_top(ctx);
-    duk_push_pointer(ctx, bev);
-    duk_swap_top(ctx, -2);
-    duk_put_prop(ctx, -4);
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_CONN);
     return 1;
 }
 static duk_ret_t tcp_conect(duk_context *ctx)
@@ -1629,7 +1606,6 @@ static duk_ret_t resolver_new_impl(duk_context *ctx)
     duk_push_c_lightfunc(ctx, resolver_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
     args->dns = NULL;
-
     ejs_stash_put_pointer(ctx, EJS_STASH_NET_RESOLVER);
     return 1;
 }
@@ -1660,6 +1636,7 @@ typedef struct
     ejs_core_t *core;
     struct evdns_base *dns;
     struct evdns_request *request;
+    duk_bool_t stash;
 } resolve_ip_t;
 static duk_ret_t resolve_ip_destroy(duk_context *ctx)
 {
@@ -1669,9 +1646,14 @@ static duk_ret_t resolve_ip_destroy(duk_context *ctx)
     {
         if (p->request)
         {
-            evdns_cancel_request(p->dns, p->request);
+            struct evdns_request *req = p->request;
+            p->request = NULL;
+            evdns_cancel_request(p->dns, req);
         }
-        free(p);
+        else
+        {
+            free(p);
+        }
     }
     return 0;
 }
@@ -1743,20 +1725,24 @@ static duk_ret_t resolver_ip_cb_impl(duk_context *ctx)
 }
 static void resolver_ip_cb(int result, char type, int count, int ttl, void *addresses, void *arg)
 {
-    if (DNS_ERR_CANCEL == result)
+    resolve_ip_t *resolve = arg;
+    if (resolve->stash)
     {
-        return;
+        resolver_ip_cb_args_t args = {
+            .result = result,
+            .type = type,
+            .count = count,
+            .ttl = ttl,
+            .addresses = addresses,
+            .resolve = arg,
+        };
+        args.resolve->request = NULL;
+        ejs_call_callback_noresult(args.resolve->core->duk, resolver_ip_cb_impl, &args, NULL);
     }
-    resolver_ip_cb_args_t args = {
-        .result = result,
-        .type = type,
-        .count = count,
-        .ttl = ttl,
-        .addresses = addresses,
-        .resolve = arg,
-    };
-    args.resolve->request = NULL;
-    ejs_call_callback_noresult(args.resolve->core->duk, resolver_ip_cb_impl, &args, NULL);
+    else
+    {
+        free(resolve);
+    }
 }
 typedef struct
 {
@@ -1788,6 +1774,7 @@ static duk_ret_t resolver_ip_impl(duk_context *ctx)
         ejs_throw_os(ctx, errno, strerror(errno));
     }
     args->resolve = resolve;
+    resolve->stash = 0;
     resolve->dns = dns;
     resolve->core = core;
     resolve->request = v6 ? evdns_base_resolve_ipv6(dns, name, 0, resolver_ip_cb, args->resolve) : evdns_base_resolve_ipv4(dns, name, 0, resolver_ip_cb, args->resolve);
@@ -1809,6 +1796,7 @@ static duk_ret_t resolver_ip_impl(duk_context *ctx)
     args->resolve = NULL;
 
     ejs_stash_put_pointer(ctx, EJS_STASH_NET_RESOLVER_REQUEST);
+    resolve->stash = 1;
     return 1;
 }
 static duk_ret_t resolver_ip(duk_context *ctx)
@@ -1820,9 +1808,14 @@ static duk_ret_t resolver_ip(duk_context *ctx)
         {
             if (args.resolve->request)
             {
-                evdns_cancel_request(args.resolve->dns, args.resolve->request);
+                struct evdns_request *req = args.resolve->request;
+                args.resolve->request = NULL;
+                evdns_cancel_request(args.resolve->dns, req);
             }
-            free(args.resolve);
+            else
+            {
+                free(args.resolve);
+            }
         }
         duk_throw(ctx);
     }
@@ -1830,23 +1823,22 @@ static duk_ret_t resolver_ip(duk_context *ctx)
 }
 duk_ret_t resolver_ip_cancel(duk_context *ctx)
 {
-    resolve_ip_t *p = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_RESOLVER_REQUEST);
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    resolve_ip_t *p = duk_get_pointer_default(ctx, -1, 0);
     if (p)
     {
+        duk_set_finalizer(ctx, 0);
         if (p->request)
         {
-            evdns_cancel_request(p->dns, p->request);
+            struct evdns_request *req = p->request;
+            p->request = NULL;
+            evdns_cancel_request(p->dns, req);
         }
-        free(p);
+        else
+        {
+            free(p);
+        }
     }
-
-    duk_get_prop_lstring(ctx, 0, "cb", 2);
-    duk_swap_top(ctx, -2);
-    duk_pop(ctx);
-    duk_push_undefined(ctx);
-    duk_push_int(ctx, DNS_ERR_CANCEL);
-    duk_push_string(ctx, evdns_err_to_string(DNS_ERR_CANCEL));
-    duk_call(ctx, 3);
     return 0;
 }
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
@@ -1859,12 +1851,6 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
     duk_swap_top(ctx, -2);
 
     duk_push_heap_stash(ctx);
-    {
-        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_RESOLVER);
-        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_RESOLVER_REQUEST);
-        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_TCP_LISTENER);
-        EJS_STASH_DEFINE_OBJECT(EJS_STASH_NET_TCP_CONN);
-    }
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS);
     duk_swap_top(ctx, -2);
     duk_pop(ctx);
@@ -1936,6 +1922,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "tcp_listen_cb", 13);
         duk_push_c_lightfunc(ctx, tcp_listen_err, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_listen_err", 14);
+        duk_push_c_lightfunc(ctx, tcp_conn_stash, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "tcp_conn_stash", 14);
 
         duk_push_c_lightfunc(ctx, tcp_conn_close, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_close", 14);

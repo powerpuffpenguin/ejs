@@ -339,7 +339,7 @@ DUK_EXTERNAL void *ejs_stash_put_pointer(duk_context *ctx, const char *key, duk_
 
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, key, key_len);
-    if (duk_is_object(ctx, -1))
+    if (!duk_is_object(ctx, -1))
     {
         duk_pop(ctx);
         duk_push_object(ctx);
