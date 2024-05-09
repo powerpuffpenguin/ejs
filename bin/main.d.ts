@@ -503,7 +503,7 @@ declare module "ejs/net" {
      * Used to resolve domain names supporting A or AAAA
      */
     export class Resolver {
-        static setDefault(v?: Resolve)
+        static setDefault(v?: Resolver)
         static getDefault(): Resolver
         static get hasDefault(): boolean
 

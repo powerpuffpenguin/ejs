@@ -1600,6 +1600,31 @@ static duk_ret_t resolver_new_impl(duk_context *ctx)
         duk_throw(ctx);
     }
     args->dns = dns;
+    duk_get_prop_lstring(ctx, 0, "nameserver", 10);
+    if (duk_is_array(ctx, -1))
+    {
+        duk_size_t count = duk_get_length(ctx, -1);
+        int err;
+        for (duk_size_t i = 0; i < count; i++)
+        {
+            duk_get_prop_index(ctx, -1, i);
+            const char *ip = duk_require_string(ctx, -1);
+            err = evdns_base_nameserver_ip_add(dns, ip);
+            if (err)
+            {
+                duk_push_lstring(ctx, "evdns_base_nameserver_ip_add fail: ", 35);
+                duk_swap_top(ctx, -2);
+                duk_concat(ctx, 2);
+                duk_throw(ctx);
+            }
+            else
+            {
+                duk_pop(ctx);
+            }
+        }
+    }
+    duk_pop(ctx);
+
     duk_push_object(ctx);
     duk_push_pointer(ctx, dns);
     duk_put_prop_lstring(ctx, -2, "p", 1);
