@@ -8,7 +8,7 @@ add_requires("libevent ~2.1.12")
 
 
 add_repositories("local-repo third_party_repo")
-add_requires("wolfssl ~5.6.6")
+-- add_requires("wolfssl ~5.6.6")
 
 
 plat=get_config("plat")
@@ -31,7 +31,7 @@ target("ejs")
         if arch ~= nil then 
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
-    add_packages("libevent","wolfssl")
+    add_packages("libevent")
 
 target("example_ejs")
     set_kind("binary")
@@ -62,7 +62,7 @@ target("ejs_test")
         if arch ~= nil then 
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
-    add_packages("libevent","wolfssl")
+    add_packages("libevent")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io
