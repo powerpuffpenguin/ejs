@@ -101,6 +101,10 @@ extern "C"
                                                   void *pointer,
                                                   const char *key, duk_size_t key_len);
 
+    /**
+     * ... exports:{module_destroy:()=>void} -> ... exports
+     */
+    DUK_EXTERNAL void ejs_stash_set_module_destroy(duk_context *ctx);
 #if defined(__cplusplus)
 }
 #endif

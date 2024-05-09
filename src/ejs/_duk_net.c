@@ -1982,5 +1982,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
      *  Entry stack: [ require init_f exports ejs deps ]
      */
     duk_call(ctx, 3);
+
+    ejs_stash_set_module_destroy(ctx);
+
     return 0;
 }

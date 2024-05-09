@@ -82,7 +82,6 @@ declare namespace deps {
     }
     export function tcp_conect(opts: TcpConnectOptions): TcpConn
 
-
     export class Resolve {
         readonly __id = "Resolve"
     }
@@ -113,6 +112,7 @@ declare namespace deps {
     export function resolver_ip(opts: ResolverIPOptions): Resolve
     export function resolver_ip_cancel(r: Resolve): void
 }
+
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
         super(message);
@@ -1534,7 +1534,13 @@ export class Resolver {
         }
         return v
     }
-    static get hasDefault(): boolean {
+    static hasDefault(): boolean {
         return Resolver.default_ ? true : false
+    }
+}
+
+export function module_destroy() {
+    if (Resolver.hasDefault()) {
+        Resolver.getDefault().close()
     }
 }

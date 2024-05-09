@@ -11,6 +11,7 @@
 
 #define EJS_STASH_MODULE "module", 6
 #define EJS_STASH_FOUND "found", 5
+#define EJS_STASH_MODULE_DESTROY "module_destroy", 14
 
 #define EJS_STASH_CORE "core", 4
 

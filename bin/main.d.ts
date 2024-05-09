@@ -505,7 +505,7 @@ declare module "ejs/net" {
     export class Resolver {
         static setDefault(v?: Resolver)
         static getDefault(): Resolver
-        static get hasDefault(): boolean
+        static hasDefault(): boolean
 
         constructor(opts: deps.ResolverOptions = { system: true })
         readonly isClosed: boolean

@@ -51,6 +51,11 @@
         "cmath": "c",
         "bufferevent.h": "c",
         "buffer.h": "c",
-        "optional": "c"
+        "optional": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "__split_buffer": "c",
+        "deque": "c",
+        "vector": "c"
     }
 }

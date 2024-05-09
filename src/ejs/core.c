@@ -269,8 +269,44 @@ DUK_EXTERNAL duk_ret_t ejs_core_new(duk_context *ctx, ejs_core_options_t *opts)
     }
     return DUK_EXEC_SUCCESS;
 }
+static duk_ret_t _ejs_module_destroy(duk_context *ctx)
+{
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE_DESTROY);
+    if (!duk_is_array(ctx, -1))
+    {
+        return 0;
+    }
+    duk_size_t count = duk_get_length(ctx, -1);
+    if (!count)
+    {
+        return 0;
+    }
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+    for (duk_size_t i = 0; i < count; i++)
+    {
+        duk_get_prop_index(ctx, -1, i);
+        if (!duk_is_function(ctx, -1))
+        {
+            duk_pop(ctx);
+            continue;
+        }
+        duk_pcall(ctx, 0);
+        duk_pop(ctx);
+    }
+    return 0;
+}
 DUK_EXTERNAL void ejs_core_delete(ejs_core_t *core)
 {
+    duk_idx_t count = duk_get_top(core->duk);
+    if (duk_get_top(core->duk))
+    {
+        duk_pop_n(core->duk, count);
+    }
+    duk_push_c_lightfunc(core->duk, _ejs_module_destroy, 0, 0, 0);
+    duk_pcall(core->duk, 0);
+
     if (core->base && (core->flags & 0x1))
     {
         event_base_free(core->base);

@@ -457,3 +457,31 @@ DUK_EXTERNAL duk_bool_t ejs_stash_pop_pointer(duk_context *ctx,
 {
     return _ejs_stash_get_pointer(ctx, pointer, key, key_len, 1);
 }
+DUK_EXTERNAL void ejs_stash_set_module_destroy(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "module_destroy", 14);
+    if (!duk_is_function(ctx, -1))
+    {
+        duk_pop(ctx);
+        return;
+    }
+    duk_del_prop_lstring(ctx, -2, "module_destroy", 14);
+    // ... exports cb
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE_DESTROY);
+    if (!duk_is_array(ctx, -1))
+    {
+        duk_pop(ctx);
+        duk_push_array(ctx);
+        duk_dup_top(ctx);
+        duk_put_prop_lstring(ctx, -3, EJS_STASH_MODULE_DESTROY);
+    }
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    // ... exports cb []
+    duk_swap_top(ctx, -2);
+    duk_put_prop_index(ctx, -2, duk_get_length(ctx, -2));
+
+    duk_pop(ctx);
+}
