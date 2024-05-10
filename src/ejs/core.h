@@ -1,7 +1,6 @@
 #ifndef _EMBEDDED_JS_CORE_H_
 #define _EMBEDDED_JS_CORE_H_
 
-#include "dns.h"
 #include "error.h"
 #include "duk.h"
 #include "defines.h"

@@ -12,6 +12,7 @@
 #include "_duk_timer.h"
 #include "js/es6-shim.h"
 #include "_duk_net.h"
+#include <errno.h>
 
 static BOOL is_relative(duk_context *ctx, const char *s, duk_size_t len)
 {

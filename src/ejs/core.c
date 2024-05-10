@@ -6,7 +6,7 @@
 #include "js/tsc.h"
 #include "strings.h"
 #include "path.h"
-
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>

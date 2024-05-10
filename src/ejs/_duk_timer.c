@@ -3,7 +3,8 @@
 #include "defines.h"
 #include "stash.h"
 #include "duk.h"
-#include "js/timer.h"
+#include <event2/event.h>
+#include <errno.h>
 
 #define _EJS_TIMER_EV_PTR(p) (struct event *)(((uint8_t *)p) + sizeof(ejs_timer_t))
 
