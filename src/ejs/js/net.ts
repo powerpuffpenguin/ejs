@@ -1135,188 +1135,200 @@ enum DialHost {
 class TcpDialer {
     c_?: deps.TcpConn
     timer_?: number
-    r0_?: Resolve
-    r1_?: Resolve
+    // r0_?: Resolve
+    // r1_?: Resolve
     constructor(readonly opts: DialOptions) {
 
     }
+    // dial(cb: DialCallback, v6?: boolean) {
+    //     const opts = this.opts
+
+    //     let abort: AbortController | undefined
+    //     const timeout = opts.timeout
+    //     if (typeof timeout === "number" && Number.isFinite(timeout) && timeout >= 1) {
+    //         setTimeout(() => {
+
+    //         }, timeout);
+
+    //     }
+    // }
     dial(cb: DialCallback, v6?: boolean) {
-        const opts = this.opts
-        const [host, sport] = splitHostPort(opts.address)
-        const port = parseInt(sport)
-        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-            throw new TcpError(`dial port invalid: ${opts.address}`)
-        }
-        let ip: string | undefined
-        if (host == "") {
-            if (v6 === undefined) {
-                v6 = false
-                ip = `127.0.0.1`
-            } else if (v6) {
-                v6 = true
-                ip = `::1`
-            } else {
-                v6 = false
-                ip = `127.0.0.1`
-            }
-        } else {
-            const v = IP.parse(host)
-            if (!v) {
-                this._dialHost(cb, host, port, v6)
-                this._timer(cb, opts.timeout)
-                return
-            }
-            if (v6 === undefined) {
-                v6 = v.isV6
-            } else {
-                if (v6) {
-                    if (!v.isV6) {
-                        throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
-                    }
-                    v6 = true
-                } else {
-                    if (!v.isV4) {
-                        throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
-                    }
-                    v6 = false
-                }
-            }
-            ip = v.toString()
-        }
-        this._timer(cb, opts.timeout)
-        this._connect(cb,
-            {
-                ip: ip,
-                port: port,
-                v6: v6,
-            },
-        )
+        // const opts = this.opts
+        // const [host, sport] = splitHostPort(opts.address)
+        // const port = parseInt(sport)
+        // if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+        //     throw new TcpError(`dial port invalid: ${opts.address}`)
+        // }
+        // let ip: string | undefined
+        // if (host == "") {
+        //     if (v6 === undefined) {
+        //         v6 = false
+        //         ip = `127.0.0.1`
+        //     } else if (v6) {
+        //         v6 = true
+        //         ip = `::1`
+        //     } else {
+        //         v6 = false
+        //         ip = `127.0.0.1`
+        //     }
+        // } else {
+        //     const v = IP.parse(host)
+        //     if (!v) {
+        //         this._dialHost(cb, host, port, v6)
+        //         this._timer(cb, opts.timeout)
+        //         return
+        //     }
+        //     if (v6 === undefined) {
+        //         v6 = v.isV6
+        //     } else {
+        //         if (v6) {
+        //             if (!v.isV6) {
+        //                 throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
+        //             }
+        //             v6 = true
+        //         } else {
+        //             if (!v.isV4) {
+        //                 throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
+        //             }
+        //             v6 = false
+        //         }
+        //     }
+        //     ip = v.toString()
+        // }
+        // this._timer(cb, opts.timeout)
+        // this._connect(cb,
+        //     {
+        //         ip: ip,
+        //         port: port,
+        //         v6: v6,
+        //     },
+        // )
     }
 
-    private _dialHost(cb: DialCallback, host: string, port: number, v6?: boolean) {
-        if (v6 === undefined) {
-            const resolver = Resolver.getDefault()
-            let state = DialHost.dns
-            let err: any
-            const resolve_cb = (ipv6: boolean, ip?: Array<string>, e?: any) => {
-                if (!ip) {
-                    switch (state) {
-                        case DialHost.dns:
-                            state = DialHost.err
-                            err = e
-                            break
-                        case DialHost.err:
-                            state = DialHost.end
-                            this._closeTimer()
-                            cb(undefined, err ?? e)
-                            break
-                    }
-                    return
-                } else if (ip.length === 0) {
-                    switch (state) {
-                        case DialHost.dns:
-                            state = DialHost.err
-                            err = e
-                            break
-                        case DialHost.err:
-                            state = DialHost.end
-                            this._closeTimer()
-                            cb(undefined, err ?? new TcpError(`unknow host: ${host}`))
-                            break
-                    }
-                    return
-                }
-                switch (state) {
-                    case DialHost.dns:
-                        state = DialHost.end
-                        break
-                    case DialHost.err:
-                        state = DialHost.end
-                        break
-                    default:
-                        return
-                }
+    // private _dialHost(cb: DialCallback, host: string, port: number, v6?: boolean) {
+    //     if (v6 === undefined) {
+    //         const resolver = Resolver.getDefault()
+    //         let state = DialHost.dns
+    //         let err: any
+    //         const resolve_cb = (ipv6: boolean, ip?: Array<string>, e?: any) => {
+    //             if (!ip) {
+    //                 switch (state) {
+    //                     case DialHost.dns:
+    //                         state = DialHost.err
+    //                         err = e
+    //                         break
+    //                     case DialHost.err:
+    //                         state = DialHost.end
+    //                         this._closeTimer()
+    //                         cb(undefined, err ?? e)
+    //                         break
+    //                 }
+    //                 return
+    //             } else if (ip.length === 0) {
+    //                 switch (state) {
+    //                     case DialHost.dns:
+    //                         state = DialHost.err
+    //                         err = e
+    //                         break
+    //                     case DialHost.err:
+    //                         state = DialHost.end
+    //                         this._closeTimer()
+    //                         cb(undefined, err ?? new TcpError(`unknow host: ${host}`))
+    //                         break
+    //                 }
+    //                 return
+    //             }
+    //             switch (state) {
+    //                 case DialHost.dns:
+    //                     state = DialHost.end
+    //                     break
+    //                 case DialHost.err:
+    //                     state = DialHost.end
+    //                     break
+    //                 default:
+    //                     return
+    //             }
 
-                let req = this.r0_
-                if (req) {
-                    req.cancel()
-                }
-                req = this.r1_
-                if (req) {
-                    req.cancel()
-                }
+    //             let req = this.r0_
+    //             if (req) {
+    //                 req.cancel()
+    //             }
+    //             req = this.r1_
+    //             if (req) {
+    //                 req.cancel()
+    //             }
 
-                this._connect(cb,
-                    {
-                        ip: ip[0],
-                        port: port,
-                        v6: ipv6,
-                    },
-                )
-            }
-            this.r0_ = resolver.resolve({
-                name: host,
-                v6: true,
-            }, (ip, e) => {
-                resolve_cb(true, ip, e)
-            })
-            this.r1_ = resolver.resolve({
-                name: host,
-                v6: false,
-            }, (ip, e) => {
-                resolve_cb(false, ip, e)
-            })
-        } else {
-            this.r0_ = Resolver.getDefault().resolve({
-                name: host,
-                v6: v6,
-            }, (ip, e) => {
-                if (!ip) {
-                    this._closeTimer()
-                    cb(undefined, e)
-                    return
-                } else if (ip.length === 0) {
-                    this._closeTimer()
-                    cb(undefined, new TcpError(`unknow host: ${host}`))
-                    return
-                }
+    //             this._connect(cb,
+    //                 {
+    //                     ip: ip[0],
+    //                     port: port,
+    //                     v6: ipv6,
+    //                 },
+    //             )
+    //         }
+    //         this.r0_ = resolver.resolve({
+    //             name: host,
+    //             v6: true,
+    //         }, (ip, e) => {
+    //             resolve_cb(true, ip, e)
+    //         })
+    //         this.r1_ = resolver.resolve({
+    //             name: host,
+    //             v6: false,
+    //         }, (ip, e) => {
+    //             resolve_cb(false, ip, e)
+    //         })
+    //     } else {
+    //         this.r0_ = Resolver.getDefault().resolve({
+    //             name: host,
+    //             v6: v6,
+    //         }, (ip, e) => {
+    //             if (!ip) {
+    //                 this._closeTimer()
+    //                 cb(undefined, e)
+    //                 return
+    //             } else if (ip.length === 0) {
+    //                 this._closeTimer()
+    //                 cb(undefined, new TcpError(`unknow host: ${host}`))
+    //                 return
+    //             }
 
-                this._connect(cb,
-                    {
-                        ip: ip[0],
-                        port: port,
-                        v6: v6,
-                    },
-                )
-            })
-        }
-    }
-    private _timer(cb: DialCallback, timeout?: number) {
-        if (typeof timeout === "number" && Number.isFinite(timeout) && timeout >= 1) {
-            this.timer_ = setTimeout(() => {
-                let req = this.r0_
-                if (req) {
-                    req.cancel()
-                }
-                req = this.r1_
-                if (req) {
-                    req.cancel()
-                }
+    //             this._connect(cb,
+    //                 {
+    //                     ip: ip[0],
+    //                     port: port,
+    //                     v6: v6,
+    //                 },
+    //             )
+    //         })
+    //     }
+    // }
+    // private _timer(cb: DialCallback, timeout?: number) {
+    //     if (typeof timeout === "number" && Number.isFinite(timeout) && timeout >= 1) {
+    //         this.timer_ = setTimeout(() => {
+    //             let req = this.r0_
+    //             if (req) {
+    //                 req.cancel()
+    //             }
+    //             req = this.r1_
+    //             if (req) {
+    //                 req.cancel()
+    //             }
 
-                const c = this.c_
-                if (c) {
-                    this.c_ = undefined
-                    deps.tcp_conn_close(c)
-                }
+    //             const c = this.c_
+    //             if (c) {
+    //                 this.c_ = undefined
+    //                 deps.tcp_conn_close(c)
+    //             }
 
-                const e = new TcpError("connect timeout")
-                e.connect = true
-                e.timeout = true
+    //             const e = new TcpError("connect timeout")
+    //             e.connect = true
+    //             e.timeout = true
 
-                cb(undefined, e)
-            }, timeout)
-        }
-    }
+    //             cb(undefined, e)
+    //         }, timeout)
+    //     }
+    // }
     private _closeTimer() {
         const timer = this.timer_
         if (timer !== undefined) {
@@ -1405,6 +1417,11 @@ export interface DialOptions {
      * Even if it is set to 0, the operating system will also return an error when it cannot connect to the socket for a period of time.
      */
     timeout?: number
+
+    /**
+     * A signal that can be used to cancel dialing
+     */
+    signal?: AbortSignal
 }
 /**
  * Dial a listener to create a connection for bidirectional communication
@@ -1436,6 +1453,11 @@ export interface ResolveOptions {
      * If true, query ipv6, else query ipv4
      */
     v6?: boolean
+
+    /**
+     * A signal that can be used to cancel resolve
+     */
+    signal?: AbortSignal
 }
 export class ResolverError extends NetError {
     constructor(message: string) {
@@ -1448,100 +1470,7 @@ export class ResolverError extends NetError {
     result?: number
 }
 
-function throwResolverError(e: any): never {
-    if (typeof e === "string") {
-        throw new ResolverError(e)
-    }
-    throw e
-}
-export class Resolve {
-    _r?: deps.Resolve
-    cancel() {
-        const r = this._r
-        if (r) {
-            this._r = undefined
-            deps.resolver_ip_cancel(r)
-        }
-    }
-}
-export class Resolver {
-    private r_?: deps.Resolver
-    constructor(opts: deps.ResolverOptions = { system: true }) {
-        const r = deps.resolver_new(opts)
-        this.r_ = r
-    }
-    get isClosed() {
-        return this.r_ ? false : true
-    }
-    close() {
-        const r = this.r_
-        if (r) {
-            this.r_ = undefined
-            deps.resolver_free(r)
-        }
-    }
-    resolve(opts: ResolveOptions, cb: (ip?: Array<string>, e?: any) => void): Resolve {
-        const r = this.r_
-        if (!r) {
-            throw new ResolverError("Resolver already closed")
-        }
-        if (typeof cb !== "function") {
-            throw new ResolverError("cb must be an function")
-        }
-        if (typeof opts.name !== "string" || opts.name == "") {
-            throw new ResolverError("resolve name invalid")
-        }
-        try {
-            const resolve = new Resolve()
-            resolve._r = deps.resolver_ip({
-                r: r,
-                name: opts.name,
-                v6: opts.v6 ?? false,
-                cb: (ip, result, msg) => {
-                    resolve._r = undefined
-                    if (result) {
-                        const e = new ResolverError(msg)
-                        if (result == 69) {
-                            e.cancel = true
-                        }
-                        e.result = result
-                        cb(undefined, e)
-                    } else {
-                        cb(ip)
-                    }
-                },
-            })
-            return resolve
-        } catch (e) {
-            throwResolverError(e)
-        }
-    }
-    private static default_?: Resolver
-    static setDefault(v?: Resolve) {
-        const o = Resolver.default_
-        if (o === v) {
-            return
-        }
-        if (v === undefined || v === null) {
-            Resolver.default_ = undefined
-        } else if (v instanceof Resolver) {
-            Resolver.default_ = v
-        } else {
-            Resolver.default_ = undefined
-        }
-    }
-    static getDefault(): Resolver {
-        let v = Resolver.default_
-        if (!v) {
-            v = new Resolver({ system: true })
-            Resolver.default_ = v
-        }
-        return v
-    }
-    static hasDefault(): boolean {
-        return Resolver.default_ ? true : false
-    }
-}
+
 
 export type AbortListener = (this: AbortSignal, reason: any) => any
 /** 
@@ -1604,8 +1533,10 @@ export class AbortSignal {
             }
         }
     }
-    /** Throws this AbortSignal's abort reason, if its AbortController has
-   * signaled to abort; otherwise, does nothing. */
+    /** 
+     * Throws this AbortSignal's abort reason, if its AbortController has
+     * signaled to abort; otherwise, does nothing. 
+     */
     throwIfAborted(): void {
         if (this.aborted_) {
             throw this.reason_
@@ -1626,6 +1557,118 @@ export class AbortController {
      */
     abort(reason?: any): void {
         AbortSignal._abort(this.signal, reason)
+    }
+}
+
+function throwResolverError(e: any): never {
+    if (typeof e === "string") {
+        throw new ResolverError(e)
+    }
+    throw e
+}
+
+export class Resolver {
+    private r_?: deps.Resolver
+    constructor(opts: deps.ResolverOptions = { system: true }) {
+        const r = deps.resolver_new(opts)
+        this.r_ = r
+    }
+    get isClosed() {
+        return this.r_ ? false : true
+    }
+    close() {
+        const r = this.r_
+        if (r) {
+            this.r_ = undefined
+            deps.resolver_free(r)
+        }
+    }
+    resolve(opts: ResolveOptions, cb?: (this: Resolver, ip?: Array<string>, e?: any) => void): void {
+        const r = this.r_
+        if (!r) {
+            throw new ResolverError("Resolver already closed")
+        }
+        if (typeof cb !== "function") {
+            throw new ResolverError("cb must be an function")
+        }
+        if (typeof opts.name !== "string" || opts.name == "") {
+            throw new ResolverError("resolve name invalid")
+        }
+
+        let req: deps.Resolve | undefined
+        let onAbort: AbortListener | undefined
+        const signal = opts.signal
+        if (signal) {
+            signal.throwIfAborted()
+            onAbort = (reason) => {
+                const f = cb
+                if (!f) {
+                    return
+                }
+                cb = undefined
+                if (req) {
+                    deps.resolver_ip_cancel(req)
+                }
+                f.bind(this)(undefined, reason)
+            }
+            signal.addEventListener(onAbort)
+        }
+        try {
+            req = deps.resolver_ip({
+                r: r,
+                name: opts.name,
+                v6: opts.v6 ?? false,
+                cb: (ip, result, msg) => {
+                    const f = cb
+                    if (!f) {
+                        return
+                    }
+                    cb = undefined
+                    if (signal) {
+                        signal.removeEventListener(onAbort!)
+                    }
+
+                    if (result) {
+                        const e = new ResolverError(msg)
+                        if (result == 69) {
+                            e.cancel = true
+                        }
+                        e.result = result
+                        f.bind(this)(undefined, e)
+                    } else {
+                        f.bind(this)(ip)
+                    }
+                },
+            })
+        } catch (e) {
+            cb = undefined
+            throwResolverError(e)
+        }
+    }
+    private static default_?: Resolver
+    static setDefault(v?: Resolver) {
+        const o = Resolver.default_
+        if (o === v) {
+            return
+        }
+        if (v === undefined || v === null) {
+            Resolver.default_ = undefined
+        } else if (v instanceof Resolver) {
+            Resolver.default_ = v
+        } else {
+            Resolver.default_ = undefined
+        }
+    }
+    static getDefault(): Resolver {
+        let v = Resolver.default_
+        if (!v) {
+            v = new Resolver({ system: true })
+            Resolver.default_ = v
+        }
+        return v
+    }
+    static hasDefault(): boolean {
+        return Resolver.default_ ? true : false
     }
 }
 

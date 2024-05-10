@@ -7,21 +7,42 @@
 //         }
 //     }, 0)
 // }, 0)
+
+
 var net = require("ejs/net")
-var c = new net.AbortController()
-const s = c.signal
-console.log(c, s)
+var abort = new net.AbortController()
+// abort.abort('test 1')
+var resolver = new net.Resolver.getDefault()
+resolver.resolve({
+    name: 'www.baidu.com',
+    signal: abort.signal,
+}, function (ip, e) {
+    console.log(ip, e)
 
-var f = function (r) {
-    console.log('----- onabort1', this._abort)
-}
-// s.onabort = f
-s.addEventListener(f)
-s.addEventListener(f)
-// s.removeEventListener("abort", f)
-console.log(s.reason, s.aborted)
+    resolver.close()
+})
+setTimeout(function () {
+    abort.abort('test')
+}, 0)
 
-c.abort("abc")
-console.log(s.reason, s.aborted)
-c.abort("def")
+// setTimeout(function () {
+//     abort.abort('test')
+// }, 0)
+// resolver.close()
+
+// const s = c.signal
+// console.log(c, s)
+
+// var f = function (r) {
+//     console.log('----- onabort1', this._abort)
+// }
+// // s.onabort = f
+// s.addEventListener(f)
+// s.addEventListener(f)
+// // s.removeEventListener("abort", f)
+// console.log(s.reason, s.aborted)
+
+// c.abort("abc")
+// console.log(s.reason, s.aborted)
+// c.abort("def")
 
