@@ -1364,20 +1364,20 @@ export function dial(opts: DialOptions, cb: DialCallback) {
             throw new NetError(`unknow network: ${opts.network}`);
     }
 }
+
 export interface ResolveOptions {
     /**
      * Name to be queried
      */
     name: string
     /**
-     * If true, query ipv6, else query ipv4
-     */
-    v6?: boolean
-
-    /**
      * A signal that can be used to cancel resolve
      */
     signal?: AbortSignal
+    /**
+     * If not set, ipv4 and ipv6 will be queried at the same time, but only the result queried first will be called back.
+     */
+    v6?: boolean
 }
 
 export type AbortListener = (this: AbortSignal, reason: any) => any
@@ -1630,6 +1630,7 @@ export class Resolver {
             deps.resolver_free(r)
         }
     }
+
     resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any, ipv6?: boolean) => void): void {
         const r = this.r_
         if (!r) {

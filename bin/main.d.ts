@@ -370,13 +370,13 @@ declare module "ejs/net" {
          */
         name: string
         /**
-         * If true, query ipv6, else query ipv4
-         */
-        v6?: boolean
-        /**
          * A signal that can be used to cancel resolve
          */
         signal?: AbortSignal
+        /**
+         * If not set, ipv4 and ipv6 will be queried at the same time, but only the result queried first will be called back.
+         */
+        v6?: boolean
     }
     /**
      * Used to resolve domain names supporting A or AAAA
@@ -394,7 +394,7 @@ declare module "ejs/net" {
          * @param opts Query options
          * @param cb Query result callback
          */
-        resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any) => void): void
+        resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any, ipv6?: boolean) => void): void
     }
 
     /**
