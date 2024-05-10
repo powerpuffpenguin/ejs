@@ -316,6 +316,87 @@ declare module "ejs/net" {
          */
         address: string
     }
+
+    export type AbortListener = (this: AbortSignal, reason: any) => any
+    /** 
+     * A signal object that allows you to communicate with a request and abort it if required via an AbortController object.
+     */
+    export class AbortSignal {
+        private aborted_ = false
+        /** 
+         * Returns true if this AbortSignal's AbortController has signaled to abort,
+         * and false otherwise. 
+         */
+        readonly aborted(): boolean
+        readonly reason(): any
+        addEventListener(listener: AbortListener): void
+        removeEventListener(listener: AbortListener): void
+        /** Throws this AbortSignal's abort reason, if its AbortController has
+       * signaled to abort; otherwise, does nothing. */
+        throwIfAborted(): void
+    }
+    /**
+     * A controller object that allows you to abort one or more requests as and when desired.
+     */
+    export class AbortController {
+        /** 
+         * Returns the AbortSignal object associated with this object. 
+         */
+        readonly signal: AbortSignal
+        /** 
+         * Invoking this method will set this object's AbortSignal's aborted flag and
+         * signal to any observers that the associated activity is to be aborted. 
+         */
+        abort(reason?: any): void
+    }
+
+    export class ResolverError extends NetError { }
+    export interface ResolverOptions {
+        /**
+         * upstream domain name server ip
+         */
+        nameserver?: Array<string>
+        /**
+         * Whether to load the dns server set by the system default settings
+         * @remarks
+         * Under Linux, the settings in /etc/resolv.conf will be loaded.
+         * @default true
+         */
+        system?: boolean
+    }
+    export interface ResolveOptions {
+        /**
+         * Name to be queried
+         */
+        name: string
+        /**
+         * If true, query ipv6, else query ipv4
+         */
+        v6?: boolean
+        /**
+         * A signal that can be used to cancel resolve
+         */
+        signal?: AbortSignal
+    }
+    /**
+     * Used to resolve domain names supporting A or AAAA
+     */
+    export class Resolver {
+        static setDefault(v?: Resolver)
+        static getDefault(): Resolver
+        static hasDefault(): boolean
+
+        constructor(opts: deps.ResolverOptions = { system: true })
+        readonly isClosed: boolean
+        close(): void
+        /**
+         * Query the A/AAAA record of a domain name
+         * @param opts Query options
+         * @param cb Query result callback
+         */
+        resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any) => void): void
+    }
+
     /**
      * Conn is a generic stream-oriented network connection.
      */
@@ -464,94 +545,14 @@ declare module "ejs/net" {
          * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
          */
         address: string
+
         /**
-         * The number of milliseconds for connection timeout. If it is less than or equal to 0, it will never timeout.
-         * @remarks
-         * Even if it is set to 0, the operating system will also return an error when it cannot connect to the socket for a period of time.
+         * A signal that can be used to cancel dialing
          */
-        timeout?: number
+        signal?: AbortSignal
     }
     /**
      * Dial a listener to create a connection for bidirectional communication
      */
     export function dial(opts: DialOptions, cb: (conn?: Conn, e?: any) => void): void
-
-    export type AbortListener = (this: AbortSignal, reason: any) => any
-    /** 
-     * A signal object that allows you to communicate with a request and abort it if required via an AbortController object.
-     */
-    export class AbortSignal {
-        private aborted_ = false
-        /** 
-         * Returns true if this AbortSignal's AbortController has signaled to abort,
-         * and false otherwise. 
-         */
-        readonly aborted(): boolean
-        readonly reason(): any
-        addEventListener(listener: AbortListener): void
-        removeEventListener(listener: AbortListener): void
-        /** Throws this AbortSignal's abort reason, if its AbortController has
-       * signaled to abort; otherwise, does nothing. */
-        throwIfAborted(): void
-    }
-    /**
-     * A controller object that allows you to abort one or more requests as and when desired.
-     */
-    export class AbortController {
-        /** 
-         * Returns the AbortSignal object associated with this object. 
-         */
-        readonly signal: AbortSignal
-        /** 
-         * Invoking this method will set this object's AbortSignal's aborted flag and
-         * signal to any observers that the associated activity is to be aborted. 
-         */
-        abort(reason?: any): void
-    }
-
-    export interface ResolverOptions {
-        /**
-         * upstream domain name server ip
-         */
-        nameserver?: Array<string>
-        /**
-         * Whether to load the dns server set by the system default settings
-         * @remarks
-         * Under Linux, the settings in /etc/resolv.conf will be loaded.
-         * @default true
-         */
-        system?: boolean
-    }
-    export interface ResolveOptions {
-        /**
-         * Name to be queried
-         */
-        name: string
-        /**
-         * If true, query ipv6, else query ipv4
-         */
-        v6?: boolean
-        /**
-         * A signal that can be used to cancel resolve
-         */
-        signal?: AbortSignal
-    }
-    /**
-     * Used to resolve domain names supporting A or AAAA
-     */
-    export class Resolver {
-        static setDefault(v?: Resolver)
-        static getDefault(): Resolver
-        static hasDefault(): boolean
-
-        constructor(opts: deps.ResolverOptions = { system: true })
-        readonly isClosed: boolean
-        close(): void
-        /**
-         * Query the A/AAAA record of a domain name
-         * @param opts Query options
-         * @param cb Query result callback
-         */
-        resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any) => void): void
-    }
 }

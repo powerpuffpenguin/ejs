@@ -1127,222 +1127,143 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
 }
 type DialCallback = (c?: Conn, e?: any) => void
 
-enum DialHost {
-    dns,
-    err,
-    end,
-}
 class TcpDialer {
     c_?: deps.TcpConn
-    timer_?: number
     // r0_?: Resolve
     // r1_?: Resolve
-    constructor(readonly opts: DialOptions) {
-
+    cb_?: DialCallback
+    onabort_?: AbortListener
+    constructor(readonly opts: DialOptions, cb: DialCallback) {
+        this.cb_ = cb
     }
-    // dial(cb: DialCallback, v6?: boolean) {
-    //     const opts = this.opts
-
-    //     let abort: AbortController | undefined
-    //     const timeout = opts.timeout
-    //     if (typeof timeout === "number" && Number.isFinite(timeout) && timeout >= 1) {
-    //         setTimeout(() => {
-
-    //         }, timeout);
-
-    //     }
-    // }
-    dial(cb: DialCallback, v6?: boolean) {
-        // const opts = this.opts
-        // const [host, sport] = splitHostPort(opts.address)
-        // const port = parseInt(sport)
-        // if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-        //     throw new TcpError(`dial port invalid: ${opts.address}`)
-        // }
-        // let ip: string | undefined
-        // if (host == "") {
-        //     if (v6 === undefined) {
-        //         v6 = false
-        //         ip = `127.0.0.1`
-        //     } else if (v6) {
-        //         v6 = true
-        //         ip = `::1`
-        //     } else {
-        //         v6 = false
-        //         ip = `127.0.0.1`
-        //     }
-        // } else {
-        //     const v = IP.parse(host)
-        //     if (!v) {
-        //         this._dialHost(cb, host, port, v6)
-        //         this._timer(cb, opts.timeout)
-        //         return
-        //     }
-        //     if (v6 === undefined) {
-        //         v6 = v.isV6
-        //     } else {
-        //         if (v6) {
-        //             if (!v.isV6) {
-        //                 throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
-        //             }
-        //             v6 = true
-        //         } else {
-        //             if (!v.isV4) {
-        //                 throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
-        //             }
-        //             v6 = false
-        //         }
-        //     }
-        //     ip = v.toString()
-        // }
-        // this._timer(cb, opts.timeout)
-        // this._connect(cb,
-        //     {
-        //         ip: ip,
-        //         port: port,
-        //         v6: v6,
-        //     },
-        // )
+    dial(v6?: boolean) {
+        const opts = this.opts
+        const [host, sport] = splitHostPort(opts.address)
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new TcpError(`dial port invalid: ${opts.address}`)
+        }
+        let ip: string | undefined
+        if (host == "") {
+            if (v6 === undefined) {
+                v6 = false
+                ip = `127.0.0.1`
+            } else if (v6) {
+                v6 = true
+                ip = `::1`
+            } else {
+                v6 = false
+                ip = `127.0.0.1`
+            }
+        } else {
+            const v = IP.parse(host)
+            if (!v) {
+                try {
+                    Resolver.getDefault().resolve({
+                        name: host,
+                        v6: v6,
+                        signal: opts.signal,
+                    }, (ip, e, ipv6) => {
+                        const cb = this.cb_
+                        if (!cb) {
+                            return
+                        }
+                        if (!ip) {
+                            this.cb_ = undefined
+                            this._closeSignal()
+                            cb(undefined, e)
+                            return
+                        } else if (ip.length === 0) {
+                            this.cb_ = undefined
+                            this._closeSignal()
+                            cb(undefined, new TcpError(`unknow host: ${host}`))
+                            return
+                        }
+                        this._connect({
+                            ip: ip[0],
+                            port: port,
+                            v6: ipv6!,
+                        })
+                    })
+                } catch (e) {
+                    throw e
+                }
+                this._signal()
+                return
+            }
+            if (v6 === undefined) {
+                v6 = v.isV6
+            } else {
+                if (v6) {
+                    if (!v.isV6) {
+                        throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
+                    }
+                    v6 = true
+                } else {
+                    if (!v.isV4) {
+                        throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
+                    }
+                    v6 = false
+                }
+            }
+            ip = v.toString()
+        }
+        this._connect({
+            ip: ip,
+            port: port,
+            v6: v6,
+        })
+        this._signal()
     }
+    private _signal() {
+        const signal = this.opts.signal
+        if (signal) {
+            this.onabort_ = (reason) => {
+                const cb = this.cb_
+                if (!cb) {
+                    return
+                }
+                this.cb_ = undefined
 
-    // private _dialHost(cb: DialCallback, host: string, port: number, v6?: boolean) {
-    //     if (v6 === undefined) {
-    //         const resolver = Resolver.getDefault()
-    //         let state = DialHost.dns
-    //         let err: any
-    //         const resolve_cb = (ipv6: boolean, ip?: Array<string>, e?: any) => {
-    //             if (!ip) {
-    //                 switch (state) {
-    //                     case DialHost.dns:
-    //                         state = DialHost.err
-    //                         err = e
-    //                         break
-    //                     case DialHost.err:
-    //                         state = DialHost.end
-    //                         this._closeTimer()
-    //                         cb(undefined, err ?? e)
-    //                         break
-    //                 }
-    //                 return
-    //             } else if (ip.length === 0) {
-    //                 switch (state) {
-    //                     case DialHost.dns:
-    //                         state = DialHost.err
-    //                         err = e
-    //                         break
-    //                     case DialHost.err:
-    //                         state = DialHost.end
-    //                         this._closeTimer()
-    //                         cb(undefined, err ?? new TcpError(`unknow host: ${host}`))
-    //                         break
-    //                 }
-    //                 return
-    //             }
-    //             switch (state) {
-    //                 case DialHost.dns:
-    //                     state = DialHost.end
-    //                     break
-    //                 case DialHost.err:
-    //                     state = DialHost.end
-    //                     break
-    //                 default:
-    //                     return
-    //             }
+                const c = this.c_
+                if (c) {
+                    this.c_ = undefined
+                    deps.tcp_conn_close(c)
+                }
 
-    //             let req = this.r0_
-    //             if (req) {
-    //                 req.cancel()
-    //             }
-    //             req = this.r1_
-    //             if (req) {
-    //                 req.cancel()
-    //             }
-
-    //             this._connect(cb,
-    //                 {
-    //                     ip: ip[0],
-    //                     port: port,
-    //                     v6: ipv6,
-    //                 },
-    //             )
-    //         }
-    //         this.r0_ = resolver.resolve({
-    //             name: host,
-    //             v6: true,
-    //         }, (ip, e) => {
-    //             resolve_cb(true, ip, e)
-    //         })
-    //         this.r1_ = resolver.resolve({
-    //             name: host,
-    //             v6: false,
-    //         }, (ip, e) => {
-    //             resolve_cb(false, ip, e)
-    //         })
-    //     } else {
-    //         this.r0_ = Resolver.getDefault().resolve({
-    //             name: host,
-    //             v6: v6,
-    //         }, (ip, e) => {
-    //             if (!ip) {
-    //                 this._closeTimer()
-    //                 cb(undefined, e)
-    //                 return
-    //             } else if (ip.length === 0) {
-    //                 this._closeTimer()
-    //                 cb(undefined, new TcpError(`unknow host: ${host}`))
-    //                 return
-    //             }
-
-    //             this._connect(cb,
-    //                 {
-    //                     ip: ip[0],
-    //                     port: port,
-    //                     v6: v6,
-    //                 },
-    //             )
-    //         })
-    //     }
-    // }
-    // private _timer(cb: DialCallback, timeout?: number) {
-    //     if (typeof timeout === "number" && Number.isFinite(timeout) && timeout >= 1) {
-    //         this.timer_ = setTimeout(() => {
-    //             let req = this.r0_
-    //             if (req) {
-    //                 req.cancel()
-    //             }
-    //             req = this.r1_
-    //             if (req) {
-    //                 req.cancel()
-    //             }
-
-    //             const c = this.c_
-    //             if (c) {
-    //                 this.c_ = undefined
-    //                 deps.tcp_conn_close(c)
-    //             }
-
-    //             const e = new TcpError("connect timeout")
-    //             e.connect = true
-    //             e.timeout = true
-
-    //             cb(undefined, e)
-    //         }, timeout)
-    //     }
-    // }
-    private _closeTimer() {
-        const timer = this.timer_
-        if (timer !== undefined) {
-            this.timer_ = undefined
-            clearTimeout(timer)
+                cb(undefined, reason)
+            }
+            signal.addEventListener(this.onabort_)
         }
     }
-    private _connect(cb: DialCallback,
-        opts: deps.TcpConnectOptions,
-    ) {
+    private _closeSignal() {
+        const signal = this.opts.signal
+        if (signal) {
+            const onabort = this.onabort_
+            if (onabort) {
+                this.onabort_ = undefined
+                signal.removeEventListener(onabort)
+            }
+        }
+    }
+
+    private _connect(opts: deps.TcpConnectOptions) {
         const c = deps.tcp_conect(opts)
         this.c_ = c
         c.cbe = (what) => {
-            this._closeTimer()
+            const cb = this.cb_
+            if (!cb) {
+                const c = this.c_
+                if (c) {
+                    this.c_ = undefined
+                    deps.tcp_conn_close(c)
+                }
+                return
+            }
+            this.cb_ = undefined
+
+            this._closeSignal()
+
             if (what & deps.BEV_EVENT_TIMEOUT) {
                 deps.tcp_conn_close(c)
 
@@ -1353,6 +1274,7 @@ class TcpDialer {
                 cb(undefined, e)
             } else if (what & deps.BEV_EVENT_ERROR) {
                 deps.tcp_conn_close(c)
+
                 if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
                     const e = new TcpError("connect timeout")
                     e.connect = true
@@ -1360,6 +1282,8 @@ class TcpDialer {
 
                     cb(undefined, e)
                 } else {
+                    deps.tcp_conn_close(c)
+
                     const e = new TcpError(deps.socket_error_str())
                     e.connect = true
                     cb(undefined, e)
@@ -1412,13 +1336,6 @@ export interface DialOptions {
     address: string
 
     /**
-     * The number of milliseconds for connection timeout. If it is less than or equal to 0, it will never timeout.
-     * @remarks
-     * Even if it is set to 0, the operating system will also return an error when it cannot connect to the socket for a period of time.
-     */
-    timeout?: number
-
-    /**
      * A signal that can be used to cancel dialing
      */
     signal?: AbortSignal
@@ -1430,15 +1347,18 @@ export function dial(opts: DialOptions, cb: DialCallback) {
     if (typeof cb !== "function") {
         throw new Error(`cb must be a function`)
     }
+    if (opts.signal) {
+        opts.signal.throwIfAborted()
+    }
     switch (opts.network) {
         case 'tcp':
-            new TcpDialer(opts).dial(cb)
+            new TcpDialer(opts, cb).dial()
             break
         case 'tcp4':
-            new TcpDialer(opts).dial(cb, false)
+            new TcpDialer(opts, cb).dial(false)
             break
         case 'tcp6':
-            new TcpDialer(opts).dial(cb, true)
+            new TcpDialer(opts, cb).dial(true)
             break
         default:
             throw new NetError(`unknow network: ${opts.network}`);
@@ -1459,18 +1379,6 @@ export interface ResolveOptions {
      */
     signal?: AbortSignal
 }
-export class ResolverError extends NetError {
-    constructor(message: string) {
-        super(message);
-        (this as any).name = "ResolverError"
-    }
-    /**
-     * resolve result
-     */
-    result?: number
-}
-
-
 
 export type AbortListener = (this: AbortSignal, reason: any) => any
 /** 
@@ -1566,7 +1474,146 @@ function throwResolverError(e: any): never {
     }
     throw e
 }
+export class ResolverError extends NetError {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "ResolverError"
+    }
+    /**
+     * resolve result
+     */
+    result?: number
+}
 
+class Resolve4or6 {
+    cb?: (ip?: Array<string>, e?: any, ipv6?: boolean) => void
+
+    v4?: deps.Resolve
+    v6?: deps.Resolve
+    err?: ResolverError
+    ip?: Array<string>
+    constructor(readonly r: deps.Resolver, readonly opts: ResolveOptions, cb?: (ip?: Array<string>, e?: any, ipv6?: boolean) => void) {
+        this.cb = cb
+    }
+    private _cancel() {
+        let req = this.v4
+        if (req) {
+            this.v4 = undefined
+            deps.resolver_ip_cancel(req)
+        }
+        req = this.v6
+        if (req) {
+            this.v6 = undefined
+            deps.resolver_ip_cancel(req)
+        }
+    }
+    resolve() {
+        const opts = this.opts
+        const signal = opts.signal
+        let onAbort: AbortListener | undefined
+        if (signal) {
+            onAbort = (reason) => {
+                const cb = this.cb
+                if (!cb) {
+                    return
+                }
+                this.cb = undefined
+                this._cancel()
+
+                cb(undefined, reason)
+            }
+            signal.addEventListener(onAbort)
+        }
+
+        try {
+            const r = this.r
+            const onip = (ipv6: boolean, ip: Array<string>, result: number, msg: string) => {
+                const cb = this.cb
+                if (!cb) {
+                    return
+                }
+                if (ipv6) {
+                    this.v6 = undefined
+                } else {
+                    this.v4 = undefined
+                }
+                if (result) {
+                    let err = this.err
+                    if (err) { // 2 request end
+                        this.cb = undefined
+                        this._cancel()
+                        if (onAbort) {
+                            signal!.removeEventListener(onAbort)
+                        }
+                        cb(undefined, err)
+                        return
+                    }
+
+                    err = new ResolverError(msg)
+                    this.err = err
+                    if (result == 69) {
+                        err.cancel = true
+                    }
+                    err.result = result
+
+                    if (this.ip) { // 2 request end
+                        this.cb = undefined
+                        this._cancel()
+                        if (onAbort) {
+                            signal!.removeEventListener(onAbort)
+                        }
+                        cb(undefined, err)
+                    }
+                    return
+                } else if (ip.length == 0) {
+                    const err = this.err
+                    if (err) { // 2 request end
+                        this.cb = undefined
+                        this._cancel()
+                        if (onAbort) {
+                            signal!.removeEventListener(onAbort)
+                        }
+                        cb(undefined, err)
+                        return
+                    }
+                    this.ip = ip
+                    return
+                }
+
+                this.cb = undefined
+                this._cancel()
+                if (onAbort) {
+                    signal!.removeEventListener(onAbort)
+                }
+                cb(ip, undefined, ipv6)
+            }
+            this.v4 = deps.resolver_ip({
+                r: r,
+                name: opts.name,
+                v6: false,
+                cb: (ip, result, msg) => {
+                    onip(false, ip, result, msg)
+                },
+            })
+            this.v6 = deps.resolver_ip({
+                r: r,
+                name: opts.name,
+                v6: true,
+                cb: (ip, result, msg) => {
+                    onip(true, ip, result, msg)
+                },
+            })
+        } catch (e) {
+            this.cb = undefined
+            this._cancel()
+
+            if (onAbort) {
+                signal!.removeEventListener(onAbort)
+            }
+            throwResolverError(e)
+        }
+    }
+}
 export class Resolver {
     private r_?: deps.Resolver
     constructor(opts: deps.ResolverOptions = { system: true }) {
@@ -1583,7 +1630,7 @@ export class Resolver {
             deps.resolver_free(r)
         }
     }
-    resolve(opts: ResolveOptions, cb?: (this: Resolver, ip?: Array<string>, e?: any) => void): void {
+    resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any, ipv6?: boolean) => void): void {
         const r = this.r_
         if (!r) {
             throw new ResolverError("Resolver already closed")
@@ -1594,7 +1641,13 @@ export class Resolver {
         if (typeof opts.name !== "string" || opts.name == "") {
             throw new ResolverError("resolve name invalid")
         }
-
+        if (opts.v6 === undefined || opts.v6 === null) {
+            new Resolve4or6(r, opts, cb.bind(this)).resolve()
+        } else {
+            this._resolve(r, opts.v6 ? true : false, opts, cb.bind(this))
+        }
+    }
+    private _resolve(r: deps.Resolver, v6: boolean, opts: ResolveOptions, cb?: (ip?: Array<string>, e?: any, ipv6?: boolean) => void): void {
         let req: deps.Resolve | undefined
         let onAbort: AbortListener | undefined
         const signal = opts.signal
@@ -1609,7 +1662,7 @@ export class Resolver {
                 if (req) {
                     deps.resolver_ip_cancel(req)
                 }
-                f.bind(this)(undefined, reason)
+                f(undefined, reason)
             }
             signal.addEventListener(onAbort)
         }
@@ -1617,7 +1670,7 @@ export class Resolver {
             req = deps.resolver_ip({
                 r: r,
                 name: opts.name,
-                v6: opts.v6 ?? false,
+                v6: v6,
                 cb: (ip, result, msg) => {
                     const f = cb
                     if (!f) {
@@ -1634,9 +1687,9 @@ export class Resolver {
                             e.cancel = true
                         }
                         e.result = result
-                        f.bind(this)(undefined, e)
+                        f(undefined, e)
                     } else {
-                        f.bind(this)(ip)
+                        f(ip, undefined, v6)
                     }
                 },
             })

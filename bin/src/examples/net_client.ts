@@ -30,11 +30,23 @@ export const command = new Command({
             default: 1000,
         })
         return () => {
+            const v = timeout.value
+            let abort: undefined | net.AbortController
+            let timer: any
+            if (Number.isSafeInteger(v) && v > 1) {
+                abort = new net.AbortController()
+                timer = setTimeout(() => {
+                    abort!.abort('dial timeout')
+                }, v)
+            }
             net.dial({
                 network: network.value,
                 address: address.value,
-                timeout: timeout.value,
+                signal: abort?.signal,
             }, (c, e) => {
+                if (timer) {
+                    clearTimeout(timer)
+                }
                 if (!c) {
                     console.log("connect error:", e)
                     return

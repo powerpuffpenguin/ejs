@@ -56,11 +56,23 @@ exports.command = new flags_1.Command({
             default: 1000,
         });
         return function () {
+            var v = timeout.value;
+            var abort;
+            var timer;
+            if (Number.isSafeInteger(v) && v > 1) {
+                abort = new net.AbortController();
+                timer = setTimeout(function () {
+                    abort.abort('dial timeout');
+                }, v);
+            }
             net.dial({
                 network: network.value,
                 address: address.value,
-                timeout: timeout.value,
+                signal: abort === null || abort === void 0 ? void 0 : abort.signal,
             }, function (c, e) {
+                if (timer) {
+                    clearTimeout(timer);
+                }
                 if (!c) {
                     console.log("connect error:", e);
                     return;
