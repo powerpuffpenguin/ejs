@@ -75,7 +75,8 @@ class EchoService {
     }
     serve() {
         // onMessage for read
-        this.c.onMessage = (data, c) => {
+        const c = this.c
+        c.onMessage = (data) => {
             try {
                 console.log(`recv ${c.remoteAddr}:`, data)
                 if (c.write(data) === undefined) {

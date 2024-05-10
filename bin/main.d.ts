@@ -337,7 +337,7 @@ declare module "ejs/net" {
         /**
          * Callback when an error occurs
          */
-        onError?: (e: any, c: Conn) => void
+        onError?: (this: Conn, e: any) => void
         /**
          * Write data returns the actual number of bytes written
          * @remarks
@@ -350,7 +350,7 @@ declare module "ejs/net" {
         /**
          * Callback whenever the write buffer changes from unwritable to writable
          */
-        onWritable?: (c: Conn) => void
+        onWritable?: (this: Conn) => void
         /**
          * Write buffer size
          */
@@ -360,14 +360,14 @@ declare module "ejs/net" {
          * @remarks
          * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
          */
-        onMessage?: (data: Uint8Array, c: Conn) => void
+        onMessage?: (this: Conn, data: Uint8Array) => void
     }
     export interface Listener {
         readonly addr: Addr
         readonly isClosed: boolean
         close(): void
-        onAccept?: (c: Conn, l: Listener) => void
-        onError?: (e: any, l: Listener) => void
+        onAccept?: (this: Listener, c: Conn) => void
+        onError?: (this: Listener, e: any) => void
     }
     export class TcpError extends NetError { }
     export interface Readable {
@@ -396,7 +396,7 @@ declare module "ejs/net" {
         /**
          * Callback when an error occurs
          */
-        onError?: (e: any, c: TcpConn) => void
+        onError?: (this: TcpConn, e: any) => void
         /**
          * Write data returns the actual number of bytes written
          * 
@@ -407,7 +407,7 @@ declare module "ejs/net" {
         /**
          * Callback whenever the write buffer changes from unwritable to writable
          */
-        onWritable?: (c: Conn) => void
+        onWritable?: (this: TcpConn) => void
         /**
          * Write buffer size
          */
@@ -417,7 +417,7 @@ declare module "ejs/net" {
          * @remarks
          * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
          */
-        onMessage?: (data: Uint8Array, c: Conn) => void
+        onMessage?: (this: TcpConn, data: Uint8Array) => void
 
         /**
          * Read buffer
@@ -428,14 +428,14 @@ declare module "ejs/net" {
         /**
          * Callback when there is data to read
          */
-        onReadable?: (r: Readable, c: TcpConn) => void
+        onReadable?: (this: TcpConn, r: Readable) => void
     }
-    export class TcpListener {
+    export class TcpListener implements Listener {
         private constructor() { }
         readonly addr: Addr
         close(): void
-        onAccept?: (c: TcpConn, l: TcpListener) => void
-        onError?: (e: any, l: TcpListener) => void
+        onAccept?: (this: TcpListener, c: TcpConn) => void
+        onError?: (this: TcpListener, e: any) => void
     }
     export interface ListenOptions {
         /**
@@ -475,6 +475,39 @@ declare module "ejs/net" {
      * Dial a listener to create a connection for bidirectional communication
      */
     export function dial(opts: DialOptions, cb: (conn?: Conn, e?: any) => void): void
+
+    export type AbortListener = (this: AbortSignal, reason: any) => any
+    /** 
+     * A signal object that allows you to communicate with a request and abort it if required via an AbortController object.
+     */
+    export class AbortSignal {
+        private aborted_ = false
+        /** 
+         * Returns true if this AbortSignal's AbortController has signaled to abort,
+         * and false otherwise. 
+         */
+        readonly aborted(): boolean
+        readonly reason(): any
+        addEventListener(listener: AbortListener): void
+        removeEventListener(listener: AbortListener): void
+        /** Throws this AbortSignal's abort reason, if its AbortController has
+       * signaled to abort; otherwise, does nothing. */
+        throwIfAborted(): void
+    }
+    /**
+     * A controller object that allows you to abort one or more requests as and when desired.
+     */
+    export class AbortController {
+        /** 
+         * Returns the AbortSignal object associated with this object. 
+         */
+        readonly signal: AbortSignal
+        /** 
+         * Invoking this method will set this object's AbortSignal's aborted flag and
+         * signal to any observers that the associated activity is to be aborted. 
+         */
+        abort(reason?: any): void
+    }
 
     export interface ResolverOptions {
         /**

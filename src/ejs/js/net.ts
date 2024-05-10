@@ -668,6 +668,10 @@ export interface Conn {
      */
     close(): void
     /**
+     * Callback when an error occurs
+     */
+    onError?: (this: Conn, e: any) => void
+    /**
      * Write data returns the actual number of bytes written
      * 
      * @param data data to write
@@ -677,7 +681,7 @@ export interface Conn {
     /**
      * Callback whenever the write buffer changes from unwritable to writable
      */
-    onWritable?: (c: Conn) => void
+    onWritable?: (this: Conn) => void
     /**
      * Write buffer size
      */
@@ -710,8 +714,8 @@ class evbufferReadable implements Readable {
         deps.evbuffer_drain(this.b, n)
     }
 }
-export type OnReadableCallback = (r: Readable, c: Conn) => void
-export type OnMessageCallback = (data: Uint8Array, c: Conn) => void
+export type OnReadableCallback = (this: Conn, r: Readable) => void
+export type OnMessageCallback = (this: Conn, data: Uint8Array) => void
 export class TcpConn implements Conn {
     private c_?: deps.TcpConn
     private md_: deps.TcpConnMetadata
@@ -721,7 +725,7 @@ export class TcpConn implements Conn {
         conn.cbw = () => {
             const f = this.onWritable
             if (f) {
-                f(this)
+                f.bind(this)()
             }
         }
         conn.cbr = (r) => {
@@ -785,12 +789,12 @@ export class TcpConn implements Conn {
             }
 
             if (f) {
-                f(e!, this)
+                f.bind(this)(e!)
             }
             this.close()
         }
     }
-    onError?: (e: any, c: TcpConn) => void
+    onError?: (this: Conn, e: any) => void
     get isClosed(): boolean {
         return this.c_ ? false : true
     }
@@ -825,7 +829,7 @@ export class TcpConn implements Conn {
     /**
      * Callback whenever the write buffer changes from unwritable to writable
      */
-    onWritable?: (c: Conn) => void
+    onWritable?: (this: Conn) => void
     /**
      * Write buffer size
      */
@@ -855,7 +859,7 @@ export class TcpConn implements Conn {
     private _cbr(r: deps.evbuffer) {
         const onReadable = this.onReadable
         if (onReadable) {
-            onReadable(new evbufferReadable(r), this)
+            onReadable.bind(this)(new evbufferReadable(r))
         }
 
         const onMessage = this.onMessage_
@@ -866,10 +870,10 @@ export class TcpConn implements Conn {
                 case 0:
                     break
                 case b.length:
-                    onMessage(b, this)
+                    onMessage.bind(this)(b)
                     break
                 default:
-                    onMessage(b.length == n ? b : b.subarray(0, n), this)
+                    onMessage.bind(this)(b.length == n ? b : b.subarray(0, n))
                     break
             }
         }
@@ -938,8 +942,8 @@ export class TcpConn implements Conn {
         }
     }
 }
-export type OnAcceptCallback = (c: Conn, l: Listener) => void
-export type onErrorCallback<T> = (e: any, l: T) => void
+export type OnAcceptCallback = (this: Listener, c: Conn) => void
+export type onErrorCallback<T> = (this: T, e: any) => void
 export interface Listener {
     readonly addr: Addr
     close(): void
@@ -1047,12 +1051,12 @@ export class TcpListener implements Listener {
             throw e
         }
         deps.tcp_conn_stash(conn, true)
-        onAccept(c, this)
+        onAccept.bind(this)(c)
     }
     private _onError(e: any) {
         const cb = this.onError_
         if (cb) {
-            cb(e, this)
+            cb.bind(this)(e)
         }
     }
 }
@@ -1536,6 +1540,92 @@ export class Resolver {
     }
     static hasDefault(): boolean {
         return Resolver.default_ ? true : false
+    }
+}
+
+export type AbortListener = (this: AbortSignal, reason: any) => any
+/** 
+ * A signal object that allows you to communicate with a request and abort it if required via an AbortController object.
+ */
+export class AbortSignal {
+    static _abort(signal: AbortSignal, reason?: any) {
+        if (signal.aborted_) {
+            return
+        }
+        signal.aborted_ = true
+        signal.reason_ = reason
+        const listeners = signal.listeners_
+        if (!listeners) {
+            return
+        }
+        signal.listeners_ = undefined
+        const length = listeners.length
+        for (let i = 0; i < length; i++) {
+            listeners[i].bind(signal)(reason)
+        }
+    }
+    private aborted_ = false
+    /** 
+     * Returns true if this AbortSignal's AbortController has signaled to abort,
+     * and false otherwise. 
+     */
+    get aborted(): boolean {
+        return this.aborted_
+    }
+    private reason_: any
+    get reason(): any {
+        return this.reason_
+    }
+    private listeners_?: Array<AbortListener>
+    addEventListener(listener: AbortListener): void {
+        const listeners = this.listeners_
+        if (!listeners) {
+            this.listeners_ = [listener]
+            return
+        }
+        const length = listeners.length
+        for (let i = 0; i < length; i++) {
+            if (listeners[i] == listener) {
+                return
+            }
+        }
+        listeners.push(listener)
+    }
+    removeEventListener(listener: AbortListener): void {
+        const listeners = this.listeners_
+        if (!listeners || listeners.length == 0) {
+            return
+        }
+        const length = listeners.length
+        for (let i = 0; i < length; i++) {
+            if (listeners[i] == listener) {
+                listeners.splice(i, 1)
+                return
+            }
+        }
+    }
+    /** Throws this AbortSignal's abort reason, if its AbortController has
+   * signaled to abort; otherwise, does nothing. */
+    throwIfAborted(): void {
+        if (this.aborted_) {
+            throw this.reason_
+        }
+    }
+}
+/**
+ * A controller object that allows you to abort one or more requests as and when desired.
+ */
+export class AbortController {
+    /** 
+     * Returns the AbortSignal object associated with this object. 
+     */
+    readonly signal = new AbortSignal()
+    /** 
+     * Invoking this method will set this object's AbortSignal's aborted flag and
+     * signal to any observers that the associated activity is to be aborted. 
+     */
+    abort(reason?: any): void {
+        AbortSignal._abort(this.signal, reason)
     }
 }
 

@@ -99,7 +99,8 @@ var State = /** @class */ (function () {
     }
     State.prototype.serve = function () {
         var _this = this;
-        this.c.onMessage = function (data, c) {
+        var c = this.c;
+        c.onMessage = function (data) {
             var pre = _this.data_;
             if (!pre) {
                 console.log("unexpected message:", data);

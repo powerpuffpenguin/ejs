@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <event2/event.h>
 #include "../duk/duk_module_node.h"
 DUK_EXTERNAL const char *ejs_version()
 {

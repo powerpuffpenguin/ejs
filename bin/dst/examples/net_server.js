@@ -101,7 +101,8 @@ var EchoService = /** @class */ (function () {
     EchoService.prototype.serve = function () {
         var _this = this;
         // onMessage for read
-        this.c.onMessage = function (data, c) {
+        var c = this.c;
+        c.onMessage = function (data) {
             try {
                 console.log("recv ".concat(c.remoteAddr, ":"), data);
                 if (c.write(data) === undefined) {

@@ -72,7 +72,8 @@ class State {
     private step_ = 0
     private data_?: Uint8Array
     serve() {
-        this.c.onMessage = (data, c) => {
+        const c = this.c
+        c.onMessage = (data) => {
             const pre = this.data_
             if (!pre) {
                 console.log("unexpected message:", data)
