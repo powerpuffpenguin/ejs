@@ -28,7 +28,7 @@ declare namespace deps {
     export function evbuffer_len(b: evbuffer): number
     export function evbuffer_read(b: evbuffer, dst: Uint8Array): number
     export function evbuffer_copy(b: evbuffer, dst: Uint8Array, skip?: number): number
-    export function evbuffer_drain(b: evbuffer, n: number): void
+    export function evbuffer_drain(b: evbuffer, n: number): number
 
     export const BEV_EVENT_CONNECTED: number
     export const BEV_EVENT_WRITING: number
@@ -46,8 +46,10 @@ declare namespace deps {
          */
         mw: number
     }
+
     export class TcpConn {
         readonly __id = "TcpConn"
+
         busy?: boolean
         cbw: () => void
         cbr: (b: evbuffer) => void
@@ -55,9 +57,15 @@ declare namespace deps {
         md: TcpConnMetadata
         p: unknown
     }
+    export class TcpListenerOptions {
+        remoteIP?: string
+        remotePort?: number
+        localIP?: string
+        localPort?: number
+    }
     export class TcpListener {
         readonly __id = "TcpListener"
-        cb?: (c: TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) => void
+        cb?: (c: TcpConn, opts?: TcpListenerOptions) => void
         err?: (e: any) => void
     }
     export interface TcpListenerOptions {
@@ -81,6 +89,17 @@ declare namespace deps {
         port: number
     }
     export function tcp_conect(opts: TcpConnectOptions): TcpConn
+
+
+    export interface UnixListenerOptions {
+        address: string
+        backlog: number
+    }
+    export function unix_listen(opts: UnixListenerOptions): TcpListener
+    export interface UnixConnectOptions {
+        name: string
+    }
+    export function unix_conect(opts: UnixConnectOptions): TcpConn
 
     export class Resolve {
         readonly __id = "Resolve"
@@ -118,6 +137,38 @@ export class AddrError extends __duk.Error {
         super(message);
         (this as any).name = "AddrError"
     }
+}
+export class NetError extends __duk.Error {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "NetError"
+    }
+    /**
+     * If true, it means that this is an error that occurred when connecting to the server.
+     */
+    connect?: boolean
+    /**
+     * If true, it means that this is an error that occurred while reading the data.
+     */
+    read?: boolean
+    /**
+     * If true it means this is an error that occurred while writing data
+     */
+    write?: boolean
+
+    /**
+     * If true, it means that the connection/read/write timeout occurred
+     */
+    timeout?: boolean
+    /**
+     * If true, it means that read/write encountered eof
+     */
+    eof?: boolean
+
+    /**
+     * Request canceled
+     */
+    cancel?: boolean
 }
 export const IPv4len = 4;
 export const IPv6len = 16;
@@ -574,797 +625,6 @@ export function networkNumberAndMask(n: IPNet): [IP, IPMask] | undefined {
     }
     return
 }
-
-
-
-export interface Addr {
-    /**
-     * name of the network (for example, "tcp", "udp")
-     */
-    readonly network: string
-    /**
-     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
-     */
-    readonly address: string
-}
-export class NetAddr implements Addr {
-    constructor(readonly network: string, readonly address: string) {
-    }
-    toString(): string {
-        return this.address
-    }
-}
-export interface ListenOptions {
-    /**
-     * name of the network (for example, "tcp", "udp")
-     */
-    network: string
-    /**
-     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
-     */
-    address: string
-    /**
-     * @default 5
-     */
-    backlog?: number
-}
-export class NetError extends __duk.Error {
-    constructor(message: string) {
-        super(message);
-        (this as any).name = "NetError"
-    }
-    /**
-     * If true, it means that this is an error that occurred when connecting to the server.
-     */
-    connect?: boolean
-    /**
-     * If true, it means that this is an error that occurred while reading the data.
-     */
-    read?: boolean
-    /**
-     * If true it means this is an error that occurred while writing data
-     */
-    write?: boolean
-
-    /**
-     * If true, it means that the connection/read/write timeout occurred
-     */
-    timeout?: boolean
-    /**
-     * If true, it means that read/write encountered eof
-     */
-    eof?: boolean
-
-    /**
-     * Request canceled
-     */
-    cancel?: boolean
-}
-export class TcpError extends NetError {
-    constructor(message: string) {
-        super(message);
-        (this as any).name = "TcpError"
-    }
-}
-
-function throwTcpError(e: any): never {
-    if (typeof e === "string") {
-        throw new TcpError(e)
-    }
-    throw e
-}
-/**
- * Conn is a generic stream-oriented network connection.
- */
-export interface Conn {
-    readonly remoteAddr: Addr
-    readonly localAddr: Addr
-    /**
-     * Returns whether the connection has been closed
-     */
-    readonly isClosed: boolean
-    /**
-     * Close the connection and release resources
-     */
-    close(): void
-    /**
-     * Callback when an error occurs
-     */
-    onError?: (this: Conn, e: any) => void
-    /**
-     * Write data returns the actual number of bytes written
-     * 
-     * @param data data to write
-     * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
-     */
-    write(data: string | Uint8Array | ArrayBuffer): number | undefined
-    /**
-     * Callback whenever the write buffer changes from unwritable to writable
-     */
-    onWritable?: (this: Conn) => void
-    /**
-     * Write buffer size
-     */
-    maxWriteBytes: number
-    /**
-     * Callback when a message is received. If set to undefined, it will stop receiving data.
-     * @remarks
-     * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
-     */
-    onMessage?: OnMessageCallback
-}
-export interface Readable {
-    readonly length: number
-    read(dst: Uint8Array): number
-    copy(dst: Uint8Array): number
-    drain(n: number): void
-}
-class evbufferReadable implements Readable {
-    constructor(readonly b: deps.evbuffer) { }
-    get length(): number {
-        return deps.evbuffer_len(this.b)
-    }
-    read(dst: Uint8Array): number {
-        return deps.evbuffer_read(this.b, dst)
-    }
-    copy(dst: Uint8Array, skip?: number): number {
-        return deps.evbuffer_copy(this.b, dst, skip)
-    }
-    drain(n: number) {
-        deps.evbuffer_drain(this.b, n)
-    }
-}
-export type OnReadableCallback = (this: Conn, r: Readable) => void
-export type OnMessageCallback = (this: Conn, data: Uint8Array) => void
-export class TcpConn implements Conn {
-    private c_?: deps.TcpConn
-    private md_: deps.TcpConnMetadata
-    constructor(readonly remoteAddr: Addr, readonly localAddr: Addr, conn: deps.TcpConn) {
-        this.c_ = conn
-        this.md_ = conn.md
-        conn.cbw = () => {
-            const f = this.onWritable
-            if (f) {
-                f.bind(this)()
-            }
-        }
-        conn.cbr = (r) => {
-            this._cbr(r)
-        }
-        conn.cbe = (what) => {
-            const f = this.onError
-            let e: TcpError
-            if (what & deps.BEV_EVENT_WRITING) {
-                if (what & deps.BEV_EVENT_EOF) {
-                    if (f) {
-                        e = new TcpError("write eof")
-                        e.write = true
-                        e.eof = true
-                    }
-                } else if (what & deps.BEV_EVENT_TIMEOUT) {
-                    if (f) {
-                        e = new TcpError("write timeout")
-                        e.write = true
-                        e.timeout = true
-                    }
-                } else if (what & deps.BEV_EVENT_ERROR) {
-                    if (f) {
-                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
-                            e = new TcpError("write timeout")
-                        } else {
-                            e = new TcpError(deps.socket_error_str())
-                        }
-                        e.write = true
-                    }
-                } else {
-                    return
-                }
-            } else if (what & deps.BEV_EVENT_READING) {
-                if (what & deps.BEV_EVENT_EOF) {
-                    if (f) {
-                        e = new TcpError("read eof")
-                        e.read = true
-                        e.eof = true
-                    }
-                } else if (what & deps.BEV_EVENT_TIMEOUT) {
-                    if (f) {
-                        e = new TcpError("read timeout")
-                        e.read = true
-                        e.timeout = true
-                    }
-                } else if (what & deps.BEV_EVENT_ERROR) {
-                    if (f) {
-                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
-                            e = new TcpError("read timeout")
-                        } else {
-                            e = new TcpError(deps.socket_error_str())
-                        }
-                        e.read = true
-                    }
-                } else {
-                    return
-                }
-            } else {
-                return
-            }
-
-            if (f) {
-                f.bind(this)(e!)
-            }
-            this.close()
-        }
-    }
-    onError?: (this: Conn, e: any) => void
-    get isClosed(): boolean {
-        return this.c_ ? false : true
-    }
-    close(): void {
-        const c = this.c_
-        if (c) {
-            this.c_ = undefined
-            deps.tcp_conn_close(c)
-        }
-    }
-    private _get(): deps.TcpConn {
-        const c = this.c_
-        if (!c) {
-            throw new TcpError(`conn already closed`)
-        }
-        return c
-    }
-    /**
-     * Write data returns the actual number of bytes written
-     * 
-     * @param data data to write
-     * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
-     */
-    write(data: string | Uint8Array | ArrayBuffer): number | undefined {
-        const c = this._get()
-        try {
-            return deps.tcp_conn_write(c, data)
-        } catch (e) {
-            throwTcpError(e)
-        }
-    }
-    /**
-     * Callback whenever the write buffer changes from unwritable to writable
-     */
-    onWritable?: (this: Conn) => void
-    /**
-     * Write buffer size
-     */
-    get maxWriteBytes(): number {
-        return this.md_.mw
-    }
-    set maxWriteBytes(v: number) {
-        if (!Number.isSafeInteger(v)) {
-            throw new TcpError("maxWriteBytes must be a safe integer")
-        } else if (v < 0) {
-            v = 0
-        }
-        if (v != this.md_.mw) {
-            this.md_.mw = v
-        }
-    }
-    private _buffer(): Uint8Array {
-        let b = this.buffer
-        if (b && b.length > 0) {
-            return b
-        }
-        b = new Uint8Array(1024 * 32)
-        this.buffer = b
-        return b
-    }
-    buffer?: Uint8Array
-    private _cbr(r: deps.evbuffer) {
-        const onReadable = this.onReadable
-        if (onReadable) {
-            onReadable.bind(this)(new evbufferReadable(r))
-        }
-
-        const onMessage = this.onMessage_
-        if (onMessage) {
-            const b = this._buffer()
-            const n = deps.evbuffer_read(r, b)
-            switch (n) {
-                case 0:
-                    break
-                case b.length:
-                    onMessage.bind(this)(b)
-                    break
-                default:
-                    onMessage.bind(this)(b.length == n ? b : b.subarray(0, n))
-                    break
-            }
-        }
-    }
-    private onReadable_?: OnReadableCallback
-    /**
-     * Callback when a message is received. If set to undefined, it will stop receiving data. 
-     */
-    get onReadable(): OnReadableCallback | undefined {
-        return this.onReadable_
-    }
-    set onReadable(f: OnReadableCallback | undefined) {
-        if (f === undefined || f === null) {
-            if (!this.onReadable_) {
-                return
-            }
-            const c = this.c_
-            if (c && !this.onMessage_) {
-                deps.tcp_conn_cb(c, false)
-            }
-            this.onReadable_ = undefined
-        } else {
-            if (f === this.onReadable_) {
-                return
-            }
-            if (typeof f !== "function") {
-                throw new TcpError("onReadable must be a function")
-            }
-            const c = this.c_
-            if (c && !this.onMessage_) {
-                deps.tcp_conn_cb(c, true)
-            }
-            this.onReadable_ = f
-        }
-    }
-
-    private onMessage_?: OnMessageCallback
-    /**
-     * Callback when a message is received. If set to undefined, it will stop receiving data. 
-     */
-    get onMessage(): OnMessageCallback | undefined {
-        return this.onMessage_
-    }
-    set onMessage(f: OnMessageCallback | undefined) {
-        if (f === undefined || f === null) {
-            if (!this.onMessage_) {
-                return
-            }
-            const c = this.c_
-            if (c && !this.onReadable_) {
-                deps.tcp_conn_cb(c, false)
-            }
-            this.onMessage_ = undefined
-        } else {
-            if (f === this.onMessage_) {
-                return
-            }
-            if (typeof f !== "function") {
-                throw new TcpError("onMessage must be a function")
-            }
-            const c = this.c_
-            if (c && !this.onReadable_) {
-                deps.tcp_conn_cb(c, true)
-            }
-            this.onMessage_ = f
-        }
-    }
-}
-export type OnAcceptCallback = (this: Listener, c: Conn) => void
-export type onErrorCallback<T> = (this: T, e: any) => void
-export interface Listener {
-    readonly addr: Addr
-    close(): void
-    onAccept?: OnAcceptCallback
-    onError?: onErrorCallback<Listener>
-}
-export class TcpListener implements Listener {
-    private l_?: deps.TcpListener
-    constructor(readonly addr: Addr, l: deps.TcpListener) {
-        l.cb = (c, remoteIP, remotePort, localIP, localPort) => {
-            this._onAccept(c, remoteIP, remotePort, localIP, localPort)
-        }
-        l.err = (e) => {
-            this._onError(e)
-        }
-        this.l_ = l
-    }
-    get isClosed(): boolean {
-        return this.l_ ? false : true
-    }
-    close(): void {
-        const l = this.l_
-        if (l) {
-            this.l_ = undefined
-            deps.tcp_listen_close(l)
-        }
-    }
-    private onAccept_?: OnAcceptCallback
-    private onError_?: onErrorCallback<Listener>
-    set onAccept(f: OnAcceptCallback | undefined) {
-        if (f === undefined || f === null) {
-            if (!this.onAccept_) {
-                return
-            }
-            const l = this.l_
-            if (l) {
-                deps.tcp_listen_cb(l, false)
-            }
-            this.onAccept_ = undefined
-        } else {
-            if (f === this.onAccept_) {
-                return
-            }
-            if (typeof f !== "function") {
-                throw new TcpError("onAccept must be a function")
-            }
-            const l = this.l_
-            if (l) {
-                deps.tcp_listen_cb(l, true)
-            }
-            this.onAccept_ = f
-        }
-    }
-    set onError(f: onErrorCallback<Listener> | undefined) {
-        if (f === undefined || f === null) {
-            if (!this.onError_) {
-                return
-            }
-            const l = this.l_
-            if (l) {
-                deps.tcp_listen_err(l, false)
-            }
-            this.onError_ = undefined
-        } else {
-            if (f === this.onError_) {
-                return
-            }
-            if (typeof f !== "function") {
-                throw new TcpError("onError must be a function")
-            }
-            const l = this.l_
-            if (l) {
-                deps.tcp_listen_err(l, true)
-            }
-            this.onError_ = f
-        }
-    }
-    get onAccept(): OnAcceptCallback | undefined {
-        return this.onAccept_
-    }
-    get onError(): onErrorCallback<Listener> | undefined {
-        return this.onError_
-    }
-    private _onAccept(conn: deps.TcpConn, remoteIP: string, remotePort: number, localIP: string, localPort: number) {
-        const onAccept = this.onAccept_
-        if (!onAccept) {
-            deps.tcp_conn_stash(conn, false)
-            return
-        }
-        let c: TcpConn
-        try {
-            if (remoteIP.startsWith('::ffff:')) {
-                remoteIP = remoteIP.substring(7)
-            }
-            if (localIP.startsWith('::ffff:')) {
-                localIP = localIP.substring(7)
-            }
-            c = new TcpConn(
-                new NetAddr('tcp', joinHostPort(remoteIP, remotePort)),
-                new NetAddr('tcp', joinHostPort(localIP, localPort)),
-                conn,
-            )
-        } catch (e) {
-            deps.tcp_conn_stash(conn, false)
-            throw e
-        }
-        deps.tcp_conn_stash(conn, true)
-        onAccept.bind(this)(c)
-    }
-    private _onError(e: any) {
-        const cb = this.onError_
-        if (cb) {
-            cb.bind(this)(e)
-        }
-    }
-}
-function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
-    try {
-        const backlog = opts.backlog ?? 5
-        if (!Number.isSafeInteger(backlog) || backlog < 1) {
-            throw new TcpError(`listen backlog invalid: ${opts.backlog}`)
-        }
-        const [host, sport] = splitHostPort(opts.address)
-        let address = opts.address
-        const port = parseInt(sport)
-        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-            throw new TcpError(`listen port invalid: ${opts.address}`)
-        }
-        let ip: IP | undefined
-        if (host != "") {
-            ip = IP.parse(host)
-            if (!ip) {
-                throw new TcpError(`listen address invalid: ${opts.address}`)
-            }
-        }
-
-        if (ip) {
-            if (v6 === undefined) {
-                if (ip.isV4) {
-                    v6 = false
-                }
-            } else {
-                if (v6) {
-                    if (!ip.isV6) {
-                        throw new TcpError(`listen network restriction address must be ipv6: ${opts.address}`)
-                    }
-                    v6 = true
-                } else {
-                    if (!ip.isV4) {
-                        throw new TcpError(`listen network restriction address must be ipv4: ${opts.address}`)
-                    }
-                    v6 = false
-                }
-            }
-        }
-
-        const l = deps.tcp_listen({
-            ip: ip?.toString(),
-            port: port,
-            v6: v6,
-            backlog: backlog
-        })
-        if (host == "") {
-            if (v6 === undefined) {
-                address = `[::]${address}`
-            } else if (v6) {
-                address = `[::]${address}`
-            } else {
-                address = `0.0.0.0${address}`
-            }
-        }
-        try {
-            return new TcpListener(new NetAddr('tcp', address), l)
-        } catch (e) {
-            deps.tcp_listen_close(l)
-            throw e
-        }
-    } catch (e) {
-        throwTcpError(e)
-    }
-}
-type DialCallback = (c?: Conn, e?: any) => void
-
-class TcpDialer {
-    c_?: deps.TcpConn
-    // r0_?: Resolve
-    // r1_?: Resolve
-    cb_?: DialCallback
-    onabort_?: AbortListener
-    constructor(readonly opts: DialOptions, cb: DialCallback) {
-        this.cb_ = cb
-    }
-    dial(v6?: boolean) {
-        const opts = this.opts
-        const [host, sport] = splitHostPort(opts.address)
-        const port = parseInt(sport)
-        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-            throw new TcpError(`dial port invalid: ${opts.address}`)
-        }
-        let ip: string | undefined
-        if (host == "") {
-            if (v6 === undefined) {
-                v6 = false
-                ip = `127.0.0.1`
-            } else if (v6) {
-                v6 = true
-                ip = `::1`
-            } else {
-                v6 = false
-                ip = `127.0.0.1`
-            }
-        } else {
-            const v = IP.parse(host)
-            if (!v) {
-                try {
-                    Resolver.getDefault().resolve({
-                        name: host,
-                        v6: v6,
-                        signal: opts.signal,
-                    }, (ip, e, ipv6) => {
-                        const cb = this.cb_
-                        if (!cb) {
-                            return
-                        }
-                        if (!ip) {
-                            this.cb_ = undefined
-                            this._closeSignal()
-                            cb(undefined, e)
-                            return
-                        } else if (ip.length === 0) {
-                            this.cb_ = undefined
-                            this._closeSignal()
-                            cb(undefined, new TcpError(`unknow host: ${host}`))
-                            return
-                        }
-                        this._connect({
-                            ip: ip[0],
-                            port: port,
-                            v6: ipv6!,
-                        })
-                    })
-                } catch (e) {
-                    throw e
-                }
-                this._signal()
-                return
-            }
-            if (v6 === undefined) {
-                v6 = v.isV6
-            } else {
-                if (v6) {
-                    if (!v.isV6) {
-                        throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
-                    }
-                    v6 = true
-                } else {
-                    if (!v.isV4) {
-                        throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
-                    }
-                    v6 = false
-                }
-            }
-            ip = v.toString()
-        }
-        this._connect({
-            ip: ip,
-            port: port,
-            v6: v6,
-        })
-        this._signal()
-    }
-    private _signal() {
-        const signal = this.opts.signal
-        if (signal) {
-            this.onabort_ = (reason) => {
-                const cb = this.cb_
-                if (!cb) {
-                    return
-                }
-                this.cb_ = undefined
-
-                const c = this.c_
-                if (c) {
-                    this.c_ = undefined
-                    deps.tcp_conn_close(c)
-                }
-
-                cb(undefined, reason)
-            }
-            signal.addEventListener(this.onabort_)
-        }
-    }
-    private _closeSignal() {
-        const signal = this.opts.signal
-        if (signal) {
-            const onabort = this.onabort_
-            if (onabort) {
-                this.onabort_ = undefined
-                signal.removeEventListener(onabort)
-            }
-        }
-    }
-
-    private _connect(opts: deps.TcpConnectOptions) {
-        const c = deps.tcp_conect(opts)
-        this.c_ = c
-        c.cbe = (what) => {
-            const cb = this.cb_
-            if (!cb) {
-                const c = this.c_
-                if (c) {
-                    this.c_ = undefined
-                    deps.tcp_conn_close(c)
-                }
-                return
-            }
-            this.cb_ = undefined
-
-            this._closeSignal()
-
-            if (what & deps.BEV_EVENT_TIMEOUT) {
-                deps.tcp_conn_close(c)
-
-                const e = new TcpError("connect timeout")
-                e.connect = true
-                e.timeout = true
-
-                cb(undefined, e)
-            } else if (what & deps.BEV_EVENT_ERROR) {
-                deps.tcp_conn_close(c)
-
-                if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
-                    const e = new TcpError("connect timeout")
-                    e.connect = true
-                    e.timeout = true
-
-                    cb(undefined, e)
-                } else {
-                    deps.tcp_conn_close(c)
-
-                    const e = new TcpError(deps.socket_error_str())
-                    e.connect = true
-                    cb(undefined, e)
-                }
-            } else {
-                let conn: undefined | TcpConn
-                try {
-                    let [ip, port] = deps.tcp_conn_localAddr(c)
-                    if (ip.startsWith('::ffff:')) {
-                        ip = ip.substring(7)
-                    }
-                    conn = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
-                        new NetAddr('tcp', joinHostPort(ip, port)),
-                        c,
-                    )
-                } catch (e) {
-                    deps.tcp_conn_close(c)
-                    throw e
-                }
-                cb(conn)
-                return
-            }
-        }
-    }
-}
-
-/**
- * Create a listening service
- */
-export function listen(opts: ListenOptions): Listener {
-    switch (opts.network) {
-        case 'tcp':
-            return listenTCP(opts)
-        case 'tcp4':
-            return listenTCP(opts, false)
-        case 'tcp6':
-            return listenTCP(opts, true)
-        default:
-            throw new NetError(`unknow network: ${opts.network}`);
-    }
-}
-export interface DialOptions {
-    /**
-     * name of the network (for example, "tcp", "udp")
-     */
-    network: string
-    /**
-     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
-     */
-    address: string
-
-    /**
-     * A signal that can be used to cancel dialing
-     */
-    signal?: AbortSignal
-}
-/**
- * Dial a listener to create a connection for bidirectional communication
- */
-export function dial(opts: DialOptions, cb: DialCallback) {
-    if (typeof cb !== "function") {
-        throw new Error(`cb must be a function`)
-    }
-    if (opts.signal) {
-        opts.signal.throwIfAborted()
-    }
-    switch (opts.network) {
-        case 'tcp':
-            new TcpDialer(opts, cb).dial()
-            break
-        case 'tcp4':
-            new TcpDialer(opts, cb).dial(false)
-            break
-        case 'tcp6':
-            new TcpDialer(opts, cb).dial(true)
-            break
-        default:
-            throw new NetError(`unknow network: ${opts.network}`);
-    }
-}
-
 export interface ResolveOptions {
     /**
      * Name to be queried
@@ -1726,8 +986,977 @@ export class Resolver {
     }
 }
 
+
+export interface Addr {
+    /**
+     * name of the network (for example, "tcp", "udp")
+     */
+    readonly network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    readonly address: string
+}
+export class NetAddr implements Addr {
+    constructor(readonly network: string, readonly address: string) {
+    }
+    toString(): string {
+        return this.address
+    }
+}
+export interface ListenOptions {
+    /**
+     * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
+     */
+    network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
+    /**
+     * @default 5
+     */
+    backlog?: number
+}
+
+export class TcpError extends NetError {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "TcpError"
+    }
+}
+
+function throwTcpError(e: any): never {
+    if (typeof e === "string") {
+        throw new TcpError(e)
+    }
+    throw e
+}
+export class UnixError extends NetError {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "UnixError"
+    }
+}
+
+function throwUnixError(e: any): never {
+    if (typeof e === "string") {
+        throw new UnixError(e)
+    }
+    throw e
+}
+/**
+ * Conn is a generic stream-oriented network connection.
+ */
+export interface Conn {
+    readonly remoteAddr: Addr
+    readonly localAddr: Addr
+    /**
+     * Returns whether the connection has been closed
+     */
+    readonly isClosed: boolean
+    /**
+     * Close the connection and release resources
+     */
+    close(): void
+    /**
+     * Callback when an error occurs
+     */
+    onError?: (this: Conn, e: any) => void
+    /**
+     * Write data returns the actual number of bytes written
+     * 
+     * @param data data to write
+     * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
+     */
+    write(data: string | Uint8Array | ArrayBuffer): number | undefined
+    /**
+     * Callback whenever the write buffer changes from unwritable to writable
+     */
+    onWritable?: (this: Conn) => void
+    /**
+     * Write buffer size
+     */
+    maxWriteBytes: number
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data.
+     * @remarks
+     * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
+     */
+    onMessage?: OnMessageCallback
+}
+/**
+ * Readable network device for reading ready data
+ */
+export interface Readable {
+    /**
+     * Returns the currently ready data length
+     */
+    readonly length: number
+    /**
+     * Read as much data as possible into dst, returning the actual bytes read
+     * @returns the actual read data length
+     */
+    read(dst: Uint8Array): number
+    /**
+     * Copies as much data as possible to dst, returning the actual copied bytes. 
+     * This function does not cause the Readable.length property to change
+     * @returns the actual copied data length
+     */
+    copy(dst: Uint8Array, skip?: number): number
+    /**
+     * Discard data of specified length
+     * @returns the actual discarded data length
+     */
+    drain(n: number): number
+}
+class evbufferReadable implements Readable {
+    constructor(readonly b: deps.evbuffer) { }
+    get length(): number {
+        return deps.evbuffer_len(this.b)
+    }
+    read(dst: Uint8Array): number {
+        return deps.evbuffer_read(this.b, dst)
+    }
+    copy(dst: Uint8Array, skip?: number): number {
+        return deps.evbuffer_copy(this.b, dst, skip)
+    }
+    drain(n: number) {
+        return deps.evbuffer_drain(this.b, n)
+    }
+}
+export type OnReadableCallback = (this: Conn, r: Readable) => void
+export type OnMessageCallback = (this: Conn, data: Uint8Array) => void
+interface tcpConnBridge {
+    Error: typeof NetError
+    throwError(e: any): never
+}
+export class BaseTcpConn implements Conn {
+    private c_?: deps.TcpConn
+    private md_: deps.TcpConnMetadata
+    constructor(readonly remoteAddr: Addr, readonly localAddr: Addr,
+        conn: deps.TcpConn,
+        private readonly bridge_: tcpConnBridge,
+    ) {
+        this.c_ = conn
+        this.md_ = conn.md
+        conn.cbw = () => {
+            const f = this.onWritable
+            if (f) {
+                f.bind(this)()
+            }
+        }
+        conn.cbr = (r) => {
+            this._cbr(r)
+        }
+        conn.cbe = (what) => {
+            const f = this.onError
+            const bridge = this.bridge_
+            let e: NetError
+            if (what & deps.BEV_EVENT_WRITING) {
+                if (what & deps.BEV_EVENT_EOF) {
+                    if (f) {
+                        e = new bridge.Error("write eof")
+                        e.write = true
+                        e.eof = true
+                    }
+                } else if (what & deps.BEV_EVENT_TIMEOUT) {
+                    if (f) {
+                        e = new bridge.Error("write timeout")
+                        e.write = true
+                        e.timeout = true
+                    }
+                } else if (what & deps.BEV_EVENT_ERROR) {
+                    if (f) {
+                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                            e = new bridge.Error("write timeout")
+                        } else {
+                            e = new bridge.Error(deps.socket_error_str())
+                        }
+                        e.write = true
+                    }
+                } else {
+                    return
+                }
+            } else if (what & deps.BEV_EVENT_READING) {
+                if (what & deps.BEV_EVENT_EOF) {
+                    if (f) {
+                        e = new bridge.Error("read eof")
+                        e.read = true
+                        e.eof = true
+                    }
+                } else if (what & deps.BEV_EVENT_TIMEOUT) {
+                    if (f) {
+                        e = new bridge.Error("read timeout")
+                        e.read = true
+                        e.timeout = true
+                    }
+                } else if (what & deps.BEV_EVENT_ERROR) {
+                    if (f) {
+                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                            e = new bridge.Error("read timeout")
+                        } else {
+                            e = new bridge.Error(deps.socket_error_str())
+                        }
+                        e.read = true
+                    }
+                } else {
+                    return
+                }
+            } else {
+                return
+            }
+
+            if (f) {
+                f.bind(this)(e!)
+            }
+            this.close()
+        }
+    }
+    onError?: (this: Conn, e: any) => void
+    get isClosed(): boolean {
+        return this.c_ ? false : true
+    }
+    close(): void {
+        const c = this.c_
+        if (c) {
+            this.c_ = undefined
+            deps.tcp_conn_close(c)
+        }
+    }
+    private _get(): deps.TcpConn {
+        const c = this.c_
+        if (!c) {
+            throw new this.bridge_.Error(`conn already closed`)
+        }
+        return c
+    }
+    /**
+     * Write data returns the actual number of bytes written
+     * 
+     * @param data data to write
+     * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
+     */
+    write(data: string | Uint8Array | ArrayBuffer): number | undefined {
+        const c = this._get()
+        try {
+            return deps.tcp_conn_write(c, data)
+        } catch (e) {
+            this.bridge_.throwError(e)
+        }
+    }
+    /**
+     * Callback whenever the write buffer changes from unwritable to writable
+     */
+    onWritable?: (this: Conn) => void
+    /**
+     * Write buffer size
+     */
+    get maxWriteBytes(): number {
+        return this.md_.mw
+    }
+    set maxWriteBytes(v: number) {
+        if (!Number.isSafeInteger(v)) {
+            throw new this.bridge_.Error("maxWriteBytes must be a safe integer")
+        } else if (v < 0) {
+            v = 0
+        }
+        if (v != this.md_.mw) {
+            this.md_.mw = v
+        }
+    }
+    private _buffer(): Uint8Array {
+        let b = this.buffer
+        if (b && b.length > 0) {
+            return b
+        }
+        b = new Uint8Array(1024 * 32)
+        this.buffer = b
+        return b
+    }
+    buffer?: Uint8Array
+    private _cbr(r: deps.evbuffer) {
+        const onReadable = this.onReadable
+        if (onReadable) {
+            onReadable.bind(this)(new evbufferReadable(r))
+        }
+
+        const onMessage = this.onMessage_
+        if (onMessage) {
+            const b = this._buffer()
+            const n = deps.evbuffer_read(r, b)
+            switch (n) {
+                case 0:
+                    break
+                case b.length:
+                    onMessage.bind(this)(b)
+                    break
+                default:
+                    onMessage.bind(this)(b.length == n ? b : b.subarray(0, n))
+                    break
+            }
+        }
+    }
+    private onReadable_?: OnReadableCallback
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data. 
+     */
+    get onReadable(): OnReadableCallback | undefined {
+        return this.onReadable_
+    }
+    set onReadable(f: OnReadableCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onReadable_) {
+                return
+            }
+            const c = this.c_
+            if (c && !this.onMessage_) {
+                deps.tcp_conn_cb(c, false)
+            }
+            this.onReadable_ = undefined
+        } else {
+            if (f === this.onReadable_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new this.bridge_.Error("onReadable must be a function")
+            }
+            const c = this.c_
+            if (c && !this.onMessage_) {
+                deps.tcp_conn_cb(c, true)
+            }
+            this.onReadable_ = f
+        }
+    }
+
+    private onMessage_?: OnMessageCallback
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data. 
+     */
+    get onMessage(): OnMessageCallback | undefined {
+        return this.onMessage_
+    }
+    set onMessage(f: OnMessageCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onMessage_) {
+                return
+            }
+            const c = this.c_
+            if (c && !this.onReadable_) {
+                deps.tcp_conn_cb(c, false)
+            }
+            this.onMessage_ = undefined
+        } else {
+            if (f === this.onMessage_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new this.bridge_.Error("onMessage must be a function")
+            }
+            const c = this.c_
+            if (c && !this.onReadable_) {
+                deps.tcp_conn_cb(c, true)
+            }
+            this.onMessage_ = f
+        }
+    }
+}
+export type OnAcceptCallback = (this: Listener, c: Conn) => void
+export type onErrorCallback<T> = (this: T, e: any) => void
+export interface Listener {
+    readonly addr: Addr
+    close(): void
+    onAccept?: OnAcceptCallback
+    onError?: onErrorCallback<Listener>
+}
+interface tcpListenerBridge {
+    Error: typeof NetError
+    throwError(e: any): never
+    conn(c: deps.TcpConn, opts?: deps.TcpListenerOptions): Conn
+}
+export class BaseTcpListener implements Listener {
+    private l_?: deps.TcpListener
+    constructor(readonly addr: Addr,
+        l: deps.TcpListener,
+        readonly bridge: tcpListenerBridge,
+    ) {
+        l.cb = (conn, opts) => {
+            const onAccept = this.onAccept_
+            if (!onAccept) {
+                deps.tcp_conn_stash(conn, false)
+                return
+            }
+            let c: Conn
+            try {
+                c = this.bridge.conn(conn, opts)
+            } catch (e) {
+                deps.tcp_conn_stash(conn, false)
+                throw e
+            }
+            deps.tcp_conn_stash(conn, true)
+            onAccept.bind(this)(c)
+        }
+        l.err = (e) => {
+            const cb = this.onError_
+            if (cb) {
+                cb.bind(this)(e)
+            }
+        }
+        this.l_ = l
+    }
+    get isClosed(): boolean {
+        return this.l_ ? false : true
+    }
+    close(): void {
+        const l = this.l_
+        if (l) {
+            this.l_ = undefined
+            deps.tcp_listen_close(l)
+        }
+    }
+    private onAccept_?: OnAcceptCallback
+    private onError_?: onErrorCallback<Listener>
+    set onAccept(f: OnAcceptCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onAccept_) {
+                return
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_cb(l, false)
+            }
+            this.onAccept_ = undefined
+        } else {
+            if (f === this.onAccept_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new this.bridge.Error("onAccept must be a function")
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_cb(l, true)
+            }
+            this.onAccept_ = f
+        }
+    }
+    set onError(f: onErrorCallback<Listener> | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onError_) {
+                return
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_err(l, false)
+            }
+            this.onError_ = undefined
+        } else {
+            if (f === this.onError_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new this.bridge.Error("onError must be a function")
+            }
+            const l = this.l_
+            if (l) {
+                deps.tcp_listen_err(l, true)
+            }
+            this.onError_ = f
+        }
+    }
+    get onAccept(): OnAcceptCallback | undefined {
+        return this.onAccept_
+    }
+    get onError(): onErrorCallback<Listener> | undefined {
+        return this.onError_
+    }
+}
+export class TcpListener extends BaseTcpListener {
+    constructor(readonly addr: Addr, l: deps.TcpListener) {
+        super(addr, l, {
+            Error: TcpError,
+            throwError: throwTcpError,
+            conn(conn, opts) {
+                let remoteIP = opts!.remoteIP!;
+                if (remoteIP.startsWith('::ffff:')) {
+                    remoteIP = remoteIP.substring(7)
+                }
+                let localIP = opts!.localIP!;
+                if (localIP.startsWith('::ffff:')) {
+                    localIP = localIP.substring(7)
+                }
+                return new TcpConn(
+                    new NetAddr('tcp', joinHostPort(remoteIP, opts!.remotePort!)),
+                    new NetAddr('tcp', joinHostPort(localIP, opts!.localPort!)),
+                    conn,
+                )
+            }
+        })
+    }
+}
+export class TcpConn extends BaseTcpConn {
+    constructor(remoteAddr: Addr, localAddr: Addr, conn: deps.TcpConn) {
+        super(remoteAddr, localAddr, conn, {
+            Error: TcpError,
+            throwError: throwTcpError,
+        })
+    }
+}
+export class UnixConn extends BaseTcpConn {
+    constructor(remoteAddr: Addr, localAddr: Addr, conn: deps.TcpConn) {
+        super(remoteAddr, localAddr, conn, {
+            Error: UnixError,
+            throwError: throwUnixError,
+        })
+    }
+}
+export class UnixListener extends BaseTcpListener {
+    constructor(readonly addr: Addr, l: deps.TcpListener) {
+        super(addr, l, {
+            Error: UnixError,
+            throwError: throwUnixError,
+            conn(conn) {
+                return new UnixConn(
+                    new NetAddr('unix', '@'),
+                    new NetAddr('unix', addr.address),
+                    conn,
+                )
+            }
+        })
+    }
+}
+function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
+    try {
+        const backlog = opts.backlog ?? 5
+        if (!Number.isSafeInteger(backlog) || backlog < 1) {
+            throw new TcpError(`listen backlog invalid: ${opts.backlog}`)
+        }
+        const [host, sport] = splitHostPort(opts.address)
+        let address = opts.address
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new TcpError(`listen port invalid: ${opts.address}`)
+        }
+        let ip: IP | undefined
+        if (host != "") {
+            ip = IP.parse(host)
+            if (!ip) {
+                throw new TcpError(`listen address invalid: ${opts.address}`)
+            }
+        }
+
+        if (ip) {
+            if (v6 === undefined) {
+                if (ip.isV4) {
+                    v6 = false
+                }
+            } else {
+                if (v6) {
+                    if (!ip.isV6) {
+                        throw new TcpError(`listen network restriction address must be ipv6: ${opts.address}`)
+                    }
+                    v6 = true
+                } else {
+                    if (!ip.isV4) {
+                        throw new TcpError(`listen network restriction address must be ipv4: ${opts.address}`)
+                    }
+                    v6 = false
+                }
+            }
+        }
+
+        const l = deps.tcp_listen({
+            ip: ip?.toString(),
+            port: port,
+            v6: v6,
+            backlog: backlog
+        })
+        if (host == "") {
+            if (v6 === undefined) {
+                address = `[::]${address}`
+            } else if (v6) {
+                address = `[::]${address}`
+            } else {
+                address = `0.0.0.0${address}`
+            }
+        }
+        try {
+            return new TcpListener(new NetAddr('tcp', address), l)
+        } catch (e) {
+            deps.tcp_listen_close(l)
+            throw e
+        }
+    } catch (e) {
+        throwTcpError(e)
+    }
+}
+function listenUnix(opts: ListenOptions): UnixListener {
+    try {
+        const address = opts.address
+        const l = deps.unix_listen({
+            address: address,
+            backlog: opts.backlog ?? 5,
+        })
+        try {
+            return new UnixListener(new NetAddr('unix', address), l)
+        } catch (e) {
+            deps.tcp_listen_close(l)
+            throw e
+        }
+    } catch (e) {
+        throwUnixError(e)
+    }
+}
+type DialCallback = (c?: Conn, e?: any) => void
+
+class TcpDialer {
+    c_?: deps.TcpConn
+    cb_?: DialCallback
+    onabort_?: AbortListener
+    constructor(readonly opts: DialOptions, cb: DialCallback) {
+        this.cb_ = cb
+    }
+    dial(v6?: boolean) {
+        const opts = this.opts
+        const [host, sport] = splitHostPort(opts.address)
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new TcpError(`dial port invalid: ${opts.address}`)
+        }
+        let ip: string | undefined
+        if (host == "") {
+            if (v6 === undefined) {
+                v6 = false
+                ip = `127.0.0.1`
+            } else if (v6) {
+                v6 = true
+                ip = `::1`
+            } else {
+                v6 = false
+                ip = `127.0.0.1`
+            }
+        } else {
+            const v = IP.parse(host)
+            if (!v) {
+                try {
+                    Resolver.getDefault().resolve({
+                        name: host,
+                        v6: v6,
+                        signal: opts.signal,
+                    }, (ip, e, ipv6) => {
+                        const cb = this.cb_
+                        if (!cb) {
+                            return
+                        }
+                        if (!ip) {
+                            this.cb_ = undefined
+                            this._closeSignal()
+                            cb(undefined, e)
+                            return
+                        } else if (ip.length === 0) {
+                            this.cb_ = undefined
+                            this._closeSignal()
+                            cb(undefined, new TcpError(`unknow host: ${host}`))
+                            return
+                        }
+                        this._connect({
+                            ip: ip[0],
+                            port: port,
+                            v6: ipv6!,
+                        })
+                    })
+                } catch (e) {
+                    throw e
+                }
+                this._signal()
+                return
+            }
+            if (v6 === undefined) {
+                v6 = v.isV6
+            } else {
+                if (v6) {
+                    if (!v.isV6) {
+                        throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
+                    }
+                    v6 = true
+                } else {
+                    if (!v.isV4) {
+                        throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
+                    }
+                    v6 = false
+                }
+            }
+            ip = v.toString()
+        }
+        this._connect({
+            ip: ip,
+            port: port,
+            v6: v6,
+        })
+        this._signal()
+    }
+    private _signal() {
+        const signal = this.opts.signal
+        if (signal) {
+            this.onabort_ = (reason) => {
+                const cb = this.cb_
+                if (!cb) {
+                    return
+                }
+                this.cb_ = undefined
+
+                const c = this.c_
+                if (c) {
+                    this.c_ = undefined
+                    deps.tcp_conn_close(c)
+                }
+
+                cb(undefined, reason)
+            }
+            signal.addEventListener(this.onabort_)
+        }
+    }
+    private _closeSignal() {
+        const signal = this.opts.signal
+        if (signal) {
+            const onabort = this.onabort_
+            if (onabort) {
+                this.onabort_ = undefined
+                signal.removeEventListener(onabort)
+            }
+        }
+    }
+
+    private _connect(opts: deps.TcpConnectOptions) {
+        const c = deps.tcp_conect(opts)
+        this.c_ = c
+        c.cbe = (what) => {
+            const cb = this.cb_
+            if (!cb) {
+                const c = this.c_
+                if (c) {
+                    this.c_ = undefined
+                    deps.tcp_conn_close(c)
+                }
+                return
+            }
+            this.cb_ = undefined
+
+            this._closeSignal()
+
+            if (what & deps.BEV_EVENT_TIMEOUT) {
+                deps.tcp_conn_close(c)
+
+                const e = new TcpError("connect timeout")
+                e.connect = true
+                e.timeout = true
+
+                cb(undefined, e)
+            } else if (what & deps.BEV_EVENT_ERROR) {
+                deps.tcp_conn_close(c)
+
+                if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                    const e = new TcpError("connect timeout")
+                    e.connect = true
+                    e.timeout = true
+
+                    cb(undefined, e)
+                } else {
+                    deps.tcp_conn_close(c)
+
+                    const e = new TcpError(deps.socket_error_str())
+                    e.connect = true
+                    cb(undefined, e)
+                }
+            } else {
+                let conn: undefined | TcpConn
+                try {
+                    let [ip, port] = deps.tcp_conn_localAddr(c)
+                    if (ip.startsWith('::ffff:')) {
+                        ip = ip.substring(7)
+                    }
+                    conn = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
+                        new NetAddr('tcp', joinHostPort(ip, port)),
+                        c,
+                    )
+                } catch (e) {
+                    deps.tcp_conn_close(c)
+                    throw e
+                }
+                cb(conn)
+                return
+            }
+        }
+    }
+}
+class UnixDialer {
+    c_?: deps.TcpConn
+    cb_?: DialCallback
+    onabort_?: AbortListener
+    constructor(readonly opts: DialOptions, cb: DialCallback) {
+        this.cb_ = cb
+    }
+    dial() {
+        this._connect({
+            name: this.opts.address,
+        })
+        this._signal()
+    }
+    private _signal() {
+        const signal = this.opts.signal
+        if (signal) {
+            this.onabort_ = (reason) => {
+                const cb = this.cb_
+                if (!cb) {
+                    return
+                }
+                this.cb_ = undefined
+
+                const c = this.c_
+                if (c) {
+                    this.c_ = undefined
+                    deps.tcp_conn_close(c)
+                }
+
+                cb(undefined, reason)
+            }
+            signal.addEventListener(this.onabort_)
+        }
+    }
+    private _closeSignal() {
+        const signal = this.opts.signal
+        if (signal) {
+            const onabort = this.onabort_
+            if (onabort) {
+                this.onabort_ = undefined
+                signal.removeEventListener(onabort)
+            }
+        }
+    }
+
+    private _connect(opts: deps.UnixConnectOptions) {
+        const c = deps.unix_conect(opts)
+        this.c_ = c
+        c.cbe = (what) => {
+            const cb = this.cb_
+            if (!cb) {
+                const c = this.c_
+                if (c) {
+                    this.c_ = undefined
+                    deps.tcp_conn_close(c)
+                }
+                return
+            }
+            this.cb_ = undefined
+
+            this._closeSignal()
+
+            if (what & deps.BEV_EVENT_TIMEOUT) {
+                deps.tcp_conn_close(c)
+
+                const e = new UnixError("connect timeout")
+                e.connect = true
+                e.timeout = true
+
+                cb(undefined, e)
+            } else if (what & deps.BEV_EVENT_ERROR) {
+                deps.tcp_conn_close(c)
+
+                if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                    const e = new UnixError("connect timeout")
+                    e.connect = true
+                    e.timeout = true
+
+                    cb(undefined, e)
+                } else {
+                    deps.tcp_conn_close(c)
+
+                    const e = new UnixError(deps.socket_error_str())
+                    e.connect = true
+                    cb(undefined, e)
+                }
+            } else {
+                let conn: undefined | UnixConn
+                try {
+                    conn = new UnixConn(new NetAddr('unix', opts.name),
+                        new NetAddr('unix', '@'),
+                        c,
+                    )
+                } catch (e) {
+                    deps.tcp_conn_close(c)
+                    throw e
+                }
+                cb(conn)
+                return
+            }
+        }
+    }
+}
+/**
+ * Create a listening service
+ */
+export function listen(opts: ListenOptions): Listener {
+    switch (opts.network) {
+        case 'tcp':
+            return listenTCP(opts)
+        case 'tcp4':
+            return listenTCP(opts, false)
+        case 'tcp6':
+            return listenTCP(opts, true)
+        case 'unix':
+            return listenUnix(opts)
+        default:
+            throw new NetError(`unknow network: ${opts.network}`);
+    }
+}
+export interface DialOptions {
+    /**
+     * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
+     */
+    network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
+
+    /**
+     * A signal that can be used to cancel dialing
+     */
+    signal?: AbortSignal
+}
+/**
+ * Dial a listener to create a connection for bidirectional communication
+ */
+export function dial(opts: DialOptions, cb: DialCallback) {
+    if (typeof cb !== "function") {
+        throw new Error(`cb must be a function`)
+    }
+    if (opts.signal) {
+        opts.signal.throwIfAborted()
+    }
+    switch (opts.network) {
+        case 'tcp':
+            new TcpDialer(opts, cb).dial()
+            break
+        case 'tcp4':
+            new TcpDialer(opts, cb).dial(false)
+            break
+        case 'tcp6':
+            new TcpDialer(opts, cb).dial(true)
+            break
+        case 'unix':
+            new UnixDialer(opts, cb).dial()
+            break
+        default:
+            throw new NetError(`unknow network: ${opts.network}`);
+    }
+}
+
+
 export function module_destroy() {
     if (Resolver.hasDefault()) {
         Resolver.getDefault().close()
     }
 }
+
+

@@ -111,7 +111,16 @@ duk_ret_t _ejs_evbuffer_drain(duk_context *ctx)
 {
     struct evbuffer *buf = duk_require_pointer(ctx, 0);
     size_t len = duk_require_number(ctx, 1);
-
+    if (len == 0)
+    {
+        duk_push_int(ctx, 0);
+        return 1;
+    }
+    size_t max = evbuffer_get_length(buf);
+    if (len > max)
+    {
+        len = max;
+    }
     int n = evbuffer_drain(buf, len);
     if (n < 0)
     {

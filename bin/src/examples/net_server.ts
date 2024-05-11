@@ -15,7 +15,7 @@ export const command = new Command({
             name: 'network',
             usage: 'network',
             values: [
-                'tcp', 'tcp4', 'tcp6',
+                'tcp', 'tcp4', 'tcp6', 'unix',
             ],
             default: 'tcp',
         });
@@ -56,7 +56,7 @@ export const command = new Command({
 class EchoService {
     private data_?: Uint8Array
     private length_ = 0
-    constructor(readonly c: net.TcpConn) {
+    constructor(readonly c: net.Conn) {
         c.onWritable = () => {
             const data = this.data_
             const len = this.length_

@@ -15,6 +15,7 @@ extern "C"
 #define EJS_ERROR_OK 0
 
 #define EJS_ERROR_INVALID_ARGUMENT 3
+#define EJS_ERROR_NOT_SUPPORT 4
 
 #define EJS_ERROR_OS 20
 

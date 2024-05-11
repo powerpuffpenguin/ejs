@@ -40,7 +40,7 @@ exports.command = new flags_1.Command({
             name: 'network',
             usage: 'network',
             values: [
-                'tcp', 'tcp4', 'tcp6',
+                'tcp', 'tcp4', 'tcp6', 'unix',
             ],
             default: 'tcp',
         });

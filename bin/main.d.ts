@@ -450,14 +450,32 @@ declare module "ejs/net" {
         onAccept?: (this: Listener, c: Conn) => void
         onError?: (this: Listener, e: any) => void
     }
-    export class TcpError extends NetError { }
+    /**
+     * Readable network device for reading ready data
+     */
     export interface Readable {
+        /**
+         * Returns the currently ready data length
+         */
         readonly length: number
+        /**
+         * Read as much data as possible into dst, returning the actual bytes read
+         * @returns the actual read data length
+         */
         read(dst: Uint8Array): number
-        copy(dst: Uint8Array): number
-        drain(n: number): void
+        /**
+         * Copies as much data as possible to dst, returning the actual copied bytes. 
+         * This function does not cause the Readable.length property to change
+         * @returns the actual copied data length
+         */
+        copy(dst: Uint8Array, skip?: number): number
+        /**
+         * Discard data of specified length
+         * @returns the actual discarded data length
+         */
+        drain(n: number): number
     }
-    export class TcpConn implements Conn {
+    export class BaseTcpConn implements Conn {
         private constructor() { }
         readonly remoteAddr: Addr
         readonly localAddr: Addr
@@ -466,10 +484,7 @@ declare module "ejs/net" {
          * Returns whether the connection has been closed
          */
         readonly isClosed: boolean
-        /**
-         * Returns whether the connection has been closed
-         */
-        readonly isClosed: boolean
+
         /**
          * Close the connection and release resources
          */
@@ -511,16 +526,25 @@ declare module "ejs/net" {
          */
         onReadable?: (this: TcpConn, r: Readable) => void
     }
-    export class TcpListener implements Listener {
+    export class BaseTcpListener implements Listener {
         private constructor() { }
         readonly addr: Addr
         close(): void
+        readonly isClosed: boolean
         onAccept?: (this: TcpListener, c: TcpConn) => void
         onError?: (this: TcpListener, e: any) => void
     }
+    export class TcpError extends NetError { }
+    export class TcpConn extends BaseTcpConn { }
+    export class TcpListener extends BaseTcpListener { }
+
+    export class UnixError extends NetError { }
+    export class UnixConn extends BaseTcpConn { }
+    export class UnixListener extends BaseTcpListener { }
+
     export interface ListenOptions {
         /**
-         * name of the network (for example, "tcp", "udp")
+         * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
          */
         network: string
         /**
@@ -538,7 +562,7 @@ declare module "ejs/net" {
     export function listen(opts: ListenOptions): Listener
     export interface DialOptions {
         /**
-         * name of the network (for example, "tcp", "udp")
+         * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
          */
         network: string
         /**

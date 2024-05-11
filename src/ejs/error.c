@@ -8,6 +8,8 @@ DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
         return "ok";
     case EJS_ERROR_INVALID_ARGUMENT:
         return "invalid argument";
+    case EJS_ERROR_NOT_SUPPORT:
+        return "platform not support";
 
     case EJS_ERROR_OS:
         return "os error";

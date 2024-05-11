@@ -57,6 +57,7 @@
         "__split_buffer": "c",
         "deque": "c",
         "vector": "c",
-        "in.h": "c"
+        "in.h": "c",
+        "un.h": "c"
     }
 }
