@@ -58,6 +58,10 @@
         "deque": "c",
         "vector": "c",
         "in.h": "c",
-        "un.h": "c"
+        "un.h": "c",
+        "stddef.h": "c",
+        "uio.h": "c",
+        "features.h": "c",
+        "socket.h": "c"
     }
 }

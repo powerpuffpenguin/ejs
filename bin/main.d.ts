@@ -555,6 +555,17 @@ declare module "ejs/net" {
          * @default 5
          */
         backlog?: number
+        /**
+         * If true, a synchronous accept will be called in a separate thread to accept the connection.
+         * 
+         * @remarks
+         * Usually there is no need to set it, but some chips and systems have bugs in asynchronous accept and cannot be used. At this time, you can only set it to true to return to synchronous mode.
+         * 
+         * This kind of situation exists, such as the chips and systems in West Korea. Don't ask me why I know it. It's really enviable that you haven't encountered it.
+         * 
+         * @default false
+         */
+        sync?: boolean
     }
     /**
      * Create a listening service

@@ -9,11 +9,13 @@
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
 #include <event2/dns.h>
+#include "internal/sync_evconn_listener.h"
+#include <sys/socket.h>
 
 #ifdef DUK_F_LINUX
-#include <sys/socket.h>
 #include <sys/un.h>
 #endif
+
 static uint8_t v4InV6Prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
 
 static duk_ret_t ip_equal(duk_context *ctx)
@@ -968,16 +970,12 @@ static void push_tcp_connection(duk_context *ctx, ejs_core_t *core, struct buffe
     duk_push_c_lightfunc(ctx, bufferevent_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
 }
-typedef struct
-{
-    struct evconnlistener *listener;
-    ejs_core_t *core;
-} evconnlistener_tcp_errorcb_args_t;
+
 static duk_ret_t evconnlistener_tcp_errorcb_impl(duk_context *ctx)
 {
-    evconnlistener_tcp_errorcb_args_t *args = duk_require_pointer(ctx, 0);
+    struct evconnlistener *listener = duk_require_pointer(ctx, 0);
     duk_pop(ctx);
-    if (!ejs_stash_get_pointer(ctx, args->listener, EJS_STASH_NET_TCP_LISTENER))
+    if (!ejs_stash_get_pointer(ctx, listener, EJS_STASH_NET_TCP_LISTENER))
     {
         return 0;
     }
@@ -992,11 +990,28 @@ static duk_ret_t evconnlistener_tcp_errorcb_impl(duk_context *ctx)
 }
 static void evconnlistener_tcp_errorcb(struct evconnlistener *listener, void *ptr)
 {
-    evconnlistener_tcp_errorcb_args_t args = {
-        .core = ptr,
-        .listener = listener,
-    };
-    ejs_call_callback_noresult(args.core->duk, evconnlistener_tcp_errorcb_impl, &args, NULL);
+    ejs_call_callback_noresult(((ejs_core_t *)ptr)->duk, evconnlistener_tcp_errorcb_impl, listener, NULL);
+}
+
+static duk_ret_t sync_evconn_tcp_listener_errorcb_impl(duk_context *ctx)
+{
+    sync_evconn_listener_t *listener = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+    if (!ejs_stash_get_pointer(ctx, listener, EJS_STASH_NET_TCP_LISTENER))
+    {
+        return 0;
+    }
+
+    const char *msg = evutil_socket_error_to_string(listener->error);
+
+    duk_get_prop_lstring(ctx, -1, "err", 3);
+    duk_push_string(ctx, msg);
+    duk_call(ctx, 1);
+    return 0;
+}
+static void sync_evconn_tcp_listener_errorcb(sync_evconn_listener_t *listener, void *ptr)
+{
+    ejs_call_callback_noresult(((ejs_core_t *)ptr)->duk, sync_evconn_tcp_listener_errorcb_impl, listener, NULL);
 }
 typedef struct
 {
@@ -1120,9 +1135,6 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
 
 static void evconnlistener_tcp_cb(struct evconnlistener *listener, evutil_socket_t s, struct sockaddr *addr, int socklen, void *ptr)
 {
-    printf("%d %d\n", s, socklen);
-
-    return;
     evconnlistener_tcp_cb_args_t args = {
         .core = ptr,
         .listener = listener,
@@ -1165,24 +1177,30 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
         memset(&sin, 0, sizeof(sin));
         sin.sin6_family = AF_INET6;
         sin.sin6_port = htons(port);
-        if (ip)
-        {
-            if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
-            {
-                duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
-                duk_throw(ctx);
-            }
-        }
-        else
-        {
-            sin.sin6_addr = in6addr_any;
-        }
+        sin.sin6_addr = in6addr_any;
+
         args->listener = evconnlistener_new_bind(
             core->base,
             evconnlistener_tcp_cb, core,
             LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_DISABLED,
             backlog,
             (struct sockaddr *)&sin, sizeof(sin));
+        if (!args->listener && EVUTIL_SOCKET_ERROR() == EAFNOSUPPORT)
+        {
+            // not supported, use v4
+            struct sockaddr_in sin;
+            memset(&sin, 0, sizeof(sin));
+            sin.sin_family = AF_INET;
+            sin.sin_port = htons(port);
+            sin.sin_addr.s_addr = INADDR_ANY;
+
+            args->listener = evconnlistener_new_bind(
+                core->base,
+                evconnlistener_tcp_cb, core,
+                LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_DISABLED,
+                backlog,
+                (struct sockaddr *)&sin, sizeof(sin));
+        }
     }
     else
     {
@@ -1240,12 +1258,12 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
                 (struct sockaddr *)&sin, sizeof(sin));
         }
     }
+    duk_pop(ctx);
     if (!args->listener)
     {
         duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
         duk_throw(ctx);
     }
-    duk_pop(ctx);
 
     duk_push_object(ctx);
     duk_push_pointer(ctx, args->listener);
@@ -1259,19 +1277,184 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_LISTENER);
     return 1;
 }
+typedef struct
+{
+    sync_evconn_listener_t *listener;
+} tcp_listen_sync_args_t;
+static duk_ret_t sync_evconn_listener_destroy(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    sync_evconn_listener_t *listener = duk_get_pointer_default(ctx, -1, 0);
+    if (listener)
+    {
+        sync_evconn_listener_free(listener);
+    }
+    return 0;
+}
+static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
+{
+    tcp_listen_sync_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
 
+    duk_get_prop_lstring(ctx, 0, "ip", 2);
+    const uint8_t *ip = NULL;
+    if (!duk_is_undefined(ctx, -1))
+    {
+        ip = duk_require_string(ctx, -1);
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "port", 4);
+    short port = duk_require_uint(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "backlog", 7);
+    duk_int_t backlog = duk_require_int(ctx, -1);
+    duk_pop(ctx);
+
+    ejs_core_t *core = ejs_require_core(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "v6", 2);
+    evutil_socket_t s;
+    if (duk_is_undefined(ctx, -1))
+    {
+        // v4 or v6
+        struct sockaddr_in6 sin;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin6_family = AF_INET6;
+        sin.sin6_port = htons(port);
+        sin.sin6_addr = in6addr_any;
+        s = sync_evconn_create_listen(AF_INET6, SOCK_STREAM, IPPROTO_TCP,
+                                      (struct sockaddr *)&sin, sizeof(sin),
+                                      backlog);
+        if (s < 0 && EVUTIL_SOCKET_ERROR() == EAFNOSUPPORT)
+        {
+            // not supported, use v4
+            struct sockaddr_in sin;
+            memset(&sin, 0, sizeof(sin));
+            sin.sin_family = AF_INET;
+            sin.sin_port = htons(port);
+            sin.sin_addr.s_addr = INADDR_ANY;
+
+            s = sync_evconn_create_listen(AF_INET, SOCK_STREAM, IPPROTO_TCP,
+                                          (struct sockaddr *)&sin, sizeof(sin),
+                                          backlog);
+        }
+    }
+    else
+    {
+        duk_to_boolean(ctx, -1);
+        if (duk_get_boolean(ctx, -1))
+        {
+            // v6
+            struct sockaddr_in6 sin;
+            memset(&sin, 0, sizeof(sin));
+            sin.sin6_family = AF_INET6;
+            sin.sin6_port = htons(port);
+            if (ip)
+            {
+                if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
+                {
+                    duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+                    duk_throw(ctx);
+                }
+            }
+            else
+            {
+                sin.sin6_addr = in6addr_any;
+            }
+            s = sync_evconn_create_listen(AF_INET6, SOCK_STREAM, IPPROTO_TCP,
+                                          (struct sockaddr *)&sin, sizeof(sin),
+                                          backlog);
+        }
+        else
+        {
+            // v4
+            struct sockaddr_in sin;
+            memset(&sin, 0, sizeof(sin));
+            sin.sin_family = AF_INET;
+            sin.sin_port = htons(port);
+            if (ip)
+            {
+                if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr))
+                {
+                    duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+                    duk_throw(ctx);
+                }
+            }
+            else
+            {
+                sin.sin_addr.s_addr = INADDR_ANY;
+            }
+            s = sync_evconn_create_listen(AF_INET, SOCK_STREAM, IPPROTO_TCP,
+                                          (struct sockaddr *)&sin, sizeof(sin),
+                                          backlog);
+        }
+    }
+    duk_pop(ctx);
+    if (s < 0)
+    {
+        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        duk_throw(ctx);
+    }
+    args->listener = sync_evconn_listener_new(core->base,
+                                              0,
+                                              0,
+                                              core, s);
+    if (!args->listener)
+    {
+        evutil_closesocket(s);
+        duk_push_lstring(ctx, "sync_evconn_listener_new fail", 29);
+        duk_throw(ctx);
+    }
+
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, args->listener);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_pointer(ctx, core);
+    duk_put_prop_lstring(ctx, -2, "core", 4);
+    duk_push_true(ctx);
+    duk_put_prop_lstring(ctx, -2, "sync", 4);
+    duk_push_c_lightfunc(ctx, sync_evconn_listener_destroy, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->listener = NULL;
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_LISTENER);
+    return 1;
+}
 static duk_ret_t tcp_listen(duk_context *ctx)
 {
-    tcp_listen_args_t args = {
-        .listener = NULL,
-    };
-    if (ejs_pcall_function_n(ctx, tcp_listen_impl, &args, 2))
+    duk_get_prop_lstring(ctx, -1, "sync", 4);
+    duk_bool_t sync = duk_require_boolean(ctx, -1);
+    duk_pop(ctx);
+    duk_int_t err;
+    if (sync)
     {
-        if (args.listener)
+        tcp_listen_sync_args_t args = {
+            .listener = NULL,
+        };
+        if (ejs_pcall_function_n(ctx, tcp_listen_sync_impl, &args, 2))
         {
-            evconnlistener_free(args.listener);
+            if (args.listener)
+            {
+                sync_evconn_listener_free(args.listener);
+            }
+            duk_throw(ctx);
         }
-        duk_throw(ctx);
+    }
+    else
+    {
+        tcp_listen_args_t args = {
+            .listener = NULL,
+        };
+        if (ejs_pcall_function_n(ctx, tcp_listen_impl, &args, 2))
+        {
+            if (args.listener)
+            {
+                evconnlistener_free(args.listener);
+            }
+            duk_throw(ctx);
+        }
     }
     return 1;
 }
@@ -1390,10 +1573,18 @@ static duk_ret_t unix_listen(duk_context *ctx)
 }
 static duk_ret_t tcp_listen_close(duk_context *ctx)
 {
-    struct evconnlistener *listener = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_TCP_LISTENER);
+    void *listener = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_TCP_LISTENER);
     if (listener)
     {
-        evconnlistener_free(listener);
+        duk_get_prop_lstring(ctx, -1, "sync", 4);
+        if (duk_get_boolean_default(ctx, -1, 0))
+        {
+            sync_evconn_listener_free(listener);
+        }
+        else
+        {
+            evconnlistener_free(listener);
+        }
     }
     return 0;
 }
@@ -1403,27 +1594,36 @@ static duk_ret_t tcp_listen_cb(duk_context *ctx)
     duk_bool_t enable = duk_require_boolean(ctx, 1);
 
     duk_get_prop_lstring(ctx, 0, "p", 1);
-    struct evconnlistener *listener = duk_get_pointer_default(ctx, -1, 0);
+    void *listener = duk_get_pointer_default(ctx, -1, 0);
     if (!listener)
     {
         return 0;
     }
     duk_pop_2(ctx);
-    duk_get_prop_lstring(ctx, 0, "core", 4);
-    ejs_core_t *core = duk_get_pointer_default(ctx, -1, 0);
-    if (!core)
+    duk_get_prop_lstring(ctx, 0, "sync", 4);
+    if (duk_get_boolean_default(ctx, -1, 0))
     {
-        return 0;
-    }
-
-    if (enable)
-    {
-        evconnlistener_enable(listener);
+        if (enable)
+        {
+            sync_evconn_listener_set_cb(listener, (sync_evconn_listener_cb)evconnlistener_tcp_cb);
+        }
+        else
+        {
+            sync_evconn_listener_set_cb(listener, 0);
+        }
     }
     else
     {
-        evconnlistener_disable(listener);
+        if (enable)
+        {
+            evconnlistener_enable(listener);
+        }
+        else
+        {
+            evconnlistener_disable(listener);
+        }
     }
+
     return 0;
 }
 static duk_ret_t tcp_listen_err(duk_context *ctx)
@@ -1431,19 +1631,21 @@ static duk_ret_t tcp_listen_err(duk_context *ctx)
     duk_bool_t enable = duk_require_boolean(ctx, 1);
 
     duk_get_prop_lstring(ctx, 0, "p", 1);
-    struct evconnlistener *listener = duk_get_pointer_default(ctx, -1, 0);
+    void *listener = duk_get_pointer_default(ctx, -1, 0);
     if (!listener)
     {
         return 0;
     }
-    duk_pop_2(ctx);
-    duk_get_prop_lstring(ctx, 0, "core", 4);
-    ejs_core_t *core = duk_get_pointer_default(ctx, -1, 0);
-    if (!core)
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "sync", 4);
+    if (duk_get_boolean_default(ctx, -1, 0))
     {
-        return 0;
+        sync_evconn_listener_set_error_cb(listener, enable ? sync_evconn_tcp_listener_errorcb : 0);
     }
-    evconnlistener_set_error_cb(listener, enable ? evconnlistener_tcp_errorcb : 0);
+    else
+    {
+        evconnlistener_set_error_cb(listener, enable ? evconnlistener_tcp_errorcb : 0);
+    }
     return 0;
 }
 
@@ -2074,11 +2276,95 @@ duk_ret_t resolver_ip_cancel(duk_context *ctx)
     }
     return 0;
 }
+static duk_ret_t _ejs_test(duk_context *ctx)
+{
+    // v4
+    const char *ip = 0;
+    // struct sockaddr_in sin;
+    // memset(&sin, 0, sizeof(sin));
+    // sin.sin_family = AF_INET;
+    // sin.sin_port = htons(9000);
+    // if (ip)
+    // {
+    //     if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr))
+    //     {
+    //         duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+    //         duk_throw(ctx);
+    //     }
+    // }
+    // else
+    // {
+    //     sin.sin_addr.s_addr = INADDR_ANY;
+    // }
+    struct sockaddr_in6 sin;
+    memset(&sin, 0, sizeof(sin));
+    sin.sin6_family = AF_INET6;
+    sin.sin6_port = htons(9000);
+    if (ip)
+    {
+        if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
+        {
+            duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+            duk_throw(ctx);
+        }
+    }
+    else
+    {
+        sin.sin6_addr = in6addr_any;
+    }
+    evutil_socket_t s = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    if (s < 0)
+    {
+        int err = EVUTIL_SOCKET_ERROR();
+        printf("%d\n", err == EAFNOSUPPORT);
+        duk_push_string(ctx, evutil_socket_error_to_string(err));
+        duk_throw(ctx);
+    }
+    puts("create listener");
+    if (bind(s, (const struct sockaddr *)&sin, sizeof(sin)) < 0)
+    {
+        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        evutil_closesocket(s);
+        duk_throw(ctx);
+    }
+    if (listen(s, 5) < 0)
+    {
+        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        evutil_closesocket(s);
+        duk_throw(ctx);
+    }
+    puts("listen ok");
+    while (1)
+    {
+        struct sockaddr addr;
+        socklen_t len;
+        evutil_socket_t n = accept(s, &addr, &len);
+        if (n < 0)
+        {
+            printf("accept error: %s\n", evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        }
+        else
+        {
+            puts("one in");
+        }
+    }
+
+    // args->listener = evconnlistener_new_bind(
+    //     core->base,
+    //     evconnlistener_tcp_cb, core,
+    //     LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_DISABLED,
+    //     backlog,
+    //     (struct sockaddr *)&sin, sizeof(sin));
+
+    return 0;
+}
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
 {
     /*
      *  Entry stack: [ require exports ]
      */
+    duk_push_c_lightfunc(ctx, _ejs_test, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "test", 4);
 
     duk_eval_lstring(ctx, js_ejs_js_net_min_js, js_ejs_js_net_min_js_len);
     duk_swap_top(ctx, -2);

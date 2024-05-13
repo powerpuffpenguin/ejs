@@ -25,13 +25,29 @@ export const command = new Command({
             usage: 'max service count',
             default: -1,
         });
+        const sync = flags.bool({
+            name: 'sync',
+            usage: 'sync listener',
+            default: false,
+        })
+        const backlog = flags.number({
+            name: 'backlog',
+            usage: 'accept backlog',
+            default: 5,
+        });
         return () => {
             // create a listener
             const l = net.listen({
                 network: network.value,
                 address: address.value,
+                sync: sync.value,
+                backlog: backlog.value,
             })
-            console.log(`tcp listen: ${l.addr}`)
+            if (sync.value) {
+                console.log(`sync listen: ${l.addr}`)
+            } else {
+                console.log(`listen: ${l.addr}`)
+            }
             l.onError = (e) => {
                 console.log("accept err:", e)
             }

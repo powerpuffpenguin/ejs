@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <event2/thread.h>
 #include "ejs/core.h"
 static duk_ret_t native_debug_init(duk_context *ctx)
 {
@@ -26,6 +27,11 @@ int main(int argc, const char **argv)
     {
         printf("Use \"%s filepath\" to execute the script.\n", argv[0]);
         return 0;
+    }
+    else if (evthread_use_pthreads())
+    {
+        puts("evthread_use_pthreads fail");
+        return -1;
     }
 
     // create js execution environment

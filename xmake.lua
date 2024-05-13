@@ -18,6 +18,7 @@ target("ejs")
     set_kind("static")
     add_files("src/duk/*.c")
     add_files("src/ejs/*.c")
+    add_files("src/ejs/internal/*.c")
     add_files("src/main.c")
     if not is_arch("x86_64") then
         add_ldflags("-static", {force = true})
@@ -31,6 +32,7 @@ target("ejs")
         if arch ~= nil then 
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
+    add_syslinks("pthread")
     add_packages("libevent")
 
 target("example_ejs")
@@ -47,6 +49,7 @@ target("ejs_test")
     set_kind("binary")
     add_files("src/duk/*.c")
     add_files("src/ejs/*.c")
+    add_files("src/ejs/internal/*.c")
     add_files("src/ejs_test/*.c")
     add_files("src/cutest/CuTest.c")
     add_files("src/main_test.c")
@@ -62,6 +65,7 @@ target("ejs_test")
         if arch ~= nil then 
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
+    add_syslinks("pthread")
     add_packages("libevent")
 
 --
