@@ -1120,6 +1120,9 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
 
 static void evconnlistener_tcp_cb(struct evconnlistener *listener, evutil_socket_t s, struct sockaddr *addr, int socklen, void *ptr)
 {
+    printf("%d %d\n", s, socklen);
+
+    return;
     evconnlistener_tcp_cb_args_t args = {
         .core = ptr,
         .listener = listener,
@@ -1177,7 +1180,8 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
         args->listener = evconnlistener_new_bind(
             core->base,
             evconnlistener_tcp_cb, core,
-            LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE, backlog,
+            LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_DISABLED,
+            backlog,
             (struct sockaddr *)&sin, sizeof(sin));
     }
     else
@@ -1205,7 +1209,8 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
             args->listener = evconnlistener_new_bind(
                 core->base,
                 evconnlistener_tcp_cb, core,
-                LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_BIND_IPV6ONLY, backlog,
+                LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_BIND_IPV6ONLY | LEV_OPT_DISABLED,
+                backlog,
                 (struct sockaddr *)&sin, sizeof(sin));
         }
         else
@@ -1230,7 +1235,8 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
             args->listener = evconnlistener_new_bind(
                 core->base,
                 evconnlistener_tcp_cb, core,
-                LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE, backlog,
+                LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_DISABLED,
+                backlog,
                 (struct sockaddr *)&sin, sizeof(sin));
         }
     }
@@ -1240,8 +1246,6 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
         duk_throw(ctx);
     }
     duk_pop(ctx);
-
-    evconnlistener_disable(args->listener);
 
     duk_push_object(ctx);
     duk_push_pointer(ctx, args->listener);
@@ -1341,15 +1345,13 @@ static duk_ret_t unix_listen_impl(duk_context *ctx)
     args->listener = evconnlistener_new_bind(
         core->base,
         evconnlistener_tcp_cb, core,
-        LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE, backlog,
+        LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_DISABLED, backlog,
         (struct sockaddr *)&sin, socklen);
     if (!args->listener)
     {
         duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
         duk_throw(ctx);
     }
-
-    evconnlistener_disable(args->listener);
 
     duk_push_object(ctx);
     duk_push_lstring(ctx, "unix", 4);
