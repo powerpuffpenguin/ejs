@@ -75,7 +75,12 @@ static void *_sync_evconn_listener_worker(void *arg)
             l->args.s = accept(l->s, (struct sockaddr *)&l->args.addr, &l->args.socklen);
             if (l->args.s < 0)
             {
-                if (l->flags & SYNC_EVCONN_LISTENER_ERROR)
+                if (l->flags & SYNC_EVCONN_LISTENER_QUIT)
+                {
+                    pthread_mutex_unlock(&l->mutex);
+                    return 0;
+                }
+                else if (l->flags & SYNC_EVCONN_LISTENER_ERROR)
                 {
                     l->flags | SYNC_EVCONN_LISTENER_HAS_ERROR;
                     l->error = EVUTIL_SOCKET_ERROR();
@@ -111,7 +116,10 @@ static void _sync_evconn_listener_cb(evutil_socket_t _, short events, void *arg)
         sync_evconn_listener_cb cb = l->cb;
         if (cb)
         {
+            pthread_mutex_unlock(&l->mutex);
             cb(l, l->args.s, (struct sockaddr *)&l->args.addr, l->args.socklen, l->userdata);
+            pthread_cond_signal(&l->cond);
+            return;
         }
         else
         {
@@ -124,7 +132,10 @@ static void _sync_evconn_listener_cb(evutil_socket_t _, short events, void *arg)
         sync_evconn_listener_error_cb cb = l->error_cb;
         if (cb)
         {
+            pthread_mutex_unlock(&l->mutex);
             cb(l, l->userdata);
+            pthread_cond_signal(&l->cond);
+            return;
         }
     }
     pthread_mutex_unlock(&l->mutex);
