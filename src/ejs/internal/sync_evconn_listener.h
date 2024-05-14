@@ -6,20 +6,6 @@
 #include <pthread.h>
 #include <sys/socket.h>
 
-#if defined(__linux) || defined(__linux__) || defined(linux)
-#define SYNC_EVCONN_LISTENER_OS_LINUX
-#endif
-
-#ifdef SYNC_EVCONN_LISTENER_OS_LINUX
-#include <sys/un.h>
-#endif
-
-#define SYNC_EVCONN_LISTENER_ACCEPT 0x1
-#define SYNC_EVCONN_LISTENER_ERROR 0x2
-#define SYNC_EVCONN_LISTENER_HAS_CONN 0x4
-#define SYNC_EVCONN_LISTENER_HAS_ERROR 0x8
-#define SYNC_EVCONN_LISTENER_QUIT 0x10
-
 evutil_socket_t sync_evconn_create_listen(int domain, int type, int protocol,
                                           const struct sockaddr *, socklen_t socklen,
                                           int backlog);
@@ -41,7 +27,13 @@ typedef struct
     pthread_cond_t cond;
     pthread_mutex_t mutex;
 
-    uint8_t flags;
+    uint8_t _accept : 1;
+    uint8_t _error : 1;
+    uint8_t _quit : 1;
+    uint8_t _has_conn : 1;
+    uint8_t _has_err : 1;
+    uint8_t _on_cb : 1;
+    uint8_t _delay_free : 1;
 
     int error;
     _sync_evconn_listener_cb_args_t args;

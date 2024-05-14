@@ -26,18 +26,54 @@ evutil_socket_t sync_evconn_create_listen(int domain, int type, int protocol,
 void sync_evconn_listener_free(sync_evconn_listener_t *l)
 {
     pthread_mutex_lock(&l->mutex);
-    l->flags |= SYNC_EVCONN_LISTENER_QUIT;
+    l->_quit = 1;
+    shutdown(l->s, SHUT_RDWR);
     evutil_closesocket(l->s);
     pthread_cond_signal(&l->cond);
     pthread_mutex_unlock(&l->mutex);
 
     pthread_join(l->thread, 0);
 
-    pthread_mutex_destroy(&l->mutex);
-    pthread_cond_destroy(&l->cond);
+    if (l->_on_cb)
+    {
+        l->_delay_free = 1;
+    }
+    else
+    {
+        pthread_mutex_destroy(&l->mutex);
+        pthread_cond_destroy(&l->cond);
 
-    event_del(SYNC_EVCONN_LISTENER_EV(l));
-    free(l);
+        event_del(SYNC_EVCONN_LISTENER_EV(l));
+        free(l);
+    }
+}
+static int _sync_evconn_listener_wait(sync_evconn_listener_t *l)
+{
+    pthread_mutex_lock(&l->mutex);
+    int quit = 0;
+    while (1)
+    {
+        // quit
+        if (l->_quit)
+        {
+            if (l->_has_conn)
+            {
+                evutil_closesocket(l->args.s);
+                l->_has_conn = 0;
+            }
+            quit = 1;
+            break;
+        }
+
+        // wait
+        if (l->_accept && !l->_has_conn)
+        {
+            break;
+        }
+        pthread_cond_wait(&l->cond, &l->mutex);
+    }
+    pthread_mutex_unlock(&l->mutex);
+    return quit;
 }
 static void *_sync_evconn_listener_worker(void *arg)
 {
@@ -46,53 +82,44 @@ static void *_sync_evconn_listener_worker(void *arg)
 
     while (1)
     {
-        pthread_mutex_lock(&l->mutex);
-        while (1)
+        if (_sync_evconn_listener_wait(l))
         {
-            // quit
-            if (l->flags & SYNC_EVCONN_LISTENER_QUIT)
-            {
-                if (l->flags & SYNC_EVCONN_LISTENER_HAS_CONN)
-                {
-                    l->flags -= SYNC_EVCONN_LISTENER_HAS_CONN;
-                    evutil_closesocket(l->args.s);
-                }
-                pthread_mutex_unlock(&l->mutex);
-                return 0;
-            }
-
-            // wait
-            if (l->flags & SYNC_EVCONN_LISTENER_ACCEPT &&
-                !(l->flags & SYNC_EVCONN_LISTENER_HAS_CONN))
-            {
-                break;
-            }
-            pthread_cond_wait(&l->cond, &l->mutex);
+            break;
         }
+
         // produce
         while (1)
         {
+            l->args.socklen = sizeof(l->args.socklen);
+            memset(&l->args.addr, 0, l->args.socklen);
             l->args.s = accept(l->s, (struct sockaddr *)&l->args.addr, &l->args.socklen);
+
+            pthread_mutex_lock(&l->mutex);
+            if (l->_quit)
+            {
+                if (l->args.s >= 0)
+                {
+                    evutil_closesocket(l->args.s);
+                }
+                return 0;
+            }
+
             if (l->args.s < 0)
             {
-                if (l->flags & SYNC_EVCONN_LISTENER_QUIT)
+                if (l->_error)
                 {
-                    pthread_mutex_unlock(&l->mutex);
-                    return 0;
-                }
-                else if (l->flags & SYNC_EVCONN_LISTENER_ERROR)
-                {
-                    l->flags | SYNC_EVCONN_LISTENER_HAS_ERROR;
+                    l->_has_err = 1;
                     l->error = EVUTIL_SOCKET_ERROR();
                 }
                 else
                 {
+                    pthread_mutex_unlock(&l->mutex);
                     continue;
                 }
             }
             else
             {
-                l->flags |= SYNC_EVCONN_LISTENER_HAS_CONN;
+                l->_has_conn = 1;
             }
             break;
         }
@@ -107,18 +134,32 @@ static void _sync_evconn_listener_cb(evutil_socket_t _, short events, void *arg)
     {
         return;
     }
-
     sync_evconn_listener_t *l = arg;
     pthread_mutex_lock(&l->mutex);
-    if (l->flags & SYNC_EVCONN_LISTENER_HAS_CONN)
+    if (l->_has_conn)
     {
-        l->flags -= SYNC_EVCONN_LISTENER_HAS_CONN;
+        l->_has_conn = 0;
         sync_evconn_listener_cb cb = l->cb;
         if (cb)
         {
             pthread_mutex_unlock(&l->mutex);
+            l->_on_cb = 1;
             cb(l, l->args.s, (struct sockaddr *)&l->args.addr, l->args.socklen, l->userdata);
-            pthread_cond_signal(&l->cond);
+            pthread_mutex_lock(&l->mutex);
+            if (l->_delay_free)
+            {
+                pthread_mutex_destroy(&l->mutex);
+                pthread_cond_destroy(&l->cond);
+
+                event_del(SYNC_EVCONN_LISTENER_EV(l));
+                free(l);
+            }
+            else
+            {
+                pthread_mutex_unlock(&l->mutex);
+                l->_on_cb = 0;
+                pthread_cond_signal(&l->cond);
+            }
             return;
         }
         else
@@ -126,15 +167,30 @@ static void _sync_evconn_listener_cb(evutil_socket_t _, short events, void *arg)
             evutil_closesocket(l->args.s);
         }
     }
-    else if (l->flags & SYNC_EVCONN_LISTENER_HAS_ERROR)
+    else if (l->_has_err)
     {
-        l->flags -= SYNC_EVCONN_LISTENER_HAS_ERROR;
+        l->_has_err = 0;
         sync_evconn_listener_error_cb cb = l->error_cb;
         if (cb)
         {
             pthread_mutex_unlock(&l->mutex);
+            l->_on_cb = 1;
             cb(l, l->userdata);
-            pthread_cond_signal(&l->cond);
+            pthread_mutex_lock(&l->mutex);
+            if (l->_delay_free)
+            {
+                pthread_mutex_destroy(&l->mutex);
+                pthread_cond_destroy(&l->cond);
+
+                event_del(SYNC_EVCONN_LISTENER_EV(l));
+                free(l);
+            }
+            else
+            {
+                pthread_mutex_unlock(&l->mutex);
+                l->_on_cb = 0;
+                pthread_cond_signal(&l->cond);
+            }
             return;
         }
     }
@@ -160,11 +216,11 @@ sync_evconn_listener_t *sync_evconn_listener_new(struct event_base *base,
     l->userdata = userdata;
     if (cb)
     {
-        l->flags |= SYNC_EVCONN_LISTENER_ACCEPT;
+        l->_accept = 1;
     }
     if (error_cb)
     {
-        l->flags |= SYNC_EVCONN_LISTENER_ERROR;
+        l->_error = 1;
     }
 
     if (pthread_mutex_init(&l->mutex, 0))
@@ -223,17 +279,17 @@ void sync_evconn_listener_set_cb(sync_evconn_listener_t *l, const sync_evconn_li
 
         if (cb)
         {
-            if (!(l->flags & SYNC_EVCONN_LISTENER_ACCEPT))
+            if (!l->_accept)
             {
-                l->flags |= SYNC_EVCONN_LISTENER_ACCEPT;
+                l->_accept = 1;
                 pthread_cond_signal(&l->cond);
             }
         }
         else
         {
-            if (l->flags & SYNC_EVCONN_LISTENER_ACCEPT)
+            if (l->_accept)
             {
-                l->flags -= SYNC_EVCONN_LISTENER_ACCEPT;
+                l->_accept = 0;
                 pthread_cond_signal(&l->cond);
             }
         }
@@ -249,21 +305,17 @@ void sync_evconn_listener_set_error_cb(sync_evconn_listener_t *l, const sync_evc
 
         if (cb)
         {
-            if (!(l->flags & SYNC_EVCONN_LISTENER_ERROR))
+            if (!l->_error)
             {
-                l->flags |= SYNC_EVCONN_LISTENER_ERROR;
+                l->_error = 1;
             }
         }
         else
         {
-            if (l->flags & SYNC_EVCONN_LISTENER_ERROR)
+            if (l->_error)
             {
-                l->flags -= SYNC_EVCONN_LISTENER_ERROR;
-
-                if (l->flags | SYNC_EVCONN_LISTENER_HAS_ERROR)
-                {
-                    l->flags -= SYNC_EVCONN_LISTENER_HAS_ERROR;
-                }
+                l->_error = 0;
+                l->_has_err = 0;
             }
         }
         l->error_cb = cb;
