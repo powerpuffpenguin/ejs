@@ -1085,51 +1085,50 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
 #endif
 
     duk_push_object(ctx);
-    if (args->socklen == sizeof(struct sockaddr_in6))
+    switch (args->addr->sa_family)
     {
-        struct sockaddr_in6 *sin = (struct sockaddr_in6 *)args->addr;
-        char ip[40] = {0};
-        evutil_inet_ntop(AF_INET6, &sin->sin6_addr, ip, 40);
-        duk_push_string(ctx, ip);
-        duk_put_prop_lstring(ctx, -2, "remoteIP", 8);
-        duk_push_int(ctx, ntohs(sin->sin6_port));
-        duk_put_prop_lstring(ctx, -2, "remotePort", 10);
-    }
-    else
-    {
-        struct sockaddr_in *sin = (struct sockaddr_in *)args->addr;
-        char ip[16] = {0};
-        evutil_inet_ntop(AF_INET, &sin->sin_addr, ip, 16);
-        duk_push_string(ctx, ip);
-        duk_put_prop_lstring(ctx, -2, "remoteIP", 8);
-        duk_push_int(ctx, ntohs(sin->sin_port));
-        duk_put_prop_lstring(ctx, -2, "remotePort", 10);
-    }
-    struct sockaddr_in6 localAddress;
-    socklen_t addressLength = args->socklen;
-    getsockname(args->s, (struct sockaddr *)&localAddress, &addressLength);
-    if (addressLength == sizeof(struct sockaddr_in6))
-    {
-        struct sockaddr_in6 *sin = (struct sockaddr_in6 *)(&localAddress);
-        char ip[40] = {0};
-        evutil_inet_ntop(AF_INET6, &sin->sin6_addr, ip, 40);
-        duk_push_string(ctx, ip);
-        duk_put_prop_lstring(ctx, -2, "localIP", 7);
-        duk_push_int(ctx, ntohs(sin->sin6_port));
-        duk_put_prop_lstring(ctx, -2, "localPort", 9);
-    }
-    else if (addressLength == sizeof(struct sockaddr_in))
-    {
-        struct sockaddr_in *sin = (struct sockaddr_in *)(&localAddress);
-        char ip[16] = {0};
-        evutil_inet_ntop(AF_INET, &sin->sin_addr, ip, 16);
-        duk_push_string(ctx, ip);
-        duk_put_prop_lstring(ctx, -2, "localIP", 7);
-        duk_push_int(ctx, ntohs(sin->sin_port));
-        duk_put_prop_lstring(ctx, -2, "localPort", 9);
+    case AF_INET6:
+        if (args->socklen == sizeof(struct sockaddr_in6))
+        {
+            struct sockaddr_in6 *sin = (struct sockaddr_in6 *)args->addr;
+            char ip[40] = {0};
+            evutil_inet_ntop(AF_INET6, &sin->sin6_addr, ip, 40);
+            duk_push_string(ctx, ip);
+            duk_put_prop_lstring(ctx, -2, "remoteIP", 8);
+            duk_push_int(ctx, ntohs(sin->sin6_port));
+            duk_put_prop_lstring(ctx, -2, "remotePort", 10);
+
+            struct sockaddr_in6 addr;
+            getsockname(args->s, (struct sockaddr *)&addr, &args->socklen);
+            evutil_inet_ntop(AF_INET6, &addr.sin6_addr, ip, 40);
+            duk_push_string(ctx, ip);
+            duk_put_prop_lstring(ctx, -2, "localIP", 7);
+            duk_push_int(ctx, ntohs(addr.sin6_port));
+            duk_put_prop_lstring(ctx, -2, "localPort", 9);
+        }
+        break;
+    case AF_INET:
+        if (args->socklen == sizeof(struct sockaddr_in))
+        {
+            struct sockaddr_in *sin = (struct sockaddr_in *)args->addr;
+            char ip[16] = {0};
+            evutil_inet_ntop(AF_INET, &sin->sin_addr, ip, 16);
+            duk_push_string(ctx, ip);
+            duk_put_prop_lstring(ctx, -2, "remoteIP", 8);
+            duk_push_int(ctx, ntohs(sin->sin_port));
+            duk_put_prop_lstring(ctx, -2, "remotePort", 10);
+
+            struct sockaddr_in addr;
+            getsockname(args->s, (struct sockaddr *)&addr, &args->socklen);
+            evutil_inet_ntop(AF_INET, &addr.sin_addr, ip, 16);
+            duk_push_string(ctx, ip);
+            duk_put_prop_lstring(ctx, -2, "localIP", 7);
+            duk_push_int(ctx, ntohs(addr.sin_port));
+            duk_put_prop_lstring(ctx, -2, "localPort", 9);
+        }
+        break;
     }
     duk_call(ctx, 2);
-
     return 0;
 }
 

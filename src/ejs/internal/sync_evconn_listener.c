@@ -90,10 +90,9 @@ static void *_sync_evconn_listener_worker(void *arg)
         // produce
         while (1)
         {
-            l->args.socklen = sizeof(l->args.socklen);
-            memset(&l->args.addr, 0, l->args.socklen);
+            memset(&l->args.addr, 0, sizeof(l->args.addr));
+            l->args.socklen = sizeof(l->args.addr);
             l->args.s = accept(l->s, (struct sockaddr *)&l->args.addr, &l->args.socklen);
-
             pthread_mutex_lock(&l->mutex);
             if (l->_quit)
             {

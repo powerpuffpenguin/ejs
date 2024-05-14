@@ -12,7 +12,7 @@ evutil_socket_t sync_evconn_create_listen(int domain, int type, int protocol,
 typedef struct
 {
     evutil_socket_t s;
-    struct sockaddr_in addr;
+    struct sockaddr_in6 addr;
     int socklen;
 } _sync_evconn_listener_cb_args_t;
 typedef struct

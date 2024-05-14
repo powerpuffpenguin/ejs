@@ -1,6 +1,11 @@
 [
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/home/king/c/csky-linux/bin/csky-linux-gcc", "-c", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/b765bd2a6ed542aba65a05b0fa194094/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/csky/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/home/king/c/csky-linux/bin/csky-linux-gcc", "-c", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"csky\", 4", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/b765bd2a6ed542aba65a05b0fa194094/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/csky/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
   "file": "src/duk/duk_module_node.c"
 },
@@ -163,9 +168,4 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/home/king/c/csky-linux/bin/csky-linux-gcc", "-c", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"csky\", 4", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/b765bd2a6ed542aba65a05b0fa194094/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/csky/release/src/main_test.c.o", "src/main_test.c"],
   "file": "src/main_test.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/home/king/c/csky-linux/bin/csky-linux-gcc", "-c", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/b765bd2a6ed542aba65a05b0fa194094/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/csky/release/src/main.c.o", "src/main.c"],
-  "file": "src/main.c"
 }]

@@ -1,8 +1,8 @@
 var net = require("ejs/net")
 
 var l = net.listen({
-    network: 'unix',
-    address: '@abc',
+    network: 'tcp',
+    address: ':9000',
     sync: true,
 })
 console.log("listen on", l.addr)
@@ -13,11 +13,6 @@ l.onError = function (e) {
 l.onAccept = function (c) {
     console.log('remoteAddr:' + c.remoteAddr, ' localAddr:' + c.localAddr)
     c.close()
-    // l.close()
+    l.close()
 }
 
-// setTimeout(function () {
-//     console.log('close')
-//     l.close()
-// }, 100)
-// l.close()
