@@ -1118,7 +1118,7 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
         duk_push_int(ctx, ntohs(sin->sin6_port));
         duk_put_prop_lstring(ctx, -2, "localPort", 9);
     }
-    else
+    else if (addressLength == sizeof(struct sockaddr_in))
     {
         struct sockaddr_in *sin = (struct sockaddr_in *)(&localAddress);
         char ip[16] = {0};
@@ -1258,12 +1258,12 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
                 (struct sockaddr *)&sin, sizeof(sin));
         }
     }
-    duk_pop(ctx);
     if (!args->listener)
     {
         duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
         duk_throw(ctx);
     }
+    duk_pop(ctx);
 
     duk_push_object(ctx);
     duk_push_pointer(ctx, args->listener);
@@ -1391,7 +1391,6 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
                                           backlog);
         }
     }
-    duk_pop(ctx);
     if (s < 0)
     {
         duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
@@ -1407,6 +1406,7 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
         duk_push_lstring(ctx, "sync_evconn_listener_new fail", 29);
         duk_throw(ctx);
     }
+    duk_pop(ctx);
 
     duk_push_object(ctx);
     duk_push_pointer(ctx, args->listener);
@@ -1427,7 +1427,6 @@ static duk_ret_t tcp_listen(duk_context *ctx)
     duk_get_prop_lstring(ctx, -1, "sync", 4);
     duk_bool_t sync = duk_require_boolean(ctx, -1);
     duk_pop(ctx);
-    duk_int_t err;
     if (sync)
     {
         tcp_listen_sync_args_t args = {
@@ -1550,23 +1549,115 @@ static duk_ret_t unix_listen_impl(duk_context *ctx)
     ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_LISTENER);
     return 1;
 }
+static duk_ret_t unix_listen_sync_impl(duk_context *ctx)
+{
+    tcp_listen_sync_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "backlog", 7);
+    duk_int_t backlog = duk_require_int(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "address", 7);
+    duk_size_t len;
+    const uint8_t *address = duk_require_lstring(ctx, -1, &len);
+    duk_pop(ctx);
+    if (len == 0 ||
+        (len == 1 && address[0] == '@'))
+    {
+        duk_push_lstring(ctx, "unix address invalid", 20);
+        duk_throw(ctx);
+    }
+    struct sockaddr_un sin;
+    if (len - 1 > sizeof(sin.sun_path))
+    {
+        duk_push_lstring(ctx, "unix address invalid", 20);
+        duk_throw(ctx);
+    }
+    sin.sun_family = AF_UNIX;
+    memcpy(sin.sun_path, address, len);
+    int socklen;
+    if (address[0] == '@')
+    {
+        sin.sun_path[0] = 0;
+        socklen = sizeof(sa_family_t) + len;
+    }
+    else
+    {
+        socklen = sizeof(sin);
+    }
+    sin.sun_path[len] = 0;
+    ejs_core_t *core = ejs_require_core(ctx);
+    evutil_socket_t s = sync_evconn_create_listen(AF_UNIX, SOCK_STREAM, 0,
+                                                  (struct sockaddr *)&sin, socklen,
+                                                  backlog);
+    if (s < 0)
+    {
+        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        duk_throw(ctx);
+    }
+    args->listener = sync_evconn_listener_new(core->base,
+                                              0,
+                                              0,
+                                              core, s);
+    if (!args->listener)
+    {
+        evutil_closesocket(s);
+        duk_push_lstring(ctx, "sync_evconn_listener_new fail", 29);
+        duk_throw(ctx);
+    }
+
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, args->listener);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_pointer(ctx, core);
+    duk_put_prop_lstring(ctx, -2, "core", 4);
+    duk_push_true(ctx);
+    duk_put_prop_lstring(ctx, -2, "sync", 4);
+    duk_push_c_lightfunc(ctx, sync_evconn_listener_destroy, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->listener = NULL;
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_LISTENER);
+    return 1;
+}
 #endif
+
 static duk_ret_t unix_listen(duk_context *ctx)
 {
 #ifndef DUK_F_LINUX
     ejs_throw_cause(ctx, EJS_ERROR_NOT_SUPPORT, "unix is ​​only supported under linux");
 #else
-    tcp_listen_args_t args = {
-        .listener = NULL,
-    };
-    if (ejs_pcall_function_n(ctx, unix_listen_impl, &args, 2))
+    duk_get_prop_lstring(ctx, -1, "sync", 4);
+    duk_bool_t sync = duk_require_boolean(ctx, -1);
+    duk_pop(ctx);
+    if (sync)
     {
-        if (args.listener)
+        tcp_listen_sync_args_t args = {
+            .listener = NULL,
+        };
+        if (ejs_pcall_function_n(ctx, unix_listen_sync_impl, &args, 2))
         {
-            evconnlistener_free(args.listener);
+            if (args.listener)
+            {
+                sync_evconn_listener_free(args.listener);
+            }
+            duk_throw(ctx);
         }
+    }
+    else
+    {
+        tcp_listen_args_t args = {
+            .listener = NULL,
+        };
+        if (ejs_pcall_function_n(ctx, unix_listen_impl, &args, 2))
+        {
+            if (args.listener)
+            {
+                evconnlistener_free(args.listener);
+            }
 
-        duk_throw(ctx);
+            duk_throw(ctx);
+        }
     }
 #endif
     return 1;

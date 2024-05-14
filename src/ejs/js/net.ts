@@ -95,6 +95,7 @@ declare namespace deps {
     export interface UnixListenerOptions {
         address: string
         backlog: number
+        sync: boolean
     }
     export function unix_listen(opts: UnixListenerOptions): TcpListener
     export interface UnixConnectOptions {
@@ -1610,6 +1611,7 @@ function listenUnix(opts: ListenOptions): UnixListener {
         const l = deps.unix_listen({
             address: address,
             backlog: opts.backlog ?? 5,
+            sync: opts.sync ?? false,
         })
         try {
             return new UnixListener(new NetAddr('unix', address), l)

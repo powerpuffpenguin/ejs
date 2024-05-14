@@ -1,9 +1,9 @@
 var net = require("ejs/net")
 
 var l = net.listen({
-    network: 'tcp',
-    address: ':9000',
-    // sync: true,
+    network: 'unix',
+    address: '@abc',
+    sync: true,
 })
 console.log("listen on", l.addr)
 
