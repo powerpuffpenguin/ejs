@@ -40,7 +40,7 @@ declare namespace deps {
     export function socket_error_str(): string
     export function socket_error(): number
     export function connect_error_str(p: unknown): string
-    export interface TcpConnMetadata {
+    export interface ConnMetadata {
         /**
          * max write bytes
          */
@@ -54,7 +54,7 @@ declare namespace deps {
         cbw: () => void
         cbr: (b: evbuffer) => void
         cbe?: (what: number) => void
-        md: TcpConnMetadata
+        md: ConnMetadata
         p: unknown
     }
     export class TcpListenerOptions {
@@ -132,6 +132,24 @@ declare namespace deps {
     }
     export function resolver_ip(opts: ResolverIPOptions): Resolve
     export function resolver_ip_cancel(r: Resolve): void
+
+    export class UdpAddr {
+        readonly __id = "UdpAddr"
+        s?: string
+    }
+    export function udp_addr(ip: string, port: number): UdpAddr
+    export function udp_addr_s(addr: UdpAddr): string
+    export class UdpConn {
+        readonly __id = "UdpConn"
+        md: ConnMetadata
+    }
+    export interface UdpConnOptions {
+        v6?: boolean
+    }
+    export function udp_create(opts?: UdpConnOptions): UdpConn
+    export function udp_close(c: UdpConn): void
+    export function udp_localAddr(c: UdpConn): [string, number]
+    export function udp_write(c: UdpConn, data: string | Uint8Array | ArrayBuffer, remote?: UdpAddr): number
 }
 
 export class AddrError extends __duk.Error {
@@ -1147,7 +1165,7 @@ interface tcpConnBridge {
 }
 export class BaseTcpConn implements Conn {
     private c_?: deps.TcpConn
-    private md_: deps.TcpConnMetadata
+    private md_: deps.ConnMetadata
     constructor(readonly remoteAddr: Addr, readonly localAddr: Addr,
         conn: deps.TcpConn,
         private readonly bridge_: tcpConnBridge,
@@ -1967,8 +1985,197 @@ export function dial(opts: DialOptions, cb: DialCallback) {
             throw new NetError(`unknow network: ${opts.network}`);
     }
 }
+export class UdpError extends NetError {
+    constructor(message: string) {
+        super(message);
+        (this as any).name = "UdpError"
+    }
+}
+function throwUdpError(e: any): never {
+    if (typeof e === "string") {
+        throw new UdpError(e)
+    }
+    throw e
+}
+export class UdpAddr implements Addr {
+    addr_?: deps.UdpAddr
+    readonly network = 'udp'
+    get address(): string {
+        const addr = this.addr_
+        if (!addr) {
+            return '<undefined>'
+        }
+        const s = addr.s
+        if (s) {
+            return s
+        }
+        return deps.udp_addr_s(addr)
+    }
+    toString(): string {
+        return this.address
+    }
+    constructor(ip?: string, port?: number) {
+        if (ip && port) {
+            const addr = deps.udp_addr(ip, port)
+            this.addr_ = addr
+        }
+    }
+}
+export interface UdpConn {
 
+}
+class BaseUdpConn {
+    constructor(public conn?: deps.UdpConn) {
+    }
+    private localAddr_?: UdpAddr
+    localAddr(): UdpAddr {
+        let addr = this.localAddr_
+        if (addr) {
+            if (addr.addr_) {
+                return addr
+            }
+        } else {
+            addr = new UdpAddr()
+            this.localAddr_ = addr
+        }
+        const conn = this.conn
+        if (conn) {
+            const [ip, port] = deps.udp_localAddr(conn)
+            if (ip && port) {
+                addr.addr_ = deps.udp_addr(ip, port)
+            }
+        }
+        return addr
+    }
+}
+export interface UdpConnOptions {
+    v6?: boolean
+    remoteAddr?: UdpAddr
+}
+export class UdpConn {
+    get localAddr(): UdpAddr {
+        return this.c_.localAddr()
+    }
+    readonly remoteAddr: UdpAddr
+    private c_: BaseUdpConn
+    constructor(opts?: UdpConnOptions) {
+        const conn = deps.udp_create({
+            v6: opts?.v6,
+        })
+        const remote = opts?.remoteAddr
+        if (remote && remote instanceof UdpAddr) {
+            this.remoteAddr = remote
+        } else {
+            this.remoteAddr = new UdpAddr()
+        }
+        try {
+            this.c_ = new BaseUdpConn(conn)
+            this.md_ = conn.md
+        } catch (e) {
+            deps.udp_close(conn)
+            throw e
+        }
+    }
+    /**
+     * Returns whether the connection has been closed
+     */
+    get isClosed(): boolean {
+        return this.c_.conn ? true : false
+    }
+    /**
+     * Close the connection and release resources
+     */
+    close(): void {
+        const conn = this.c_.conn
+        if (conn) {
+            this.c_.conn = undefined
+            deps.udp_close(conn)
+        }
+    }
+    private _get(): deps.UdpConn {
+        const c = this.c_.conn
+        if (!c) {
+            throw new UdpError(`conn already closed`)
+        }
+        return c
+    }
+    /**
+     * Write data returns the actual number of bytes written
+     * 
+     * @param data data to write
+     * @param remote write target address
+     */
+    write(data: string | Uint8Array | ArrayBuffer, target?: UdpAddr): number {
+        let addr: undefined | deps.UdpAddr
+        if (target) {
+            if (target instanceof UdpAddr) {
+                addr = target.addr_
+            } else {
+                throw new UdpError("write: destination address must a UdpAddr")
+            }
+        } else {
+            addr = this.remoteAddr.addr_
+        }
+        if (!addr) {
+            throw new UdpError("write: destination address required")
+        }
 
+        const c = this._get()
+        try {
+            console.log(addr, deps.udp_addr_s(addr))
+            return deps.udp_write(c, data, addr)
+        } catch (e) {
+            throwUdpError(e)
+        }
+    }
+    private md_: deps.ConnMetadata
+    /**
+     * Write buffer size
+     */
+    get maxWriteBytes(): number {
+        return this.md_.mw
+    }
+    set maxWriteBytes(v: number) {
+        if (!Number.isSafeInteger(v)) {
+            throw new UdpError("maxWriteBytes must be a safe integer")
+        } else if (v < 0) {
+            v = 0
+        }
+        if (v != this.md_.mw) {
+            this.md_.mw = v
+        }
+    }
+    /**
+     * Read buffer
+     * @remarks
+     * If not set, a buffer of size 32k will be automatically created when reading.
+     */
+    buffer?: Uint8Array
+
+}
+// export class UdpConn /*implements Conn*/ {
+//     private c_?: deps.UdpConn
+//     readonly remoteAddr: UdpAddr
+//     readonly localAddr: UdpAddr
+//     private constructor() {
+//         try {
+//             this.remoteAddr = new UdpAddr()
+//             this.c_ = deps.udp_create()
+//         } catch (e) {
+//             throwUdpError(e)
+//         }
+//     }
+//     get isClosed(): boolean {
+//         return this.c_ ? false : true
+//     }
+//     close() {
+//         const c = this.c_
+//         if (c) {
+//             this.c_ = undefined
+//             deps.udp_close(c)
+//         }
+//     }
+// }
 export function module_destroy() {
     if (Resolver.hasDefault()) {
         Resolver.getDefault().close()

@@ -310,11 +310,11 @@ declare module "ejs/net" {
         /**
          * name of the network (for example, "tcp", "udp")
          */
-        network: string
+        readonly network: string
         /**
          * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
          */
-        address: string
+        readonly address: string
     }
 
     export type AbortListener = (this: AbortSignal, reason: any) => any
@@ -408,10 +408,6 @@ declare module "ejs/net" {
          */
         readonly isClosed: boolean
         /**
-         * Returns whether the connection has been closed
-         */
-        readonly isClosed: boolean
-        /**
          * Close the connection and release resources
          */
         close(): void
@@ -492,7 +488,7 @@ declare module "ejs/net" {
         /**
          * Callback when an error occurs
          */
-        onError?: (this: TcpConn, e: any) => void
+        onError?: (this: BaseTcpConn, e: any) => void
         /**
          * Write data returns the actual number of bytes written
          * 
@@ -503,7 +499,7 @@ declare module "ejs/net" {
         /**
          * Callback whenever the write buffer changes from unwritable to writable
          */
-        onWritable?: (this: TcpConn) => void
+        onWritable?: (this: BaseTcpConn) => void
         /**
          * Write buffer size
          */
@@ -513,7 +509,7 @@ declare module "ejs/net" {
          * @remarks
          * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
          */
-        onMessage?: (this: TcpConn, data: Uint8Array) => void
+        onMessage?: (this: BaseTcpConn, data: Uint8Array) => void
 
         /**
          * Read buffer
@@ -524,15 +520,15 @@ declare module "ejs/net" {
         /**
          * Callback when there is data to read
          */
-        onReadable?: (this: TcpConn, r: Readable) => void
+        onReadable?: (this: BaseTcpConn, r: Readable) => void
     }
     export class BaseTcpListener implements Listener {
         private constructor() { }
         readonly addr: Addr
         close(): void
         readonly isClosed: boolean
-        onAccept?: (this: TcpListener, c: TcpConn) => void
-        onError?: (this: TcpListener, e: any) => void
+        onAccept?: (this: BaseTcpListener, c: TcpConn) => void
+        onError?: (this: BaseTcpListener, e: any) => void
     }
     export class TcpError extends NetError { }
     export class TcpConn extends BaseTcpConn { }
@@ -573,7 +569,7 @@ declare module "ejs/net" {
     export function listen(opts: ListenOptions): Listener
     export interface DialOptions {
         /**
-         * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
+         * name of the network (for example, "tcp", "tcp4", "tcp6", "unix", "udp", "udp4", "udp6")
          */
         network: string
         /**
@@ -590,4 +586,67 @@ declare module "ejs/net" {
      * Dial a listener to create a connection for bidirectional communication
      */
     export function dial(opts: DialOptions, cb: (conn?: Conn, e?: any) => void): void
+
+    export class UdpError extends NetError { }
+    class UdpAddr implements Addr {
+        /**
+         * name of the network (for example, "tcp", "udp")
+         */
+        readonly network: string
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        readonly address: string
+        toString(): string
+        constructor(ip?: string, port?: number)
+    }
+    class UdpConn implements Conn {
+        constructor(readonly localAddr: UdpAddr, readonly remoteAddr: UdpAddr) { }
+        static listen(localAddr: UdpAddr): UdpConn
+        /**
+         * Returns whether the connection has been closed
+         */
+        readonly isClosed: boolean
+        /**
+         * Close the connection and release resources
+         */
+        close(): void
+
+        /**
+         * Write data returns the actual number of bytes written
+         * 
+         * @param data data to write
+         * @param target write target address
+         */
+        write(data: string | Uint8Array | ArrayBuffer, target?: UdpAddr): number
+
+        /**
+         * Write buffer size
+         * @default 548
+         */
+        maxWriteBytes: number
+        /**
+         * Callback when a message is received. If set to undefined, it will stop receiving data.
+         * @remarks
+         * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
+         */
+        onMessage?: (this: UdpConn, data: Uint8Array) => void
+        /**
+         * Read buffer
+         * @remarks
+         * If not set, a buffer of size 32k will be automatically created when reading.
+         */
+        buffer?: Uint8Array
+        /**
+         * Callback when there is data to read
+         */
+        onReadable?: (this: UdpConn) => void
+        /**
+         * Read data from udp
+         * @param dst 
+         * @param remote This is the outgoing parameter, it is populated with which address the data came from
+         * @returns actual number of bytes read
+         */
+        read(dst: Uint8Array, remote?: UdpAddr): number
+    }
 }

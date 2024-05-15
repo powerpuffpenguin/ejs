@@ -136,13 +136,16 @@ DUK_EXTERNAL duk_int_t ejs_pcall_function_n(duk_context *ctx,
                                             duk_c_function func, void *args, duk_idx_t n)
 {
     duk_push_c_lightfunc(ctx, func, n, n, 0);
-    if (n == 2)
+    switch (n)
     {
+    case 1:
+        break;
+    case 2:
         duk_swap_top(ctx, -2);
-    }
-    else
-    {
+        break;
+    default:
         duk_insert(ctx, -n);
+        break;
     }
     duk_push_pointer(ctx, args);
     return duk_pcall(ctx, n);
@@ -484,4 +487,14 @@ DUK_EXTERNAL void ejs_stash_set_module_destroy(duk_context *ctx)
     duk_put_prop_index(ctx, -2, duk_get_length(ctx, -2));
 
     duk_pop(ctx);
+}
+DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    void *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        free(p);
+    }
+    return 0;
 }

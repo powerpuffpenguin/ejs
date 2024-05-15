@@ -33,5 +33,6 @@
 #define EJS_STASH_NET_RESOLVER_REQUEST "net.resolver_r", 14
 #define EJS_STASH_NET_TCP_LISTENER "net.tcp_listener", 16
 #define EJS_STASH_NET_TCP_CONN "net.tcp_conn", 12
+#define EJS_STASH_NET_UDP_CONN "net.udp_conn", 12
 
 #endif

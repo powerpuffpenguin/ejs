@@ -105,6 +105,11 @@ extern "C"
      * ... exports:{module_destroy:()=>void} -> ... exports
      */
     DUK_EXTERNAL void ejs_stash_set_module_destroy(duk_context *ctx);
+
+    /**
+     * free(obj.p)
+    */
+    DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context* ctx);
 #if defined(__cplusplus)
 }
 #endif

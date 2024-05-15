@@ -1152,7 +1152,7 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
 
     duk_get_prop_lstring(ctx, 0, "ip", 2);
     const uint8_t *ip = NULL;
-    if (!duk_is_undefined(ctx, -1))
+    if (!duk_is_null_or_undefined(ctx, -1))
     {
         ip = duk_require_string(ctx, -1);
     }
@@ -1169,7 +1169,7 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     ejs_core_t *core = ejs_require_core(ctx);
 
     duk_get_prop_lstring(ctx, 0, "v6", 2);
-    if (duk_is_undefined(ctx, -1))
+    if (duk_is_null_or_undefined(ctx, -1))
     {
         // v4 or v6
         struct sockaddr_in6 sin;
@@ -1213,7 +1213,7 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
             sin.sin6_port = htons(port);
             if (ip)
             {
-                if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
+                if (!evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
                 {
                     duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
                     duk_throw(ctx);
@@ -1239,7 +1239,7 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
             sin.sin_port = htons(port);
             if (ip)
             {
-                if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr))
+                if (!evutil_inet_pton(AF_INET, ip, &sin.sin_addr))
                 {
                     duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
                     duk_throw(ctx);
@@ -1297,7 +1297,7 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
 
     duk_get_prop_lstring(ctx, 0, "ip", 2);
     const uint8_t *ip = NULL;
-    if (!duk_is_undefined(ctx, -1))
+    if (!duk_is_null_or_undefined(ctx, -1))
     {
         ip = duk_require_string(ctx, -1);
     }
@@ -1315,7 +1315,7 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
 
     duk_get_prop_lstring(ctx, 0, "v6", 2);
     evutil_socket_t s;
-    if (duk_is_undefined(ctx, -1))
+    if (duk_is_null_or_undefined(ctx, -1))
     {
         // v4 or v6
         struct sockaddr_in6 sin;
@@ -1352,7 +1352,7 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
             sin.sin6_port = htons(port);
             if (ip)
             {
-                if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
+                if (!evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr))
                 {
                     duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
                     duk_throw(ctx);
@@ -1375,7 +1375,7 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
             sin.sin_port = htons(port);
             if (ip)
             {
-                if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr))
+                if (!evutil_inet_pton(AF_INET, ip, &sin.sin_addr))
                 {
                     duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
                     duk_throw(ctx);
@@ -1934,7 +1934,7 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
         memset(&sin, 0, sizeof(sin));
         sin.sin6_family = AF_INET6;
         sin.sin6_port = htons(port);
-        if (evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr) != 1)
+        if (!evutil_inet_pton(AF_INET6, ip, &sin.sin6_addr) != 1)
         {
             duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
             duk_throw(ctx);
@@ -1962,7 +1962,7 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
         memset(&sin, 0, sizeof(sin));
         sin.sin_family = AF_INET;
         sin.sin_port = htons(port);
-        if (evutil_inet_pton(AF_INET, ip, &sin.sin_addr) != 1)
+        if (!evutil_inet_pton(AF_INET, ip, &sin.sin_addr) != 1)
         {
             duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
             duk_throw(ctx);
@@ -2366,11 +2366,449 @@ duk_ret_t resolver_ip_cancel(duk_context *ctx)
     }
     return 0;
 }
+typedef struct
+{
+    void *sin;
+    duk_uint_t port;
+} udp_addr_args_t;
+static void push_udp_addr(duk_context *ctx, udp_addr_args_t *args)
+{
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, args->sin);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_c_lightfunc(ctx, ejs_default_finalizer, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->sin = NULL;
+}
+static duk_ret_t udp_addr_impl(duk_context *ctx)
+{
+    udp_addr_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    duk_size_t len;
+    const uint8_t *s = duk_require_lstring(ctx, 0, &len);
+    for (duk_size_t i = 0; i < len; i++)
+    {
+        switch (s[i])
+        {
+        case '.':
+        {
+            struct sockaddr_in *sin = malloc(sizeof(struct sockaddr_in));
+            if (!sin)
+            {
+                ejs_throw_os(ctx, errno, strerror(errno));
+            }
+            args->sin = sin;
+            memset(sin, 0, sizeof(struct sockaddr_in));
+            sin->sin_family = AF_INET;
+            sin->sin_port = htons(args->port);
+            if (7 == len && !memcmp("0.0.0.0", s, 7))
+            {
+                sin->sin_addr.s_addr = INADDR_ANY;
+            }
+            else if (!evutil_inet_pton(AF_INET, s, &sin->sin_addr))
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "ip invalid");
+                duk_throw(ctx);
+            }
+            push_udp_addr(ctx, args);
+            return 1;
+        }
+        break;
+        case ':':
+        {
+            struct sockaddr_in6 *sin = malloc(sizeof(struct sockaddr_in6));
+            if (!sin)
+            {
+                ejs_throw_os(ctx, errno, strerror(errno));
+            }
+            args->sin = sin;
+            memset(sin, 0, sizeof(struct sockaddr_in6));
+            sin->sin6_family = AF_INET6;
+            sin->sin6_port = htons(args->port);
+            if (2 == len && !memcmp("::", s, 2))
+            {
+                sin->sin6_addr = in6addr_any;
+            }
+            else if (!evutil_inet_pton(AF_INET6, s, &sin->sin6_addr))
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "ip invalid");
+                duk_throw(ctx);
+            }
+            push_udp_addr(ctx, args);
+            return 1;
+        }
+        break;
+        }
+    }
+
+    duk_push_error_object(ctx, DUK_ERR_ERROR, "ip invalid");
+    duk_throw(ctx);
+
+    return 0;
+}
+static duk_ret_t udp_addr(duk_context *ctx)
+{
+    udp_addr_args_t args = {.sin = 0};
+    args.port = duk_require_uint(ctx, 1);
+    duk_pop(ctx);
+
+    if (ejs_pcall_function_n(ctx, udp_addr_impl, &args, 2))
+    {
+        if (args.sin)
+        {
+            free(args.sin);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t udp_addr_s(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    struct sockaddr_in *sin = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    if (sin->sin_family == AF_INET)
+    {
+        char ip[16] = {0};
+        evutil_inet_ntop(AF_INET, &sin->sin_addr, ip, 16);
+        duk_push_string(ctx, ip);
+        duk_push_string(ctx, ":");
+        duk_push_uint(ctx, ntohs(sin->sin_port));
+    }
+    else
+    {
+        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sin;
+        char ip[41] = {0};
+        ip[0] = '[';
+        evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, ip + 1, 40);
+        duk_push_string(ctx, ip);
+        duk_push_string(ctx, "]:");
+        duk_push_uint(ctx, ntohs(sin6->sin6_port));
+    }
+    duk_concat(ctx, 3);
+    return 1;
+}
+typedef struct
+{
+    ejs_core_t *core;
+    evutil_socket_t s;
+
+    uint8_t v6 : 1;
+    uint8_t add : 1;
+} udp_conn_t;
+#define EJS_UDP_CONN_EV(p) (struct event *)((uint8_t *)(p) + sizeof(udp_conn_t))
+static duk_ret_t udp_conn_destroy(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    udp_conn_t *conn = duk_get_pointer_default(ctx, -1, 0);
+    if (conn)
+    {
+        if (conn->add)
+        {
+            event_del(EJS_UDP_CONN_EV(conn));
+        }
+        evutil_closesocket(conn->s);
+        free(conn);
+    }
+    return 0;
+}
+static void _udp_conn_cb(evutil_socket_t _, short events, void *arg)
+{
+    puts("_udp_conn_cb");
+}
+
+typedef struct
+{
+    struct sockaddr_in *addr;
+    udp_conn_t *conn;
+} udp_create_args_t;
+static duk_ret_t udp_create_impl(duk_context *ctx)
+{
+    udp_create_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, -1, "v6", 2);
+    evutil_socket_t s;
+    duk_bool_t v6 = 1;
+    if (duk_is_null_or_undefined(ctx, -1))
+    {
+        duk_pop_2(ctx);
+        s = socket(AF_INET6, SOCK_DGRAM, 0);
+        if (s < 0 && EVUTIL_SOCKET_ERROR() == EAFNOSUPPORT)
+        {
+            s = socket(AF_INET, SOCK_DGRAM, 0);
+            if (s < 0)
+            {
+                duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+                duk_throw(ctx);
+            }
+            v6 = 0;
+        }
+    }
+    else
+    {
+        duk_to_boolean(ctx, -1);
+        v6 = duk_get_boolean(ctx, -1);
+        duk_pop_2(ctx);
+        if (v6)
+        {
+            s = socket(AF_INET6, SOCK_DGRAM, 0);
+            if (s < 0)
+            {
+                duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+                duk_throw(ctx);
+            }
+        }
+        else
+        {
+            s = socket(AF_INET, SOCK_DGRAM, 0);
+            if (s < 0)
+            {
+                duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+                duk_throw(ctx);
+            }
+        }
+    }
+
+    udp_conn_t *conn = malloc(sizeof(udp_conn_t) + event_get_struct_event_size());
+    if (!conn)
+    {
+        evutil_closesocket(s);
+        ejs_throw_os(ctx, errno, strerror(errno));
+    }
+    conn->s = s;
+    conn->v6 = v6 ? 1 : 0;
+    conn->add = 0;
+    struct event *ev = EJS_UDP_CONN_EV(conn);
+    ejs_core_t *core = ejs_require_core(ctx);
+    if (event_assign(ev, core->base, s, EV_READ | EV_PERSIST, _udp_conn_cb, conn))
+    {
+        evutil_closesocket(s);
+        free(conn);
+        ejs_throw_cause(ctx, EJS_ERROR_EVENT_ASSIGN, 0);
+    }
+    if (event_base_set(core->base, ev))
+    {
+        evutil_closesocket(s);
+        free(conn);
+        ejs_throw_cause(ctx, EJS_ERROR_EVENT_BASE_SET, 0);
+    }
+
+    // if (event_add(ev, 0))
+    // {
+    //     evutil_closesocket(s);
+    //     free(conn);
+    //     ejs_throw_cause(ctx, EJS_ERROR_EVENT_ADD, 0);
+    // }
+    args->conn = conn;
+
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, conn);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_object(ctx);
+    {
+        duk_push_uint(ctx, 548);
+        duk_put_prop_lstring(ctx, -2, "mw", 2);
+    }
+    duk_put_prop_lstring(ctx, -2, "md", 2);
+
+    duk_push_c_lightfunc(ctx, udp_conn_destroy, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->conn = 0;
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_UDP_CONN);
+    return 1;
+}
+static duk_ret_t udp_create(duk_context *ctx)
+{
+    udp_create_args_t args = {
+        .conn = 0,
+    };
+    if (ejs_pcall_function_n(ctx, udp_create_impl, &args, 2))
+    {
+        if (args.conn)
+        {
+            // event_del(EJS_UDP_CONN_EV(args.conn));
+            evutil_closesocket(args.conn->s);
+            free(args.conn);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t udp_close(duk_context *ctx)
+{
+    udp_conn_t *conn = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_UDP_CONN);
+    if (conn)
+    {
+        if (conn->add)
+        {
+            event_del(EJS_UDP_CONN_EV(conn));
+        }
+        evutil_closesocket(conn->s);
+        free(conn);
+    }
+    return 0;
+}
+static duk_ret_t udp_localAddr(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    udp_conn_t *conn = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    if (conn->v6)
+    {
+        char ip[40] = {0};
+        struct sockaddr_in6 addr;
+        socklen_t socklen = sizeof(addr);
+        getsockname(conn->s, (struct sockaddr *)&addr, &socklen);
+        evutil_inet_ntop(AF_INET6, &addr.sin6_addr, ip, 40);
+
+        duk_push_array(ctx);
+        duk_push_string(ctx, ip);
+        duk_put_prop_index(ctx, -2, 0);
+        duk_push_int(ctx, ntohs(addr.sin6_port));
+        duk_put_prop_index(ctx, -2, 1);
+    }
+    else
+    {
+        char ip[16] = {0};
+        struct sockaddr_in addr;
+        socklen_t socklen = sizeof(addr);
+        getsockname(conn->s, (struct sockaddr *)&addr, &socklen);
+        evutil_inet_ntop(AF_INET, &addr, ip, 16);
+
+        duk_push_array(ctx);
+        duk_push_string(ctx, ip);
+        duk_put_prop_index(ctx, -2, 0);
+        duk_push_int(ctx, ntohs(addr.sin_port));
+        duk_put_prop_index(ctx, -2, 1);
+    }
+    return 1;
+}
+static duk_ret_t udp_write(duk_context *ctx)
+{
+
+    ejs_dump_context_stdout(ctx);
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    struct sockaddr_in *addr = duk_get_pointer_default(ctx, -1, 0);
+    duk_pop_2(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    udp_conn_t *conn = duk_get_pointer_default(ctx, -1, 0);
+    if (!conn)
+    {
+        return 0;
+    }
+    duk_pop(ctx);
+
+    const uint8_t *data;
+    duk_size_t data_len;
+    if (duk_is_string(ctx, 1))
+    {
+        data = duk_require_lstring(ctx, 1, &data_len);
+    }
+    else
+    {
+        data = duk_require_buffer_data(ctx, 1, &data_len);
+    }
+    duk_pop(ctx);
+    if (!data_len)
+    {
+        duk_push_uint(ctx, 0);
+        return 1;
+    }
+
+    duk_get_prop_lstring(ctx, 0, "md", 2);
+    duk_get_prop_lstring(ctx, -1, "mw", 2);
+    duk_size_t maxWriteBytes = duk_get_uint_default(ctx, -1, 0);
+    duk_pop_n(ctx, 2);
+
+    if (maxWriteBytes)
+    {
+        if (data_len > maxWriteBytes)
+        {
+            duk_push_lstring(ctx, "data too large", 14);
+            duk_throw(ctx);
+        }
+    }
+    printf("%d %d\n", addr->sin_family, AF_INET);
+    ssize_t n = sendto(conn->s, data, data_len, 0, (const struct sockaddr *)addr, addr->sin_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6));
+    if (n >= 0)
+    {
+        duk_push_uint(ctx, n);
+    }
+    else
+    {
+        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        duk_throw(ctx);
+    }
+    return 1;
+}
+// static duk_ret_t _ejs_test(duk_context *ctx)
+// {
+
+//     evutil_socket_t s = socket(AF_INET, SOCK_STREAM, 0);
+//     if (s < 0)
+//     {
+//         duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+//         duk_throw(ctx);
+//     }
+
+//     // Creating socket file descriptor
+//     if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+//     {
+//         perror("socket creation failed");
+//         exit(EXIT_FAILURE);
+//     }
+
+//     struct sockaddr_in sin;
+//     memset(&sin, 0, sizeof(sin));
+//     sin.sin_family = AF_INET;
+//     sin.sin_port = htons(8964);
+//     // sin.sin_addr.s_addr = INADDR_ANY;
+//     if (!evutil_inet_pton(AF_INET, "192.168.251.50", &sin.sin_addr))
+//     {
+//         duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
+//         duk_throw(ctx);
+//     }
+//     ejs_core_t *core = ejs_require_core(ctx);
+//     printf("new %d\n", s);
+//     struct event *ev = event_new(core, s, EV_READ | EV_PERSIST, _udp_conn_cb, 0);
+//     if (!ev)
+//     {
+//         duk_push_string(ctx, "event_new fail");
+//         duk_throw(ctx);
+//     }
+//     puts("event_base_set");
+//     if (event_base_set(core->base, ev))
+//     {
+//         duk_push_string(ctx, "event_base_set fail");
+//         duk_throw(ctx);
+//     }
+//     puts("event_add");
+//     if (event_add(ev, 0))
+//     {
+//         duk_push_string(ctx, "event_add fail");
+//         duk_throw(ctx);
+//     }
+//     puts("ok");
+
+//     const char *hello = "Hello from client";
+//     ssize_t len = sendto(s, (const char *)hello, strlen(hello),
+//                          MSG_CONFIRM, (const struct sockaddr *)&sin,
+//                          sizeof(sin));
+//     printf("sendto %d\n", len);
+
+//     return 0;
+// }
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
 {
     /*
      *  Entry stack: [ require exports ]
      */
+    // duk_push_c_lightfunc(ctx, _ejs_test, 1, 1, 0);
+    // duk_put_prop_lstring(ctx, -2, "test", 4);
 
     duk_eval_lstring(ctx, js_ejs_js_net_min_js, js_ejs_js_net_min_js_len);
     duk_swap_top(ctx, -2);
@@ -2479,6 +2917,7 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, unix_conect, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "unix_conect", 11);
 
+        // resolver
         duk_push_c_lightfunc(ctx, resolver_new, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "resolver_new", 12);
         duk_push_c_lightfunc(ctx, resolver_free, 1, 1, 0);
@@ -2487,6 +2926,20 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "resolver_ip", 11);
         duk_push_c_lightfunc(ctx, resolver_ip_cancel, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "resolver_ip_cancel", 18);
+
+        // udp
+        duk_push_c_lightfunc(ctx, udp_addr, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "udp_addr", 8);
+        duk_push_c_lightfunc(ctx, udp_addr_s, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "udp_addr_s", 10);
+        duk_push_c_lightfunc(ctx, udp_create, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "udp_create", 10);
+        duk_push_c_lightfunc(ctx, udp_close, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "udp_close", 9);
+        duk_push_c_lightfunc(ctx, udp_localAddr, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "udp_localAddr", 13);
+        duk_push_c_lightfunc(ctx, udp_write, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "udp_write", 9);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

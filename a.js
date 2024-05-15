@@ -1,18 +1,11 @@
 var net = require("ejs/net")
 
-var l = net.listen({
-    network: 'tcp',
-    address: ':9000',
-    sync: true,
-})
-console.log("listen on", l.addr)
-
-l.onError = function (e) {
-    console.log(e)
-}
-l.onAccept = function (c) {
-    console.log('remoteAddr:' + c.remoteAddr, ' localAddr:' + c.localAddr)
-    c.close()
-    l.close()
-}
-
+var addr = new net.UdpAddr('127.0.0.1', 8964)
+console.log(addr.toString(), addr)
+// var conn = new net.UdpConn(addr)
+var conn = new net.UdpConn()
+console.log(conn)
+console.log('localAddr', conn.localAddr.toString())
+console.log('write', conn.write("ok", addr))
+console.log('localAddr', conn.localAddr.toString())
+conn.close()
