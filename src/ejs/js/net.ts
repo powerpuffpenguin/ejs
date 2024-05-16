@@ -143,6 +143,8 @@ declare namespace deps {
         readonly __id = "UdpConn"
         md: ConnMetadata
         cb: () => void
+
+        addr?: UdpAddr
     }
     export interface UdpConnOptions {
         v6?: boolean
@@ -154,6 +156,13 @@ declare namespace deps {
     export function udp_localAddr(c: UdpConn): [string, number]
     export function udp_write(c: UdpConn, data: string | Uint8Array | ArrayBuffer, remote?: UdpAddr): number
     export function udp_conn_cb(c: UdpConn, enable: boolean): void
+    export interface UdpListenOptions {
+        ip?: string
+        port: number
+        v6?: boolean
+    }
+    export function udp_listen(opts: UdpListenOptions): UdpConn
+    export function udp_dial(opts: UdpListenOptions): UdpConn
 
     export interface UdpReadOptions {
         c: UdpConn
@@ -2170,6 +2179,68 @@ class udpReadable {
     }
 }
 export type OnUdpReadableCallback = (this: Conn, r: UdpReadable) => void
+export interface UdpListenOptions {
+    /**
+     * @default 'udp'
+     */
+    network?: 'udp' | 'udp4' | 'udp6'
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
+}
+function parseUdpOptions(tag: string, opts: UdpListenOptions): deps.UdpListenOptions {
+    let v6: undefined | boolean
+    switch (opts.network ?? 'udp') {
+        case 'udp':
+            break
+        case 'udp4':
+            v6 = false
+            break
+        case 'udp6':
+            v6 = true
+            break
+        default:
+            throw new UdpError(`unknow network: ${opts.network}`)
+    }
+    const [host, sport] = splitHostPort(opts.address)
+    const port = parseInt(sport)
+    if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+        throw new TcpError(`${tag} port invalid: ${opts.address}`)
+    }
+    let ip: IP | undefined
+    if (host != "") {
+        ip = IP.parse(host)
+        if (!ip) {
+            throw new UdpError(`${tag} address invalid: ${opts.address}`)
+        }
+    }
+
+    if (ip) {
+        if (v6 === undefined) {
+            if (ip.isV4) {
+                v6 = false
+            }
+        } else {
+            if (v6) {
+                if (!ip.isV6) {
+                    throw new UdpError(`${tag} network restriction address must be ipv6: ${opts.address}`)
+                }
+                v6 = true
+            } else {
+                if (!ip.isV4) {
+                    throw new TcpError(`${tag} network restriction address must be ipv4: ${opts.address}`)
+                }
+                v6 = false
+            }
+        }
+    }
+    return {
+        ip: ip?.toString(),
+        port: port,
+        v6: v6,
+    }
+}
 export class UdpConn {
     /**
      * Create a udp socket
@@ -2196,6 +2267,46 @@ export class UdpConn {
             }
         } catch (e) {
             throwTcpError(e)
+        }
+    }
+    /**
+     * Listen for udp at the specified address
+     * @remarks
+     * 
+     * Like create() then bind()
+     */
+    static listen(opts: UdpListenOptions): UdpConn {
+        const o = parseUdpOptions('listen', opts)
+        let c: deps.UdpConn | undefined
+        try {
+            c = deps.udp_listen(o)
+            return new UdpConn(c, new UdpAddr())
+        } catch (e) {
+            if (c) {
+                deps.udp_close(c)
+            }
+            throwUdpError(e)
+        }
+    }
+    /**
+     * Connect to udp server
+     * @remarks
+     * 
+     * Like create() then connect()
+     */
+    static dial(opts: UdpListenOptions): UdpConn {
+        const o = parseUdpOptions('dial', opts)
+        let c: deps.UdpConn | undefined
+        try {
+            const remoteAddr = new UdpAddr()
+            c = deps.udp_dial(o)
+            remoteAddr.addr_ = c.addr
+            return new UdpConn(c, remoteAddr)
+        } catch (e) {
+            if (c) {
+                deps.udp_close(c)
+            }
+            throwUdpError(e)
         }
     }
     /**

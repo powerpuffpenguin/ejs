@@ -621,17 +621,22 @@ declare module "ejs/net" {
          * @default 'udp'
          */
         network?: 'udp' | 'udp4' | 'udp6'
-
-        /**
-         * Default remote address
-         */
-        remoteAddr?: UdpAddr
     }
     export interface UdpListenOptions {
         /**
-         * name of the network (for example, "udp", "udp4", "udp6")
+         * @default 'udp'
          */
-        network: string
+        network?: 'udp' | 'udp4' | 'udp6'
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        address: string
+    }
+    export interface UdpDialOptions {
+        /**
+         * @default 'udp'
+         */
+        network?: 'udp' | 'udp4' | 'udp6'
         /**
          * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
          */
@@ -656,7 +661,7 @@ declare module "ejs/net" {
          * 
          * Like create() then connect()
          */
-        static dial(opts: UdpListenOptions): UdpConn
+        static dial(opts: UdpDialOptions): UdpConn
 
         /**
          * 
