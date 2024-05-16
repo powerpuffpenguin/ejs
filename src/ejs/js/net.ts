@@ -148,6 +148,8 @@ declare namespace deps {
         v6?: boolean
     }
     export function udp_create(opts?: UdpConnOptions): UdpConn
+    export function udp_connect(conn: UdpConn, remoteAddr: UdpAddr): UdpAddr
+    export function udp_bind(conn: UdpConn, localAddr: UdpAddr): UdpAddr
     export function udp_close(c: UdpConn): void
     export function udp_localAddr(c: UdpConn): [string, number]
     export function udp_write(c: UdpConn, data: string | Uint8Array | ArrayBuffer, remote?: UdpAddr): number
@@ -1958,6 +1960,7 @@ class UnixDialer {
         }
     }
 }
+
 /**
  * Create a listening service
  */
@@ -2053,9 +2056,7 @@ export class UdpAddr implements Addr {
         }
     }
 }
-export interface UdpConn {
 
-}
 class BaseUdpConn {
     constructor(public conn?: deps.UdpConn) {
     }
@@ -2080,12 +2081,12 @@ class BaseUdpConn {
         return addr
     }
 }
-export interface UdpConnOptions {
-    v6?: boolean
-    remoteAddr?: UdpAddr
-}
+
 export interface UdpCreateOptions {
-    v6?: boolean
+    /**
+     * @default 'udp'
+     */
+    network?: 'udp' | 'udp4' | 'udp6'
 }
 /**
  * For reading ready udp data
@@ -2170,17 +2171,79 @@ class udpReadable {
 }
 export type OnUdpReadableCallback = (this: Conn, r: UdpReadable) => void
 export class UdpConn {
+    /**
+     * Create a udp socket
+     */
     static create(opts?: UdpCreateOptions): UdpConn {
-        const conn = deps.udp_create({
-            v6: opts?.v6,
-        })
+        const network = opts?.network ?? 'udp'
+        let v6: undefined | boolean
+        if (network === 'udp4') {
+            v6 = false
+        } else if (network === 'udp6') {
+            v6 = true
+        } else if (network !== 'udp') {
+            throw new UdpError(`unknow network: ${network}`)
+        }
         try {
-            return new UdpConn(conn, new UdpAddr())
+            const conn = deps.udp_create({
+                v6: v6,
+            })
+            try {
+                return new UdpConn(conn, new UdpAddr())
+            } catch (e) {
+                deps.udp_close(conn)
+                throw e
+            }
         } catch (e) {
-            deps.udp_close(conn)
-            throw e
+            throwTcpError(e)
         }
     }
+    /**
+     * Create a udp that can only communicate with the specified target
+     * @param remoteAddr 
+     */
+    connect(remoteAddr: UdpAddr): void {
+        if (remoteAddr instanceof UdpAddr) {
+            const addr = remoteAddr.addr_
+            if (addr) {
+                const c = this._get()
+                try {
+                    this.remoteAddr.addr_ = deps.udp_connect(c, addr)
+                } catch (e) {
+                    throwUdpError(e)
+                }
+            } else {
+                throw new UdpError(`remoteAddr invalid`)
+            }
+        } else {
+            throw new UdpError(`remoteAddr must be a UdpAddr`)
+        }
+    }
+    /**
+     * bind socket to local address
+     */
+    bind(localAddr: UdpAddr): void {
+        if (localAddr instanceof UdpAddr) {
+            if (this.localAddr.addr_) {
+                throw new UdpError(`UdpAddr already be on ${this.localAddr}`)
+            }
+            const addr = localAddr.addr_
+            const c = this._get()
+            if (addr) {
+                try {
+                    this.localAddr.addr_ = deps.udp_bind(c, addr)
+                } catch (e) {
+                    throwUdpError(e)
+                }
+            } else {
+                throw new UdpError(`localAddr invalid`)
+            }
+        } else {
+            throw new UdpError(`localAddr must be a UdpAddr`)
+        }
+
+    }
+
     get localAddr(): UdpAddr {
         return this.c_.localAddr()
     }
@@ -2216,35 +2279,44 @@ export class UdpConn {
         return c
     }
     /**
-     * Write data returns the actual number of bytes written
+     * After calling connect, you can only use write to write data
      * 
      * @param data data to write
-     * @param remote write target address
      */
-    write(data: string | Uint8Array | ArrayBuffer, target?: UdpAddr): number {
-        let addr: undefined | deps.UdpAddr
-        if (target) {
-            if (target instanceof UdpAddr) {
-                addr = target.addr_
-            } else {
-                throw new UdpError("write: destination address must a UdpAddr")
-            }
-        } else {
-            addr = this.remoteAddr.addr_
-        }
+    write(data: string | Uint8Array | ArrayBuffer): number {
+        const addr = this.remoteAddr.addr_
         if (!addr) {
             throw new UdpError("write: destination address required")
         }
 
         const c = this._get()
         try {
-            console.log(addr, deps.udp_addr_s(addr))
             return deps.udp_write(c, data, addr)
         } catch (e) {
             throwUdpError(e)
         }
     }
-
+    /**
+     * Before calling connect, you can only use writeTo to write data
+     * 
+     * @param data data to write
+     * @param remoteAddr write target address
+     */
+    writeTo(data: string | Uint8Array | ArrayBuffer, remoteAddr: UdpAddr): number {
+        if (!(remoteAddr instanceof UdpAddr)) {
+            throw new UdpError("write: destination address must a UdpAddr")
+        }
+        const addr = remoteAddr.addr_
+        if (!addr) {
+            throw new UdpError("write: destination address required")
+        }
+        const c = this._get()
+        try {
+            return deps.udp_write(c, data, addr)
+        } catch (e) {
+            throwUdpError(e)
+        }
+    }
     private md_: deps.ConnMetadata
     /**
      * Write buffer size

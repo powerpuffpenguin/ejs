@@ -569,7 +569,7 @@ declare module "ejs/net" {
     export function listen(opts: ListenOptions): Listener
     export interface DialOptions {
         /**
-         * name of the network (for example, "tcp", "tcp4", "tcp6", "unix", "udp", "udp4", "udp6")
+         * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
          */
         network: string
         /**
@@ -616,9 +616,58 @@ declare module "ejs/net" {
          */
         canRed(): boolean
     }
-    class UdpConn implements Conn {
-        constructor(readonly localAddr: UdpAddr, readonly remoteAddr: UdpAddr) { }
-        static listen(localAddr: UdpAddr): UdpConn
+    export interface UdpCreateOptions {
+        /**
+         * @default 'udp'
+         */
+        network?: 'udp' | 'udp4' | 'udp6'
+
+        /**
+         * Default remote address
+         */
+        remoteAddr?: UdpAddr
+    }
+    export interface UdpListenOptions {
+        /**
+         * name of the network (for example, "udp", "udp4", "udp6")
+         */
+        network: string
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        address: string
+    }
+    class UdpConn {
+        private constructor()
+        /**
+         * Create a udp socket
+         */
+        static create(opts?: UdpCreateOptions): UdpConn
+        /**
+         * Listen for udp at the specified address
+         * @remarks
+         * 
+         * Like create() then bind()
+         */
+        static listen(opts: UdpListenOptions): UdpConn
+        /**
+         * Connect to udp server
+         * @remarks
+         * 
+         * Like create() then connect()
+         */
+        static dial(opts: UdpListenOptions): UdpConn
+
+        /**
+         * 
+         * Used to lock and only communicate with this address. You can think of it as a udp connection, but it will not actually create a connection, just lock the communication address.
+         */
+        connect(remoteAddr: UdpAddr): void
+        /**
+         * bind socket to local address
+         */
+        bind(localAddr: UdpAddr): void
+
         /**
          * Returns whether the connection has been closed
          */
@@ -629,12 +678,18 @@ declare module "ejs/net" {
         close(): void
 
         /**
-         * Write data returns the actual number of bytes written
+         * After calling connect, you can only use write to write data
          * 
          * @param data data to write
-         * @param target write target address
          */
-        write(data: string | Uint8Array | ArrayBuffer, target?: UdpAddr): number
+        write(data: string | Uint8Array | ArrayBuffer): number
+        /**
+         * Before calling connect, you can only use writeTo to write data
+         * 
+         * @param data data to write
+         * @param remoteAddr write target address
+         */
+        writeTo(data: string | Uint8Array | ArrayBuffer, remoteAddr: UdpAddr): number
 
         /**
          * Write buffer size
