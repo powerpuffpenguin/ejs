@@ -600,6 +600,22 @@ declare module "ejs/net" {
         toString(): string
         constructor(ip?: string, port?: number)
     }
+    /**
+     * For reading ready udp data
+     * @remarks
+     * UDP is not a stream but a frame, which means you can only call read once per callback
+     */
+    export interface UdpReadable {
+        /**
+         * Read as much data as possible into dst, returning the actual bytes read
+         * @returns the actual read data length
+         */
+        read(dst: Uint8Array): number
+        /**
+         * whether it is readable
+         */
+        canRed(): boolean
+    }
     class UdpConn implements Conn {
         constructor(readonly localAddr: UdpAddr, readonly remoteAddr: UdpAddr) { }
         static listen(localAddr: UdpAddr): UdpConn
@@ -640,13 +656,6 @@ declare module "ejs/net" {
         /**
          * Callback when there is data to read
          */
-        onReadable?: (this: UdpConn) => void
-        /**
-         * Read data from udp
-         * @param dst 
-         * @param remote This is the outgoing parameter, it is populated with which address the data came from
-         * @returns actual number of bytes read
-         */
-        read(dst: Uint8Array, remote?: UdpAddr): number
+        onReadable?: (this: UdpConn, r: UdpReadable) => void
     }
 }

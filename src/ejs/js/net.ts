@@ -142,6 +142,7 @@ declare namespace deps {
     export class UdpConn {
         readonly __id = "UdpConn"
         md: ConnMetadata
+        cb: () => void
     }
     export interface UdpConnOptions {
         v6?: boolean
@@ -150,6 +151,16 @@ declare namespace deps {
     export function udp_close(c: UdpConn): void
     export function udp_localAddr(c: UdpConn): [string, number]
     export function udp_write(c: UdpConn, data: string | Uint8Array | ArrayBuffer, remote?: UdpAddr): number
+    export function udp_conn_cb(c: UdpConn, enable: boolean): void
+
+    export interface UdpReadOptions {
+        c: UdpConn
+        dst: Uint8Array
+        addr?: deps.UdpAddr // in out
+
+        out?: boolean // if true, out to addr
+    }
+    export function udp_read(opts: UdpReadOptions): number
 }
 
 export class AddrError extends __duk.Error {
@@ -1143,18 +1154,34 @@ export interface Readable {
     drain(n: number): number
 }
 class evbufferReadable implements Readable {
-    constructor(readonly b: deps.evbuffer) { }
+    constructor(readonly b: deps.evbuffer, private Error: typeof NetError) { }
     get length(): number {
+        if (this.closed_) {
+            throw new this.Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
         return deps.evbuffer_len(this.b)
     }
     read(dst: Uint8Array): number {
+        if (this.closed_) {
+            throw new this.Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
         return deps.evbuffer_read(this.b, dst)
     }
     copy(dst: Uint8Array, skip?: number): number {
+        if (this.closed_) {
+            throw new this.Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
         return deps.evbuffer_copy(this.b, dst, skip)
     }
     drain(n: number) {
+        if (this.closed_) {
+            throw new this.Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
         return deps.evbuffer_drain(this.b, n)
+    }
+    private closed_ = false
+    _close() {
+        this.closed_ = true
     }
 }
 export type OnReadableCallback = (this: Conn, r: Readable) => void
@@ -1310,7 +1337,12 @@ export class BaseTcpConn implements Conn {
     private _cbr(r: deps.evbuffer) {
         const onReadable = this.onReadable
         if (onReadable) {
-            onReadable.bind(this)(new evbufferReadable(r))
+            const rb = new evbufferReadable(r, this.bridge_.Error)
+            onReadable.bind(this)(rb)
+            rb._close()
+            if (this.isClosed) {
+                return
+            }
         }
 
         const onMessage = this.onMessage_
@@ -2052,35 +2084,119 @@ export interface UdpConnOptions {
     v6?: boolean
     remoteAddr?: UdpAddr
 }
-export class UdpConn {
-    get localAddr(): UdpAddr {
-        return this.c_.localAddr()
+export interface UdpCreateOptions {
+    v6?: boolean
+}
+/**
+ * For reading ready udp data
+ * @remarks
+ * UDP is not a stream but a frame, which means you can only call read once per callback
+ */
+export interface UdpReadable {
+    /**
+     * Read as much data as possible into dst, returning the actual bytes read
+     * @returns the actual read data length
+     */
+    read(dst: Uint8Array): number
+    /**
+     * whether it is readable
+     */
+    canRed(): boolean
+}
+class udpReadable {
+    constructor(private c_?: BaseUdpConn) { }
+    /**
+     * Read data from udp
+     * @param dst 
+     * @param remote This is the outgoing parameter, it is populated with which address the data came from
+     * @returns actual number of bytes read
+     */
+    read(dst: Uint8Array, remote?: UdpAddr): number {
+        const conn = this.c_
+        if (!conn) {
+            throw new UdpError(`UdpReadable can only read once`)
+        }
+        if (this.closed_) {
+            throw new UdpError(`UdpReadable has expired, it is only valid in callback function onReadable`)
+        }
+        const c = conn.conn
+        if (!c) {
+            throw new UdpError(`conn already closed`)
+        }
+        try {
+            if (remote === undefined || remote === null) {
+                this.c_ = undefined
+                return deps.udp_read({
+                    c: c,
+                    dst: dst,
+                })
+            } else if (remote instanceof UdpAddr) {
+                const addr = remote.addr_
+                if (addr) {
+                    this.c_ = undefined
+                    remote.addr_ = undefined
+                    const n = deps.udp_read({
+                        c: c,
+                        dst: dst,
+                        addr: addr,
+                    })
+                    remote.addr_ = addr
+                    return n
+                } else {
+                    this.c_ = undefined
+                    const opts: deps.UdpReadOptions = {
+                        c: c,
+                        dst: dst,
+                        out: true,
+                    }
+                    const n = deps.udp_read(opts)
+                    remote.addr_ = opts.addr
+                    return n
+                }
+            } else {
+                throw new UdpError("remote must be a UdpAddr")
+            }
+        } catch (e) {
+            throwUdpError(e)
+        }
     }
-    readonly remoteAddr: UdpAddr
-    private c_: BaseUdpConn
-    constructor(opts?: UdpConnOptions) {
+    canRed(): boolean {
+        return this.c_ && !this.closed_ ? true : false
+    }
+    private closed_ = false
+    _close() {
+        this.closed_ = true
+    }
+}
+export type OnUdpReadableCallback = (this: Conn, r: UdpReadable) => void
+export class UdpConn {
+    static create(opts?: UdpCreateOptions): UdpConn {
         const conn = deps.udp_create({
             v6: opts?.v6,
         })
-        const remote = opts?.remoteAddr
-        if (remote && remote instanceof UdpAddr) {
-            this.remoteAddr = remote
-        } else {
-            this.remoteAddr = new UdpAddr()
-        }
         try {
-            this.c_ = new BaseUdpConn(conn)
-            this.md_ = conn.md
+            return new UdpConn(conn, new UdpAddr())
         } catch (e) {
             deps.udp_close(conn)
             throw e
+        }
+    }
+    get localAddr(): UdpAddr {
+        return this.c_.localAddr()
+    }
+    private c_: BaseUdpConn
+    private constructor(conn: deps.UdpConn, readonly remoteAddr: UdpAddr) {
+        this.c_ = new BaseUdpConn(conn)
+        this.md_ = conn.md
+        conn.cb = () => {
+            this._cb()
         }
     }
     /**
      * Returns whether the connection has been closed
      */
     get isClosed(): boolean {
-        return this.c_.conn ? true : false
+        return this.c_.conn ? false : true
     }
     /**
      * Close the connection and release resources
@@ -2128,6 +2244,7 @@ export class UdpConn {
             throwUdpError(e)
         }
     }
+
     private md_: deps.ConnMetadata
     /**
      * Write buffer size
@@ -2145,37 +2262,113 @@ export class UdpConn {
             this.md_.mw = v
         }
     }
-    /**
-     * Read buffer
-     * @remarks
-     * If not set, a buffer of size 32k will be automatically created when reading.
-     */
+    private _buffer(): Uint8Array {
+        let b = this.buffer
+        if (b && b.length > 0) {
+            return b
+        }
+        b = new Uint8Array(1024 * 32)
+        this.buffer = b
+        return b
+    }
     buffer?: Uint8Array
+    private _cb() {
+        const onReadable = this.onReadable
+        if (onReadable) {
+            const r = new udpReadable(this.c_)
+            onReadable.bind(this)(r)
+            if (!r.canRed()) {
+                r._close()
+                return
+            }
+            r._close()
+            if (this.isClosed) {
+                return
+            }
+        }
 
+        const onMessage = this.onMessage_
+        if (onMessage) {
+            const r = new udpReadable(this.c_)
+            const b = this._buffer()
+            const n = r.read(b)
+            switch (n) {
+                case -1:
+                case 0:
+                    break
+                case b.length:
+                    onMessage.bind(this)(b)
+                    break
+                default:
+                    onMessage.bind(this)(b.length == n ? b : b.subarray(0, n))
+                    break
+            }
+        }
+    }
+    private onReadable_?: OnUdpReadableCallback
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data. 
+     */
+    get onReadable(): OnUdpReadableCallback | undefined {
+        return this.onReadable_
+    }
+    set onReadable(f: OnUdpReadableCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onReadable_) {
+                return
+            }
+            const c = this.c_.conn
+            if (c && !this.onMessage_) {
+                deps.udp_conn_cb(c, false)
+            }
+            this.onReadable_ = undefined
+        } else {
+            if (f === this.onReadable_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new UdpError("onReadable must be a function")
+            }
+            const c = this.c_.conn
+            if (c && !this.onMessage_) {
+                deps.udp_conn_cb(c, true)
+            }
+            this.onReadable_ = f
+        }
+    }
+
+    private onMessage_?: OnMessageCallback
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data. 
+     */
+    get onMessage(): OnMessageCallback | undefined {
+        return this.onMessage_
+    }
+    set onMessage(f: OnMessageCallback | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onMessage_) {
+                return
+            }
+            const c = this.c_.conn
+            if (c && !this.onReadable_) {
+                deps.udp_conn_cb(c, false)
+            }
+            this.onMessage_ = undefined
+        } else {
+            if (f === this.onMessage_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new UdpError("onMessage must be a function")
+            }
+            const c = this.c_.conn
+            if (c && !this.onReadable_) {
+                deps.udp_conn_cb(c, true)
+            }
+            this.onMessage_ = f
+        }
+    }
 }
-// export class UdpConn /*implements Conn*/ {
-//     private c_?: deps.UdpConn
-//     readonly remoteAddr: UdpAddr
-//     readonly localAddr: UdpAddr
-//     private constructor() {
-//         try {
-//             this.remoteAddr = new UdpAddr()
-//             this.c_ = deps.udp_create()
-//         } catch (e) {
-//             throwUdpError(e)
-//         }
-//     }
-//     get isClosed(): boolean {
-//         return this.c_ ? false : true
-//     }
-//     close() {
-//         const c = this.c_
-//         if (c) {
-//             this.c_ = undefined
-//             deps.udp_close(c)
-//         }
-//     }
-// }
 export function module_destroy() {
     if (Resolver.hasDefault()) {
         Resolver.getDefault().close()

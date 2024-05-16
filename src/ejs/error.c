@@ -60,6 +60,8 @@ DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
         return "event_assign fail";
     case EJS_ERROR_EVENT_ADD:
         return "event_add fail";
+    case EJS_ERROR_EVENT_DEL:
+        return "event_del fail";
     case EJS_ERROR_NO_EVENT:
         return "event_base_dispatch no event";
     case EJS_ERROR_NO_EVENT_BASE_DISPATCH:
