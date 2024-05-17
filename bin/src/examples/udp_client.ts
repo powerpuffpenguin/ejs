@@ -1,8 +1,8 @@
 import { Command } from "../flags";
 import * as net from "ejs/net";
 export const command = new Command({
-    use: 'net-client',
-    short: 'net echo client example',
+    use: 'udp-client',
+    short: 'udp echo client example',
     prepare(flags, _) {
         const address = flags.string({
             name: 'addr',
@@ -14,9 +14,9 @@ export const command = new Command({
             name: 'network',
             usage: 'network',
             values: [
-                'tcp', 'tcp4', 'tcp6', 'unix',
+                'udp', 'udp4', 'udp6',
             ],
-            default: 'tcp',
+            default: 'udp',
         });
         const count = flags.number({
             name: 'count',
@@ -39,25 +39,25 @@ export const command = new Command({
                     abort!.abort('dial timeout')
                 }, v)
             }
-            net.dial({
-                network: network.value,
-                address: address.value,
-                signal: abort?.signal,
-            }, (c, e) => {
-                if (timer) {
-                    clearTimeout(timer)
-                }
-                if (!c) {
-                    console.log("connect error:", e)
-                    return
-                }
+            // net.UdpConn.dial({
+            //     network: network.value,
+            //     address: address.value,
+            //     signal: abort?.signal,
+            // }, (c, e) => {
+            //     if (timer) {
+            //         clearTimeout(timer)
+            //     }
+            //     if (!c) {
+            //         console.log("connect error:", e)
+            //         return
+            //     }
 
-                console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)
-                c.onError = (e) => {
-                    console.log("err:", e)
-                }
-                new State(c, count.value).next()
-            })
+            //     console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)
+            //     c.onError = (e) => {
+            //         console.log("err:", e)
+            //     }
+            //     new State(c, count.value).next()
+            // })
         }
     },
 })

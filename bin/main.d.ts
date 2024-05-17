@@ -607,10 +607,12 @@ declare module "ejs/net" {
      */
     export interface UdpReadable {
         /**
-         * Read as much data as possible into dst, returning the actual bytes read
-         * @returns the actual read data length
+         * Read data from udp
+         * @param dst 
+         * @param remote This is the outgoing parameter, it is populated with which address the data came from
+         * @returns actual number of bytes read
          */
-        read(dst: Uint8Array): number
+        read(dst: Uint8Array, remote?: UdpAddr): number
         /**
          * whether it is readable
          */
@@ -642,7 +644,15 @@ declare module "ejs/net" {
          */
         address: string
     }
+    export interface UdpDialHostOptions extends UdpDialOptions {
+        /**
+         * A signal that can be used to cancel dialing
+         */
+        signal?: AbortSignal
+    }
     class UdpConn {
+        readonly remoteAddr: Addr
+        readonly localAddr: Addr
         private constructor()
         /**
          * Create a udp socket
@@ -662,7 +672,13 @@ declare module "ejs/net" {
          * Like create() then connect()
          */
         static dial(opts: UdpDialOptions): UdpConn
-
+        /**
+         * Connect to udp server
+         * @remarks
+         * 
+         * similar to abc but supports using domain names as addresses
+         */
+        static dialHost(opts: UdpDialHostOptions, cb: (c?: UdpConn, e?: any) => void): void
         /**
          * 
          * Used to lock and only communicate with this address. You can think of it as a udp connection, but it will not actually create a connection, just lock the communication address.

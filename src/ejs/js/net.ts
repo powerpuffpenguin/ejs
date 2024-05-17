@@ -172,6 +172,11 @@ declare namespace deps {
         out?: boolean // if true, out to addr
     }
     export function udp_read(opts: UdpReadOptions): number
+
+    export let _ipv6: undefined | boolean
+    export function support_ipv6(): boolean
+    export let _ipv4: undefined | boolean
+    export function support_ipv4(): boolean
 }
 
 export class AddrError extends __duk.Error {
@@ -2189,6 +2194,12 @@ export interface UdpListenOptions {
      */
     address: string
 }
+export interface UdpDialHostOptions extends UdpListenOptions {
+    /**
+     * A signal that can be used to cancel dialing
+     */
+    signal?: AbortSignal
+}
 function parseUdpOptions(tag: string, opts: UdpListenOptions): deps.UdpListenOptions {
     let v6: undefined | boolean
     switch (opts.network ?? 'udp') {
@@ -2240,6 +2251,182 @@ function parseUdpOptions(tag: string, opts: UdpListenOptions): deps.UdpListenOpt
         port: port,
         v6: v6,
     }
+}
+function udp_dial_ip(opts: {
+    ip?: string
+    port: number
+    v6?: boolean
+    cb: (c?: UdpConn, e?: any) => void
+}) {
+    const cb = opts.cb
+    let c: deps.UdpConn
+    try {
+        c = deps.udp_dial({
+            ip: opts.ip,
+            port: opts.port,
+            v6: opts.v6,
+        })
+    } catch (e) {
+        if (typeof e === "string") {
+            cb(undefined, new UdpError(e))
+        } else {
+            cb(undefined, e)
+        }
+        return
+    }
+    let conn: UdpConn
+    try {
+        const remoteAddr = new UdpAddr()
+        remoteAddr.addr_ = c.addr
+        conn = UdpConn.attach(c, remoteAddr)
+    } catch (e) {
+        deps.udp_close(c)
+        cb(undefined, e)
+        return
+    }
+    cb(conn)
+}
+function udp_dial_host(opts: {
+    resolver: Resolver
+    v6: boolean
+    name: string
+    port: number
+    signal?: AbortSignal
+    cb?: (c?: UdpConn, e?: any) => void
+}) {
+    const signal = opts.signal
+    let onabort: undefined | ((resaon: any) => void)
+    if (signal) {
+        onabort = (resaon) => {
+            const cb = opts.cb
+            if (cb) {
+                opts.cb = undefined
+                cb(undefined, resaon)
+            }
+        }
+        signal.addEventListener(onabort)
+    }
+    opts.resolver.resolve(opts, (ip, e) => {
+        const cb = opts.cb
+        if (!cb) {
+            return
+        }
+        opts.cb = undefined
+        if (onabort) {
+            signal!.removeEventListener(onabort)
+        }
+        if (!ip) {
+            cb(undefined, e)
+            return
+        } else if (ip.length === 0) {
+            cb(undefined, new UdpError(`unknow host: ${opts.name}`))
+            return
+        }
+
+        udp_dial_ip({
+            ip: ip[0],
+            port: opts.port,
+            v6: opts.v6,
+            cb: cb,
+        })
+    })
+}
+function udp_dial(opts: {
+    name: string
+    port: number
+    v6?: boolean
+    signal?: AbortSignal
+    cb?: (c?: UdpConn, e?: any) => void
+}) {
+    let v6 = opts.v6
+    if (v6 === undefined) {
+        if (isSupportV6()) {
+            if (isSupportV4()) {
+                let abort: AbortController
+                let resolver: Resolver
+                try {
+                    abort = new AbortController()
+                    resolver = Resolver.getDefault()
+                } catch (e) {
+                    const cb = opts.cb!
+                    opts.cb = undefined
+                    cb(undefined, e)
+                    return
+                }
+                let onabort: undefined | ((reason: any) => void)
+                try {
+                    if (opts.signal) {
+                        onabort = (reason: any) => {
+                            abort.abort(reason)
+                        }
+                        opts.signal.addEventListener(onabort)
+                    }
+                    let first = true
+                    let err: any
+                    const oncb: (c?: UdpConn | undefined, e?: any) => void = (c, e) => {
+                        const cb = opts.cb
+                        if (!cb) {
+                            return
+                        } else if (!c) {
+                            if (first) {
+                                first = false
+                                err = e
+                                return
+                            }
+                        }
+                        opts.cb = undefined
+                        if (onabort) {
+                            opts.signal!.removeEventListener(onabort)
+                        }
+                        if (c) {
+                            abort.abort()
+                            cb(c)
+                        } else {
+                            cb(undefined, err)
+                        }
+                    }
+                    udp_dial_host({
+                        resolver: resolver,
+                        v6: false,
+                        name: opts.name,
+                        port: opts.port,
+                        signal: opts.signal,
+                        cb: oncb,
+                    })
+                    udp_dial_host({
+                        resolver: resolver,
+                        v6: true,
+                        name: opts.name,
+                        port: opts.port,
+                        signal: opts.signal,
+                        cb: oncb,
+                    })
+                } catch (e) {
+                    const cb = opts.cb
+                    if (cb) {
+                        opts.cb = undefined
+                        if (onabort) {
+                            opts.signal!.removeEventListener(onabort)
+                        }
+                        abort.abort(e)
+                        cb(undefined, e)
+                    }
+                }
+                return
+            }
+            v6 = true
+        } else {
+            v6 = false
+        }
+    }
+    udp_dial_host({
+        resolver: Resolver.getDefault(),
+        v6: v6,
+        name: opts.name,
+        port: opts.port,
+        signal: opts.signal,
+        cb: opts.cb,
+    })
 }
 export class UdpConn {
     /**
@@ -2310,6 +2497,78 @@ export class UdpConn {
         }
     }
     /**
+     * Connect to udp server
+     * @remarks
+     * 
+     * similar to abc but supports using domain names as addresses
+     */
+    static dialHost(opts: UdpDialHostOptions, cb?: (c?: UdpConn, e?: any) => void): void {
+        if (typeof cb !== "function") {
+            throw new UdpError("cb must be a function")
+        }
+        const network = opts.network ?? 'udp'
+        let v6: undefined | boolean
+        switch (network) {
+            case 'udp':
+                break;
+            case 'udp4':
+                v6 = true
+                break;
+            case 'udp6':
+                v6 = false
+                break;
+            default:
+                throw new UdpError(`unknow network: ${opts.network}`)
+        }
+        const [host, sport] = splitHostPort(opts.address)
+        const port = parseInt(sport)
+
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new TcpError(`dial port invalid: ${opts.address}`)
+        }
+        let ip: IP | undefined
+        if (host != "") {
+            ip = IP.parse(host)
+            if (!ip) {
+                udp_dial({
+                    name: host,
+                    port: port,
+                    v6: v6,
+                    signal: opts.signal,
+                    cb: cb,
+                })
+                return
+            }
+        }
+        if (ip) {
+            if (v6 === undefined) {
+                if (ip.isV4) {
+                    v6 = false
+                }
+            } else {
+                if (v6) {
+                    if (!ip.isV6) {
+                        throw new UdpError(`dial network restriction address must be ipv6: ${opts.address}`)
+                    }
+                    v6 = true
+                } else {
+                    if (!ip.isV4) {
+                        throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
+                    }
+                    v6 = false
+                }
+            }
+        }
+        setTimeout(() => {
+            udp_dial_ip({
+                ip: ip?.toString(),
+                port: port,
+                v6: v6,
+                cb: cb,
+            })
+        }, 0)
+    }
+    /**
      * Create a udp that can only communicate with the specified target
      * @param remoteAddr 
      */
@@ -2359,6 +2618,9 @@ export class UdpConn {
         return this.c_.localAddr()
     }
     private c_: BaseUdpConn
+    static attach(conn: deps.UdpConn, remoteAddr: UdpAddr): UdpConn {
+        return new UdpConn(conn, remoteAddr)
+    }
     private constructor(conn: deps.UdpConn, readonly remoteAddr: UdpAddr) {
         this.c_ = new BaseUdpConn(conn)
         this.md_ = conn.md
@@ -2551,6 +2813,22 @@ export class UdpConn {
             this.onMessage_ = f
         }
     }
+}
+export function isSupportV6(): boolean {
+    let ok = deps._ipv6
+    if (ok === undefined) {
+        ok = deps.support_ipv6()
+        deps._ipv6 = ok
+    }
+    return ok
+}
+export function isSupportV4(): boolean {
+    let ok = deps._ipv4
+    if (ok === undefined) {
+        ok = deps.support_ipv4()
+        deps._ipv4 = ok
+    }
+    return ok
 }
 export function module_destroy() {
     if (Resolver.hasDefault()) {

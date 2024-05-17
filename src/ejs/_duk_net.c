@@ -2683,15 +2683,11 @@ static duk_ret_t udp_dial_impl(duk_context *ctx)
     duk_size_t len = 0;
     const uint8_t *ip = 0;
     duk_get_prop_lstring(ctx, -1, "ip", 2);
-    if (duk_is_null_or_undefined(ctx, -1))
-    {
-        duk_pop(ctx);
-    }
-    else
+    if (!duk_is_null_or_undefined(ctx, -1))
     {
         ip = duk_require_lstring(ctx, -1, &len);
     }
-
+    duk_pop(ctx);
     ejs_core_t *core = ejs_require_core(ctx);
 
     duk_get_prop_lstring(ctx, -1, "v6", 2);
@@ -2823,14 +2819,11 @@ static duk_ret_t udp_listen_impl(duk_context *ctx)
     duk_size_t len = 0;
     const uint8_t *ip = 0;
     duk_get_prop_lstring(ctx, -1, "ip", 2);
-    if (duk_is_null_or_undefined(ctx, -1))
-    {
-        duk_pop(ctx);
-    }
-    else
+    if (!duk_is_null_or_undefined(ctx, -1))
     {
         ip = duk_require_lstring(ctx, -1, &len);
     }
+    duk_pop(ctx);
 
     ejs_core_t *core = ejs_require_core(ctx);
 
@@ -3423,7 +3416,32 @@ static duk_ret_t udp_read(duk_context *ctx)
 
     return 0;
 }
-
+static duk_ret_t support_ipv6(duk_context *ctx)
+{
+    struct sockaddr_in6 sin;
+    if (evutil_inet_pton(AF_INET6, "::", &sin.sin6_addr))
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
+static duk_ret_t support_ipv4(duk_context *ctx)
+{
+    struct sockaddr_in sin;
+    if (evutil_inet_pton(AF_INET, "0.0.0.0", &sin.sin_addr))
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
 {
     /*
@@ -3574,6 +3592,11 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "udp_conn_cb", 11);
         duk_push_c_lightfunc(ctx, udp_read, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "udp_read", 8);
+
+        duk_push_c_lightfunc(ctx, support_ipv6, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "support_ipv6", 12);
+        duk_push_c_lightfunc(ctx, support_ipv4, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "support_ipv4", 12);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
