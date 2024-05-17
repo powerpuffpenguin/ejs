@@ -27,8 +27,8 @@ exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
 exports.command = new flags_1.Command({
-    use: 'net-client',
-    short: 'net echo client example',
+    use: 'udp-client',
+    short: 'udp echo client example',
     prepare: function (flags, _) {
         var address = flags.string({
             name: 'addr',
@@ -40,9 +40,9 @@ exports.command = new flags_1.Command({
             name: 'network',
             usage: 'network',
             values: [
-                'tcp', 'tcp4', 'tcp6', 'unix',
+                'udp', 'udp4', 'udp6',
             ],
-            default: 'tcp',
+            default: 'udp',
         });
         var count = flags.number({
             name: 'count',
@@ -65,7 +65,7 @@ exports.command = new flags_1.Command({
                     abort.abort('dial timeout');
                 }, v);
             }
-            net.dial({
+            net.UdpConn.dialHost({
                 network: network.value,
                 address: address.value,
                 signal: abort === null || abort === void 0 ? void 0 : abort.signal,
@@ -78,9 +78,6 @@ exports.command = new flags_1.Command({
                     return;
                 }
                 console.log("connect success: ".concat(c.localAddr, " -> ").concat(c.remoteAddr));
-                c.onError = function (e) {
-                    console.log("err:", e);
-                };
                 new State(c, count.value).next();
             });
         };
@@ -88,26 +85,10 @@ exports.command = new flags_1.Command({
 });
 var State = /** @class */ (function () {
     function State(c, count) {
-        var _this = this;
         this.c = c;
         this.count = count;
         this.step_ = 0;
         this.serve();
-        c.onWritable = function () {
-            var data = _this.data_;
-            if (data) {
-                // Continue writing unsent data
-                try {
-                    c.write(data);
-                }
-                catch (e) {
-                    console.log("write error", e);
-                    c.close();
-                }
-            }
-            // Resume data reading
-            _this.serve();
-        };
     }
     State.prototype.serve = function () {
         var _this = this;
@@ -138,10 +119,7 @@ var State = /** @class */ (function () {
         try {
             this.step_++;
             this.data_ = new TextEncoder().encode("\u9019\u500B\u7B2C ".concat(this.step_, " \u500B message"));
-            if (this.c.write(this.data_) === undefined) {
-                // write full，pause read
-                this.c.onMessage = undefined;
-            }
+            this.c.write(this.data_);
         }
         catch (e) {
             console.log('write error', e);
