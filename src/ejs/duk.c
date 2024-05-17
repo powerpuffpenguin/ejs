@@ -47,7 +47,24 @@ DUK_EXTERNAL void ejs_throw_os(duk_context *ctx, int err, const char *message)
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_OS_ERROR);
     duk_push_int(ctx, err);
-    duk_push_string(ctx, message);
+    if (message)
+    {
+        duk_push_string(ctx, message);
+    }
+    else
+    {
+        duk_push_string(ctx, strerror(err));
+    }
+    duk_new(ctx, 2);
+    duk_throw(ctx);
+}
+DUK_EXTERNAL void ejs_throw_os_errno(duk_context *ctx)
+{
+    int err = errno;
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_OS_ERROR);
+    duk_push_int(ctx, err);
+    duk_push_string(ctx, strerror(err));
     duk_new(ctx, 2);
     duk_throw(ctx);
 }

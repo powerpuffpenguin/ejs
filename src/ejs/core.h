@@ -66,7 +66,9 @@ extern "C"
      * return core version. vX.Y.Z
      */
     DUK_EXTERNAL const char *ejs_version();
-
+    /**
+     * ... -> ...
+     */
     DUK_EXTERNAL ejs_core_t *ejs_require_core(duk_context *ctx);
 #if defined(__cplusplus)
 }

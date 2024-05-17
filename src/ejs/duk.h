@@ -21,6 +21,7 @@ extern "C"
 
     DUK_EXTERNAL void ejs_throw_os(duk_context *ctx, int err, const char *message);
     DUK_EXTERNAL void ejs_throw_os_format(duk_context *ctx, int err, const char *fmt, ...);
+    DUK_EXTERNAL void ejs_throw_os_errno(duk_context *ctx);
 
     /**
      * * ok  ... -> ... retval
@@ -108,8 +109,8 @@ extern "C"
 
     /**
      * free(obj.p)
-    */
-    DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context* ctx);
+     */
+    DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context *ctx);
 #if defined(__cplusplus)
 }
 #endif

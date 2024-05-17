@@ -1,34 +1,25 @@
 var net = require("ejs/net")
 
-var addr = new net.UdpAddr('127.0.0.1', 8964)
-console.log(addr.toString(), addr)
-// var conn = new net.UdpConn(addr)
-var conn = net.UdpConn.create({
-    network: 'udp4'
+var l = net.UdpConn.listen({
+    address: ':11223',
 })
-conn.bind(new net.UdpAddr('127.0.0.1', 8963))
-
-console.log(conn, addr)
-conn.connect(addr)
-// conn.connect(new net.UdpAddr('::', 8964))
-console.log('localAddr', conn.localAddr.toString(), "remoteAddr", conn.remoteAddr.toString())
-console.log('write', conn.writeTo("ok", addr))
-
-// console.log('write', conn.writeTo("ok3", addr))
-var b = new Uint8Array(1024)
-var remote = new net.UdpAddr('127.0.0.1', 90)
-var i = 0
-conn.onReadable = function (r) {
-
-    console.log('onReadable', conn.localAddr.toString())
-    var n = r.read(b, remote)
-    console.log('------', n, remote.toString(), new TextDecoder().decode(b.subarray(0, n)))
-    // if (++i == 2) {
-    //     this.close()
-    // }
+var buf = new Uint8Array(1024 * 32)
+var addr = new net.UdpAddr()
+l.onReadable = function (r) {
+    var n = r.read(buf, addr)
+    this.writeTo(buf.subarray(0, n), addr)
+    l.close()
 }
-// conn.onMessage = function (msg) {
-//     console.log('onMessage', new TextDecoder().decode(msg))
-// }
-// conn.close()
 
+
+var c = net.UdpConn.dial({
+    address: ':11223',
+})
+c.write('ok')
+// c.write('ok 456')
+var decoder = new TextDecoder()
+c.onMessage = function (msg) {
+    console.log(this.localAddr.toString(), this.remoteAddr.toString())
+    console.log("recv", msg, decoder.decode(msg))
+    c.close()
+}
