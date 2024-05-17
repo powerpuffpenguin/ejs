@@ -734,4 +734,12 @@ declare module "ejs/net" {
          */
         onReadable?: (this: UdpConn, r: UdpReadable) => void
     }
+    /**
+     * Returns whether ipv6 is supported
+     */
+    export function isSupportV6(): boolean
+    /**
+     * Returns whether ipv4 is supported
+     */
+    export function isSupportV4(): boolean
 }
