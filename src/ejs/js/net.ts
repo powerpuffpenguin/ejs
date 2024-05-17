@@ -2526,6 +2526,12 @@ export class UdpConn {
         if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
             throw new TcpError(`dial port invalid: ${opts.address}`)
         }
+
+        const signal = opts.signal
+        if (signal) {
+            signal.throwIfAborted()
+        }
+
         let ip: IP | undefined
         if (host != "") {
             ip = IP.parse(host)

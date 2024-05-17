@@ -39,47 +39,31 @@ export const command = new Command({
                     abort!.abort('dial timeout')
                 }, v)
             }
-            // net.UdpConn.dial({
-            //     network: network.value,
-            //     address: address.value,
-            //     signal: abort?.signal,
-            // }, (c, e) => {
-            //     if (timer) {
-            //         clearTimeout(timer)
-            //     }
-            //     if (!c) {
-            //         console.log("connect error:", e)
-            //         return
-            //     }
 
-            //     console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)
-            //     c.onError = (e) => {
-            //         console.log("err:", e)
-            //     }
-            //     new State(c, count.value).next()
-            // })
+            net.UdpConn.dialHost({
+                network: network.value as any,
+                address: address.value,
+                signal: abort?.signal,
+            }, (c, e) => {
+                if (timer) {
+                    clearTimeout(timer)
+                }
+                if (!c) {
+                    console.log("connect error:", e)
+                    return
+                }
+
+                console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)
+                new State(c, count.value).next()
+            })
         }
     },
 })
 
 
 class State {
-    constructor(readonly c: net.Conn, readonly count: number) {
+    constructor(readonly c: net.UdpConn, readonly count: number) {
         this.serve()
-        c.onWritable = () => {
-            const data = this.data_
-            if (data) {
-                // Continue writing unsent data
-                try {
-                    c.write(data)
-                } catch (e) {
-                    console.log("write error", e)
-                    c.close()
-                }
-            }
-            // Resume data reading
-            this.serve()
-        }
     }
     private step_ = 0
     private data_?: Uint8Array
@@ -113,10 +97,7 @@ class State {
             this.step_++
             this.data_ = new TextEncoder().encode(`這個第 ${this.step_} 個 message`)
 
-            if (this.c.write(this.data_) === undefined) {
-                // write full，pause read
-                this.c.onMessage = undefined
-            }
+            this.c.write(this.data_)
         } catch (e) {
             console.log('write error', e)
             this.c.close()
