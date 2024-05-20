@@ -1692,37 +1692,47 @@ function listenUnix(opts: ListenOptions): UnixListener {
 type DialCallback = (c?: Conn, e?: any) => void
 
 function tcp_dial_ip(opts: {
+    sync: boolean
+    Error: typeof NetError
+
     ip: string,
-    port: number
+    port?: number
     v6: boolean
     signal?: AbortSignal
     cb?: DialCallback
+
 
     c?: deps.TcpConn
 }) {
     let onabort: ((reason: any) => void) | undefined
     const signal = opts.signal
-    if (signal) {
-        onabort = (reason) => {
-            const cb = opts.cb
-            if (cb) {
-                const c = opts.c
-                if (c) {
-                    opts.c = undefined
-                    deps.tcp_conn_close(c)
-                }
-                opts.cb = undefined
-                cb(undefined, reason)
-            }
-        }
-        signal.addEventListener(onabort)
-    }
     try {
-        opts.c = deps.tcp_conect({
-            ip: opts.ip,
-            port: opts.port,
-            v6: opts.v6,
-        })
+        if (signal) {
+            onabort = (reason) => {
+                const cb = opts.cb
+                if (cb) {
+                    opts.cb = undefined
+                    const c = opts.c
+                    if (c) {
+                        opts.c = undefined
+                        deps.tcp_conn_close(c)
+                    }
+                    cb(undefined, reason)
+                }
+            }
+            signal.addEventListener(onabort)
+        }
+        if (opts.port === undefined) {
+            opts.c = deps.unix_conect({
+                name: opts.ip,
+            })
+        } else {
+            opts.c = deps.tcp_conect({
+                ip: opts.ip,
+                port: opts.port,
+                v6: opts.v6,
+            })
+        }
         opts.c.cbe = (what) => {
             const cb = opts.cb
             if (!cb) {
@@ -1742,7 +1752,7 @@ function tcp_dial_ip(opts: {
             if (what & deps.BEV_EVENT_TIMEOUT) {
                 deps.tcp_conn_close(c)
 
-                const e = new TcpError("connect timeout")
+                const e = new opts.Error("connect timeout")
                 e.connect = true
                 e.timeout = true
 
@@ -1751,27 +1761,34 @@ function tcp_dial_ip(opts: {
                 deps.tcp_conn_close(c)
 
                 if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
-                    const e = new TcpError("connect timeout")
+                    const e = new opts.Error("connect timeout")
                     e.connect = true
                     e.timeout = true
 
                     cb(undefined, e)
                 } else {
-                    const e = new TcpError(deps.socket_error_str())
+                    const e = new opts.Error(deps.socket_error_str())
                     e.connect = true
                     cb(undefined, e)
                 }
             } else {
                 let conn: undefined | TcpConn
                 try {
-                    let [ip, port] = deps.tcp_conn_localAddr(c)
-                    if (ip.startsWith('::ffff:')) {
-                        ip = ip.substring(7)
+                    if (opts.port === undefined) {
+                        conn = new UnixConn(new NetAddr('unix', opts.ip),
+                            new NetAddr('unix', '@'),
+                            c,
+                        )
+                    } else {
+                        let [ip, port] = deps.tcp_conn_localAddr(c)
+                        if (ip.startsWith('::ffff:')) {
+                            ip = ip.substring(7)
+                        }
+                        conn = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
+                            new NetAddr('tcp', joinHostPort(ip, port)),
+                            c,
+                        )
                     }
-                    conn = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
-                        new NetAddr('tcp', joinHostPort(ip, port)),
-                        c,
-                    )
                 } catch (e) {
                     deps.tcp_conn_close(c)
                     cb(undefined, e)
@@ -1781,6 +1798,8 @@ function tcp_dial_ip(opts: {
             }
         }
     } catch (e) {
+        const cb = opts.cb
+        opts.cb = undefined
         const c = opts.c
         if (c) {
             opts.c = undefined
@@ -1790,11 +1809,184 @@ function tcp_dial_ip(opts: {
             signal!.removeEventListener(onabort)
         }
         if (typeof e === "string") {
-            throw new TcpError(e)
+            if (opts.sync) {
+                throw new opts.Error(e)
+            } else {
+                cb!(undefined, new opts.Error(e))
+            }
         } else {
-            throw e
+            if (opts.sync) {
+                throw e
+            } else {
+                cb!(undefined, e)
+            }
         }
     }
+}
+function tcp_dial_host(opts: {
+    sync: boolean
+    resolver: Resolver,
+    v6: boolean,
+    name: string,
+    port: number,
+    signal?: AbortSignal,
+    cb?: DialCallback,
+}) {
+    try {
+        const signal = opts.signal
+        let onabort: undefined | ((resaon: any) => void)
+        if (signal) {
+            onabort = (resaon) => {
+                const cb = opts.cb
+                if (cb) {
+                    opts.cb = undefined
+                    cb(undefined, resaon)
+                }
+            }
+            signal.addEventListener(onabort)
+        }
+        opts.resolver.resolve(opts, (ip, e) => {
+            const cb = opts.cb
+            if (!cb) {
+                return
+            }
+            opts.cb = undefined
+            if (onabort) {
+                if (signal!.aborted) {
+                    cb(undefined, signal!.reason)
+                    return
+                }
+                signal!.removeEventListener(onabort)
+            }
+            if (!ip) {
+                cb(undefined, e)
+                return
+            } else if (ip.length === 0) {
+                cb(undefined, new TcpError(`unknow host: ${opts.name}`))
+                return
+            }
+            tcp_dial_ip({
+                sync: false,
+                Error: TcpError,
+                ip: ip[0],
+                port: opts.port,
+                v6: opts.v6,
+                cb: cb,
+            })
+        })
+    } catch (e) {
+        if (opts.sync) {
+            opts.cb = undefined
+            throw e
+        }
+        const cb = opts.cb!
+        opts.cb = undefined
+        cb(undefined, e)
+    }
+}
+function tcp_dial_name(opts: {
+    v6?: boolean,
+    name: string,
+    port: number,
+    signal?: AbortSignal,
+    cb?: DialCallback,
+}) {
+    let v6 = opts.v6
+    if (v6 === undefined) {
+        if (isSupportV6()) {
+            if (isSupportV4()) {
+                let abort: AbortController
+                let resolver: Resolver
+                try {
+                    abort = new AbortController()
+                    resolver = Resolver.getDefault()
+                } catch (e) {
+                    throw e
+                }
+                let onabort: undefined | ((reason: any) => void)
+                try {
+                    if (opts.signal) {
+                        onabort = (reason: any) => {
+                            abort.abort(reason)
+                        }
+                        opts.signal.addEventListener(onabort)
+                    }
+                    let first = true
+                    let err: any
+                    const oncb: (c?: Conn, e?: any) => void = (c, e) => {
+                        const cb = opts.cb
+                        if (!cb) {
+                            if (c) {
+                                c.close()
+                            }
+                            return
+                        } else if (abort.signal.aborted) {
+                            opts.cb = undefined
+                            if (c) {
+                                c.close()
+                            }
+                            cb(undefined, abort.signal.reason)
+                            return
+                        } else if (!c) {
+                            if (first) {
+                                first = false
+                                err = e
+                                return
+                            }
+                        }
+                        opts.cb = undefined
+                        if (onabort) {
+                            opts.signal!.removeEventListener(onabort)
+                        }
+                        if (c) {
+                            abort.abort()
+                            cb(c)
+                        } else {
+                            cb(undefined, err)
+                        }
+                    }
+                    tcp_dial_host({
+                        sync: false,
+                        resolver: resolver,
+                        v6: false,
+                        name: opts.name,
+                        port: opts.port,
+                        signal: opts.signal,
+                        cb: oncb,
+                    })
+                    tcp_dial_host({
+                        sync: false,
+                        resolver: resolver,
+                        v6: true,
+                        name: opts.name,
+                        port: opts.port,
+                        signal: opts.signal,
+                        cb: oncb,
+                    })
+                } catch (e) {
+                    opts.cb = undefined
+                    if (onabort) {
+                        opts.signal!.removeEventListener(onabort)
+                    }
+                    abort.abort(e)
+                    throw e
+                }
+                return
+            }
+            v6 = true
+        } else {
+            v6 = false
+        }
+    }
+    tcp_dial_host({
+        sync: true,
+        resolver: Resolver.getDefault(),
+        v6: v6,
+        name: opts.name,
+        port: opts.port,
+        signal: opts.signal,
+        cb: opts.cb,
+    })
 }
 function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
     const [host, sport] = splitHostPort(opts.address)
@@ -1802,22 +1994,38 @@ function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
     if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
         throw new TcpError(`dial port invalid: ${opts.address}`)
     }
+    const signal = opts.signal
+    if (signal) {
+        signal.throwIfAborted()
+    }
+
     let ip: string | undefined
     if (host == "") {
         if (v6 === undefined) {
-            v6 = false
-            ip = `127.0.0.1`
+            if (isSupportV4()) {
+                v6 = false
+                ip = '127.0.0.1'
+            } else {
+                v6 = true
+                ip = '::1'
+            }
         } else if (v6) {
             v6 = true
-            ip = `::1`
+            ip = '::1'
         } else {
             v6 = false
-            ip = `127.0.0.1`
+            ip = '127.0.0.1'
         }
     } else {
         const v = IP.parse(host)
         if (!v) {
-            //
+            tcp_dial_name({
+                v6: v6,
+                name: host,
+                port: port,
+                signal: opts.signal,
+                cb: cb,
+            })
             return
         }
         if (v6 === undefined) {
@@ -1838,6 +2046,9 @@ function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
         ip = v.toString()
     }
     tcp_dial_ip({
+        sync: true,
+        Error: TcpError,
+
         ip: ip,
         port: port,
         v6: v6,
@@ -1845,289 +2056,8 @@ function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
         cb: cb,
     })
 }
-class TcpDialer {
-    c_?: deps.TcpConn
-    cb_?: DialCallback
-    onabort_?: AbortListener
-    constructor(readonly opts: DialOptions, cb: DialCallback) {
-        this.cb_ = cb
-    }
-    dial(v6?: boolean) {
-        const opts = this.opts
-        const [host, sport] = splitHostPort(opts.address)
-        const port = parseInt(sport)
-        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-            throw new TcpError(`dial port invalid: ${opts.address}`)
-        }
-        let ip: string | undefined
-        if (host == "") {
-            if (v6 === undefined) {
-                v6 = false
-                ip = `127.0.0.1`
-            } else if (v6) {
-                v6 = true
-                ip = `::1`
-            } else {
-                v6 = false
-                ip = `127.0.0.1`
-            }
-        } else {
-            const v = IP.parse(host)
-            if (!v) {
-                try {
-                    Resolver.getDefault().resolve({
-                        name: host,
-                        v6: v6,
-                        signal: opts.signal,
-                    }, (ip, e, ipv6) => {
-                        const cb = this.cb_
-                        if (!cb) {
-                            return
-                        }
-                        if (!ip) {
-                            this.cb_ = undefined
-                            this._closeSignal()
-                            cb(undefined, e)
-                            return
-                        } else if (ip.length === 0) {
-                            this.cb_ = undefined
-                            this._closeSignal()
-                            cb(undefined, new TcpError(`unknow host: ${host}`))
-                            return
-                        }
-                        this._connect({
-                            ip: ip[0],
-                            port: port,
-                            v6: ipv6!,
-                        })
-                    })
-                } catch (e) {
-                    throw e
-                }
-                this._signal()
-                return
-            }
-            if (v6 === undefined) {
-                v6 = v.isV6
-            } else {
-                if (v6) {
-                    if (!v.isV6) {
-                        throw new TcpError(`dial network restriction address must be ipv6: ${opts.address}`)
-                    }
-                    v6 = true
-                } else {
-                    if (!v.isV4) {
-                        throw new TcpError(`dial network restriction address must be ipv4: ${opts.address}`)
-                    }
-                    v6 = false
-                }
-            }
-            ip = v.toString()
-        }
-        this._connect({
-            ip: ip,
-            port: port,
-            v6: v6,
-        })
-        this._signal()
-    }
-    private _signal() {
-        const signal = this.opts.signal
-        if (signal) {
-            this.onabort_ = (reason) => {
-                const cb = this.cb_
-                if (!cb) {
-                    return
-                }
-                this.cb_ = undefined
 
-                const c = this.c_
-                if (c) {
-                    this.c_ = undefined
-                    deps.tcp_conn_close(c)
-                }
 
-                cb(undefined, reason)
-            }
-            signal.addEventListener(this.onabort_)
-        }
-    }
-    private _closeSignal() {
-        const signal = this.opts.signal
-        if (signal) {
-            const onabort = this.onabort_
-            if (onabort) {
-                this.onabort_ = undefined
-                signal.removeEventListener(onabort)
-            }
-        }
-    }
-
-    private _connect(opts: deps.TcpConnectOptions) {
-        const c = deps.tcp_conect(opts)
-        this.c_ = c
-        c.cbe = (what) => {
-            const cb = this.cb_
-            if (!cb) {
-                const c = this.c_
-                if (c) {
-                    this.c_ = undefined
-                    deps.tcp_conn_close(c)
-                }
-                return
-            }
-            this.cb_ = undefined
-
-            this._closeSignal()
-
-            if (what & deps.BEV_EVENT_TIMEOUT) {
-                deps.tcp_conn_close(c)
-
-                const e = new TcpError("connect timeout")
-                e.connect = true
-                e.timeout = true
-
-                cb(undefined, e)
-            } else if (what & deps.BEV_EVENT_ERROR) {
-                deps.tcp_conn_close(c)
-
-                if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
-                    const e = new TcpError("connect timeout")
-                    e.connect = true
-                    e.timeout = true
-
-                    cb(undefined, e)
-                } else {
-                    deps.tcp_conn_close(c)
-
-                    const e = new TcpError(deps.socket_error_str())
-                    e.connect = true
-                    cb(undefined, e)
-                }
-            } else {
-                let conn: undefined | TcpConn
-                try {
-                    let [ip, port] = deps.tcp_conn_localAddr(c)
-                    if (ip.startsWith('::ffff:')) {
-                        ip = ip.substring(7)
-                    }
-                    conn = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
-                        new NetAddr('tcp', joinHostPort(ip, port)),
-                        c,
-                    )
-                } catch (e) {
-                    deps.tcp_conn_close(c)
-                    throw e
-                }
-                cb(conn)
-                return
-            }
-        }
-    }
-}
-class UnixDialer {
-    c_?: deps.TcpConn
-    cb_?: DialCallback
-    onabort_?: AbortListener
-    constructor(readonly opts: DialOptions, cb: DialCallback) {
-        this.cb_ = cb
-    }
-    dial() {
-        this._connect({
-            name: this.opts.address,
-        })
-        this._signal()
-    }
-    private _signal() {
-        const signal = this.opts.signal
-        if (signal) {
-            this.onabort_ = (reason) => {
-                const cb = this.cb_
-                if (!cb) {
-                    return
-                }
-                this.cb_ = undefined
-
-                const c = this.c_
-                if (c) {
-                    this.c_ = undefined
-                    deps.tcp_conn_close(c)
-                }
-
-                cb(undefined, reason)
-            }
-            signal.addEventListener(this.onabort_)
-        }
-    }
-    private _closeSignal() {
-        const signal = this.opts.signal
-        if (signal) {
-            const onabort = this.onabort_
-            if (onabort) {
-                this.onabort_ = undefined
-                signal.removeEventListener(onabort)
-            }
-        }
-    }
-
-    private _connect(opts: deps.UnixConnectOptions) {
-        const c = deps.unix_conect(opts)
-        this.c_ = c
-        c.cbe = (what) => {
-            const cb = this.cb_
-            if (!cb) {
-                const c = this.c_
-                if (c) {
-                    this.c_ = undefined
-                    deps.tcp_conn_close(c)
-                }
-                return
-            }
-            this.cb_ = undefined
-
-            this._closeSignal()
-
-            if (what & deps.BEV_EVENT_TIMEOUT) {
-                deps.tcp_conn_close(c)
-
-                const e = new UnixError("connect timeout")
-                e.connect = true
-                e.timeout = true
-
-                cb(undefined, e)
-            } else if (what & deps.BEV_EVENT_ERROR) {
-                deps.tcp_conn_close(c)
-
-                if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
-                    const e = new UnixError("connect timeout")
-                    e.connect = true
-                    e.timeout = true
-
-                    cb(undefined, e)
-                } else {
-                    deps.tcp_conn_close(c)
-
-                    const e = new UnixError(deps.socket_error_str())
-                    e.connect = true
-                    cb(undefined, e)
-                }
-            } else {
-                let conn: undefined | UnixConn
-                try {
-                    conn = new UnixConn(new NetAddr('unix', opts.name),
-                        new NetAddr('unix', '@'),
-                        c,
-                    )
-                } catch (e) {
-                    deps.tcp_conn_close(c)
-                    throw e
-                }
-                cb(conn)
-                return
-            }
-        }
-    }
-}
 
 /**
  * Create a listening service
@@ -2182,7 +2112,14 @@ export function dial(opts: DialOptions, cb: DialCallback) {
             tcp_dial(opts, cb, true)
             break
         case 'unix':
-            new UnixDialer(opts, cb).dial()
+            tcp_dial_ip({
+                sync: true,
+                Error: UnixError,
+                ip: opts.address,
+                signal: opts.signal,
+                v6: false,
+                cb: cb,
+            })
             break
         default:
             throw new NetError(`unknow network: ${opts.network}`);
@@ -2407,12 +2344,12 @@ function parseUdpOptions(tag: string, opts: UdpListenOptions): deps.UdpListenOpt
     }
 }
 function udp_dial_ip(opts: {
+    sync: boolean
     ip?: string
     port: number
     v6?: boolean
-    cb?: (c?: UdpConn, e?: any) => void
+    cb: (c?: UdpConn, e?: any) => void
 }) {
-    const cb = opts.cb!
     let c: deps.UdpConn
     try {
         c = deps.udp_dial({
@@ -2422,9 +2359,19 @@ function udp_dial_ip(opts: {
         })
     } catch (e) {
         if (typeof e === "string") {
-            cb(undefined, new UdpError(e))
+            if (opts.sync) {
+                throw new UdpError(e)
+            } else {
+                const cb = opts.cb
+                cb(undefined, new UdpError(e))
+            }
         } else {
-            cb(undefined, e)
+            if (opts.sync) {
+                throw e
+            } else {
+                const cb = opts.cb
+                cb(undefined, e)
+            }
         }
         return
     }
@@ -2435,12 +2382,26 @@ function udp_dial_ip(opts: {
         conn = UdpConn.attach(c, remoteAddr)
     } catch (e) {
         deps.udp_close(c)
-        cb(undefined, e)
+        if (opts.sync) {
+            throw e
+        } else {
+            const cb = opts.cb
+            cb(undefined, e)
+        }
         return
     }
-    cb(conn)
+    if (opts.sync) {
+        setTimeout(() => {
+            const cb = opts.cb
+            cb(conn)
+        }, 0)
+    } else {
+        const cb = opts.cb
+        cb(conn)
+    }
 }
 function udp_dial_host(opts: {
+    sync: boolean
     resolver: Resolver
     v6: boolean
     name: string
@@ -2448,52 +2409,57 @@ function udp_dial_host(opts: {
     signal?: AbortSignal
     cb?: (c?: UdpConn, e?: any) => void
 }) {
-    const signal = opts.signal
-    let onabort: undefined | ((resaon: any) => void)
-    if (signal) {
-        if (signal.aborted) {
-            const cb = opts.cb!
-            opts.cb = undefined
-            cb(undefined, signal.reason)
-            return
-        }
-        onabort = (resaon) => {
-            const cb = opts.cb
-            if (cb) {
-                opts.cb = undefined
-                cb(undefined, resaon)
+    try {
+        const signal = opts.signal
+        let onabort: undefined | ((resaon: any) => void)
+        if (signal) {
+            onabort = (resaon) => {
+                const cb = opts.cb
+                if (cb) {
+                    opts.cb = undefined
+                    cb(undefined, resaon)
+                }
             }
+            signal.addEventListener(onabort)
         }
-        signal.addEventListener(onabort)
-    }
-    opts.resolver.resolve(opts, (ip, e) => {
-        const cb = opts.cb
-        if (!cb) {
-            return
-        }
-        opts.cb = undefined
-        if (onabort) {
-            if (signal!.aborted) {
-                cb(undefined, signal!.reason)
+        opts.resolver.resolve(opts, (ip, e) => {
+            const cb = opts.cb
+            if (!cb) {
                 return
             }
-            signal!.removeEventListener(onabort)
-        }
-        if (!ip) {
-            cb(undefined, e)
-            return
-        } else if (ip.length === 0) {
-            cb(undefined, new UdpError(`unknow host: ${opts.name}`))
-            return
-        }
+            opts.cb = undefined
+            if (onabort) {
+                if (signal!.aborted) {
+                    cb(undefined, signal!.reason)
+                    return
+                }
+                signal!.removeEventListener(onabort)
+            }
+            if (!ip) {
+                cb(undefined, e)
+                return
+            } else if (ip.length === 0) {
+                cb(undefined, new UdpError(`unknow host: ${opts.name}`))
+                return
+            }
 
-        udp_dial_ip({
-            ip: ip[0],
-            port: opts.port,
-            v6: opts.v6,
-            cb: cb,
+            udp_dial_ip({
+                sync: false,
+                ip: ip[0],
+                port: opts.port,
+                v6: opts.v6,
+                cb: cb,
+            })
         })
-    })
+    } catch (e) {
+        if (opts.sync) {
+            opts.cb = undefined
+            throw e
+        }
+        const cb = opts.cb!
+        opts.cb = undefined
+        cb(undefined, e)
+    }
 }
 function udp_dial(opts: {
     name: string
@@ -2512,10 +2478,7 @@ function udp_dial(opts: {
                     abort = new AbortController()
                     resolver = Resolver.getDefault()
                 } catch (e) {
-                    const cb = opts.cb!
-                    opts.cb = undefined
-                    cb(undefined, e)
-                    return
+                    throw e
                 }
                 let onabort: undefined | ((reason: any) => void)
                 try {
@@ -2530,9 +2493,15 @@ function udp_dial(opts: {
                     const oncb: (c?: UdpConn | undefined, e?: any) => void = (c, e) => {
                         const cb = opts.cb
                         if (!cb) {
+                            if (c) {
+                                c.close()
+                            }
                             return
                         } else if (abort.signal.aborted) {
                             opts.cb = undefined
+                            if (c) {
+                                c.close()
+                            }
                             cb(undefined, abort.signal.reason)
                             return
                         } else if (!c) {
@@ -2554,6 +2523,7 @@ function udp_dial(opts: {
                         }
                     }
                     udp_dial_host({
+                        sync: false,
                         resolver: resolver,
                         v6: false,
                         name: opts.name,
@@ -2562,6 +2532,7 @@ function udp_dial(opts: {
                         cb: oncb,
                     })
                     udp_dial_host({
+                        sync: false,
                         resolver: resolver,
                         v6: true,
                         name: opts.name,
@@ -2570,15 +2541,12 @@ function udp_dial(opts: {
                         cb: oncb,
                     })
                 } catch (e) {
-                    const cb = opts.cb
-                    if (cb) {
-                        opts.cb = undefined
-                        if (onabort) {
-                            opts.signal!.removeEventListener(onabort)
-                        }
-                        abort.abort(e)
-                        cb(undefined, e)
+                    opts.cb = undefined
+                    if (onabort) {
+                        opts.signal!.removeEventListener(onabort)
                     }
+                    abort.abort(e)
+                    throw e
                 }
                 return
             }
@@ -2588,6 +2556,7 @@ function udp_dial(opts: {
         }
     }
     udp_dial_host({
+        sync: true,
         resolver: Resolver.getDefault(),
         v6: v6,
         name: opts.name,
@@ -2690,11 +2659,9 @@ export class UdpConn {
         }
         const [host, sport] = splitHostPort(opts.address)
         const port = parseInt(sport)
-
         if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
             throw new TcpError(`dial port invalid: ${opts.address}`)
         }
-
         const signal = opts.signal
         if (signal) {
             signal.throwIfAborted()
@@ -2733,18 +2700,13 @@ export class UdpConn {
                 }
             }
         }
-        setTimeout(() => {
-            if (signal && signal.aborted) {
-                cb(undefined, signal.reason)
-            } else {
-                udp_dial_ip({
-                    ip: ip?.toString(),
-                    port: port,
-                    v6: v6,
-                    cb: cb,
-                })
-            }
-        }, 0)
+        udp_dial_ip({
+            sync: true,
+            ip: ip?.toString(),
+            port: port,
+            v6: v6,
+            cb: cb,
+        })
     }
     /**
      * Create a udp that can only communicate with the specified target
