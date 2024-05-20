@@ -2112,6 +2112,10 @@ export function dial(opts: DialOptions, cb: DialCallback) {
             tcp_dial(opts, cb, true)
             break
         case 'unix':
+            const signal = opts.signal
+            if (signal) {
+                signal.throwIfAborted()
+            }
             tcp_dial_ip({
                 sync: true,
                 Error: UnixError,
