@@ -1994,11 +1994,6 @@ function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
     if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
         throw new TcpError(`dial port invalid: ${opts.address}`)
     }
-    const signal = opts.signal
-    if (signal) {
-        signal.throwIfAborted()
-    }
-
     let ip: string | undefined
     if (host == "") {
         if (v6 === undefined) {
@@ -2112,10 +2107,6 @@ export function dial(opts: DialOptions, cb: DialCallback) {
             tcp_dial(opts, cb, true)
             break
         case 'unix':
-            const signal = opts.signal
-            if (signal) {
-                signal.throwIfAborted()
-            }
             tcp_dial_ip({
                 sync: true,
                 Error: UnixError,
