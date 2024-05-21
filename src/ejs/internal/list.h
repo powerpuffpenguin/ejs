@@ -4,10 +4,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#ifndef PPP_LIST_TYPENAME
-#define PPP_LIST_TYPENAME(typename) list_##typename
-#endif
-
 #ifndef PPP_LIST_ELEMENT_TYPENAME
 #define PPP_LIST_ELEMENT_TYPENAME(typename) list_element_##typename
 #endif
@@ -54,7 +50,7 @@ struct ppp_list
 typedef struct ppp_list ppp_list_t;
 
 /**
- * Define a doubly linked list
+ * Define doubly linked list's element
  */
 #define PPP_LIST_DEFINE(typename, value)       \
     struct PPP_LIST_ELEMENT_TYPENAME(typename) \
@@ -66,9 +62,14 @@ typedef struct ppp_list ppp_list_t;
     }
 
 /**
- * declare a element pointer
+ * get a element pointer
  */
 #define PPP_LIST_CAST(typename, ptr) ((struct PPP_LIST_ELEMENT_TYPENAME(typename) *)(ptr))
+
+/**
+ * get a element value
+ */
+#define PPP_LIST_CAST_VALUE(typename, ptr) (((struct PPP_LIST_ELEMENT_TYPENAME(typename) *)(ptr))->value)
 
 /**
  * Return sizeof(element)
@@ -79,6 +80,17 @@ typedef struct ppp_list ppp_list_t;
  * Initialize linked list
  */
 void ppp_list_init(ppp_list_t *l, size_t sizeof_element);
+
+typedef void (*ppp_list_element_destroy_function_t)(ppp_list_t *, ppp_list_element_t *);
+/**
+ * clear all items
+ */
+void ppp_list_clear_with_destroy(ppp_list_t *l, ppp_list_element_destroy_function_t f);
+
+/**
+ * clear all items
+ */
+#define ppp_list_clear(l) ppp_list_clear_with_destroy((l), 0)
 
 /**
  * Returns the previous element pointer or 0
@@ -93,7 +105,7 @@ ppp_list_element_t *ppp_list_next(ppp_list_element_t *e);
 /**
  * Insert element e into at, and automatically allocate memory if e is 0
  */
-ppp_list_element_t *ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t *at, ppp_list_element_t *e);
+ppp_list_element_t *_ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t *at, ppp_list_element_t *e);
 
 /**
  * returns the number of elements of list l
@@ -113,7 +125,7 @@ ppp_list_element_t *ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t 
 /**
  * inserts a new element e at the front of list l and returns e.
  */
-#define ppp_list_push_front_with(l, e) ppp_list__internal_insert((l), &(l)->root, (e))
+#define ppp_list_push_front_with(l, e) _ppp_list__internal_insert((l), &(l)->root, (e))
 /**
  * inserts a new element e at the front of list l and returns e.
  */
@@ -122,17 +134,18 @@ ppp_list_element_t *ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t 
 /**
  * inserts a new element e at the back of list l and returns e.
  */
-#define ppp_list_push_back_with(l, e) ppp_list__internal_insert((l), (l)->root._prev, (e))
+#define ppp_list_push_back_with(l, e) _ppp_list__internal_insert((l), (l)->root._prev, (e))
 /**
  * inserts a new element e at the back of list l and returns e.
  */
 #define ppp_list_push_back(l) ppp_list_push_back_with(l, 0)
+
 /**
  * Inserts a new element e with value v immediately after mark and returns e.
  * If mark is not an element of l, the list is not modified.
  * The mark must not be nil.
  */
-#define ppp_list_insert_after_with(l, mark, e) ((mark)->_list == (l) ? ppp_list__internal_insert((l), (mark), (e)) : 0)
+#define ppp_list_insert_after_with(l, mark, e) ((mark)->_list == (l) ? _ppp_list__internal_insert((l), (mark), (e)) : 0)
 /**
  * Inserts a new element e with value v immediately after mark and returns e.
  * If mark is not an element of l, the list is not modified.
@@ -145,7 +158,7 @@ ppp_list_element_t *ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t 
  * If mark is not an element of l, the list is not modified.
  * The mark must not be nil.
  */
-#define ppp_list_insert_before_with(l, mark, e) ((mark)->_list == (l) ? ppp_list__internal_insert((l), (mark)->_prev, (e)) : 0)
+#define ppp_list_insert_before_with(l, mark, e) ((mark)->_list == (l) ? _ppp_list__internal_insert((l), (mark)->_prev, (e)) : 0)
 /**
  * Inserts a new element e with value v immediately before mark and returns e.
  * If mark is not an element of l, the list is not modified.
@@ -156,43 +169,43 @@ ppp_list_element_t *ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t 
 /**
  *   moves e to next to at.
  */
-void ppp_list__internal_move(ppp_list_t *l, ppp_list_element_t *e, ppp_list_element_t *at);
+void _ppp_list__internal_move(ppp_list_t *l, ppp_list_element_t *e, ppp_list_element_t *at);
 
 /**
  * Moves element e to the front of list l.
  * If e is not an element of l, the list is not modified.
  * The element must not be nil.
  */
-#define ppp_list_move_to_front(l, e)                  \
-    if (!((e)->list != (l) || (l)->root.next == (e))) \
-    ppp_list__internal_move(l, &(l)->root)
+#define ppp_list_move_to_front(l, e)                    \
+    if (!((e)->_list != (l) || (l)->root._next == (e))) \
+    _ppp_list__internal_move(l, e, &(l)->root)
 
 /**
  * Moves element e to the back of list l.
  * If e is not an element of l, the list is not modified.
  * The element must not be nil.
  */
-#define ppp_list_move_to_back(l, e)                    \
-    if (!((e)->list != (l) || (l)->root._prev == (e))) \
-    ppp_list__internal_move(l, (l)->root._prev)
+#define ppp_list_move_to_back(l, e)                     \
+    if (!((e)->_list != (l) || (l)->root._prev == (e))) \
+    _ppp_list__internal_move(l, e, (l)->root._prev)
 
 /**
  * Moves element e to its new position before mark.
  * If e or mark is not an element of l, or e == mark, the list is not modified.
  * The element and mark must not be 0.
  */
-#define ppp_list_move_before(l, e, mark)                             \
-    if (!((e)->list != (l) || (e) == (mark) || (mark)->list != (l))) \
-    ppp_list__internal_move(l, e, (mark)->_prev)
+#define ppp_list_move_before(l, e, mark)                                                       \
+    if (!((e)->_list != (l) || (e) == (mark) || (mark)->_list != (l) || (e) == (mark)->_prev)) \
+    _ppp_list__internal_move(l, e, (mark)->_prev)
 
 /**
  * Moves element e to its new position after mark.
  * If e or mark is not an element of l, or e == mark, the list is not modified.
  * The element and mark must not be 0.
  */
-#define ppp_list_move_after(l, e, mark)                              \
-    if (!((e)->list != (l) || (e) == (mark) || (mark)->list != (l))) \
-    ppp_list__internal_move(l, e, mark)
+#define ppp_list_move_after(l, e, mark)                                \
+    if (!((e)->_list != (l) || (e) == (mark) || (mark)->_list != (l))) \
+    _ppp_list__internal_move(l, e, mark)
 
 /**
  * Removes e from l if e is an element of list l.
@@ -206,12 +219,12 @@ ppp_list_element_t *ppp_list_remove(ppp_list_t *l, ppp_list_element_t *e, BOOL a
  * The lists l and other may be the same. They must be already init.
  * If a failure is returned, it will be guaranteed that l will not change in any way.
  */
-BOOL ppp_list_move_back_list(ppp_list_t *l, ppp_list_t *other);
+BOOL ppp_list_push_back_list(ppp_list_t *l, ppp_list_t *other);
 /**
  * Inserts a copy of another list at the back of list l.
  * The lists l and other may be the same. They must be already init.
  * If a failure is returned, it will be guaranteed that l will not change in any way.
  */
-BOOL ppp_list_move_front_list(ppp_list_t *l, ppp_list_t *other);
+BOOL ppp_list_push_front_list(ppp_list_t *l, ppp_list_t *other);
 
 #endif

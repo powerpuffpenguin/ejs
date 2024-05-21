@@ -14,6 +14,37 @@ void ppp_list_init(ppp_list_t *l, size_t sizeof_element)
     l->malloc = malloc;
     l->free = free;
 }
+void ppp_list_clear_with_destroy(ppp_list_t *l, ppp_list_element_destroy_function_t f)
+{
+    if (!l->len)
+    {
+        return;
+    }
+    ppp_list_element_t *e = ppp_list_front(l);
+    ppp_list_element_t *next;
+    if (f)
+    {
+        while (e)
+        {
+            next = ppp_list_next(e);
+            f(l, e);
+            e = next;
+        }
+    }
+    else
+    {
+        while (e)
+        {
+            next = ppp_list_next(e);
+            free(e);
+            e = next;
+        }
+    }
+
+    l->len = 0;
+    l->root._next = &l->root;
+    l->root._prev = &l->root;
+}
 ppp_list_element_t *ppp_list_prev(ppp_list_element_t *e)
 {
     return e->_list &&
@@ -28,7 +59,7 @@ ppp_list_element_t *ppp_list_next(ppp_list_element_t *e)
                ? e->_next
                : 0;
 }
-ppp_list_element_t *ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t *at, ppp_list_element_t *e)
+ppp_list_element_t *_ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t *at, ppp_list_element_t *e)
 {
     if (!e)
     {
@@ -47,9 +78,9 @@ ppp_list_element_t *ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t 
     l->len++;
     return e;
 }
-void ppp_list__internal_move(ppp_list_t *l, ppp_list_element_t *e, ppp_list_element_t *at)
+void _ppp_list__internal_move(ppp_list_t *l, ppp_list_element_t *e, ppp_list_element_t *at)
 {
-    // if (e != at)
+    if (e != at)
     {
         e->_prev->_next = e->_next;
         e->_next->_prev = e->_prev;
@@ -81,6 +112,7 @@ ppp_list_element_t *ppp_list_remove(ppp_list_t *l, ppp_list_element_t *e, BOOL a
             e->_prev = 0; // avoid memory leaks
             e->_list = 0;
         }
+        return e;
     }
     return 0;
 }
@@ -127,7 +159,7 @@ BOOL ppp_list_push_back_list(ppp_list_t *l, ppp_list_t *other)
     }
     return TRUE;
 }
-BOOL ppp_list_move_front_list(ppp_list_t *l, ppp_list_t *other)
+BOOL ppp_list_push_front_list(ppp_list_t *l, ppp_list_t *other)
 {
     if (l->sizeof_element != other->sizeof_element || l->sizeof_element < sizeof(ppp_list_element_t))
     {
