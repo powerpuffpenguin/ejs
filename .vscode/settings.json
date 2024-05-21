@@ -62,6 +62,12 @@
         "stddef.h": "c",
         "uio.h": "c",
         "features.h": "c",
-        "socket.h": "c"
+        "socket.h": "c",
+        "list": "c",
+        "list.h": "c",
+        "system_error": "c",
+        "atomic": "c",
+        "__memory": "c",
+        "stdint.h": "c"
     }
 }

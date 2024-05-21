@@ -66,6 +66,16 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/thread_pool.c.o", "src/ejs/internal/thread_pool.c"],
+  "file": "src/ejs/internal/thread_pool.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/list.c.o", "src/ejs/internal/list.c"],
+  "file": "src/ejs/internal/list.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/sync_evconn_listener.c.o", "src/ejs/internal/sync_evconn_listener.c"],
   "file": "src/ejs/internal/sync_evconn_listener.c"
 },
@@ -141,6 +151,16 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/internal/thread_pool.c.o", "src/ejs/internal/thread_pool.c"],
+  "file": "src/ejs/internal/thread_pool.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/internal/list.c.o", "src/ejs/internal/list.c"],
+  "file": "src/ejs/internal/list.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/internal/sync_evconn_listener.c.o", "src/ejs/internal/sync_evconn_listener.c"],
   "file": "src/ejs/internal/sync_evconn_listener.c"
 },
@@ -148,6 +168,11 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs_test/path_test.c.o", "src/ejs_test/path_test.c"],
   "file": "src/ejs_test/path_test.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs_test/list_test.c.o", "src/ejs_test/list_test.c"],
+  "file": "src/ejs_test/list_test.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",
