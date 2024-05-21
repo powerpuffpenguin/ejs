@@ -368,7 +368,7 @@ static EJS_TESTS_GROUP_FUNC(list, Remove, t)
     CuAssertPtrEquals(t, 0, ppp_list_remove(&l, e, FALSE));
     checkListPointers(t, &l, 1, e2);
 
-    l.free(e);
+    free(e);
     ppp_list_clear(&l);
 }
 static EJS_TESTS_GROUP_FUNC(list, Issue4103, t)

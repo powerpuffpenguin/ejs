@@ -10,9 +10,6 @@ void ppp_list_init(ppp_list_t *l, size_t sizeof_element)
     l->root._prev = &l->root;
 
     l->sizeof_element = sizeof_element;
-
-    l->malloc = malloc;
-    l->free = free;
 }
 void ppp_list_clear_with_destroy(ppp_list_t *l, ppp_list_element_destroy_function_t f)
 {
@@ -63,7 +60,7 @@ ppp_list_element_t *_ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t
 {
     if (!e)
     {
-        e = l->malloc(l->sizeof_element);
+        e = malloc(l->sizeof_element);
         if (!e)
         {
             return 0;
@@ -104,7 +101,7 @@ ppp_list_element_t *ppp_list_remove(ppp_list_t *l, ppp_list_element_t *e, BOOL a
 
         if (autofree)
         {
-            l->free(e);
+            free(e);
         }
         else
         {

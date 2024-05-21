@@ -19,6 +19,7 @@ thread_pool_t *thread_pool_new(thread_pool_options_t opts)
         return 0;
     }
     pool->opts = opts;
+    ppp_list_init(&pool->idle, PPP_LIST_SIZEOF(thread_pool_worker));
     
 
     return pool;

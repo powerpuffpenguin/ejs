@@ -8,16 +8,6 @@
 #define PPP_LIST_ELEMENT_TYPENAME(typename) list_element_##typename
 #endif
 
-#ifndef PPP_FUNCTION_MALLOC
-#define PPP_FUNCTION_MALLOC ppp_function_malloc_t
-typedef void *(*ppp_function_malloc_t)(size_t);
-#endif
-
-#ifndef PPP_FUNCTION_FREE
-#define PPP_FUNCTION_FREE ppp_function_free_t
-typedef void (*ppp_function_free_t)(void *);
-#endif
-
 #ifndef BOOL
 #define BOOL uint8_t
 #endif
@@ -40,8 +30,6 @@ typedef struct ppp_list_element ppp_list_element_t;
 
 struct ppp_list
 {
-    PPP_FUNCTION_MALLOC malloc;
-    PPP_FUNCTION_FREE free;
     size_t sizeof_element;
 
     int len;

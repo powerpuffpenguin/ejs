@@ -3,20 +3,14 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include "list.h"
 
 typedef struct
 {
-    void *root;
-    int len;
+
 } _thread_pool_worker_t;
 
-
-typedef struct
-{
-    void *root;
-    int len;
-} _thread_pool_worker_list_t;
-
+PPP_LIST_DEFINE(thread_pool_worker, _thread_pool_worker_t value);
 
 typedef struct
 {
@@ -27,8 +21,7 @@ typedef struct
 typedef struct
 {
     thread_pool_options_t opts;
-    _thread_pool_worker_list_t list;
-
+    ppp_list_t idle;
 } thread_pool_t;
 
 thread_pool_t *thread_pool_new(thread_pool_options_t opts);
