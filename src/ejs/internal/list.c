@@ -80,7 +80,7 @@ ppp_list_element_t *_ppp_list__internal_insert(ppp_list_t *l, ppp_list_element_t
 }
 void _ppp_list__internal_move(ppp_list_t *l, ppp_list_element_t *e, ppp_list_element_t *at)
 {
-    if (e != at)
+    // if (e != at)
     {
         e->_prev->_next = e->_next;
         e->_next->_prev = e->_prev;
