@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #ifndef PPP_LIST_ELEMENT_TYPENAME
-#define PPP_LIST_ELEMENT_TYPENAME(typename) list_element_##typename
+#define PPP_LIST_ELEMENT_TYPENAME(typename) ppp_list_element_##typename
 #endif
 
 #ifndef BOOL

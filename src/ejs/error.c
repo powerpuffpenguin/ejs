@@ -68,5 +68,5 @@ DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
         return "event_base_dispatch fail";
     }
 
-    return "Unknow";
+    return "unknow";
 }
