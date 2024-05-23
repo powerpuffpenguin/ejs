@@ -1,12 +1,5 @@
-var net = require("ejs/net")
-net.dial({
-    network: 'tcp',
-    address: 'ip6-localhost:9000',
-}, function (c, e) {
-    if (e) {
-        console.log(e)
-        return
-    }
-    console.log("ok", c)
-    c.close()
-})
+var test = require("ejs/test")
+// for (var i = 0; i < 128; i++) {
+//     test.add(i, i * i)
+// }
+test.add(2, 3)

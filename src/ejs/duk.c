@@ -4,7 +4,9 @@
 #include "defines.h"
 #include "strings.h"
 #include "path.h"
+#include "core.h"
 
+#include <event2/event.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -514,4 +516,178 @@ DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context *ctx)
         free(p);
     }
     return 0;
+}
+
+static void _ejs_async_cb(evutil_socket_t _, short events, void *arg)
+{
+    if (events)
+    {
+        return;
+    }
+    ejs_core_t *core = arg;
+    ejs_thread_pool_t *p = core->thread_pool;
+    ppp_list_element_t *e;
+    ejs_thread_pool_task_t *task;
+
+    while (1)
+    {
+        pthread_mutex_lock(&p->mutex);
+        if (!ppp_list_len(&p->completed))
+        {
+            pthread_mutex_unlock(&p->mutex);
+            break;
+        }
+        e = ppp_list_front(&p->completed);
+        ppp_list_remove(&p->completed, e, 0);
+
+        if (!ppp_list_len(&p->worker) && !ppp_list_len(&p->completed))
+        {
+            event_del(EJS_THREAD_POOL_EV_PTR(p));
+        }
+
+        pthread_mutex_unlock(&p->mutex);
+
+        task = &PPP_LIST_CAST_VALUE(ejs_thread_pool_task, e);
+        task->return_cb(task->userdata);
+        free(e);
+    }
+}
+typedef struct
+{
+    ejs_core_t *core;
+    ejs_thread_pool_t *pool;
+} ejs_core_thread_pool_t;
+
+DUK_EXTERNAL ejs_core_thread_pool_t ejs_require_thread_pool(duk_context *ctx)
+{
+    ejs_core_t *core = ejs_require_core(ctx);
+    ejs_thread_pool_t *p = core->thread_pool;
+    if (!p)
+    {
+        p = malloc(sizeof(ejs_thread_pool_t) + event_get_struct_event_size());
+        if (!p)
+        {
+            ejs_throw_os(ctx, errno, 0);
+        }
+        ppp_thread_pool_options_t opts = {
+            .worker_of_idle = 8,
+            .worker_of_max = 0,
+        };
+        PPP_THREAD_POOL_ERROR err = ppp_thread_pool_init(&p->pool, &opts);
+        if (err)
+        {
+            free(p);
+            ejs_throw_cause(ctx, EJS_ERROR_THREAD_POOL_INIT, ppp_thread_pool_error(err));
+        }
+        struct event *ev = EJS_THREAD_POOL_EV_PTR(p);
+        if (event_assign(ev, core->base, 1, EV_PERSIST, _ejs_async_cb, core))
+        {
+            ppp_thread_pool_destroy(&p->pool);
+            free(p);
+            ejs_throw_cause(ctx, EJS_ERROR_EVENT_ASSIGN, "event_assign for thread pool fail");
+        }
+        ppp_list_init(&p->worker, PPP_LIST_SIZEOF(ejs_thread_pool_task));
+        ppp_list_init(&p->completed, PPP_LIST_SIZEOF(ejs_thread_pool_task));
+
+        core->thread_pool = p;
+    }
+    ejs_core_thread_pool_t result = {
+        .core = core,
+        .pool = p,
+    };
+    return result;
+}
+
+static void ejs_async_cb(void *userdata)
+{
+    ppp_list_element_t *e = userdata;
+    ejs_thread_pool_task_t *task = &PPP_LIST_CAST_VALUE(ejs_thread_pool_task, e);
+    task->worker_cb(task->userdata);
+
+    ejs_core_t *core = task->core;
+    ejs_thread_pool_t *p = core->thread_pool;
+
+    pthread_mutex_lock(&p->mutex);
+    ppp_list_remove(&p->worker, e, 0);
+    ppp_list_push_back_with(&p->completed, e);
+    pthread_mutex_unlock(&p->mutex);
+
+    event_active(EJS_THREAD_POOL_EV_PTR(p), 0, 0);
+}
+static void ejs_async_post_or_send(duk_context *ctx, ejs_async_function_t worker_cb, ejs_async_function_t return_cb, void *userdata, duk_bool_t post)
+{
+    ejs_core_thread_pool_t result = ejs_require_thread_pool(ctx);
+
+    ppp_list_element_t *e = malloc(result.pool->completed.sizeof_element);
+    if (!e)
+    {
+        ejs_throw_os(ctx, errno, 0);
+    }
+    ejs_thread_pool_task_t *task = &PPP_LIST_CAST_VALUE(ejs_thread_pool_task, e);
+    task->core = result.core;
+    task->worker_cb = worker_cb;
+    task->return_cb = return_cb;
+    task->userdata = userdata;
+
+    ejs_core_t *core = task->core;
+    ejs_thread_pool_t *p = core->thread_pool;
+
+    pthread_mutex_lock(&p->mutex);
+    duk_bool_t added = 0;
+    if (!ppp_list_len(&p->worker) && !ppp_list_len(&p->worker))
+    {
+        struct timeval tv =
+            {
+                .tv_sec = 3600 * 24 * 365,
+                .tv_usec = 0,
+            };
+        if (event_add(EJS_THREAD_POOL_EV_PTR(p), &tv))
+        {
+            pthread_mutex_unlock(&core->thread_pool->mutex);
+            free(e);
+            ejs_throw_cause(ctx, EJS_ERROR_EVENT_ADD, 0);
+            return;
+        }
+        added = 1;
+    }
+
+    PPP_THREAD_POOL_ERROR err = post ? ppp_thread_pool_post(&p->pool, ejs_async_cb, e) : ppp_thread_pool_send(&p->pool, ejs_async_cb, e);
+    if (err)
+    {
+        if (added)
+        {
+            event_del(EJS_THREAD_POOL_EV_PTR(p));
+        }
+        pthread_mutex_unlock(&core->thread_pool->mutex);
+        free(e);
+        ejs_throw_cause(ctx, EJS_ERROR_THREAD_POOL_DISPATCH, ppp_thread_pool_error(err));
+        return;
+    }
+
+    ppp_list_push_back_with(&p->worker, e);
+    pthread_mutex_unlock(&core->thread_pool->mutex);
+}
+DUK_EXTERNAL void ejs_async_post(duk_context *ctx, ejs_async_function_t worker_cb, ejs_async_function_t return_cb, void *userdata)
+{
+    ejs_async_post_or_send(ctx, worker_cb, return_cb, userdata, 1);
+}
+
+DUK_EXTERNAL void ejs_async_send(duk_context *ctx, ejs_async_function_t worker_cb, ejs_async_function_t return_cb, void *userdata)
+{
+    ejs_async_post_or_send(ctx, worker_cb, return_cb, userdata, 0);
+}
+static void ejs_async_cb_post_or_send(duk_context *ctx, ejs_async_function_t worker_cb, void *userdata, duk_bool_t post)
+{
+    
+}
+DUK_EXTERNAL void ejs_async_cb_post(duk_context *ctx, ejs_async_function_t worker_cb, void *userdata)
+{
+    duk_require_function(ctx, -1);
+    ejs_async_cb_post_or_send(ctx, worker_cb, userdata, 1);
+}
+
+DUK_EXTERNAL void ejs_async_cb_send(duk_context *ctx, ejs_async_function_t worker_cb, void *userdata)
+{
+    duk_require_function(ctx, -1);
+    ejs_async_cb_post_or_send(ctx, worker_cb, userdata, 0);
 }

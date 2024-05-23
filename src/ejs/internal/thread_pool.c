@@ -136,7 +136,6 @@ static void *_thread_pool_worker(void *arg)
             ++worker->pool->idle;
         }
     }
-    puts("thread out");
     _thread_pool_worker_quit(worker->pool, element);
     pthread_mutex_unlock(&worker->pool->mutex);
     return 0;

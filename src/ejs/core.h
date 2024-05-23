@@ -6,17 +6,37 @@
 #include "defines.h"
 
 #include "../duk/duktape.h"
+#include "internal/thread_pool.h"
 
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
+    typedef struct
+    {
+        ppp_thread_pool_task_function_t worker_cb;
+        ppp_thread_pool_task_function_t return_cb;
+        void *userdata;
+        void *core;
+    } ejs_thread_pool_task_t;
+    PPP_LIST_DEFINE(ejs_thread_pool_task, ejs_thread_pool_task_t value);
+    typedef struct
+    {
+        ppp_thread_pool_t pool;
+
+        ppp_list_t worker;
+        ppp_list_t completed;
+
+        pthread_mutex_t mutex;
+    } ejs_thread_pool_t;
+#define EJS_THREAD_POOL_EV_PTR(p) (struct event *)(((uint8_t *)(p)) + sizeof(ejs_thread_pool_t))
 
     typedef struct
     {
         struct event_base *base;
         duk_context *duk;
         uint32_t flags;
+        ejs_thread_pool_t *thread_pool;
     } ejs_core_t;
     typedef void (*ejs_register_f)(duk_context *ctx, const char *name, duk_c_function init);
     typedef void (*ejs_on_register_f)(duk_context *ctx, ejs_register_f f);

@@ -1,10 +1,23 @@
+/**
+ * This is a thread pool implemented within the ejs project.
+ * No dependencies other than pthread and can work independently.
+ * Just copy the source code to your project and use it.
+ *
+ * It is licensed under the MIT license.
+ *
+ * source:
+ *  * list.h
+ *  * list.c
+ *  * thread_pool.h
+ *  * thread_pool.c
+ */
+
 #ifndef _PPP_THREAD_POOL_H_
 #define _PPP_THREAD_POOL_H_
 
 #include <pthread.h>
 #include <stdint.h>
 #include "list.h"
-#include "queue.h"
 
 #define PPP_THREAD_POOL_ERROR uint8_t
 #define PPP_THREAD_POOL_ERROR_OK 0

@@ -14,6 +14,11 @@ DUK_EXTERNAL const char *ejs_error(const EJS_ERROR_RET err)
     case EJS_ERROR_OS:
         return "os error";
 
+    case EJS_ERROR_THREAD_POOL_INIT:
+        return "init thread pool fail";
+    case EJS_ERROR_THREAD_POOL_DISPATCH:
+        return "thread pool dispatch fail";
+
     case EJS_ERROR_SHORT_READ:
         return "short read";
 

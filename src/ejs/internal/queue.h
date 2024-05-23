@@ -1,3 +1,15 @@
+/**
+ * This is a fixed length queue implemented within the ejs project.
+ * It has no external dependencies and can work independently.
+ * Just copy the source code to your project and use it.
+ *
+ * It is licensed under the MIT license.
+ *
+ * source:
+ *  * queue.h
+ *  * queue.c
+ */
+
 #ifndef _PPP_CONTAINER_QUEUE_H_
 #define _PPP_CONTAINER_QUEUE_H_
 

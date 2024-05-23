@@ -1,6 +1,106 @@
 [
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
+  "file": "src/duk/duk_module_node.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node_ejs.c.o", "src/duk/duk_module_node_ejs.c"],
+  "file": "src/duk/duk_module_node_ejs.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_console.c.o", "src/duk/duk_console.c"],
+  "file": "src/duk/duk_console.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duktape.c.o", "src/duk/duktape.c"],
+  "file": "src/duk/duktape.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/path.c.o", "src/ejs/path.c"],
+  "file": "src/ejs/path.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk.c.o", "src/ejs/_duk.c"],
+  "file": "src/ejs/_duk.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/core.c.o", "src/ejs/core.c"],
+  "file": "src/ejs/core.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_test.c.o", "src/ejs/_duk_test.c"],
+  "file": "src/ejs/_duk_test.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_net.c.o", "src/ejs/_duk_net.c"],
+  "file": "src/ejs/_duk_net.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/duk.c.o", "src/ejs/duk.c"],
+  "file": "src/ejs/duk.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/error.c.o", "src/ejs/error.c"],
+  "file": "src/ejs/error.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_helper.c.o", "src/ejs/_duk_helper.c"],
+  "file": "src/ejs/_duk_helper.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_timer.c.o", "src/ejs/_duk_timer.c"],
+  "file": "src/ejs/_duk_timer.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/strings.c.o", "src/ejs/strings.c"],
+  "file": "src/ejs/strings.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/queue.c.o", "src/ejs/internal/queue.c"],
+  "file": "src/ejs/internal/queue.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/thread_pool.c.o", "src/ejs/internal/thread_pool.c"],
+  "file": "src/ejs/internal/thread_pool.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/list.c.o", "src/ejs/internal/list.c"],
+  "file": "src/ejs/internal/list.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/sync_evconn_listener.c.o", "src/ejs/internal/sync_evconn_listener.c"],
+  "file": "src/ejs/internal/sync_evconn_listener.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
   "file": "src/duk/duk_module_node.c"
 },
@@ -33,6 +133,11 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/core.c.o", "src/ejs/core.c"],
   "file": "src/ejs/core.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/_duk_test.c.o", "src/ejs/_duk_test.c"],
+  "file": "src/ejs/_duk_test.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",
@@ -118,99 +223,4 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/main_test.c.o", "src/main_test.c"],
   "file": "src/main_test.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
-  "file": "src/main.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
-  "file": "src/duk/duk_module_node.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node_ejs.c.o", "src/duk/duk_module_node_ejs.c"],
-  "file": "src/duk/duk_module_node_ejs.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_console.c.o", "src/duk/duk_console.c"],
-  "file": "src/duk/duk_console.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duktape.c.o", "src/duk/duktape.c"],
-  "file": "src/duk/duktape.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/path.c.o", "src/ejs/path.c"],
-  "file": "src/ejs/path.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk.c.o", "src/ejs/_duk.c"],
-  "file": "src/ejs/_duk.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/core.c.o", "src/ejs/core.c"],
-  "file": "src/ejs/core.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_net.c.o", "src/ejs/_duk_net.c"],
-  "file": "src/ejs/_duk_net.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/duk.c.o", "src/ejs/duk.c"],
-  "file": "src/ejs/duk.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/error.c.o", "src/ejs/error.c"],
-  "file": "src/ejs/error.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_helper.c.o", "src/ejs/_duk_helper.c"],
-  "file": "src/ejs/_duk_helper.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_timer.c.o", "src/ejs/_duk_timer.c"],
-  "file": "src/ejs/_duk_timer.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/strings.c.o", "src/ejs/strings.c"],
-  "file": "src/ejs/strings.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/queue.c.o", "src/ejs/internal/queue.c"],
-  "file": "src/ejs/internal/queue.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/thread_pool.c.o", "src/ejs/internal/thread_pool.c"],
-  "file": "src/ejs/internal/thread_pool.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/list.c.o", "src/ejs/internal/list.c"],
-  "file": "src/ejs/internal/list.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/sync_evconn_listener.c.o", "src/ejs/internal/sync_evconn_listener.c"],
-  "file": "src/ejs/internal/sync_evconn_listener.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
-  "file": "src/main.c"
 }]
