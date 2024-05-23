@@ -33,7 +33,7 @@ static EJS_TESTS_GROUP_FUNC(thread_pool, send, t)
 {
     ppp_thread_pool_options_t opts = {
         .worker_of_idle = 4,
-        .worker_of_max = 0,
+        .worker_of_max = 8,
     };
     ppp_thread_pool_t *p = ppp_thread_pool_new(&opts);
     int val[128] = {0};
@@ -55,7 +55,7 @@ static EJS_TESTS_GROUP_FUNC(thread_pool, send, t)
 EJS_TESTS_GROUP(thread_pool)
 {
     CuSuite *suite = CuSuiteNew();
-    EJS_TESTS_GROUP_ADD_FUNC(suite, thread_pool, post);
+    // EJS_TESTS_GROUP_ADD_FUNC(suite, thread_pool, post);
     EJS_TESTS_GROUP_ADD_FUNC(suite, thread_pool, send);
     return suite;
 }

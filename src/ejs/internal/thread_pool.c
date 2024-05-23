@@ -18,6 +18,15 @@ const char *ppp_thread_pool_error(const PPP_THREAD_POOL_ERROR err)
         return "cb NULL";
     case PPP_THREAD_POOL_ERROR_NEW_THREAD:
         return "create new thread fail";
+
+    case PPP_THREAD_POOL_ERROR_INIT_MUTEX:
+        return "init mutex fail";
+    case PPP_THREAD_POOL_ERROR_INIT_CV_PRODUCER:
+        return "init cv_producer fail";
+    case PPP_THREAD_POOL_ERROR_INIT_CV_CONSUMER:
+        return "init cv_consumer fail";
+    case PPP_THREAD_POOL_ERROR_INIT_CV_WAIT:
+        return "init cv_wait fail";
     }
     return "unknow";
 }
@@ -50,7 +59,7 @@ void ppp_thread_pool_wait(ppp_thread_pool_t *p)
     }
     pthread_mutex_unlock(&p->mutex);
 }
-void ppp_thread_pool_free(ppp_thread_pool_t *p)
+void ppp_thread_pool_destroy(ppp_thread_pool_t *p)
 {
     ppp_thread_pool_close(p);
     ppp_thread_pool_wait(p);
@@ -60,6 +69,10 @@ void ppp_thread_pool_free(ppp_thread_pool_t *p)
     pthread_cond_destroy(&p->cv_producer);
     pthread_cond_destroy(&p->cv_consumer);
     pthread_cond_destroy(&p->cv_wait);
+}
+void ppp_thread_pool_free(ppp_thread_pool_t *p)
+{
+    ppp_thread_pool_destroy(p);
     free(p);
 }
 static void *_thread_pool_worker_quit(ppp_thread_pool_t *pool, ppp_list_element_t *element)
@@ -81,10 +94,11 @@ static void *_thread_pool_worker(void *arg)
 
     pthread_mutex_lock(&worker->pool->mutex);
     if (!(!worker->pool->wait_producer &&
-          worker->pool->worker_of_idle &&
-          worker->pool->idle >= worker->pool->worker_of_idle))
+          worker->pool->options.worker_of_idle &&
+          worker->pool->idle >= worker->pool->options.worker_of_idle))
     {
         ++worker->pool->idle;
+
         while (TRUE)
         {
             if (!worker->pool->cb)
@@ -93,6 +107,11 @@ static void *_thread_pool_worker(void *arg)
                 {
                     break;
                 }
+
+                if (worker->pool->wait_producer)
+                {
+                    pthread_cond_signal(&worker->pool->cv_producer);
+                }
                 ++worker->pool->wait_consumer;
                 pthread_cond_wait(&worker->pool->cv_consumer, &worker->pool->mutex);
                 --worker->pool->wait_consumer;
@@ -100,28 +119,24 @@ static void *_thread_pool_worker(void *arg)
             }
             worker->cb = worker->pool->cb;
             worker->userdata = worker->pool->userdata;
-
             worker->pool->cb = 0;
             worker->pool->userdata = 0;
 
             --worker->pool->idle;
-            if (worker->pool->wait_producer)
-            {
-                pthread_cond_signal(&worker->pool->cv_producer);
-            }
             pthread_mutex_unlock(&worker->pool->mutex);
 
             worker->cb(worker->userdata);
             pthread_mutex_lock(&worker->pool->mutex);
             if (!worker->pool->wait_producer &&
-                worker->pool->worker_of_idle &&
-                worker->pool->idle >= worker->pool->worker_of_idle)
+                worker->pool->options.worker_of_idle &&
+                worker->pool->idle >= worker->pool->options.worker_of_idle)
             {
                 break;
             }
             ++worker->pool->idle;
         }
     }
+    puts("thread out");
     _thread_pool_worker_quit(worker->pool, element);
     pthread_mutex_unlock(&worker->pool->mutex);
     return 0;
@@ -147,54 +162,58 @@ ppp_list_element_t *_ppp_thread_pool_create_thread(ppp_thread_pool_t *p, ppp_thr
     }
     return e;
 }
-ppp_thread_pool_t *ppp_thread_pool_new(ppp_thread_pool_options_t *opts)
+PPP_THREAD_POOL_ERROR ppp_thread_pool_init(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
 {
-    ppp_thread_pool_t *p = malloc(sizeof(ppp_thread_pool_t));
-    if (!p)
-    {
-        return 0;
-    }
     memset(p, 0, sizeof(ppp_thread_pool_t));
-
     if (pthread_mutex_init(&p->mutex, 0))
     {
-        free(p);
-        return 0;
+        return PPP_THREAD_POOL_ERROR_INIT_MUTEX;
     }
     if (pthread_cond_init(&p->cv_producer, 0))
     {
         pthread_mutex_destroy(&p->mutex);
-        free(p);
-        return 0;
+        return PPP_THREAD_POOL_ERROR_INIT_CV_PRODUCER;
     }
     if (pthread_cond_init(&p->cv_consumer, 0))
     {
         pthread_mutex_destroy(&p->mutex);
         pthread_cond_destroy(&p->cv_producer);
-        free(p);
-        return 0;
+        return PPP_THREAD_POOL_ERROR_INIT_CV_CONSUMER;
     }
     if (pthread_cond_init(&p->cv_wait, 0))
     {
         pthread_mutex_destroy(&p->mutex);
         pthread_cond_destroy(&p->cv_producer);
         pthread_cond_destroy(&p->cv_consumer);
-        free(p);
-        return 0;
+        return PPP_THREAD_POOL_ERROR_INIT_CV_WAIT;
     }
     if (opts)
     {
-        p->worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
-        if (p->worker_of_max > 0 && p->worker_of_max < p->worker_of_idle)
+        p->options.worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
+        if (opts->worker_of_max > 0)
         {
-            p->worker_of_max = p->worker_of_idle;
+            p->options.worker_of_max = opts->worker_of_max > p->options.worker_of_idle ? opts->worker_of_max : p->options.worker_of_idle;
         }
     }
     else
     {
-        p->worker_of_idle = 8;
+        p->options.worker_of_idle = 8;
     }
     ppp_list_init(&p->worker, PPP_LIST_SIZEOF(ppp_thread_pool_worker));
+
+    return PPP_THREAD_POOL_ERROR_OK;
+}
+ppp_thread_pool_t *ppp_thread_pool_new(ppp_thread_pool_options_t *opts)
+{
+    ppp_thread_pool_t *p = malloc(sizeof(ppp_thread_pool_t));
+    if (p)
+    {
+        if (ppp_thread_pool_init(p, opts))
+        {
+            free(p);
+            return 0;
+        }
+    }
     return p;
 }
 PPP_THREAD_POOL_ERROR _ppp_thread_pool_post_or_send(ppp_thread_pool_t *p, ppp_thread_pool_task_function_t cb, void *userdata, BOOL post)
@@ -210,7 +229,7 @@ PPP_THREAD_POOL_ERROR _ppp_thread_pool_post_or_send(ppp_thread_pool_t *p, ppp_th
         else if (!p->idle)
         {
             // no idle thread, create new thread
-            if (p->worker_of_max && ppp_list_len(&p->worker) >= p->worker_of_max)
+            if (p->options.worker_of_max && ppp_list_len(&p->worker) >= p->options.worker_of_max)
             {
                 if (post)
                 {
