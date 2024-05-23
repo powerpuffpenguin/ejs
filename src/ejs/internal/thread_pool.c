@@ -293,3 +293,32 @@ PPP_THREAD_POOL_ERROR ppp_thread_pool_send(ppp_thread_pool_t *p, ppp_thread_pool
     }
     return _ppp_thread_pool_post_or_send(p, cb, userdata, FALSE);
 }
+
+void ppp_thread_pool_get(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
+{
+    pthread_mutex_lock(&p->mutex);
+    *opts = p->options;
+    pthread_mutex_unlock(&p->mutex);
+}
+void ppp_thread_pool_set(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
+{
+    pthread_mutex_lock(&p->mutex);
+    if (opts)
+    {
+        p->options.worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
+        if (opts->worker_of_max > 0)
+        {
+            p->options.worker_of_max = opts->worker_of_max > p->options.worker_of_idle ? opts->worker_of_max : p->options.worker_of_idle;
+        }
+        else
+        {
+            p->options.worker_of_max = 0;
+        }
+    }
+    else
+    {
+        p->options.worker_of_idle = 8;
+        p->options.worker_of_max = 0;
+    }
+    pthread_mutex_unlock(&p->mutex);
+}

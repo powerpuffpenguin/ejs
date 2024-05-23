@@ -114,4 +114,13 @@ PPP_THREAD_POOL_ERROR ppp_thread_pool_post(ppp_thread_pool_t *p, ppp_thread_pool
  */
 PPP_THREAD_POOL_ERROR ppp_thread_pool_send(ppp_thread_pool_t *p, ppp_thread_pool_task_function_t cb, void *userdata);
 
+/**
+ * Return to settings
+ */
+void ppp_thread_pool_get(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts);
+/**
+ * Modify settings
+ */
+void ppp_thread_pool_set(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts);
+
 #endif
