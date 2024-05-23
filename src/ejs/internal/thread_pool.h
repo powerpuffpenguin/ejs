@@ -56,7 +56,7 @@ typedef struct
 
 PPP_LIST_DEFINE(ppp_thread_pool_worker, ppp_thread_pool_worker_t value);
 
-ppp_thread_pool_t *thread_pool_new(ppp_thread_pool_options_t *opts);
+ppp_thread_pool_t *ppp_thread_pool_new(ppp_thread_pool_options_t *opts);
 void ppp_thread_pool_close(ppp_thread_pool_t *p);
 void ppp_thread_pool_wait(ppp_thread_pool_t *p);
 void ppp_thread_pool_free(ppp_thread_pool_t *p);

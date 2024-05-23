@@ -147,7 +147,7 @@ ppp_list_element_t *_ppp_thread_pool_create_thread(ppp_thread_pool_t *p, ppp_thr
     }
     return e;
 }
-ppp_thread_pool_t *thread_pool_new(ppp_thread_pool_options_t *opts)
+ppp_thread_pool_t *ppp_thread_pool_new(ppp_thread_pool_options_t *opts)
 {
     ppp_thread_pool_t *p = malloc(sizeof(ppp_thread_pool_t));
     if (!p)
@@ -184,13 +184,8 @@ ppp_thread_pool_t *thread_pool_new(ppp_thread_pool_options_t *opts)
     }
     if (opts)
     {
-        p->worker_of_idle = opts->worker_of_idle;
-        p->worker_of_max = opts->worker_of_max;
-        if (p->worker_of_idle < 1)
-        {
-            p->worker_of_idle = 8;
-        }
-        if (p->worker_of_max < p->worker_of_idle)
+        p->worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
+        if (p->worker_of_max > 0 && p->worker_of_max < p->worker_of_idle)
         {
             p->worker_of_max = p->worker_of_idle;
         }
@@ -264,7 +259,7 @@ PPP_THREAD_POOL_ERROR _ppp_thread_pool_post_or_send(ppp_thread_pool_t *p, ppp_th
 
 PPP_THREAD_POOL_ERROR ppp_thread_pool_post(ppp_thread_pool_t *p, ppp_thread_pool_task_function_t cb, void *userdata)
 {
-    if (cb)
+    if (!cb)
     {
         return PPP_THREAD_POOL_ERROR_CB;
     }
@@ -273,7 +268,7 @@ PPP_THREAD_POOL_ERROR ppp_thread_pool_post(ppp_thread_pool_t *p, ppp_thread_pool
 
 PPP_THREAD_POOL_ERROR ppp_thread_pool_send(ppp_thread_pool_t *p, ppp_thread_pool_task_function_t cb, void *userdata)
 {
-    if (cb)
+    if (!cb)
     {
         return PPP_THREAD_POOL_ERROR_CB;
     }

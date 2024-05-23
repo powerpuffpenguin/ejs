@@ -71,6 +71,7 @@
         "stdint.h": "c",
         "pthread.h": "c",
         "queue.h": "c",
-        "__string": "c"
+        "__string": "c",
+        "thread_pool_test.h": "c"
     }
 }
