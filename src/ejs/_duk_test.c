@@ -25,7 +25,7 @@ static duk_ret_t async_test(duk_context *ctx)
     int b = duk_require_int(ctx, 1);
     duk_pop_2(ctx);
 
-    async_add_t *add = ejs_new_finalizer_object(ctx, sizeof(async_add_t), 0);
+    async_add_t *add = ejs_push_finalizer_object(ctx, sizeof(async_add_t), 0);
     add->a = a;
     add->b = b;
 

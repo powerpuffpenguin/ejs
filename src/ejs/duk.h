@@ -111,6 +111,10 @@ extern "C"
      * free(obj.p)
      */
     DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context *ctx);
+    /**
+     * close(obj.fd)
+     */
+    DUK_EXTERNAL duk_ret_t ejs_fd_finalizer(duk_context *ctx);
 
     typedef void (*ejs_async_function_t)(void *userdata);
     /**
@@ -145,7 +149,7 @@ extern "C"
      * ok ... -> ... {p:pointer}
      * err ...
      */
-    DUK_EXTERNAL void *ejs_new_finalizer_object(duk_context *ctx, duk_size_t sz, duk_c_function finalizer);
+    DUK_EXTERNAL void *ejs_push_finalizer_object(duk_context *ctx, duk_size_t sz, duk_c_function finalizer);
 #if defined(__cplusplus)
 }
 #endif

@@ -743,3 +743,27 @@ declare module "ejs/net" {
      */
     export function isSupportV4(): boolean
 }
+declare module "ejs/os" {
+    export const OsError = ejs.OsError
+    // Exactly one of O_RDONLY, O_WRONLY, or O_RDWR must be specified.
+    const O_RDONLY: number    // open the file read-only.
+    const O_WRONLY: number    // open the file write-only.
+    const O_RDWR: number        // open the file read-write.
+    // The remaining values may be or'ed in to control behavior.
+    const O_APPEND: number  // append data to the file when writing.
+    const O_CREATE: number  // create a new file if none exists.
+    const O_EXCL: number    // used with O_CREATE, file must not exist.
+    const O_SYNC: number     // open for synchronous I/O.
+    const O_TRUNC: number    // truncate regular writable file when opened.
+
+    export class File {
+
+    }
+    export interface OpenOptions {
+        flag?: number
+        perm?: number,
+    }
+    export function openSync(filename: string, opts?: OpenOptions): File
+    export function open(filename: string, opts?: OpenOptions, cb: (f?: File, e?: any) => void): void
+
+}

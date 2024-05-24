@@ -33,4 +33,6 @@
     if (p)              \
     free(p)
 
+#define EJS_INVALID_FD(fd) ((fd) < 0)
+
 #endif

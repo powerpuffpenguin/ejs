@@ -3447,8 +3447,6 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
     /*
      *  Entry stack: [ require exports ]
      */
-    // duk_push_c_lightfunc(ctx, _ejs_test, 1, 1, 0);
-    // duk_put_prop_lstring(ctx, -2, "test", 4);
 
     duk_eval_lstring(ctx, js_ejs_js_net_min_js, js_ejs_js_net_min_js_len);
     duk_swap_top(ctx, -2);

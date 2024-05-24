@@ -1,5 +1,7 @@
-var test = require("ejs/test")
-for (var i = 0; i < 128; i++) {
-    // test.add(i, i * i, true)
-    test.add(i, i * i)
-}
+var os = require("ejs/os")
+
+os.open({
+    name: "a.js"
+}, function (f, e) {
+    console.log(f, e)
+})

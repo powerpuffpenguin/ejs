@@ -517,6 +517,16 @@ DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context *ctx)
     }
     return 0;
 }
+DUK_EXTERNAL duk_ret_t ejs_fd_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "fd", 2);
+    int fd = duk_get_number_default(ctx, -1, -1);
+    if (!EJS_INVALID_FD(fd))
+    {
+        close(fd);
+    }
+    return 0;
+}
 
 static duk_ret_t _ejs_async_cb_impl(duk_context *ctx)
 {
@@ -873,10 +883,10 @@ typedef struct
     duk_size_t sz;
     duk_c_function finalizer;
     void *p;
-} ejs_new_finalizer_object_args_t;
-static duk_ret_t ejs_new_finalizer_object_impl(duk_context *ctx)
+} ejs_push_finalizer_object_args_t;
+static duk_ret_t ejs_push_finalizer_object_impl(duk_context *ctx)
 {
-    ejs_new_finalizer_object_args_t *args = duk_require_pointer(ctx, -1);
+    ejs_push_finalizer_object_args_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
     args->p = malloc(args->sz);
@@ -894,14 +904,14 @@ static duk_ret_t ejs_new_finalizer_object_impl(duk_context *ctx)
 
     return 1;
 }
-DUK_EXTERNAL void *ejs_new_finalizer_object(duk_context *ctx, duk_size_t sz, duk_c_function finalizer)
+DUK_EXTERNAL void *ejs_push_finalizer_object(duk_context *ctx, duk_size_t sz, duk_c_function finalizer)
 {
-    ejs_new_finalizer_object_args_t args = {
+    ejs_push_finalizer_object_args_t args = {
         .sz = sz,
         .finalizer = finalizer,
         .p = 0,
     };
-    if (ejs_pcall_function(ctx, ejs_new_finalizer_object_impl, &args))
+    if (ejs_pcall_function(ctx, ejs_push_finalizer_object_impl, &args))
     {
         if (args.p)
         {
