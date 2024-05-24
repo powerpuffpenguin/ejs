@@ -26,11 +26,30 @@ static void f_open_async_impl(void *userdata)
 {
     f_open_async_args_t *args = userdata;
     args->fd = open(args->opts.name, args->opts.flags, args->opts.perm);
-    args->fd = EJS_INVALID_FD(args->fd) ? 0 : errno;
+    args->err = EJS_INVALID_FD(args->fd) ? errno : 0;
 }
 static duk_ret_t f_open_async_return(duk_context *ctx)
 {
-    ejs_dump_context_stdout(ctx);
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    f_open_async_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "cb", 2);
+    if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_push_object(ctx);
+        duk_push_number(ctx, args->fd);
+        duk_put_prop_lstring(ctx, -2, "fd", 2);
+        duk_push_c_lightfunc(ctx, ejs_fd_finalizer, 1, 1, 0);
+        duk_set_finalizer(ctx, -2);
+        duk_call(ctx, 1);
+    }
     return 0;
 }
 typedef struct
