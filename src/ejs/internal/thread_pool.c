@@ -136,8 +136,9 @@ static void *_thread_pool_worker(void *arg)
             ++worker->pool->idle;
         }
     }
+    pthread_mutex_t *mutex = &worker->pool->mutex;
     _thread_pool_worker_quit(worker->pool, element);
-    pthread_mutex_unlock(&worker->pool->mutex);
+    pthread_mutex_unlock(mutex);
     return 0;
 }
 
@@ -159,6 +160,7 @@ ppp_list_element_t *_ppp_thread_pool_create_thread(ppp_thread_pool_t *p, ppp_thr
         ppp_list_remove(&p->worker, e, TRUE);
         return 0;
     }
+    pthread_detach(value->thread);
     return e;
 }
 PPP_THREAD_POOL_ERROR ppp_thread_pool_init(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
