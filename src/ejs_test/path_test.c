@@ -75,6 +75,7 @@ static EJS_TESTS_GROUP_FUNC(path, clean, t)
             {
                 CuFail(t, test->path);
             }
+            ejs_string_destroy(&s);
         }
         {
             EJS_CONST_LSTRING(path, test->result, strlen(test->result));
@@ -89,6 +90,7 @@ static EJS_TESTS_GROUP_FUNC(path, clean, t)
             {
                 CuFail(t, test->path);
             }
+            ejs_string_destroy(&s);
         }
     }
 }
@@ -329,9 +331,8 @@ static EJS_TESTS_GROUP_FUNC(path, is_abs, t)
         CuAssertIntEquals(t, test->abs, ejs_path_is_abs(&path));
     }
 }
-EJS_TESTS_GROUP(path)
+EJS_TESTS_GROUP(suite, path)
 {
-    CuSuite *suite = CuSuiteNew();
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, clean);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, split);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, join);
@@ -339,6 +340,4 @@ EJS_TESTS_GROUP(path)
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, base);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, dir);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, is_abs);
-
-    return suite;
 }

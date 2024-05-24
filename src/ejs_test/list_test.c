@@ -504,7 +504,7 @@ static EJS_TESTS_GROUP_FUNC(list, InsertBeforeUnknownMark, t)
     PPP_LIST_CAST_VALUE(any, ppp_list_push_back(&l)) = any_type_make_int(2);
     PPP_LIST_CAST_VALUE(any, ppp_list_push_back(&l)) = any_type_make_int(3);
 
-    ppp_list_element_t at;
+    ppp_list_element_t at = {0};
     CuAssertPtrEquals(t, 0, ppp_list_insert_before(&l, &at));
 
     checkList(t, &l, 3,
@@ -521,7 +521,7 @@ static EJS_TESTS_GROUP_FUNC(list, InsertAfterUnknownMark, t)
     PPP_LIST_CAST_VALUE(any, ppp_list_push_back(&l)) = any_type_make_int(2);
     PPP_LIST_CAST_VALUE(any, ppp_list_push_back(&l)) = any_type_make_int(3);
 
-    ppp_list_element_t at;
+    ppp_list_element_t at = {0};
     CuAssertPtrEquals(t, 0, ppp_list_insert_after(&l, &at));
 
     checkList(t, &l, 3,
@@ -553,10 +553,8 @@ static EJS_TESTS_GROUP_FUNC(list, MoveUnknownMark, t)
     ppp_list_clear(&l2);
 }
 
-EJS_TESTS_GROUP(list)
+EJS_TESTS_GROUP(suite, list)
 {
-    CuSuite *suite = CuSuiteNew();
-
     EJS_TESTS_GROUP_ADD_FUNC(suite, list, List);
     EJS_TESTS_GROUP_ADD_FUNC(suite, list, Extending);
     EJS_TESTS_GROUP_ADD_FUNC(suite, list, Remove);
@@ -567,6 +565,4 @@ EJS_TESTS_GROUP(list)
     EJS_TESTS_GROUP_ADD_FUNC(suite, list, InsertBeforeUnknownMark);
     EJS_TESTS_GROUP_ADD_FUNC(suite, list, InsertAfterUnknownMark);
     EJS_TESTS_GROUP_ADD_FUNC(suite, list, MoveUnknownMark);
-
-    return suite;
 }

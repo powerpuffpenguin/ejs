@@ -33,5 +33,8 @@ int main(int argc, char **argv)
     CuSuiteSummary(suite, output);
     CuSuiteDetails(suite, output);
     printf("%s\n", output->buffer);
-    return suite->failCount;
+    int ret = suite->failCount;
+    CuSuiteDelete(suite);
+    CuStringDelete(output);
+    return ret;
 }

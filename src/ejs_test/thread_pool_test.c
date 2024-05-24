@@ -52,10 +52,8 @@ static EJS_TESTS_GROUP_FUNC(thread_pool, send, t)
         CuAssertIntEquals(t, val[i], i * i);
     }
 }
-EJS_TESTS_GROUP(thread_pool)
+EJS_TESTS_GROUP(suite, thread_pool)
 {
-    CuSuite *suite = CuSuiteNew();
-    // EJS_TESTS_GROUP_ADD_FUNC(suite, thread_pool, post);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, thread_pool, post);
     EJS_TESTS_GROUP_ADD_FUNC(suite, thread_pool, send);
-    return suite;
 }

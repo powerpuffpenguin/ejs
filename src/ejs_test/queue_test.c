@@ -89,9 +89,7 @@ static EJS_TESTS_GROUP_FUNC(queue, basic, t)
     ppp_queue_pop_front(&q);
     checkQueue(t, &q, capacity, 3, 2, 3, 4);
 }
-EJS_TESTS_GROUP(queue)
+EJS_TESTS_GROUP(suite, queue)
 {
-    CuSuite *suite = CuSuiteNew();
     EJS_TESTS_GROUP_ADD_FUNC(suite, queue, basic);
-    return suite;
 }
