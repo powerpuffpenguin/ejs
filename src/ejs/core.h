@@ -24,7 +24,6 @@ extern "C"
     {
         ppp_thread_pool_t pool;
 
-        ppp_list_t worker;
         ppp_list_t completed;
 
         pthread_mutex_t mutex;

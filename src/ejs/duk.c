@@ -617,7 +617,6 @@ DUK_EXTERNAL ejs_core_thread_pool_t ejs_require_thread_pool(duk_context *ctx)
             ejs_throw_cause(ctx, EJS_ERROR_EVENT_ASSIGN, "event_assign for thread pool fail");
         }
 
-        ppp_list_init(&p->worker, PPP_LIST_SIZEOF(ejs_thread_pool_task));
         ppp_list_init(&p->completed, PPP_LIST_SIZEOF(ejs_thread_pool_task));
         p->count = 0;
         core->thread_pool = p;
@@ -638,7 +637,6 @@ static void ejs_async_cb(void *userdata)
 
     task->worker_cb(task->userdata);
     pthread_mutex_lock(&p->mutex);
-    ppp_list_remove(&p->worker, e, 0);
     ppp_list_push_back_with(&p->completed, e);
     pthread_mutex_unlock(&p->mutex);
 
@@ -693,8 +691,6 @@ static void ejs_async_post_or_send(duk_context *ctx, ejs_async_function_t worker
         ejs_throw_cause(ctx, EJS_ERROR_THREAD_POOL_DISPATCH, ppp_thread_pool_error(err));
         return;
     }
-
-    ppp_list_push_back_with(&p->worker, e);
     pthread_mutex_unlock(&core->thread_pool->mutex);
 }
 DUK_EXTERNAL void ejs_async_post(duk_context *ctx, ejs_async_function_t worker_cb, ejs_async_function_t return_cb, void *userdata)
@@ -730,8 +726,9 @@ typedef struct
 {
     ejs_async_function_t worker_cb;
     duk_c_function return_cb;
-    duk_bool_t post;
     void *p;
+    uint8_t post : 1;
+    uint8_t stash : 1;
 } ejs_async_cb_post_or_send_args_t;
 
 static duk_ret_t ejs_async_cb_post_or_send_impl(duk_context *ctx)
@@ -750,6 +747,7 @@ static duk_ret_t ejs_async_cb_post_or_send_impl(duk_context *ctx)
     {
         ejs_throw_os(ctx, errno, 0);
     }
+    args->p = e;
     duk_push_object(ctx);
     duk_swap_top(ctx, -2);
     duk_put_prop_lstring(ctx, -2, "opts", 4);
@@ -757,8 +755,9 @@ static duk_ret_t ejs_async_cb_post_or_send_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_c_lightfunc(ctx, args->return_cb, 1, 1, 0);
     duk_put_prop_lstring(ctx, -2, "cb", 2);
+
     ejs_stash_put_pointer(ctx, EJS_STASH_ASYNC);
-    args->p = e;
+    args->stash = 1;
 
     ejs_thread_pool_task_t *task = &PPP_LIST_CAST_VALUE(ejs_thread_pool_task, e);
     task->core = result.core;
@@ -804,9 +803,6 @@ static duk_ret_t ejs_async_cb_post_or_send_impl(duk_context *ctx)
         args->p = 0;
         ejs_throw_cause(ctx, EJS_ERROR_THREAD_POOL_DISPATCH, ppp_thread_pool_error(err));
     }
-
-    ppp_list_push_back_with(&p->worker, e);
-
     pthread_mutex_unlock(&core->thread_pool->mutex);
     return 1;
 }
@@ -816,16 +812,18 @@ static void ejs_async_cb_post_or_send(duk_context *ctx, ejs_async_function_t wor
         .worker_cb = worker_cb,
         .return_cb = return_cb,
         .post = post,
+        .stash = 0,
         .p = 0,
     };
     if (ejs_pcall_function_n(ctx, ejs_async_cb_post_or_send_impl, &args, 2))
     {
         if (args.p)
         {
-            if (ejs_stash_pop_pointer(ctx, args.p, EJS_STASH_ASYNC))
+            if (args.stash && ejs_stash_pop_pointer(ctx, args.p, EJS_STASH_ASYNC))
             {
                 duk_pop(ctx);
             }
+            free(args.p);
         }
         duk_throw(ctx);
     }
