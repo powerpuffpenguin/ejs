@@ -28,6 +28,8 @@ extern "C"
         ppp_list_t completed;
 
         pthread_mutex_t mutex;
+
+        size_t count;
     } ejs_thread_pool_t;
 #define EJS_THREAD_POOL_EV_PTR(p) (struct event *)(((uint8_t *)(p)) + sizeof(ejs_thread_pool_t))
 

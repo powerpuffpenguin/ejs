@@ -125,17 +125,27 @@ extern "C"
     DUK_EXTERNAL void ejs_async_send(duk_context *ctx, ejs_async_function_t worker_cb, ejs_async_function_t return_cb, void *userdata);
 
     /**
-     * ... return_cb:(pointer)=>void -> ...
+     * ... {p?:pointer} -> ...
      * Execute worker_cb in the asynchronous thread, and after worker_cb returns, execute return_cb in the main thread of the script.
      * Throw an error if the worker thread reaches the upper limit.
      */
-    DUK_EXTERNAL void ejs_async_cb_post(duk_context *ctx, ejs_async_function_t worker_cb, void *userdata);
+    DUK_EXTERNAL void ejs_async_cb_post(duk_context *ctx,
+                                        ejs_async_function_t worker_cb,
+                                        duk_c_function return_cb);
     /**
-     * ... return_cb:(pointer)=>void -> ...
+     * ... {p?:pointer} -> ...
      * Execute worker_cb in the asynchronous thread, and after worker_cb returns, execute return_cb in the main thread of the script.
      * If the worker thread reaches the upper limit, it blocks and waits for the idle thread.
      */
-    DUK_EXTERNAL void ejs_async_cb_send(duk_context *ctx, ejs_async_function_t worker_cb, void *userdata);
+    DUK_EXTERNAL void ejs_async_cb_send(duk_context *ctx,
+                                        ejs_async_function_t worker_cb,
+                                        duk_c_function return_cb);
+
+    /**
+     * ok ... -> ... {p:pointer}
+     * err ...
+     */
+    DUK_EXTERNAL void *ejs_new_finalizer_object(duk_context *ctx, duk_size_t sz, duk_c_function finalizer);
 #if defined(__cplusplus)
 }
 #endif

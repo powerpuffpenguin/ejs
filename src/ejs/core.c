@@ -308,6 +308,13 @@ DUK_EXTERNAL void ejs_core_delete(ejs_core_t *core)
     duk_push_c_lightfunc(core->duk, _ejs_module_destroy, 0, 0, 0);
     duk_pcall(core->duk, 0);
 
+    if (core->thread_pool)
+    {
+        ppp_thread_pool_destroy(&core->thread_pool->pool);
+        pthread_mutex_destroy(&core->thread_pool->mutex);
+        free(core->thread_pool);
+    }
+
     if (core->base && (core->flags & 0x1))
     {
         event_base_free(core->base);
