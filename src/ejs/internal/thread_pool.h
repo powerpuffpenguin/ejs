@@ -54,13 +54,25 @@ typedef struct
      */
     int worker_of_max;
 } ppp_thread_pool_options_t;
+typedef struct
+{
+    int worker_of_idle;
+    int worker_of_max;
 
+    size_t worker_count;
+
+    size_t producer;
+    size_t consumer;
+    size_t idle;
+    size_t task;
+} ppp_thread_pool_stat_t;
 /**
  * Thread pool definition
  */
 typedef struct
 {
     ppp_thread_pool_options_t options;
+    size_t worker_count;
 
     ppp_list_t worker;
     pthread_mutex_t mutex;
@@ -126,6 +138,8 @@ PPP_THREAD_POOL_ERROR ppp_thread_pool_post(ppp_thread_pool_t *p, ppp_thread_pool
  * If there is no idle thread, try to create a new thread. If the thread limit is reached, block and wait for the thread to be idle.
  */
 PPP_THREAD_POOL_ERROR ppp_thread_pool_send(ppp_thread_pool_t *p, ppp_thread_pool_task_function_t cb, void *userdata);
+
+void ppp_thread_pool_stat(ppp_thread_pool_t *p, ppp_thread_pool_stat_t *stat);
 
 /**
  * Return to settings

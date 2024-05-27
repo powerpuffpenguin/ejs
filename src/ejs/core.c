@@ -115,7 +115,63 @@ static duk_ret_t native_equal(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t native_threads_stat(duk_context *ctx)
+{
+    ejs_core_t *core = ejs_require_core(ctx);
+    if (!core->thread_pool)
+    {
+        return 0;
+    }
+    ppp_thread_pool_stat_t stat;
+    ppp_thread_pool_stat(&core->thread_pool->pool, &stat);
 
+    duk_push_object(ctx);
+    if (stat.worker_of_idle > 0)
+    {
+        duk_push_number(ctx, stat.worker_of_idle);
+        duk_put_prop_lstring(ctx, -2, "workerIdle", 10);
+    }
+    if (stat.worker_of_max > 0)
+    {
+        duk_push_number(ctx, stat.worker_of_max);
+        duk_put_prop_lstring(ctx, -2, "workerMax", 9);
+    }
+
+    duk_push_number(ctx, stat.idle);
+    duk_put_prop_lstring(ctx, -2, "idle", 4);
+    duk_push_number(ctx, stat.producer);
+    duk_put_prop_lstring(ctx, -2, "producer", 8);
+    duk_push_number(ctx, stat.consumer);
+    duk_put_prop_lstring(ctx, -2, "consumer", 8);
+    duk_push_number(ctx, stat.task);
+    duk_put_prop_lstring(ctx, -2, "task", 4);
+    return 1;
+}
+
+static duk_ret_t native_threads_set(duk_context *ctx)
+{
+    ejs_thread_pool_t *p = ejs_require_thread_pool(ctx);
+
+    if (duk_is_null_or_undefined(ctx, -1))
+    {
+        ppp_thread_pool_set(&p->pool, 0);
+    }
+    else
+    {
+        ppp_thread_pool_options_t opts;
+
+        duk_get_prop_lstring(ctx, 0, "workerIdle", 10);
+        opts.worker_of_idle = duk_require_int(ctx, -1);
+        duk_pop(ctx);
+
+        duk_get_prop_lstring(ctx, 0, "workerMax", 9);
+        opts.worker_of_max = duk_require_int(ctx, -1);
+        duk_pop(ctx);
+
+        ppp_thread_pool_set(&p->pool, &opts);
+    }
+    return 0;
+}
 typedef struct
 {
     duk_context *ctx;
@@ -161,15 +217,20 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         duk_push_c_lightfunc(ctx, native_equal, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "equal", 5);
 
-        // Os
-        duk_push_object(ctx);
-        {
-            duk_push_int(ctx, ENOENT);
-            duk_put_prop_lstring(ctx, -2, "ENOENT", 6);
-            duk_push_int(ctx, ETIMEDOUT);
-            duk_put_prop_lstring(ctx, -2, "ETIMEDOUT", 9);
-        }
-        duk_put_prop_lstring(ctx, -2, "Os", 2);
+        duk_push_c_lightfunc(ctx, native_threads_stat, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "threadsStat", 7);
+        duk_push_c_lightfunc(ctx, native_threads_set, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "threadsSet", 10);
+
+        // // Os
+        // duk_push_object(ctx);
+        // {
+        //     duk_push_int(ctx, ENOENT);
+        //     duk_put_prop_lstring(ctx, -2, "ENOENT", 6);
+        //     duk_push_int(ctx, ETIMEDOUT);
+        //     duk_put_prop_lstring(ctx, -2, "ETIMEDOUT", 9);
+        // }
+        // duk_put_prop_lstring(ctx, -2, "Os", 2);
     }
     duk_dup_top(ctx);
     duk_put_prop_lstring(ctx, -3, EJS_STASH_EJS);

@@ -73,6 +73,7 @@
         "queue.h": "c",
         "__string": "c",
         "thread_pool_test.h": "c",
-        "thread_pool.h": "c"
+        "thread_pool.h": "c",
+        "sysinfo.h": "c"
     }
 }

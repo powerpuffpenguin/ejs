@@ -608,9 +608,8 @@ typedef struct
     ejs_thread_pool_t *pool;
 } ejs_core_thread_pool_t;
 
-DUK_EXTERNAL ejs_core_thread_pool_t ejs_require_thread_pool(duk_context *ctx)
+static ejs_thread_pool_t *_ejs_require_thread_pool_impl(duk_context *ctx, ejs_core_t *core)
 {
-    ejs_core_t *core = ejs_require_core(ctx);
     ejs_thread_pool_t *p = core->thread_pool;
     if (!p)
     {
@@ -625,11 +624,7 @@ DUK_EXTERNAL ejs_core_thread_pool_t ejs_require_thread_pool(duk_context *ctx)
             ejs_throw_cause(ctx, EJS_ERROR_THREAD_POOL_INIT, "init mutex fail");
         }
 
-        ppp_thread_pool_options_t opts = {
-            .worker_of_idle = 8,
-            .worker_of_max = 0,
-        };
-        PPP_THREAD_POOL_ERROR err = ppp_thread_pool_init(&p->pool, &opts);
+        PPP_THREAD_POOL_ERROR err = ppp_thread_pool_init(&p->pool, 0);
         if (err)
         {
             pthread_mutex_destroy(&p->mutex);
@@ -649,9 +644,18 @@ DUK_EXTERNAL ejs_core_thread_pool_t ejs_require_thread_pool(duk_context *ctx)
         p->count = 0;
         core->thread_pool = p;
     }
+    return p;
+}
+DUK_EXTERNAL ejs_thread_pool_t *ejs_require_thread_pool(duk_context *ctx)
+{
+    return _ejs_require_thread_pool_impl(ctx, ejs_require_core(ctx));
+}
+ejs_core_thread_pool_t _ejs_require_thread_pool(duk_context *ctx)
+{
+    ejs_core_t *core = ejs_require_core(ctx);
     ejs_core_thread_pool_t result = {
         .core = core,
-        .pool = p,
+        .pool = _ejs_require_thread_pool_impl(ctx, ejs_require_core(ctx)),
     };
     return result;
 }
@@ -672,7 +676,7 @@ static void ejs_async_cb(void *userdata)
 }
 static void ejs_async_post_or_send(duk_context *ctx, ejs_async_function_t worker_cb, ejs_async_function_t return_cb, void *userdata, duk_bool_t post)
 {
-    ejs_core_thread_pool_t result = ejs_require_thread_pool(ctx);
+    ejs_core_thread_pool_t result = _ejs_require_thread_pool(ctx);
 
     ppp_list_element_t *e = malloc(result.pool->completed.sizeof_element);
     if (!e)
@@ -768,7 +772,7 @@ static duk_ret_t ejs_async_cb_post_or_send_impl(duk_context *ctx)
     void *userdata = duk_get_pointer_default(ctx, -1, 0);
     duk_pop(ctx);
 
-    ejs_core_thread_pool_t result = ejs_require_thread_pool(ctx);
+    ejs_core_thread_pool_t result = _ejs_require_thread_pool(ctx);
 
     ppp_list_element_t *e = malloc(result.pool->completed.sizeof_element);
     if (!e)

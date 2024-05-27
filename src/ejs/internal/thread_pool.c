@@ -2,6 +2,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+#if defined(__linux) || defined(__linux__) || defined(linux)
+#include <sys/sysinfo.h>
+#endif
+
+#define PPP_THREAD_POOL_IDLE_LIMIT(p) ((p)->options.worker_of_idle > 0 && (p)->idle >= (p)->options.worker_of_idle)
+#define PPP_THREAD_POOL_WORKER_LIMIT(p) ((p)->options.worker_of_max > 0 && (p)->worker_count >= (p)->options.worker_of_max)
+
 const char *ppp_thread_pool_error(const PPP_THREAD_POOL_ERROR err)
 {
     switch (err)
@@ -93,9 +100,7 @@ static void *_thread_pool_worker(void *arg)
     worker->cb(worker->userdata);
 
     pthread_mutex_lock(&worker->pool->mutex);
-    if (!(!worker->pool->wait_producer &&
-          worker->pool->options.worker_of_idle &&
-          worker->pool->idle >= worker->pool->options.worker_of_idle))
+    if (!(!worker->pool->wait_producer && PPP_THREAD_POOL_IDLE_LIMIT(worker->pool)))
     {
         ++worker->pool->idle;
 
@@ -127,15 +132,14 @@ static void *_thread_pool_worker(void *arg)
 
             worker->cb(worker->userdata);
             pthread_mutex_lock(&worker->pool->mutex);
-            if (!worker->pool->wait_producer &&
-                worker->pool->options.worker_of_idle &&
-                worker->pool->idle >= worker->pool->options.worker_of_idle)
+            if (!worker->pool->wait_producer && PPP_THREAD_POOL_IDLE_LIMIT(worker->pool))
             {
                 break;
             }
             ++worker->pool->idle;
         }
     }
+    --worker->pool->worker_count;
     pthread_mutex_t *mutex = &worker->pool->mutex;
     _thread_pool_worker_quit(worker->pool, element);
     pthread_mutex_unlock(mutex);
@@ -161,7 +165,56 @@ ppp_list_element_t *_ppp_thread_pool_create_thread(ppp_thread_pool_t *p, ppp_thr
         return 0;
     }
     pthread_detach(value->thread);
+    ++p->worker_count;
     return e;
+}
+
+void _safe_ppp_thread_pool_set(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
+{
+    if (opts)
+    {
+        if (opts->worker_of_idle > 0)
+        {
+            p->options.worker_of_idle = opts->worker_of_idle;
+        }
+        else if (opts->worker_of_idle < 0)
+        {
+            p->options.worker_of_idle = -1;
+        }
+        else
+        {
+#if defined(__linux) || defined(__linux__) || defined(linux)
+            p->options.worker_of_idle = get_nprocs() * 2;
+            if (p->options.worker_of_idle < 8)
+            {
+                p->options.worker_of_idle = 8;
+            }
+#else
+            p->options.worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
+#endif
+        }
+        if (opts->worker_of_max > 0)
+        {
+            p->options.worker_of_max = opts->worker_of_max > p->options.worker_of_idle ? opts->worker_of_max : p->options.worker_of_idle;
+        }
+        else
+        {
+            opts->worker_of_max = -1;
+        }
+    }
+    else
+    {
+#if defined(__linux) || defined(__linux__) || defined(linux)
+        p->options.worker_of_idle = get_nprocs() * 2;
+        if (p->options.worker_of_idle < 8)
+        {
+            p->options.worker_of_idle = 8;
+        }
+#else
+        p->options.worker_of_idle = 8;
+#endif
+        p->options.worker_of_max = -1;
+    }
 }
 PPP_THREAD_POOL_ERROR ppp_thread_pool_init(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
 {
@@ -188,20 +241,9 @@ PPP_THREAD_POOL_ERROR ppp_thread_pool_init(ppp_thread_pool_t *p, ppp_thread_pool
         pthread_cond_destroy(&p->cv_consumer);
         return PPP_THREAD_POOL_ERROR_INIT_CV_WAIT;
     }
-    if (opts)
-    {
-        p->options.worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
-        if (opts->worker_of_max > 0)
-        {
-            p->options.worker_of_max = opts->worker_of_max > p->options.worker_of_idle ? opts->worker_of_max : p->options.worker_of_idle;
-        }
-    }
-    else
-    {
-        p->options.worker_of_idle = 8;
-    }
+    _safe_ppp_thread_pool_set(p, opts);
     ppp_list_init(&p->worker, PPP_LIST_SIZEOF(ppp_thread_pool_worker));
-
+    p->worker_count = 0;
     return PPP_THREAD_POOL_ERROR_OK;
 }
 ppp_thread_pool_t *ppp_thread_pool_new(ppp_thread_pool_options_t *opts)
@@ -230,7 +272,7 @@ PPP_THREAD_POOL_ERROR _ppp_thread_pool_post_or_send(ppp_thread_pool_t *p, ppp_th
         else if (!p->idle)
         {
             // no idle thread, create new thread
-            if (p->options.worker_of_max && ppp_list_len(&p->worker) >= p->options.worker_of_max)
+            if (PPP_THREAD_POOL_WORKER_LIMIT(p))
             {
                 if (post)
                 {
@@ -294,7 +336,21 @@ PPP_THREAD_POOL_ERROR ppp_thread_pool_send(ppp_thread_pool_t *p, ppp_thread_pool
     }
     return _ppp_thread_pool_post_or_send(p, cb, userdata, FALSE);
 }
+void ppp_thread_pool_stat(ppp_thread_pool_t *p, ppp_thread_pool_stat_t *stat)
+{
 
+    pthread_mutex_lock(&p->mutex);
+    stat->worker_of_idle = p->options.worker_of_idle;
+    stat->worker_of_max = p->options.worker_of_max;
+    stat->worker_count = p->worker_count;
+
+    stat->idle = p->idle;
+    stat->producer = p->wait_producer;
+    stat->consumer = p->wait_consumer;
+
+    stat->task = ppp_list_len(&p->worker);
+    pthread_mutex_unlock(&p->mutex);
+}
 void ppp_thread_pool_get(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
 {
     pthread_mutex_lock(&p->mutex);
@@ -304,22 +360,6 @@ void ppp_thread_pool_get(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
 void ppp_thread_pool_set(ppp_thread_pool_t *p, ppp_thread_pool_options_t *opts)
 {
     pthread_mutex_lock(&p->mutex);
-    if (opts)
-    {
-        p->options.worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
-        if (opts->worker_of_max > 0)
-        {
-            p->options.worker_of_max = opts->worker_of_max > p->options.worker_of_idle ? opts->worker_of_max : p->options.worker_of_idle;
-        }
-        else
-        {
-            p->options.worker_of_max = 0;
-        }
-    }
-    else
-    {
-        p->options.worker_of_idle = 8;
-        p->options.worker_of_max = 0;
-    }
+    _safe_ppp_thread_pool_set(p, opts);
     pthread_mutex_unlock(&p->mutex);
 }

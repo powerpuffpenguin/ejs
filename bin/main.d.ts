@@ -55,10 +55,55 @@ namespace ejs {
      */
     export function equal(a: string | ArrayBufferLike, b: string | ArrayBufferLike): boolean
 
-    export namespace Os {
-        export const ENOENT: number
-        export const ETIMEDOUT: number
+    export interface ThreadsStat {
+        /**
+         * The maximum number of idle threads allowed
+         */
+        workerIdle?: number
+        /**
+         * The maximum number of worker threads allowed
+         */
+        workerMax?: number
+        /**
+         * The number of current threads
+         */
+        worker: number
+        /**
+         * The number of current idle threads
+         */
+        idle: number
+        /**
+         * The number of current producer
+         */
+        producer: number
+        /**
+         * The number of current consumer
+         */
+        consumer: number
+        /**
+         * The number of current task
+         */
+        task: number
     }
+    /**
+     * If the thread pool has been created, return statistics
+     */
+    export function threadsStat(): ThreadsStat | undefined
+    export interface ThreadsSetOptions {
+        /**
+         * The maximum number of idle threads allowed
+         */
+        workerIdle: number
+        /**
+         * The maximum number of worker threads allowed
+         */
+        workerMax: number
+    }
+    /**
+     * 
+     * Modify the thread pool settings and create the thread pool if it has not been created yet
+     */
+    export function threadsSet(opts?: ThreadsSetOptions): void
 }
 
 declare module "ejs/net" {
@@ -745,6 +790,145 @@ declare module "ejs/net" {
 }
 declare module "ejs/os" {
     export const OsError = ejs.OsError
+    /**
+     * Operation not permitted 
+     */
+    const EPERM: number
+    /**
+     * No such file or directory
+     */
+    const ENOENT: number
+    /**
+     * No such process
+     */
+    const ESRCH: number
+    /**
+     * Interrupted system call
+     */
+    const EINTR: number
+    /**
+     * I/O error
+     */
+    const EIO: number
+    /**
+     * No such device or address
+     */
+    const ENXIO: number
+    /**
+     * Argument list too long
+     */
+    const E2BIG: number
+    /**
+     * Exec format error
+     */
+    const ENOEXEC: number
+    /**
+     * Bad file number
+     */
+    const EBADF: number
+    /**
+     * No child processes
+     */
+    const ECHILD: number
+    /**
+     * Try again
+     */
+    const EAGAIN: number
+    /**
+     * Out of memory
+     */
+    const ENOMEM: number
+    /**
+     * Permission denied
+     */
+    const EACCES: number
+    /**
+     * Bad address
+     */
+    const EFAULT: number
+    /**
+     * Block device required
+     */
+    const ENOTBLK: number
+    /**
+     * Device or resource busy
+     */
+    const EBUSY: number
+    /**
+     * File exists
+     */
+    const EEXIST: number
+    /**
+     * Cross-device link
+     */
+    const EXDEV: number
+    /**
+     * No such device
+     */
+    const ENODEV: number
+    /**
+     * Not a directory
+     */
+    const ENOTDIR: number
+    /**
+     * Is a directory
+     */
+    const EISDIR: number
+    /**
+     * Invalid argument
+     */
+    const EINVAL: number
+    /**
+     * File table overflow
+     */
+    const ENFILE: number
+    /**
+     * Too many open files
+     */
+    const EMFILE: number
+    /**
+     * Not a typewriter
+     */
+    const ENOTTY: number
+    /**
+     * Text file busy
+     */
+    const ETXTBSY: number
+    /**
+     * File too large
+     */
+    const EFBIG: number
+    /**
+     * No space left on device
+     */
+    const ENOSPC: number
+    /**
+     * Illegal seek
+     */
+    const ESPIPE: number
+    /**
+     * Read-only file system
+     */
+    const EROFS: number
+    /**
+     * Too many links
+     */
+    const EMLINK: number
+    /**
+     * Broken pipe
+     */
+    const EPIPE: number
+    /**
+     * Math argument out of domain of func
+     */
+    const EDOM: number
+    /**
+     * Math result not representable
+     */
+    const ERANGE: number
+
+
+
     // Exactly one of O_RDONLY, O_WRONLY, or O_RDWR must be specified.
     const O_RDONLY: number    // open the file read-only.
     const O_WRONLY: number    // open the file write-only.
@@ -756,14 +940,90 @@ declare module "ejs/os" {
     const O_SYNC: number     // open for synchronous I/O.
     const O_TRUNC: number    // truncate regular writable file when opened.
 
-    export class File {
-
+    export interface AsyncOptions {
+        /**
+         * If true, execute asynchronous tasks in post mode, otherwise execute in send mode.
+         * 
+         * @remarks
+         * When there are no idle threads and the number of threads reaches the upper limit, the post mode will return an error and the send mode will wait for the thread to be idle or the system to exit.
+         */
+        post?: boolean
     }
-    export interface OpenOptions {
+    export interface OpenFileOptions {
+        name: string
         flag?: number
-        perm?: number,
+        perm?: number
     }
-    export function openSync(filename: string, opts?: OpenOptions): File
-    export function open(filename: string, opts?: OpenOptions, cb: (f?: File, e?: any) => void): void
+    export interface OpenFileAsyncOptions extends OpenFileOptions, AsyncOptions { }
 
+    export interface FileInfo {
+        /**
+         * base name of the file
+         */
+        name(): string
+        /**
+         * length in bytes for regular files
+         */
+        size(): number
+        /**
+         * file mode bits
+         */
+        mode(): number
+        /**
+         * modification time
+         */
+        modTime(): Date
+        isDir(): boolean
+        isRegular(): boolean
+    }
+    /**
+     * returns the FileInfo describing file.
+     */
+    export function statSync(name: string): FileInfo
+    /**
+     * Similar to statSync but called asynchronously, notifying the result in cb
+     */
+    export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+    export class File {
+        private constructor()
+        /**
+         * Open the file as read-only (O_RDONLY)
+         */
+        static openSync(name: string): File
+        /**
+         * Similar to openSync but called asynchronously, notifying the result in cb
+         */
+        static open(name: string, cb: (f?: File, e?: any) => void): void
+
+        /**
+         * Create a new profile
+         */
+        static createSync(name: string): File
+        /**
+         * Similar to createSync but called asynchronously, notifying the result in cb
+         */
+        static create(name: string, cb: (f?: File, e?: any) => void): void
+
+        /**
+         * Open files in customized mode
+         */
+        static openFileSync(opts: OpenFileOptions): File
+        /**
+         * Similar to openFileSync but called asynchronously, notifying the result in cb
+         */
+        static openFile(opts: OpenFileAsyncOptions, cb: (f?: File, e?: any) => void): void
+
+        /**
+         * @returns the archive name passed when opening
+         */
+        name(): string
+        /**
+         * returns the FileInfo describing file.
+         */
+        statSync(): FileInfo
+        /**
+         * Similar to statSync but called asynchronously, notifying the result in cb
+         */
+        stat(cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+    }
 }

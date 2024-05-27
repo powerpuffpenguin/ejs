@@ -91,6 +91,10 @@ extern "C"
      * ... -> ...
      */
     DUK_EXTERNAL ejs_core_t *ejs_require_core(duk_context *ctx);
+    /**
+     * ... -> ...
+     */
+    DUK_EXTERNAL ejs_thread_pool_t *ejs_require_thread_pool(duk_context *ctx);
 #if defined(__cplusplus)
 }
 #endif
