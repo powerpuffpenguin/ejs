@@ -1029,7 +1029,11 @@ declare module "ejs/os" {
          * Similar to openFileSync but called asynchronously, notifying the result in cb
          */
         static openFile(opts: OpenFileAsyncOptions, cb: (f?: File, e?: any) => void): void
-
+        /**
+         * close file
+         */
+        close(): void
+        readonly isClosed: boolean
         /**
          * @returns the archive name passed when opening
          */
@@ -1068,6 +1072,24 @@ declare module "ejs/os" {
          * Similar to readAtSync but called asynchronously, notifying the result in cb
          */
         readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void
+        /**
+         * Write data
+         * @returns the actual length of bytes write
+         */
+        writeSync(data: Uint8Array | string): number
+        /**
+         * Similar to writeSync but called asynchronously, notifying the result in cb
+         */
+        write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void
+        /**
+         * Write the data at the specified offset
+         * @returns the actual length of bytes write
+         */
+        writeAtSync(opts: WriteAtOptions): number
+        /**
+         * Similar to writeAtSync but called asynchronously, notifying the result in cb
+         */
+        writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void): void
     }
 
     export interface Reader {

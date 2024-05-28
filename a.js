@@ -1,24 +1,20 @@
 var os = require("ejs/os")
 var File = os.File;
 
-File.open("src/main.c", function (f, e) {
+File.create("a.txt", function (f, e) {
     if (!f) {
         console.log(e)
         return
     }
-
-    var buf = new Uint8Array(10);
-    f.readAt({
-        dst: buf,
+    f.writeAt({
+        src: "ok",
         offset: 2,
     }, function (n, e) {
-        console.log(new TextDecoder().decode(buf.subarray(0, n)))
-        f.readAt({
-            dst: buf,
-            offset: 4,
+        f.writeAt({
+            src: "12",
+            offset: 8,
         }, function (n, e) {
-            console.log(new TextDecoder().decode(buf.subarray(0, n)))
+            console.log(n, e)
         })
     })
-
 })

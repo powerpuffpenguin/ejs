@@ -232,6 +232,14 @@ static duk_ret_t f_fstat(duk_context *ctx)
     _ejs_async_post_or_send(ctx, f_fstat_async_impl, f_fstat_async_return);
     return 0;
 }
+static duk_ret_t f_close(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "fd", 2);
+    int fd = DUK_REQUIRE_FD(ctx, -1);
+    duk_set_finalizer(ctx, -2);
+    close(fd);
+    return 0;
+}
 static duk_ret_t f_stat(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "name", 4);
@@ -496,6 +504,145 @@ static duk_ret_t f_readAt(duk_context *ctx)
     _ejs_async_post_or_send(ctx, f_readAt_async_impl, f_readAt_async_return);
     return 0;
 }
+typedef struct
+{
+    int fd;
+    duk_size_t len;
+    const uint8_t *buf;
+
+    ssize_t n;
+    int err;
+
+} f_write_async_args_t;
+static void f_write_async_impl(void *userdata)
+{
+    f_write_async_args_t *args = userdata;
+    args->n = write(args->fd, args->buf, args->len);
+    args->err = args->n < 0 ? errno : 0;
+}
+static duk_ret_t f_write_async_return(duk_context *ctx)
+{
+    f_write_async_args_t *args = _ejs_async_return(ctx);
+    if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_push_number(ctx, args->n);
+        duk_call(ctx, 1);
+    }
+    return 0;
+}
+static duk_ret_t f_write_args(duk_context *ctx)
+{
+    ejs_push_finalizer_object(ctx, sizeof(f_write_async_args_t), ejs_default_finalizer);
+    return 1;
+}
+static duk_ret_t f_write(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "fd", 2);
+    int fd = DUK_REQUIRE_FD(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "src", 3);
+    duk_size_t len;
+    const uint8_t *buf = duk_is_string(ctx, -1) ? duk_require_lstring(ctx, -1, &len) : duk_require_buffer_data(ctx, -1, &len);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        ssize_t n = write(fd, buf, len);
+        if (n < 0)
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        duk_push_number(ctx, n);
+        return 1;
+    }
+    f_write_async_args_t *p = _ejs_async_args(ctx, 0);
+    p->fd = fd;
+    p->buf = buf;
+    p->len = len;
+
+    _ejs_async_post_or_send(ctx, f_write_async_impl, f_write_async_return);
+    return 0;
+}
+typedef struct
+{
+    int fd;
+    off_t offset;
+    duk_size_t len;
+    const uint8_t *buf;
+
+    ssize_t n;
+    int err;
+} f_writeAt_async_args_t;
+static void f_writeAt_async_impl(void *userdata)
+{
+    f_writeAt_async_args_t *args = userdata;
+    args->n = pwrite(args->fd, args->buf, args->len, args->offset);
+    args->err = args->n < 0 ? errno : 0;
+}
+static duk_ret_t f_writeAt_async_return(duk_context *ctx)
+{
+    f_writeAt_async_args_t *args = _ejs_async_return(ctx);
+    if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_push_number(ctx, args->n);
+        duk_call(ctx, 1);
+    }
+    return 0;
+}
+static duk_ret_t f_writeAt_args(duk_context *ctx)
+{
+    ejs_push_finalizer_object(ctx, sizeof(f_writeAt_async_args_t), ejs_default_finalizer);
+    return 1;
+}
+static duk_ret_t f_writeAt(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "fd", 2);
+    int fd = DUK_REQUIRE_FD(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "src", 3);
+    duk_size_t len;
+    const uint8_t *buf = duk_is_string(ctx, -1) ? duk_require_lstring(ctx, -1, &len) : duk_require_buffer_data(ctx, -1, &len);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "offset", 6);
+    off_t offset = duk_require_number(ctx, -1);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        ssize_t n = pwrite(fd, buf, len, offset);
+        if (n < 0)
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        duk_push_number(ctx, n);
+        return 1;
+    }
+    f_writeAt_async_args_t *p = _ejs_async_args(ctx, 0);
+    p->fd = fd;
+    p->offset = offset;
+    p->buf = buf;
+    p->len = len;
+
+    _ejs_async_post_or_send(ctx, f_writeAt_async_impl, f_writeAt_async_return);
+    return 0;
+}
 duk_ret_t _ejs_native_os_init(duk_context *ctx)
 {
     /*
@@ -536,6 +683,9 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "open", 4);
         duk_push_c_lightfunc(ctx, f_fstat, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "fstat", 5);
+        duk_push_c_lightfunc(ctx, f_close, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "close", 5);
+
         duk_push_c_lightfunc(ctx, f_stat, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "stat", 4);
 
@@ -557,6 +707,16 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "readAt_args", 11);
         duk_push_c_lightfunc(ctx, f_readAt, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "readAt", 6);
+
+        duk_push_c_lightfunc(ctx, f_write_args, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "write_args", 10);
+        duk_push_c_lightfunc(ctx, f_write, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "write", 5);
+
+        duk_push_c_lightfunc(ctx, f_writeAt_args, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "writeAt_args", 12);
+        duk_push_c_lightfunc(ctx, f_writeAt, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "writeAt", 7);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

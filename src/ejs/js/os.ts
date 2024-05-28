@@ -50,11 +50,13 @@ declare namespace deps {
     }
     export interface OpenOptions extends AsyncOptions {
         name: string
-        flag?: number
+        flags?: number
         perm?: number
     }
     export function open(opts: OpenOptions): File
     export function open(opts: OpenOptions, cb: (f?: File, e?: any) => void): void
+
+    export function close(file: File): void
 
     export interface FileStatOptions extends AsyncOptions {
         file: deps.File
@@ -93,12 +95,37 @@ declare namespace deps {
     export interface ReadAtOptions extends AsyncOptions {
         fd: any
         dst: Uint8Array
-        offset: number
         args?: ReadAtArgs
+        offset: number
     }
     export function readAt_args(): ReadAtArgs
     export function readAt(opts: ReadAtOptions): number
     export function readAt(opts: ReadAtOptions, cb: (n?: number, e?: any) => void): void
+
+    export class WriteArgs {
+        readonly __id = "WriteArgs"
+    }
+    export interface WriteOptions extends AsyncOptions {
+        fd: any
+        src: Uint8Array | string
+        args?: WriteArgs
+    }
+    export function write_args(): WriteArgs
+    export function write(opts: WriteOptions): number
+    export function write(opts: WriteOptions, cb: (n?: number, e?: any) => void): void
+
+    export class WriteAtArgs {
+        readonly __id = "WriteAtArgs"
+    }
+    export interface WriteAtOptions extends AsyncOptions {
+        fd: any
+        src: Uint8Array | string
+        args?: WriteAtArgs
+        offset: number
+    }
+    export function writeAt_args(): WriteAtArgs
+    export function writeAt(opts: WriteAtOptions): number
+    export function writeAt(opts: WriteAtOptions, cb: (n?: number, e?: any) => void): void
 }
 
 export type Error = __duk.OsError
@@ -109,7 +136,7 @@ export interface AsyncOptions {
 }
 export interface OpenFileOptions {
     name: string
-    flag?: number
+    flags?: number
     perm?: number
 }
 export interface OpenFileAsyncOptions extends OpenFileOptions, AsyncOptions { }
@@ -195,15 +222,24 @@ export interface ReadAtOptions {
     offset: number
 }
 export interface ReadAtAsyncOptions extends ReadAtOptions, AsyncOptions { }
+export interface WriteAsyncOptions extends AsyncOptions {
+    src: Uint8Array | string
+}
+export interface WriteAtOptions {
+    src: Uint8Array | string
+    offset: number
+}
+export interface WriteAtAsyncOptions extends WriteAtOptions, AsyncOptions { }
+
 export class File {
-    private constructor(readonly file_: deps.File | undefined) { }
+    private constructor(private file_: deps.File | undefined) { }
     /**
      * Open files in customized mode
      */
     static openFileSync(opts: OpenFileOptions): File {
         return new File(deps.open({
             name: opts.name,
-            flag: opts.flag ?? deps.O_RDONLY,
+            flags: opts.flags ?? deps.O_RDONLY,
             perm: opts.perm ?? 0,
         }))
     }
@@ -216,7 +252,7 @@ export class File {
         }
         deps.open({
             name: opts.name,
-            flag: opts.flag ?? deps.O_RDONLY,
+            flags: opts.flags ?? deps.O_RDONLY,
             perm: opts.perm ?? 0,
             post: opts.post ? true : false,
         }, (f, e) => {
@@ -240,7 +276,7 @@ export class File {
     static openSync(name: string): File {
         return new File(deps.open({
             name: name,
-            flag: deps.O_RDONLY,
+            flags: deps.O_RDONLY,
             perm: 0,
         }))
     }
@@ -250,7 +286,7 @@ export class File {
     static open(name: string, cb: (f?: File, e?: any) => void): void {
         File.openFile({
             name: name,
-            flag: deps.O_RDONLY,
+            flags: deps.O_RDONLY,
             perm: 0,
         }, cb)
     }
@@ -260,7 +296,7 @@ export class File {
     static createSync(name: string): File {
         return new File(deps.open({
             name: name,
-            flag: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
+            flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
             perm: 0o666,
         }))
     }
@@ -270,9 +306,24 @@ export class File {
     static create(name: string, cb: (f?: File, e?: any) => void): void {
         File.openFile({
             name: name,
-            flag: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
+            flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
             perm: 0o666,
         }, cb)
+    }
+
+    isClosed(): boolean {
+        return this.file_ ? true : false
+    }
+    close() {
+        const f = this.file_
+        if (f) {
+            this.file_ = undefined
+            this.read_ = undefined
+            this.readAt_ = undefined
+            this.write_ = undefined
+            this.writeAt_ = undefined
+            deps.close(f)
+        }
     }
 
     private _file(): deps.File {
@@ -383,7 +434,9 @@ export class File {
         o.args = args
         try {
             deps.read(o, (n, e) => {
-                this.read_ = args
+                if (this.file_) {
+                    this.read_ = args
+                }
                 cb(n, e)
             })
         } catch (e) {
@@ -408,6 +461,10 @@ export class File {
      * Similar to readAtSync but called asynchronously, notifying the result in cb
      */
     readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+
         const f = this._file()
         let args = this.readAt_
         if (args) {
@@ -423,11 +480,108 @@ export class File {
                 args: args,
                 post: opts.post ? true : false,
             }, (n, e) => {
-                this.readAt_ = args
+                if (this.file_) {
+                    this.readAt_ = args
+                }
                 cb(n, e)
             })
         } catch (e) {
             this.readAt_ = args
+            throw e
+        }
+    }
+    /**
+     * Write data
+     * @returns the actual length of bytes write
+     */
+    writeSync(data: Uint8Array | string): number {
+        const f = this._file()
+        return deps.write({
+            fd: f.fd,
+            src: data,
+        })
+    }
+    private write_?: deps.WriteArgs
+    /**
+     * Similar to writeSync but called asynchronously, notifying the result in cb
+     */
+    write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+        const o: deps.WriteOptions = deps.isBufferData(opts) || typeof opts === "string" ? {
+            fd: f.fd,
+            src: opts,
+            post: false,
+        } : {
+            fd: f.fd,
+            src: opts.src,
+            post: opts.post ? true : false,
+        }
+
+        let args = this.write_
+        if (args) {
+            this.write_ = undefined
+        } else {
+            args = deps.write_args()
+        }
+        o.args = args
+        try {
+            deps.write(o, (n, e) => {
+                if (this.file_) {
+                    this.write_ = args
+                }
+                cb(n, e)
+            })
+        } catch (e) {
+            this.write_ = args
+            throw e
+        }
+    }
+    /**
+     * Write the data at the specified offset
+     * @returns the actual length of bytes write
+     */
+    writeAtSync(opts: WriteAtOptions): number {
+        const f = this._file()
+        return deps.writeAt({
+            fd: f.fd,
+            src: opts.src,
+            offset: opts.offset,
+        })
+    }
+    private writeAt_?: deps.WriteAtArgs
+    /**
+     * Similar to writeAtSync but called asynchronously, notifying the result in cb
+     */
+    writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+
+        let args = this.writeAt_
+        if (args) {
+            this.writeAt_ = undefined
+        } else {
+            args = deps.writeAt_args()
+        }
+        try {
+            deps.writeAt({
+                fd: f.fd,
+                src: opts.src,
+                offset: opts.offset,
+                args: args,
+                post: opts.post ? true : false,
+            }, (n, e) => {
+                if (this.file_) {
+                    this.writeAt_ = args
+                }
+                cb(n, e)
+            })
+        } catch (e) {
+            this.writeAt_ = args
             throw e
         }
     }
