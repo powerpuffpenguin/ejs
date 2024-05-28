@@ -74,6 +74,8 @@
         "__string": "c",
         "thread_pool_test.h": "c",
         "thread_pool.h": "c",
-        "sysinfo.h": "c"
+        "sysinfo.h": "c",
+        "types.h": "c",
+        "unistd.h": "c"
     }
 }

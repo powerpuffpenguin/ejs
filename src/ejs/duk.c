@@ -6,9 +6,9 @@
 #include "path.h"
 #include "core.h"
 
+#include <unistd.h>
 #include <event2/event.h>
 #include <errno.h>
-#include <unistd.h>
 
 DUK_EXTERNAL void ejs_dump_context_stdout(duk_context *ctx)
 {

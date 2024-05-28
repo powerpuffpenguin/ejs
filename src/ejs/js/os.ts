@@ -37,33 +37,68 @@ declare namespace deps {
         regular: boolean
     }
     export function fileinfo_name(info: deps.FileInfo): string
+    interface AsyncOptions {
+        post?: boolean
+    }
+
+    export function isBufferData(v: any): v is Uint8Array
 
     export class File {
         readonly __id = "File"
         name: string
+        fd: any
     }
-    export interface OpenOptions {
+    export interface OpenOptions extends AsyncOptions {
         name: string
         flag?: number
         perm?: number
-        post?: boolean
     }
     export function open(opts: OpenOptions): File
     export function open(opts: OpenOptions, cb: (f?: File, e?: any) => void): void
 
-    export interface FileStatOptions {
+    export interface FileStatOptions extends AsyncOptions {
         file: deps.File
-        post?: boolean
     }
     export function fstat(opts: FileStatOptions): FileInfo
     export function fstat(opts: FileStatOptions, cb: (info?: FileInfo, e?: any) => void): FileInfo
 
-    export interface StatOptions {
+    export interface StatOptions extends AsyncOptions {
         name: string
-        post?: boolean
     }
     export function stat(opts: StatOptions): FileInfo
-    export function stat(opts: StatOptions, cb: (info?: FileInfo, e?: any) => void): FileInfo
+    export function stat(opts: StatOptions, cb: (info?: FileInfo, e?: any) => void): void
+
+    export interface SeekOptions extends AsyncOptions {
+        fd: any
+        offset: number
+        whence?: number
+    }
+    export function seek(opts: SeekOptions): number
+    export function seek(opts: SeekOptions, cb: (offset?: number, e?: any) => void): void
+    export class ReadArgs {
+        readonly __id = "ReadArgs"
+    }
+    export interface ReadOptions extends AsyncOptions {
+        fd: any
+        dst: Uint8Array
+        args?: ReadArgs
+    }
+    export function read_args(): ReadArgs
+    export function read(opts: ReadOptions): number
+    export function read(opts: ReadOptions, cb: (n?: number, e?: any) => void): void
+
+    export class ReadAtArgs {
+        readonly __id = "ReadAtArgs"
+    }
+    export interface ReadAtOptions extends AsyncOptions {
+        fd: any
+        dst: Uint8Array
+        offset: number
+        args?: ReadAtArgs
+    }
+    export function readAt_args(): ReadAtArgs
+    export function readAt(opts: ReadAtOptions): number
+    export function readAt(opts: ReadAtOptions, cb: (n?: number, e?: any) => void): void
 }
 
 export type Error = __duk.OsError
@@ -146,6 +181,20 @@ export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?
         cb(ret)
     })
 }
+
+export interface SeekOptions {
+    offset: number
+    whence: number
+}
+export interface SeekAsyncOptions extends SeekOptions, AsyncOptions { }
+export interface ReadAsyncOptions extends AsyncOptions {
+    dst: Uint8Array
+}
+export interface ReadAtOptions {
+    dst: Uint8Array
+    offset: number
+}
+export interface ReadAtAsyncOptions extends ReadAtOptions, AsyncOptions { }
 export class File {
     private constructor(readonly file_: deps.File | undefined) { }
     /**
@@ -270,8 +319,145 @@ export class File {
         })
     }
     /**
-     * 
-     * @param data 
+     * Sets the offset for the next Read or Write on file to offset
      */
-    // writeSync(data: string | Uint8Array): number
+    seekSync(opts: SeekOptions): number {
+        const f = this._file()
+        return deps.seek({
+            fd: f.fd,
+            offset: opts.offset,
+            whence: opts.whence,
+        })
+    }
+    /**
+     * Similar to seekSync but called asynchronously, notifying the result in cb
+     */
+    seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+        deps.seek({
+            fd: f.fd,
+            offset: opts.offset,
+            whence: opts.whence,
+            post: opts.post ? true : false,
+        }, cb)
+    }
+    /**
+     * Read data to dst
+     * @returns the actual length of bytes read, or 0 if eof is read
+     */
+    readSync(dst: Uint8Array): number {
+        const f = this._file()
+        return deps.read({
+            fd: f.fd,
+            dst: dst,
+        })
+    }
+    private read_?: deps.ReadArgs
+    /**
+     * Similar to readSync but called asynchronously, notifying the result in cb
+     */
+    read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+        const o: deps.ReadOptions = deps.isBufferData(opts) ? {
+            fd: f.fd,
+            dst: opts,
+            post: false,
+        } : {
+            fd: f.fd,
+            dst: opts.dst,
+            post: opts.post ? true : false,
+        }
+
+        let args = this.read_
+        if (args) {
+            this.read_ = undefined
+        } else {
+            args = deps.read_args()
+        }
+        o.args = args
+        try {
+            deps.read(o, (n, e) => {
+                this.read_ = args
+                cb(n, e)
+            })
+        } catch (e) {
+            this.read_ = args
+            throw e
+        }
+    }
+    /**
+     * Read the data at the specified offset
+     * @returns the actual length of bytes read, or 0 if eof is read
+     */
+    readAtSync(opts: ReadAtOptions): number {
+        const f = this._file()
+        return deps.readAt({
+            fd: f.fd,
+            dst: opts.dst,
+            offset: opts.offset,
+        })
+    }
+    private readAt_?: deps.ReadAtArgs
+    /**
+     * Similar to readAtSync but called asynchronously, notifying the result in cb
+     */
+    readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
+        const f = this._file()
+        let args = this.readAt_
+        if (args) {
+            this.readAt_ = undefined
+        } else {
+            args = deps.readAt_args()
+        }
+        try {
+            deps.readAt({
+                fd: f.fd,
+                dst: opts.dst,
+                offset: opts.offset,
+                args: args,
+                post: opts.post ? true : false,
+            }, (n, e) => {
+                this.readAt_ = args
+                cb(n, e)
+            })
+        } catch (e) {
+            this.readAt_ = args
+            throw e
+        }
+    }
+}
+export interface Reader {
+    read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
+}
+class readerAll {
+    cb: (n?: number, e?: any) => void
+    constructor(readonly r: Reader, readonly opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined) {
+        this.cb = (n, e) => {
+            const quit = cb(n, e)
+            if (quit || n === undefined || n === 0) {
+                return
+            }
+            this.next()
+        }
+    }
+    next() {
+        this.r.read(this.opts, this.cb)
+    }
+}
+/**
+ * Continue reading the data in the reader until all is read or cb returns true
+ * @returns should we stop reading?
+ */
+export function readAll(reader: Reader, opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined): void {
+    if (typeof cb !== "function") {
+        throw new TypeError("cb must be a function")
+    }
+    const r = new readerAll(reader, opts, cb)
+    r.next()
 }

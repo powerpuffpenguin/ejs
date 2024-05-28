@@ -183,14 +183,14 @@ void _safe_ppp_thread_pool_set(ppp_thread_pool_t *p, ppp_thread_pool_options_t *
         }
         else
         {
-#if defined(__linux) || defined(__linux__) || defined(linux)
+#if (defined(__linux) || defined(__linux__) || defined(linux)) && defined(_SC_NPROCESSORS_ONLN)
             p->options.worker_of_idle = get_nprocs() * 2;
             if (p->options.worker_of_idle < 8)
             {
                 p->options.worker_of_idle = 8;
             }
 #else
-            p->options.worker_of_idle = opts->worker_of_idle < 1 ? 8 : opts->worker_of_idle;
+            p->options.worker_of_idle = 8;
 #endif
         }
         if (opts->worker_of_max > 0)
@@ -204,7 +204,7 @@ void _safe_ppp_thread_pool_set(ppp_thread_pool_t *p, ppp_thread_pool_options_t *
     }
     else
     {
-#if defined(__linux) || defined(__linux__) || defined(linux)
+#if (defined(__linux) || defined(__linux__) || defined(linux)) && defined(_SC_NPROCESSORS_ONLN)
         p->options.worker_of_idle = get_nprocs() * 2;
         if (p->options.worker_of_idle < 8)
         {

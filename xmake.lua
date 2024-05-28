@@ -32,6 +32,7 @@ target("ejs")
         if arch ~= nil then 
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
+    add_defines("_XOPEN_SOURCE=500")
     add_syslinks("pthread")
     add_packages("libevent")
 
@@ -65,6 +66,7 @@ target("ejs_test")
         if arch ~= nil then 
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
+    add_defines("_XOPEN_SOURCE=500")
     add_syslinks("pthread")
     add_packages("libevent")
 

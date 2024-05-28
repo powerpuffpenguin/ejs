@@ -940,6 +940,11 @@ declare module "ejs/os" {
     const O_SYNC: number     // open for synchronous I/O.
     const O_TRUNC: number    // truncate regular writable file when opened.
 
+
+    const SEEK_CUR: number
+    const SEEK_END: number
+    const SEEK_SET: number
+
     export interface AsyncOptions {
         /**
          * If true, execute asynchronous tasks in post mode, otherwise execute in send mode.
@@ -984,6 +989,18 @@ declare module "ejs/os" {
      * Similar to statSync but called asynchronously, notifying the result in cb
      */
     export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+
+    export interface SeekOptions {
+        offset: number
+        whence?: number
+    }
+    export interface SeekAsyncOptions extends SeekOptions, AsyncOptions { }
+    export interface ReadAtOptions {
+        dst: Uint8Array
+        offset: number
+    }
+    export interface ReadAtAsyncOptions extends ReadAtOptions, AsyncOptions { }
+
     export class File {
         private constructor()
         /**
@@ -1025,5 +1042,40 @@ declare module "ejs/os" {
          * Similar to statSync but called asynchronously, notifying the result in cb
          */
         stat(cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+        /**
+         * Sets the offset for the next Read or Write on file to offset
+         */
+        seekSync(opts: SeekOptions): number
+        /**
+         * Similar to seekSync but called asynchronously, notifying the result in cb
+         */
+        seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void
+        /**
+         * Read data to dst
+         * @returns the actual length of bytes read, or 0 if eof is read
+         */
+        readSync(dst: Uint8Array): number
+        /**
+         * Similar to readSync but called asynchronously, notifying the result in cb
+         */
+        read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
+        /**
+         * Read the data at the specified offset
+         * @returns the actual length of bytes read, or 0 if eof is read
+         */
+        readAtSync(opts: ReadAtOptions): number
+        /**
+         * Similar to readAtSync but called asynchronously, notifying the result in cb
+         */
+        readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void
     }
+
+    export interface Reader {
+        read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
+    }
+    /**
+     * Continue reading the data in the reader until all is read or cb returns true
+     * @returns should we stop reading?
+     */
+    export function readAll(reader: Reader, opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined): void
 }
