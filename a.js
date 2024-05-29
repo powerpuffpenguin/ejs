@@ -1,20 +1,24 @@
+var sync = require("ejs/sync")
 var os = require("ejs/os")
 var File = os.File;
-
-File.create("a.txt", function (f, e) {
-    if (!f) {
-        console.log(e)
-        return
-    }
-    f.writeAt({
-        src: "ok",
-        offset: 2,
-    }, function (n, e) {
-        f.writeAt({
+sync.go(function (co) {
+    var f
+    try {
+        f = File.create(co, "a.txt")
+        f.writeAt(co, {
+            src: "ok",
+            offset: 2,
+        })
+        f.writeAt(co, {
             src: "12",
             offset: 8,
-        }, function (n, e) {
-            console.log(n, e)
         })
-    })
+
+        console.log(f instanceof os.File)
+    } catch (e) {
+        console.log(e)
+        if (f) {
+            f.close()
+        }
+    }
 })

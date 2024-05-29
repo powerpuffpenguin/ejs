@@ -128,6 +128,43 @@ declare namespace deps {
     export function writeAt(opts: WriteAtOptions, cb: (n?: number, e?: any) => void): void
 }
 
+/**
+ * Context used for the coroutine to give up the CPU
+ */
+export interface YieldContext {
+    /**
+     * After calling function f, release the cpu so that other coroutines can run
+     * @remarks
+     * Usually f should be an asynchronous function, you can use coroutines to wait for the asynchronous function to complete
+     */
+    yield<T>(f: (notify: ResumeContext<T>) => void): T
+}
+/**
+ * The context used to wake up the coroutine
+ * @remarks
+ * You can only call the member function once to wake up the waiting coroutine. Multiple calls will throw an exception.
+ */
+export interface ResumeContext<T> {
+    /**
+     * Wake up the coroutine and return the value v for it
+     */
+    value(v: T): void
+    /**
+     * Wake up the coroutine and throw an exception.  
+     * The exception can be caught by try catch in the coroutine
+     */
+    error(e?: any): void
+    /**
+     * After calling the function resume, wake up the coroutine. 
+     * The return value of resume is used as the return value of the coroutine.  
+     * Exceptions thrown by resume can be caught by the coroutine
+     */
+    next(resume: () => T): void
+}
+function isYieldContext(v: any): v is YieldContext {
+    return typeof v === "object" && typeof v.yield === "function"
+}
+
 export type Error = __duk.OsError
 export const Error = __duk.OsError
 const osError = __duk.OsError
@@ -186,7 +223,22 @@ export function statSync(name: string): FileInfo {
     })
     return new fileInfo(info)
 }
-export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions) {
+export function stat(a: any, b: any, c: any, d: any) {
+    if (isYieldContext(a)) {
+        return a.yield((notify) => {
+            _stat(b, (info, e) => {
+                if (info) {
+                    notify.value(info)
+                } else {
+                    notify.error(e)
+                }
+            }, c)
+        })
+    } else {
+        _stat(a, b, c)
+    }
+}
+export function _stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions) {
     if (typeof cb !== "function") {
         throw new TypeError("cb must be a function")
     }
@@ -246,7 +298,22 @@ export class File {
     /**
      * Similar to openFileSync but called asynchronously, notifying the result in cb
      */
-    static openFile(opts: OpenFileAsyncOptions, cb: (f?: File, e?: any) => void): void {
+    static openFile(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                File._openFile(b, (f, e) => {
+                    if (f) {
+                        notify.value(f)
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } else {
+            File._openFile(a, b)
+        }
+    }
+    static _openFile(opts: OpenFileAsyncOptions, cb: (f?: File, e?: any) => void): void {
         if (typeof cb !== "function") {
             throw new TypeError("cb must be a function")
         }
@@ -283,12 +350,28 @@ export class File {
     /**
      * Similar to openSync but called asynchronously, notifying the result in cb
      */
-    static open(name: string, cb: (f?: File, e?: any) => void): void {
-        File.openFile({
-            name: name,
-            flags: deps.O_RDONLY,
-            perm: 0,
-        }, cb)
+    static open(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                File._openFile({
+                    name: b,
+                    flags: deps.O_RDONLY,
+                    perm: 0,
+                }, (f, e) => {
+                    if (f) {
+                        notify.value(f)
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } else {
+            File._openFile({
+                name: a,
+                flags: deps.O_RDONLY,
+                perm: 0,
+            }, b)
+        }
     }
     /**
      * Create a new profile
@@ -303,12 +386,28 @@ export class File {
     /**
      * Similar to createSync but called asynchronously, notifying the result in cb
      */
-    static create(name: string, cb: (f?: File, e?: any) => void): void {
-        File.openFile({
-            name: name,
-            flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
-            perm: 0o666,
-        }, cb)
+    static create(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                File._openFile({
+                    name: b,
+                    flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
+                    perm: 0o666,
+                }, (f, e) => {
+                    if (f) {
+                        notify.value(f)
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } else {
+            File._openFile({
+                name: a,
+                flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
+                perm: 0o666,
+            }, b)
+        }
     }
 
     isClosed(): boolean {
@@ -346,7 +445,22 @@ export class File {
         })
         return new fileInfo(info)
     }
-    stat(cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions) {
+    stat(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._stat((info, e) => {
+                    if (info) {
+                        notify.value(info)
+                    } else {
+                        notify.error(e)
+                    }
+                }, b)
+            })
+        } else {
+            this._stat(a, b)
+        }
+    }
+    private _stat(cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions) {
         if (typeof cb !== "function") {
             throw new TypeError("cb must be a function")
         }
@@ -383,7 +497,22 @@ export class File {
     /**
      * Similar to seekSync but called asynchronously, notifying the result in cb
      */
-    seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void {
+    seek(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._seek(b, (v, e) => {
+                    if (v === undefined) {
+                        notify.error(e)
+                    } else {
+                        notify.value(v)
+                    }
+                })
+            })
+        } else {
+            this._seek(a, b)
+        }
+    }
+    private _seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void {
         if (typeof cb !== "function") {
             throw new TypeError("cb must be a function")
         }
@@ -410,7 +539,22 @@ export class File {
     /**
      * Similar to readSync but called asynchronously, notifying the result in cb
      */
-    read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void {
+    read(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._read(b, (v, e) => {
+                    if (v === undefined) {
+                        notify.error(e)
+                    } else {
+                        notify.value(v)
+                    }
+                })
+            })
+        } else {
+            this._read(a, b)
+        }
+    }
+    private _read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void {
         if (typeof cb !== "function") {
             throw new TypeError("cb must be a function")
         }
@@ -460,7 +604,22 @@ export class File {
     /**
      * Similar to readAtSync but called asynchronously, notifying the result in cb
      */
-    readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
+    readAt(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._readAt(b, (v, e) => {
+                    if (v === undefined) {
+                        notify.error(e)
+                    } else {
+                        notify.value(v)
+                    }
+                })
+            })
+        } else {
+            this._readAt(a, b)
+        }
+    }
+    private _readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
         if (typeof cb !== "function") {
             throw new TypeError("cb must be a function")
         }
@@ -505,7 +664,22 @@ export class File {
     /**
      * Similar to writeSync but called asynchronously, notifying the result in cb
      */
-    write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void {
+    write(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._write(b, (v, e) => {
+                    if (v === undefined) {
+                        notify.error(e)
+                    } else {
+                        notify.value(v)
+                    }
+                })
+            })
+        } else {
+            this._write(a, b)
+        }
+    }
+    private _write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void {
         if (typeof cb !== "function") {
             throw new TypeError("cb must be a function")
         }
@@ -555,7 +729,22 @@ export class File {
     /**
      * Similar to writeAtSync but called asynchronously, notifying the result in cb
      */
-    writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
+    writeAt(a: any, b: any) {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._writeAt(b, (v, e) => {
+                    if (v === undefined) {
+                        notify.error(e)
+                    } else {
+                        notify.value(v)
+                    }
+                })
+            })
+        } else {
+            this._writeAt(a, b)
+        }
+    }
+    private _writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
         if (typeof cb !== "function") {
             throw new TypeError("cb must be a function")
         }

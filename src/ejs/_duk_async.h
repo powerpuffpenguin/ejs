@@ -9,12 +9,12 @@ void _ejs_async_post_or_send(duk_context *ctx, ejs_async_function_t worker_cb, d
 
 /**
  * ... finalizer{cb:cb,opts:opts} -> finalizer{cb:cb,opts:opts} cb
-*/
+ */
 void *_ejs_async_return(duk_context *ctx);
 
 /**
  * ... idx{args:finalizer} ... -> ... idx ... finalizer
-*/
-void* _ejs_async_args(duk_context* ctx,duk_idx_t idx);
+ */
+void *_ejs_async_args(duk_context *ctx, duk_idx_t idx);
 
 #endif

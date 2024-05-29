@@ -11,6 +11,7 @@
 #include "stash.h"
 #include "_duk_timer.h"
 #include "js/es6-shim.h"
+#include "_duk_sync.h"
 #include "_duk_net.h"
 #include "_duk_os.h"
 #include "_duk_test.h"
@@ -504,6 +505,8 @@ void _ejs_init_extras(duk_context *ctx)
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -2, EJS_STASH_MODULE);
     {
+        duk_push_c_lightfunc(ctx, _ejs_native_sync_init, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ejs/sync", 8);
         duk_push_c_lightfunc(ctx, _ejs_native_net_init, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ejs/net", 7);
         duk_push_c_lightfunc(ctx, _ejs_native_os_init, 2, 2, 0);

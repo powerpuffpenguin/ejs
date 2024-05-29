@@ -788,7 +788,61 @@ declare module "ejs/net" {
      */
     export function isSupportV4(): boolean
 }
+declare module "ejs/sync" {
+    /**
+     * Context used for the coroutine to give up the CPU
+     */
+    export interface YieldContext {
+        /**
+         * After calling function f, release the cpu so that other coroutines can run
+         * @remarks
+         * Usually f should be an asynchronous function, you can use coroutines to wait for the asynchronous function to complete
+         */
+        yield<T>(f: (notify: ResumeContext<T>) => void): T
+    }
+
+    /**
+     * The context used to wake up the coroutine
+     * @remarks
+     * You can only call the member function once to wake up the waiting coroutine. Multiple calls will throw an exception.
+     */
+    export interface ResumeContext<T> {
+        /**
+         * Wake up the coroutine and return the value v for it
+         */
+        value(v: T): void
+        /**
+         * Wake up the coroutine and throw an exception.  
+         * The exception can be caught by try catch in the coroutine
+         */
+        error(e?: any): void
+        /**
+         * Wake up the coroutine and call the function resume.  
+         * The return value of resume is used as the coroutine return value.  
+         * The exception thrown by resume can be caught by the coroutine.
+         */
+        next(resume: () => T): void
+    }
+
+    export class Coroutine {
+        constructor(f: (co: YieldContext) => void)
+        readonly state: 'none' | 'run' | 'yield' | 'finish'
+        /**
+         * run coroutine
+         */
+        run(): void
+        /**
+         * Callback after the coroutine finish
+         */
+        onFinish?: () => void
+    }
+    /**
+     * new Coroutine(f).run()
+     */
+    export function go(f: (co: YieldContext) => void): void
+}
 declare module "ejs/os" {
+    import { YieldContext } from "ejs/sync";
     export const OsError = ejs.OsError
     /**
      * Operation not permitted 
@@ -989,6 +1043,10 @@ declare module "ejs/os" {
      * Similar to statSync but called asynchronously, notifying the result in cb
      */
     export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+    /**
+     * returns the FileInfo describing file.
+     */
+    export function stat(co: YieldContext, name: string, opts?: AsyncOptions): FileInfo
 
     export interface SeekOptions {
         offset: number
@@ -1011,6 +1069,10 @@ declare module "ejs/os" {
          * Similar to openSync but called asynchronously, notifying the result in cb
          */
         static open(name: string, cb: (f?: File, e?: any) => void): void
+        /**
+         * Open the file as read-only (O_RDONLY)
+         */
+        static open(co: YieldContext, name: string): File
 
         /**
          * Create a new profile
@@ -1020,6 +1082,10 @@ declare module "ejs/os" {
          * Similar to createSync but called asynchronously, notifying the result in cb
          */
         static create(name: string, cb: (f?: File, e?: any) => void): void
+        /**
+         * Create a new profile
+         */
+        static create(co: YieldContext, name: string): File
 
         /**
          * Open files in customized mode
@@ -1029,6 +1095,11 @@ declare module "ejs/os" {
          * Similar to openFileSync but called asynchronously, notifying the result in cb
          */
         static openFile(opts: OpenFileAsyncOptions, cb: (f?: File, e?: any) => void): void
+        /**
+         * Open files in customized mode
+         */
+        static openFile(co: YieldContext, opts: OpenFileAsyncOptions): File
+
         /**
          * close file
          */
@@ -1047,6 +1118,10 @@ declare module "ejs/os" {
          */
         stat(cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
         /**
+         * returns the FileInfo describing file.
+         */
+        stat(co: YieldContext, opts?: AsyncOptions): FileInfo
+        /**
          * Sets the offset for the next Read or Write on file to offset
          */
         seekSync(opts: SeekOptions): number
@@ -1054,6 +1129,10 @@ declare module "ejs/os" {
          * Similar to seekSync but called asynchronously, notifying the result in cb
          */
         seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void
+        /**
+         * Sets the offset for the next Read or Write on file to offset
+         */
+        seek(co: YieldContext, opts: SeekAsyncOptions): number
         /**
          * Read data to dst
          * @returns the actual length of bytes read, or 0 if eof is read
@@ -1064,6 +1143,11 @@ declare module "ejs/os" {
          */
         read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
         /**
+         * Read data to dst
+         * @returns the actual length of bytes read, or 0 if eof is read
+         */
+        read(co: YieldContext, opts: ReadAsyncOptions | Uint8Array): number
+        /**
          * Read the data at the specified offset
          * @returns the actual length of bytes read, or 0 if eof is read
          */
@@ -1073,6 +1157,11 @@ declare module "ejs/os" {
          */
         readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void
         /**
+         * Read the data at the specified offset
+         * @returns the actual length of bytes read, or 0 if eof is read
+         */
+        readAt(co: YieldContext, opts: ReadAtAsyncOptions): number
+        /**
          * Write data
          * @returns the actual length of bytes write
          */
@@ -1081,6 +1170,11 @@ declare module "ejs/os" {
          * Similar to writeSync but called asynchronously, notifying the result in cb
          */
         write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void
+        /**
+         * Write data
+         * @returns the actual length of bytes write
+         */
+        write(co: YieldContext, opts: WriteAsyncOptions | Uint8Array | string): number
         /**
          * Write the data at the specified offset
          * @returns the actual length of bytes write
