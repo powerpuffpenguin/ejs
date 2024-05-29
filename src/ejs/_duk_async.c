@@ -45,7 +45,7 @@ void *_ejs_async_args(duk_context *ctx, duk_idx_t idx)
     duk_pop(ctx);
     return p;
 }
-duk_ret_t _ejs_async_return_void_t_impl(duk_context *ctx)
+duk_ret_t _ejs_async_return_void_impl(duk_context *ctx)
 {
     _ejs_async_return_void_t *args = _ejs_async_return(ctx);
     if (args->err)
@@ -56,6 +56,23 @@ duk_ret_t _ejs_async_return_void_t_impl(duk_context *ctx)
     else
     {
         duk_call(ctx, 0);
+    }
+    return 0;
+}
+duk_ret_t _ejs_async_return_number_impl(duk_context *ctx)
+{
+    _ejs_async_return_number_t *args = _ejs_async_return(ctx);
+    if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_push_number(ctx, args->n);
+        duk_call(ctx, 1);
     }
     return 0;
 }

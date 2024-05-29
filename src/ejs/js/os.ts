@@ -192,7 +192,48 @@ export interface ResumeContext<T> {
 function isYieldContext(v: any): v is YieldContext {
     return typeof v === "object" && typeof v.yield === "function"
 }
-
+function coVoid(co: YieldContext, f: (opts: any, cb: (e?: any) => void) => void, opts: any): void {
+    return co.yield<void>((notify) => {
+        f(opts, (e) => {
+            if (e === undefined) {
+                notify.value()
+            } else {
+                notify.error(e)
+            }
+        })
+    })
+}
+function coReturn<T>(co: YieldContext, f: (opts: any, cb: (v: T, e?: any) => void) => void, opts: any): T {
+    return co.yield<T>((notify) => {
+        f(opts, (v, e) => {
+            if (e === undefined) {
+                notify.value(v)
+            } else {
+                notify.error(e)
+            }
+        })
+    })
+}
+function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined] {
+    if (isYieldContext(a)) {
+        return [b, undefined]
+    } else {
+        if (typeof b !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        return [a, b]
+    }
+}
+function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options] {
+    if (isYieldContext(a)) {
+        return [undefined, b]
+    } else {
+        if (typeof a !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        return [a, b]
+    }
+}
 export type Error = __duk.OsError
 export const Error = __duk.OsError
 const osError = __duk.OsError
@@ -485,24 +526,10 @@ export class File {
         return new fileInfo(info)
     }
     stat(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._stat((info, e) => {
-                    if (info) {
-                        notify.value(info)
-                    } else {
-                        notify.error(e)
-                    }
-                }, b)
-            })
-        } else {
-            this._stat(a, b)
-        }
+        const [cb, opts] = parseBA<(info?: FileInfo, e?: any) => void, AsyncOptions>(a, b)
+        return cb ? this._stat(opts, cb) : coReturn(a, this._stat.bind(this), opts)
     }
-    private _stat(cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions) {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
+    private _stat(opts: AsyncOptions | undefined, cb: (info?: FileInfo, e?: any) => void) {
         const f = this._file()
         deps.fstat({
             file: f,
@@ -537,24 +564,10 @@ export class File {
      * Similar to seekSync but called asynchronously, notifying the result in cb
      */
     seek(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._seek(b, (v, e) => {
-                    if (v === undefined) {
-                        notify.error(e)
-                    } else {
-                        notify.value(v)
-                    }
-                })
-            })
-        } else {
-            this._seek(a, b)
-        }
+        const [opts, cb] = parseAB<SeekAsyncOptions, (n?: number, e?: any) => void>(a, b)
+        return cb ? this._seek(opts, cb) : coReturn(a, this._seek.bind(this), opts)
     }
     private _seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
         const f = this._file()
         deps.seek({
             fd: f.fd,
@@ -579,19 +592,8 @@ export class File {
      * Similar to readSync but called asynchronously, notifying the result in cb
      */
     read(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._read(b, (v, e) => {
-                    if (v === undefined) {
-                        notify.error(e)
-                    } else {
-                        notify.value(v)
-                    }
-                })
-            })
-        } else {
-            this._read(a, b)
-        }
+        const [opts, cb] = parseAB<ReadAsyncOptions, (n?: number, e?: any) => void>(a, b)
+        return cb ? this._read(opts, cb) : coReturn(a, this._read.bind(this), opts)
     }
     private _read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void {
         if (typeof cb !== "function") {
@@ -644,25 +646,10 @@ export class File {
      * Similar to readAtSync but called asynchronously, notifying the result in cb
      */
     readAt(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._readAt(b, (v, e) => {
-                    if (v === undefined) {
-                        notify.error(e)
-                    } else {
-                        notify.value(v)
-                    }
-                })
-            })
-        } else {
-            this._readAt(a, b)
-        }
+        const [opts, cb] = parseAB<ReadAtAsyncOptions, (n?: number, e?: any) => void>(a, b)
+        return cb ? this._readAt(opts, cb) : coReturn(a, this._readAt.bind(this), opts)
     }
     private _readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
-
         const f = this._file()
         let args = this.readAt_
         if (args) {
@@ -704,24 +691,10 @@ export class File {
      * Similar to writeSync but called asynchronously, notifying the result in cb
      */
     write(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._write(b, (v, e) => {
-                    if (v === undefined) {
-                        notify.error(e)
-                    } else {
-                        notify.value(v)
-                    }
-                })
-            })
-        } else {
-            this._write(a, b)
-        }
+        const [opts, cb] = parseAB<WriteAsyncOptions, (n?: number, e?: any) => void>(a, b)
+        return cb ? this._write(opts, cb) : coReturn(a, this._write.bind(this), opts)
     }
     private _write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
         const f = this._file()
         const o: deps.WriteOptions = deps.isBufferData(opts) || typeof opts === "string" ? {
             fd: f.fd,
@@ -769,26 +742,11 @@ export class File {
      * Similar to writeAtSync but called asynchronously, notifying the result in cb
      */
     writeAt(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._writeAt(b, (v, e) => {
-                    if (v === undefined) {
-                        notify.error(e)
-                    } else {
-                        notify.value(v)
-                    }
-                })
-            })
-        } else {
-            this._writeAt(a, b)
-        }
+        const [opts, cb] = parseAB<WriteAtAsyncOptions, (n?: number, e?: any) => void>(a, b)
+        return cb ? this._writeAt(opts, cb) : coReturn(a, this._writeAt.bind(this), opts)
     }
-    private _writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
+    private _writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void) {
         const f = this._file()
-
         let args = this.writeAt_
         if (args) {
             this.writeAt_ = undefined
@@ -827,29 +785,12 @@ export class File {
      * Similar to syncSync but called asynchronously, notifying the result in cb
      */
     sync(a: any, b: any): void {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._sync((e) => {
-                    if (e === undefined) {
-                        notify.value()
-                    } else {
-                        notify.error(e)
-                    }
-                }, b)
-            })
-        } else {
-            this._sync(a, b)
+        const [cb, opts] = parseBA<(e?: any) => void, AsyncOptions>(a, b);
+        const o: deps.FSyncOptions = {
+            fd: this._file().fd,
+            post: opts.post ? true : false,
         }
-    }
-    private _sync(cb: (e?: any) => void, opts?: AsyncOptions) {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
-        const f = this._file()
-        deps.fsync({
-            fd: f.fd,
-            post: opts?.post ? true : false,
-        }, cb)
+        return cb ? deps.fsync(o, cb) : coVoid(a, deps.fsync, o)
     }
     /**
      * changes the current working directory to the file, which must be a directory.
@@ -872,30 +813,13 @@ export class File {
      * Similar to chmodSync but called asynchronously, notifying the result in cb
      */
     chmod(a: any, b: any): void {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._chmod(b, (e) => {
-                    if (e === undefined) {
-                        notify.value()
-                    } else {
-                        notify.error(e)
-                    }
-                })
-            })
-        } else {
-            this._chmod(a, b)
-        }
-    }
-    private _chmod(opts: ChmodAsyncOptions, cb: (e?: any) => void) {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
-        const f = this._file()
-        deps.fchmod({
-            fd: f.fd,
+        const [opts, cb] = parseAB<ChmodAsyncOptions, (e?: any) => void>(a, b);
+        const o: deps.FChmodOptions = {
+            fd: this._file().fd,
             perm: opts.perm,
             post: opts.post ? true : false,
-        }, cb)
+        }
+        return cb ? deps.fchmod(o, cb) : coVoid(a, deps.fchmod, o)
     }
     /**
      * changes the uid and gid of the file
@@ -912,31 +836,14 @@ export class File {
      * Similar to chownSync but called asynchronously, notifying the result in cb
      */
     chown(a: any, b: any): void {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._chown(b, (e) => {
-                    if (e === undefined) {
-                        notify.value()
-                    } else {
-                        notify.error(e)
-                    }
-                })
-            })
-        } else {
-            this._chown(a, b)
-        }
-    }
-    private _chown(opts: ChownAsyncOptions, cb: (e?: any) => void) {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
-        const f = this._file()
-        deps.fchown({
-            fd: f.fd,
+        const [opts, cb] = parseAB<ChownAsyncOptions, (e?: any) => void>(a, b);
+        const o: deps.FChownOptions = {
+            fd: this._file().fd,
             uid: opts.uid,
             gid: opts.gid,
             post: opts.post ? true : false,
-        }, cb)
+        }
+        return cb ? deps.fchown(o, cb) : coVoid(a, deps.fchown, o)
     }
     /**
      * changes the size of the file. It does not change the I/O offset.
@@ -952,32 +859,16 @@ export class File {
      * Similar to truncateSync but called asynchronously, notifying the result in cb
      */
     truncate(a: any, b: any): void {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                this._truncate(b, (e) => {
-                    if (e === undefined) {
-                        notify.value()
-                    } else {
-                        notify.error(e)
-                    }
-                })
-            })
-        } else {
-            this._truncate(a, b)
-        }
-    }
-    private _truncate(opts: TruncateAsyncOptions, cb: (a: any) => void) {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
-        const f = this._file()
-        deps.ftruncate({
-            fd: f.fd,
+        const [opts, cb] = parseAB<TruncateAsyncOptions, (e?: any) => void>(a, b);
+        const o: deps.FTruncateOptions = {
+            fd: this._file().fd,
             size: opts.size,
             post: opts.post ? true : false
-        }, cb)
+        }
+        return cb ? deps.ftruncate(o, cb) : coVoid(a, deps.ftruncate, o)
     }
 }
+
 export interface Reader {
     read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
 }

@@ -368,35 +368,19 @@ static duk_ret_t f_isBufferData(duk_context *ctx)
 }
 typedef struct
 {
+    EJS_ASYNC_DEFINE_RETURN_NUMBER
+
     int fd;
     duk_size_t len;
     uint8_t *dst;
 
-    ssize_t n;
-    int err;
 } f_read_async_args_t;
 static void f_read_async_impl(void *userdata)
 {
     f_read_async_args_t *args = userdata;
-    args->n = read(args->fd, args->dst, args->len);
-    args->err = args->n < 0 ? errno : 0;
-}
-static duk_ret_t f_read_async_return(duk_context *ctx)
-{
-    f_read_async_args_t *args = _ejs_async_return(ctx);
-    if (args->err)
-    {
-        ejs_new_os_error(ctx, args->err, 0);
-        duk_push_undefined(ctx);
-        duk_swap_top(ctx, -2);
-        duk_call(ctx, 2);
-    }
-    else
-    {
-        duk_push_number(ctx, args->n);
-        duk_call(ctx, 1);
-    }
-    return 0;
+    ssize_t n = read(args->fd, args->dst, args->len);
+    args->result.err = n < 0 ? errno : 0;
+    args->result.n = n;
 }
 static duk_ret_t f_read_args(duk_context *ctx)
 {
@@ -429,41 +413,23 @@ static duk_ret_t f_read(duk_context *ctx)
     p->dst = dst;
     p->len = len;
 
-    _ejs_async_post_or_send(ctx, f_read_async_impl, f_read_async_return);
+    EJS_ASYNC_POST_OR_SEND_NUMBER(ctx, f_read_async_impl);
     return 0;
 }
 typedef struct
 {
+    EJS_ASYNC_DEFINE_RETURN_NUMBER
     int fd;
     off_t offset;
     duk_size_t len;
     uint8_t *dst;
-
-    ssize_t n;
-    int err;
 } f_readAt_async_args_t;
 static void f_readAt_async_impl(void *userdata)
 {
     f_readAt_async_args_t *args = userdata;
-    args->n = pread(args->fd, args->dst, args->len, args->offset);
-    args->err = args->n < 0 ? errno : 0;
-}
-static duk_ret_t f_readAt_async_return(duk_context *ctx)
-{
-    f_readAt_async_args_t *args = _ejs_async_return(ctx);
-    if (args->err)
-    {
-        ejs_new_os_error(ctx, args->err, 0);
-        duk_push_undefined(ctx);
-        duk_swap_top(ctx, -2);
-        duk_call(ctx, 2);
-    }
-    else
-    {
-        duk_push_number(ctx, args->n);
-        duk_call(ctx, 1);
-    }
-    return 0;
+    ssize_t n = pread(args->fd, args->dst, args->len, args->offset);
+    args->result.err = n < 0 ? errno : 0;
+    args->result.n = n;
 }
 static duk_ret_t f_readAt_args(duk_context *ctx)
 {
@@ -501,41 +467,23 @@ static duk_ret_t f_readAt(duk_context *ctx)
     p->dst = dst;
     p->len = len;
 
-    _ejs_async_post_or_send(ctx, f_readAt_async_impl, f_readAt_async_return);
+    EJS_ASYNC_POST_OR_SEND_NUMBER(ctx, f_readAt_async_impl);
     return 0;
 }
 typedef struct
 {
+    EJS_ASYNC_DEFINE_RETURN_NUMBER
+
     int fd;
     duk_size_t len;
     const uint8_t *buf;
-
-    ssize_t n;
-    int err;
-
 } f_write_async_args_t;
 static void f_write_async_impl(void *userdata)
 {
     f_write_async_args_t *args = userdata;
-    args->n = write(args->fd, args->buf, args->len);
-    args->err = args->n < 0 ? errno : 0;
-}
-static duk_ret_t f_write_async_return(duk_context *ctx)
-{
-    f_write_async_args_t *args = _ejs_async_return(ctx);
-    if (args->err)
-    {
-        ejs_new_os_error(ctx, args->err, 0);
-        duk_push_undefined(ctx);
-        duk_swap_top(ctx, -2);
-        duk_call(ctx, 2);
-    }
-    else
-    {
-        duk_push_number(ctx, args->n);
-        duk_call(ctx, 1);
-    }
-    return 0;
+    ssize_t n = write(args->fd, args->buf, args->len);
+    args->result.err = n < 0 ? errno : 0;
+    args->result.n = n;
 }
 static duk_ret_t f_write_args(duk_context *ctx)
 {
@@ -568,41 +516,24 @@ static duk_ret_t f_write(duk_context *ctx)
     p->buf = buf;
     p->len = len;
 
-    _ejs_async_post_or_send(ctx, f_write_async_impl, f_write_async_return);
+    EJS_ASYNC_POST_OR_SEND_NUMBER(ctx, f_write_async_impl);
     return 0;
 }
 typedef struct
 {
+    EJS_ASYNC_DEFINE_RETURN_NUMBER
+
     int fd;
     off_t offset;
     duk_size_t len;
     const uint8_t *buf;
-
-    ssize_t n;
-    int err;
 } f_writeAt_async_args_t;
 static void f_writeAt_async_impl(void *userdata)
 {
     f_writeAt_async_args_t *args = userdata;
-    args->n = pwrite(args->fd, args->buf, args->len, args->offset);
-    args->err = args->n < 0 ? errno : 0;
-}
-static duk_ret_t f_writeAt_async_return(duk_context *ctx)
-{
-    f_writeAt_async_args_t *args = _ejs_async_return(ctx);
-    if (args->err)
-    {
-        ejs_new_os_error(ctx, args->err, 0);
-        duk_push_undefined(ctx);
-        duk_swap_top(ctx, -2);
-        duk_call(ctx, 2);
-    }
-    else
-    {
-        duk_push_number(ctx, args->n);
-        duk_call(ctx, 1);
-    }
-    return 0;
+    ssize_t n = pwrite(args->fd, args->buf, args->len, args->offset);
+    args->result.err = n < 0 ? errno : 0;
+    args->result.n = n;
 }
 static duk_ret_t f_writeAt_args(duk_context *ctx)
 {
@@ -640,13 +571,14 @@ static duk_ret_t f_writeAt(duk_context *ctx)
     p->buf = buf;
     p->len = len;
 
-    _ejs_async_post_or_send(ctx, f_writeAt_async_impl, f_writeAt_async_return);
+    EJS_ASYNC_POST_OR_SEND_NUMBER(ctx, f_writeAt_async_impl);
     return 0;
 }
 
 typedef struct
 {
-    _ejs_async_return_void_t result;
+    EJS_ASYNC_DEFINE_RETURN_VOID
+
     int fd;
 } f_sync_async_args_t;
 static void f_sync_async_impl(void *userdata)
@@ -671,7 +603,7 @@ static duk_ret_t f_fsync(duk_context *ctx)
     f_sync_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_sync_async_args_t), ejs_default_finalizer);
     p->fd = fd;
 
-    _ejs_async_post_or_send(ctx, f_sync_async_impl, _ejs_async_return_void_t_impl);
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_sync_async_impl);
     return 0;
 }
 static duk_ret_t f_fchdir(duk_context *ctx)
@@ -686,7 +618,7 @@ static duk_ret_t f_fchdir(duk_context *ctx)
 
 typedef struct
 {
-    _ejs_async_return_void_t result;
+    EJS_ASYNC_DEFINE_RETURN_VOID
 
     int fd;
     duk_uint_t perm;
@@ -718,13 +650,13 @@ static duk_ret_t f_fchmod(duk_context *ctx)
     p->fd = fd;
     p->perm = perm;
 
-    _ejs_async_post_or_send(ctx, f_fchmod_async_impl, _ejs_async_return_void_t_impl);
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_fchmod_async_impl);
     return 0;
 }
 
 typedef struct
 {
-    _ejs_async_return_void_t result;
+    EJS_ASYNC_DEFINE_RETURN_VOID
 
     int fd;
     duk_uint_t uid, gid;
@@ -761,13 +693,13 @@ static duk_ret_t f_fchown(duk_context *ctx)
     p->uid = uid;
     p->gid = gid;
 
-    _ejs_async_post_or_send(ctx, f_fchown_async_impl, _ejs_async_return_void_t_impl);
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_fchown_async_impl);
     return 0;
 }
 
 typedef struct
 {
-    _ejs_async_return_void_t result;
+    EJS_ASYNC_DEFINE_RETURN_VOID
 
     int fd;
     off_t size;
@@ -800,7 +732,7 @@ static duk_ret_t f_ftruncate(duk_context *ctx)
     p->fd = fd;
     p->size = size;
 
-    _ejs_async_post_or_send(ctx, f_ftruncate_async_impl, _ejs_async_return_void_t_impl);
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_ftruncate_async_impl);
     return 0;
 }
 

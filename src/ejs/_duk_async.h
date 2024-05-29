@@ -21,5 +21,17 @@ typedef struct
 {
     int err;
 } _ejs_async_return_void_t;
-duk_ret_t _ejs_async_return_void_t_impl(duk_context *ctx);
+#define EJS_ASYNC_DEFINE_RETURN_VOID _ejs_async_return_void_t result;
+duk_ret_t _ejs_async_return_void_impl(duk_context *ctx);
+#define EJS_ASYNC_POST_OR_SEND_VOID(ctx, cb) _ejs_async_post_or_send(ctx, cb, _ejs_async_return_void_impl)
+
+typedef struct
+{
+    int err;
+    duk_double_t n;
+} _ejs_async_return_number_t;
+#define EJS_ASYNC_DEFINE_RETURN_NUMBER _ejs_async_return_number_t result;
+duk_ret_t _ejs_async_return_number_impl(duk_context *ctx);
+#define EJS_ASYNC_POST_OR_SEND_NUMBER(ctx, cb) _ejs_async_post_or_send(ctx, cb, _ejs_async_return_number_impl)
+
 #endif

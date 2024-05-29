@@ -14,12 +14,16 @@ sync.go(function (co) {
             offset: 8,
         })
 
-        console.log(f.truncate(co, {
-            size: 128
-        }))
+        console.log(f.stat(co))
         console.log(f instanceof os.File)
+
+        f.writeAt(co, {
+            src: "12",
+            offset: -1,
+        })
+
     } catch (e) {
-        console.log('err', e)
+        console.log('err', e, e.toString())
         if (f) {
             f.close()
         }
