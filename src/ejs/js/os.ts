@@ -126,6 +126,34 @@ declare namespace deps {
     export function writeAt_args(): WriteAtArgs
     export function writeAt(opts: WriteAtOptions): number
     export function writeAt(opts: WriteAtOptions, cb: (n?: number, e?: any) => void): void
+    export interface FSyncOptions extends AsyncOptions {
+        fd: any
+    }
+    export function fsync(opts: FSyncOptions): void
+    export function fsync(opts: FSyncOptions, cb: (e?: any) => void): void
+    export function fchdir(fd: any): void
+
+    export interface FChmodOptions extends AsyncOptions {
+        fd: any
+        perm: number
+    }
+    export function fchmod(opts: FChmodOptions): void
+    export function fchmod(opts: FChmodOptions, cb: (e?: any) => void): void
+
+    export interface FChownOptions extends AsyncOptions {
+        fd: any
+        uid: number
+        gid: number
+    }
+    export function fchown(opts: FChownOptions): void
+    export function fchown(opts: FChownOptions, cb: (e?: any) => void): void
+
+    export interface FTruncateOptions extends AsyncOptions {
+        fd: any
+        size: number
+    }
+    export function ftruncate(opts: FTruncateOptions): void
+    export function ftruncate(opts: FTruncateOptions, cb: (e?: any) => void): void
 }
 
 /**
@@ -282,7 +310,18 @@ export interface WriteAtOptions {
     offset: number
 }
 export interface WriteAtAsyncOptions extends WriteAtOptions, AsyncOptions { }
-
+export interface ChmodAsyncOptions extends AsyncOptions {
+    perm: number
+}
+export interface TruncateAsyncOptions extends AsyncOptions {
+    size: number
+}
+export interface ChownOptions {
+    fd: any
+    uid: number
+    gid: number
+}
+export interface ChownAsyncOptions extends ChownOptions, AsyncOptions { }
 export class File {
     private constructor(private file_: deps.File | undefined) { }
     /**
@@ -773,6 +812,170 @@ export class File {
             this.writeAt_ = args
             throw e
         }
+    }
+    /**
+     * Commits the current contents of the file to stable storage.
+     * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
+     */
+    syncSync(): void {
+        const f = this._file()
+        deps.fsync({
+            fd: f.fd,
+        })
+    }
+    /**
+     * Similar to syncSync but called asynchronously, notifying the result in cb
+     */
+    sync(a: any, b: any): void {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._sync((e) => {
+                    if (e === undefined) {
+                        notify.value()
+                    } else {
+                        notify.error(e)
+                    }
+                }, b)
+            })
+        } else {
+            this._sync(a, b)
+        }
+    }
+    private _sync(cb: (e?: any) => void, opts?: AsyncOptions) {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+        deps.fsync({
+            fd: f.fd,
+            post: opts?.post ? true : false,
+        }, cb)
+    }
+    /**
+     * changes the current working directory to the file, which must be a directory.
+     */
+    chdir(): void {
+        const f = this._file()
+        deps.fchdir(f.fd)
+    }
+    /**
+     * changes the mode of the file to mode
+     */
+    chmodSync(perm: number): void {
+        const f = this._file()
+        deps.fchmod({
+            fd: f.fd,
+            perm: perm,
+        })
+    }
+    /**
+     * Similar to chmodSync but called asynchronously, notifying the result in cb
+     */
+    chmod(a: any, b: any): void {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._chmod(b, (e) => {
+                    if (e === undefined) {
+                        notify.value()
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } else {
+            this._chmod(a, b)
+        }
+    }
+    private _chmod(opts: ChmodAsyncOptions, cb: (e?: any) => void) {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+        deps.fchmod({
+            fd: f.fd,
+            perm: opts.perm,
+            post: opts.post ? true : false,
+        }, cb)
+    }
+    /**
+     * changes the uid and gid of the file
+     */
+    chownSync(opts: ChownOptions): void {
+        const f = this._file()
+        deps.fchown({
+            fd: f.fd,
+            uid: opts.uid,
+            gid: opts.gid,
+        })
+    }
+    /**
+     * Similar to chownSync but called asynchronously, notifying the result in cb
+     */
+    chown(a: any, b: any): void {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._chown(b, (e) => {
+                    if (e === undefined) {
+                        notify.value()
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } else {
+            this._chown(a, b)
+        }
+    }
+    private _chown(opts: ChownAsyncOptions, cb: (e?: any) => void) {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+        deps.fchown({
+            fd: f.fd,
+            uid: opts.uid,
+            gid: opts.gid,
+            post: opts.post ? true : false,
+        }, cb)
+    }
+    /**
+     * changes the size of the file. It does not change the I/O offset.
+     */
+    truncateSync(size: number): void {
+        const f = this._file()
+        deps.ftruncate({
+            fd: f.fd,
+            size: size,
+        })
+    }
+    /**
+     * Similar to truncateSync but called asynchronously, notifying the result in cb
+     */
+    truncate(a: any, b: any): void {
+        if (isYieldContext(a)) {
+            return a.yield((notify) => {
+                this._truncate(b, (e) => {
+                    if (e === undefined) {
+                        notify.value()
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } else {
+            this._truncate(a, b)
+        }
+    }
+    private _truncate(opts: TruncateAsyncOptions, cb: (a: any) => void) {
+        if (typeof cb !== "function") {
+            throw new TypeError("cb must be a function")
+        }
+        const f = this._file()
+        deps.ftruncate({
+            fd: f.fd,
+            size: opts.size,
+            post: opts.post ? true : false
+        }, cb)
     }
 }
 export interface Reader {

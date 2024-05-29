@@ -643,6 +643,167 @@ static duk_ret_t f_writeAt(duk_context *ctx)
     _ejs_async_post_or_send(ctx, f_writeAt_async_impl, f_writeAt_async_return);
     return 0;
 }
+
+typedef struct
+{
+    _ejs_async_return_void_t result;
+    int fd;
+} f_sync_async_args_t;
+static void f_sync_async_impl(void *userdata)
+{
+    f_sync_async_args_t *args = userdata;
+    args->result.err = fsync(args->fd) ? errno : 0;
+}
+static duk_ret_t f_fsync(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "fd", 2);
+    int fd = DUK_REQUIRE_FD(ctx, -1);
+    duk_pop(ctx);
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (fsync(fd))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        return 0;
+    }
+
+    f_sync_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_sync_async_args_t), ejs_default_finalizer);
+    p->fd = fd;
+
+    _ejs_async_post_or_send(ctx, f_sync_async_impl, _ejs_async_return_void_t_impl);
+    return 0;
+}
+static duk_ret_t f_fchdir(duk_context *ctx)
+{
+    int fd = DUK_REQUIRE_FD(ctx, 0);
+    if (fchdir(fd))
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    return 0;
+}
+
+typedef struct
+{
+    _ejs_async_return_void_t result;
+
+    int fd;
+    duk_uint_t perm;
+} f_fchmod_async_args_t;
+static void f_fchmod_async_impl(void *userdata)
+{
+    f_fchmod_async_args_t *args = userdata;
+    args->result.err = fchmod(args->fd, args->perm) ? errno : 0;
+}
+static duk_ret_t f_fchmod(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "fd", 2);
+    int fd = DUK_REQUIRE_FD(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "perm", 4);
+    duk_uint_t perm = duk_get_uint_default(ctx, -1, 0);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (fchmod(fd, perm))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        return 0;
+    }
+
+    f_fchmod_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_fchmod_async_args_t), ejs_default_finalizer);
+    p->fd = fd;
+    p->perm = perm;
+
+    _ejs_async_post_or_send(ctx, f_fchmod_async_impl, _ejs_async_return_void_t_impl);
+    return 0;
+}
+
+typedef struct
+{
+    _ejs_async_return_void_t result;
+
+    int fd;
+    duk_uint_t uid, gid;
+} f_fchown_async_args_t;
+static void f_fchown_async_impl(void *userdata)
+{
+    f_fchown_async_args_t *args = userdata;
+    args->result.err = fchown(args->fd, args->uid, args->gid) ? errno : 0;
+}
+
+static duk_ret_t f_fchown(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "fd", 2);
+    int fd = DUK_REQUIRE_FD(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "uid", 3);
+    duk_uint_t uid = duk_get_uint_default(ctx, -1, 0);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "gid", 3);
+    duk_uint_t gid = duk_get_uint_default(ctx, -1, 0);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (fchown(fd, uid, gid))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        return 0;
+    }
+
+    f_fchown_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_fchown_async_args_t), ejs_default_finalizer);
+    p->fd = fd;
+    p->uid = uid;
+    p->gid = gid;
+
+    _ejs_async_post_or_send(ctx, f_fchown_async_impl, _ejs_async_return_void_t_impl);
+    return 0;
+}
+
+typedef struct
+{
+    _ejs_async_return_void_t result;
+
+    int fd;
+    off_t size;
+} f_ftruncate_async_args_t;
+static void f_ftruncate_async_impl(void *userdata)
+{
+    f_ftruncate_async_args_t *args = userdata;
+    args->result.err = ftruncate(args->fd, args->size) ? errno : 0;
+}
+
+static duk_ret_t f_ftruncate(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "fd", 2);
+    int fd = DUK_REQUIRE_FD(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "size", 4);
+    off_t size = duk_require_number(ctx, -1);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (ftruncate(fd, size))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        return 0;
+    }
+
+    f_ftruncate_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_ftruncate_async_args_t), ejs_default_finalizer);
+    p->fd = fd;
+    p->size = size;
+
+    _ejs_async_post_or_send(ctx, f_ftruncate_async_impl, _ejs_async_return_void_t_impl);
+    return 0;
+}
+
 duk_ret_t _ejs_native_os_init(duk_context *ctx)
 {
     /*
@@ -717,7 +878,21 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "writeAt_args", 12);
         duk_push_c_lightfunc(ctx, f_writeAt, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "writeAt", 7);
+
+        duk_push_c_lightfunc(ctx, f_fsync, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "fsync", 5);
+
+        duk_push_c_lightfunc(ctx, f_fchdir, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "fchdir", 6);
+
+        duk_push_c_lightfunc(ctx, f_fchmod, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "fchmod", 6);
+        duk_push_c_lightfunc(ctx, f_fchown, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "fchown", 6);
+        duk_push_c_lightfunc(ctx, f_ftruncate, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ftruncate", 9);
     }
+
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
      */

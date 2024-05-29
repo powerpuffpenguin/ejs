@@ -14,9 +14,12 @@ sync.go(function (co) {
             offset: 8,
         })
 
+        console.log(f.truncate(co, {
+            size: 128
+        }))
         console.log(f instanceof os.File)
     } catch (e) {
-        console.log(e)
+        console.log('err', e)
         if (f) {
             f.close()
         }

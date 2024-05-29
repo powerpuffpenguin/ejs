@@ -17,4 +17,9 @@ void *_ejs_async_return(duk_context *ctx);
  */
 void *_ejs_async_args(duk_context *ctx, duk_idx_t idx);
 
+typedef struct
+{
+    int err;
+} _ejs_async_return_void_t;
+duk_ret_t _ejs_async_return_void_t_impl(duk_context *ctx);
 #endif

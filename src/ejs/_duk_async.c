@@ -45,3 +45,17 @@ void *_ejs_async_args(duk_context *ctx, duk_idx_t idx)
     duk_pop(ctx);
     return p;
 }
+duk_ret_t _ejs_async_return_void_t_impl(duk_context *ctx)
+{
+    _ejs_async_return_void_t *args = _ejs_async_return(ctx);
+    if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_call(ctx, 1);
+    }
+    else
+    {
+        duk_call(ctx, 0);
+    }
+    return 0;
+}

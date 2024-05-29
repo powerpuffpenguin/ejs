@@ -36,8 +36,8 @@
 #define EJS_INVALID_FD(fd) ((fd) < 0)
 
 #define DUK_PUSH_FD(ctx, fd) duk_push_pointer((ctx), (void *)(size_t)(fd))
-#define DUK_REQUIRE_FD(ctx, idx) (size_t) duk_require_pointer((ctx), (idx));
-#define DUK_GET_FD(ctx, idx) (size_t) duk_get_pointer((ctx), (idx));
+#define DUK_REQUIRE_FD(ctx, idx) ((size_t)duk_require_pointer((ctx), (idx)));
+#define DUK_GET_FD(ctx, idx) ((size_t)duk_get_pointer((ctx), (idx)));
 
 /* Windows, both 32-bit and 64-bit */
 #if defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(WIN64) || \

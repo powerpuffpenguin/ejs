@@ -1058,7 +1058,18 @@ declare module "ejs/os" {
         offset: number
     }
     export interface ReadAtAsyncOptions extends ReadAtOptions, AsyncOptions { }
-
+    export interface ChmodOptions extends AsyncOptions {
+        perm: number
+    }
+    export interface ChownOptions {
+        fd: any
+        uid: number
+        gid: number
+    }
+    export interface ChownAsyncOptions extends ChownOptions, AsyncOptions { }
+    export interface TruncateAsyncOptions extends AsyncOptions {
+        size: number
+    }
     export class File {
         private constructor()
         /**
@@ -1184,6 +1195,61 @@ declare module "ejs/os" {
          * Similar to writeAtSync but called asynchronously, notifying the result in cb
          */
         writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void): void
+        /**
+         * Commits the current contents of the file to stable storage.
+         * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
+         */
+        syncSync(): void
+        /**
+         * Similar to syncSync but called asynchronously, notifying the result in cb
+         */
+        sync(cb: (e?: any) => void, opts?: AsyncOptions): void
+        /**
+         * Commits the current contents of the file to stable storage.
+         * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
+         */
+        sync(co: YieldContext, opts?: AsyncOptions): void
+
+        /**
+         * changes the current working directory to the file, which must be a directory.
+         */
+        chdir(): void
+        /**
+         * changes the mode of the file to mode
+         */
+        chmodSync(perm: number): void
+        /**
+         * Similar to chmodSync but called asynchronously, notifying the result in cb
+         */
+        chmod(opts: ChmodAsyncOptions, cb: (e?: any) => void): void
+        /**
+         * changes the mode of the file to mode
+         */
+        chmod(co: YieldContext, opts: ChmodAsyncOptions): void
+        /**
+         * changes the uid and gid of the file
+         */
+        chownSync(opts: ChownOptions): void
+        /**
+         * Similar to chownSync but called asynchronously, notifying the result in cb
+         */
+        chown(opts: ChownAsyncOptions, cb: (e?: any) => void): void
+        /**
+         * changes the uid and gid of the file
+         */
+        chown(co: YieldContext, opts: ChownAsyncOptions): void
+        /**
+         * changes the size of the file. It does not change the I/O offset.
+         */
+        truncateSync(size: number): void
+        /**
+         * Similar to truncateSync but called asynchronously, notifying the result in cb
+         */
+        truncate(opts: TruncateAsyncOptions, cb: (e?: any) => void): void
+        /**
+         * changes the size of the file. It does not change the I/O offset.
+         */
+        truncate(co: YieldContext, opts: TruncateAsyncOptions): void
     }
 
     export interface Reader {
