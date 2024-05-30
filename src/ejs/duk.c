@@ -545,7 +545,18 @@ DUK_EXTERNAL duk_ret_t ejs_fd_finalizer(duk_context *ctx)
     }
     return 0;
 }
-
+DUK_EXTERNAL duk_ret_t ejs_external_buffer_finalizer(duk_context *ctx)
+{
+    if (duk_is_external_buffer(ctx, 0))
+    {
+        duk_size_t len;
+        duk_require_buffer(ctx, 0, &len);
+        printf("free %d\n", len);
+        free(duk_require_buffer(ctx, 0, 0));
+        return 0;
+    }
+    return 1;
+}
 static duk_ret_t _ejs_async_cb_impl(duk_context *ctx)
 {
     ppp_list_element_t *e = duk_require_pointer(ctx, -1);

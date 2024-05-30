@@ -139,6 +139,12 @@ declare namespace deps {
     }
     export function fchmod(opts: FChmodOptions): void
     export function fchmod(opts: FChmodOptions, cb: (e?: any) => void): void
+    export interface ChmodOptions extends AsyncOptions {
+        name: string
+        perm: number
+    }
+    export function chmod(opts: ChmodOptions): void
+    export function chmod(opts: ChmodOptions, cb: (e?: any) => void): void
 
     export interface FChownOptions extends AsyncOptions {
         fd: any
@@ -147,6 +153,13 @@ declare namespace deps {
     }
     export function fchown(opts: FChownOptions): void
     export function fchown(opts: FChownOptions, cb: (e?: any) => void): void
+    export interface ChownOptions extends AsyncOptions {
+        name: string
+        uid: number
+        gid: number
+    }
+    export function chown(opts: ChownOptions): void
+    export function chown(opts: ChownOptions, cb: (e?: any) => void): void
 
     export interface FTruncateOptions extends AsyncOptions {
         fd: any
@@ -154,6 +167,33 @@ declare namespace deps {
     }
     export function ftruncate(opts: FTruncateOptions): void
     export function ftruncate(opts: FTruncateOptions, cb: (e?: any) => void): void
+    export interface TruncateOptions extends AsyncOptions {
+        name: string
+        size: number
+    }
+    export function truncate(opts: TruncateOptions): void
+    export function truncate(opts: TruncateOptions, cb: (e?: any) => void): void
+
+    export interface FileLenOptions extends AsyncOptions {
+        name: string
+    }
+    export function file_len(opts: FileLenOptions): number
+    export function file_len(opts: FileLenOptions, cb: (v?: number, e?: any) => void): void
+
+    export interface ReadFileOptions extends AsyncOptions {
+        name: string
+        buf: Uint8Array
+    }
+    export function readFile(opts: ReadFileOptions): number
+    export function readFile(opts: ReadFileOptions, cb: (n?: number, e?: any) => void): void
+    export interface WriteFileOptions extends AsyncOptions {
+        name: string
+        data?: Uint8Array
+        sync: boolean
+        perm: number
+    }
+    export function writeFile(opts: WriteFileOptions): void
+    export function writeFile(opts: WriteFileOptions, cb: (e?: any) => void): void
 }
 
 /**
@@ -214,6 +254,9 @@ function coReturn<T>(co: YieldContext, f: (opts: any, cb: (v: T, e?: any) => voi
         })
     })
 }
+/**
+ * <Options, CB> -> [Options, CB | undefined]
+ */
 function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined] {
     if (isYieldContext(a)) {
         return [b, undefined]
@@ -224,6 +267,9 @@ function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined] {
         return [a, b]
     }
 }
+/**
+ * <CB, Options> -> [CB | undefined, Options]
+ */
 function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options] {
     if (isYieldContext(a)) {
         return [undefined, b]
@@ -234,24 +280,60 @@ function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options] {
         return [a, b]
     }
 }
+
 export type Error = __duk.OsError
 export const Error = __duk.OsError
 const osError = __duk.OsError
 export interface AsyncOptions {
     post?: boolean
 }
-export interface OpenFileOptions {
+export interface OpenFileSyncOptions {
     name: string
     flags?: number
     perm?: number
 }
-export interface OpenFileAsyncOptions extends OpenFileOptions, AsyncOptions { }
+export interface OpenFileOptions extends OpenFileSyncOptions, AsyncOptions { }
 export interface FileInfo {
-    name(): string       // base name of the file
-    size(): number        // length in bytes for regular files; system-dependent for others
-    mode(): number     // file mode bits
-    modTime(): Date // modification time
-    isDir(): boolean        // abbreviation for Mode().IsDir()
+    /**
+     * base name of the file
+     */
+    name(): string
+    /**
+     * length in bytes for regular files
+     */
+    size(): number
+    /**
+     * file mode bits
+     */
+    mode(): number
+    /**
+     * modification time
+     */
+    modTime(): Date
+    /**
+     * abbreviation for mode().isDir()
+     */
+    isDir(): boolean
+    /**
+     * abbreviation for mode().isRegular()
+     */
+    isRegular(): boolean
+}
+function _fstat(opts: deps.FileStatOptions, cb: (info?: FileInfo, e?: any) => void) {
+    deps.fstat(opts, (info, e) => {
+        if (!info) {
+            cb(undefined, e)
+            return
+        }
+        let ret: FileInfo
+        try {
+            ret = new fileInfo(info)
+        } catch (e) {
+            cb(undefined, e)
+            return
+        }
+        cb(ret)
+    })
 }
 export class fileInfo implements FileInfo {
     constructor(private readonly info: deps.FileInfo) { }
@@ -286,89 +368,46 @@ export class fileInfo implements FileInfo {
         return this.info.regular
     }
 }
-export function statSync(name: string): FileInfo {
-    const info = deps.stat({
-        name: name
-    })
-    return new fileInfo(info)
-}
-export function stat(a: any, b: any, c: any, d: any) {
-    if (isYieldContext(a)) {
-        return a.yield((notify) => {
-            _stat(b, (info, e) => {
-                if (info) {
-                    notify.value(info)
-                } else {
-                    notify.error(e)
-                }
-            }, c)
-        })
-    } else {
-        _stat(a, b, c)
-    }
-}
-export function _stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions) {
-    if (typeof cb !== "function") {
-        throw new TypeError("cb must be a function")
-    }
-    deps.stat({
-        name: name,
-        post: opts?.post ? true : false,
-    }, (info, e) => {
-        if (!info) {
-            cb(undefined, e)
-            return
-        }
-        let ret: FileInfo
-        try {
-            ret = new fileInfo(info)
-        } catch (e) {
-            cb(undefined, e)
-            return
-        }
-        cb(ret)
-    })
-}
 
-export interface SeekOptions {
+export interface SeekSyncOptions {
     offset: number
     whence: number
 }
-export interface SeekAsyncOptions extends SeekOptions, AsyncOptions { }
-export interface ReadAsyncOptions extends AsyncOptions {
+export interface SeekOptions extends SeekSyncOptions, AsyncOptions { }
+export interface ReadOptions extends AsyncOptions {
     dst: Uint8Array
 }
-export interface ReadAtOptions {
+export interface ReadAtSyncOptions {
     dst: Uint8Array
     offset: number
 }
-export interface ReadAtAsyncOptions extends ReadAtOptions, AsyncOptions { }
-export interface WriteAsyncOptions extends AsyncOptions {
+export interface ReadAtOptions extends ReadAtSyncOptions, AsyncOptions { }
+export interface WriteOptions extends AsyncOptions {
     src: Uint8Array | string
 }
-export interface WriteAtOptions {
+export interface WriteAtSyncOptions {
     src: Uint8Array | string
     offset: number
 }
-export interface WriteAtAsyncOptions extends WriteAtOptions, AsyncOptions { }
-export interface ChmodAsyncOptions extends AsyncOptions {
+export interface WriteAtOptions extends WriteAtSyncOptions, AsyncOptions { }
+export interface FileChmodAsyncOptions extends AsyncOptions {
     perm: number
 }
-export interface TruncateAsyncOptions extends AsyncOptions {
+export interface FileTruncateOptions extends AsyncOptions {
     size: number
 }
-export interface ChownOptions {
+export interface FileChownSyncOptions {
     fd: any
     uid: number
     gid: number
 }
-export interface ChownAsyncOptions extends ChownOptions, AsyncOptions { }
+export interface FileChownOptions extends FileChownSyncOptions, AsyncOptions { }
 export class File {
     private constructor(private file_: deps.File | undefined) { }
     /**
      * Open files in customized mode
      */
-    static openFileSync(opts: OpenFileOptions): File {
+    static openFileSync(opts: OpenFileSyncOptions): File {
         return new File(deps.open({
             name: opts.name,
             flags: opts.flags ?? deps.O_RDONLY,
@@ -379,24 +418,16 @@ export class File {
      * Similar to openFileSync but called asynchronously, notifying the result in cb
      */
     static openFile(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                File._openFile(b, (f, e) => {
-                    if (f) {
-                        notify.value(f)
-                    } else {
-                        notify.error(e)
-                    }
-                })
-            })
-        } else {
-            File._openFile(a, b)
+        const [opts, cb] = parseAB<OpenFileOptions, (f?: File, e?: any) => void>(a, b)
+        const o: deps.OpenOptions = {
+            name: opts.name,
+            flags: opts.flags ?? deps.O_RDONLY,
+            perm: opts.perm ?? 0,
+            post: opts.post ? true : false,
         }
+        return cb ? File._openFile(o, cb) : coReturn(a, File._openFile, o)
     }
-    static _openFile(opts: OpenFileAsyncOptions, cb: (f?: File, e?: any) => void): void {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
+    static _openFile(opts: deps.OpenOptions, cb: (f?: File, e?: any) => void): void {
         deps.open({
             name: opts.name,
             flags: opts.flags ?? deps.O_RDONLY,
@@ -431,27 +462,13 @@ export class File {
      * Similar to openSync but called asynchronously, notifying the result in cb
      */
     static open(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                File._openFile({
-                    name: b,
-                    flags: deps.O_RDONLY,
-                    perm: 0,
-                }, (f, e) => {
-                    if (f) {
-                        notify.value(f)
-                    } else {
-                        notify.error(e)
-                    }
-                })
-            })
-        } else {
-            File._openFile({
-                name: a,
-                flags: deps.O_RDONLY,
-                perm: 0,
-            }, b)
+        const [name, cb] = parseAB<string, (f?: File, e?: any) => void>(a, b)
+        const o: deps.OpenOptions = {
+            name: name,
+            flags: deps.O_RDONLY,
+            perm: 0,
         }
+        return cb ? File._openFile(o, cb) : coReturn(a, File._openFile, o)
     }
     /**
      * Create a new profile
@@ -467,27 +484,13 @@ export class File {
      * Similar to createSync but called asynchronously, notifying the result in cb
      */
     static create(a: any, b: any) {
-        if (isYieldContext(a)) {
-            return a.yield((notify) => {
-                File._openFile({
-                    name: b,
-                    flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
-                    perm: 0o666,
-                }, (f, e) => {
-                    if (f) {
-                        notify.value(f)
-                    } else {
-                        notify.error(e)
-                    }
-                })
-            })
-        } else {
-            File._openFile({
-                name: a,
-                flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
-                perm: 0o666,
-            }, b)
+        const [name, cb] = parseAB<string, (f?: File, e?: any) => void>(a, b)
+        const o: deps.OpenOptions = {
+            name: name,
+            flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
+            perm: 0o666,
         }
+        return cb ? File._openFile(o, cb) : coReturn(a, File._openFile, o)
     }
 
     isClosed(): boolean {
@@ -527,32 +530,16 @@ export class File {
     }
     stat(a: any, b: any) {
         const [cb, opts] = parseBA<(info?: FileInfo, e?: any) => void, AsyncOptions>(a, b)
-        return cb ? this._stat(opts, cb) : coReturn(a, this._stat.bind(this), opts)
-    }
-    private _stat(opts: AsyncOptions | undefined, cb: (info?: FileInfo, e?: any) => void) {
-        const f = this._file()
-        deps.fstat({
-            file: f,
+        const o: deps.FileStatOptions = {
+            file: this._file(),
             post: opts?.post ? true : false,
-        }, (info, e) => {
-            if (!info) {
-                cb(undefined, e)
-                return
-            }
-            let ret: FileInfo
-            try {
-                ret = new fileInfo(info)
-            } catch (e) {
-                cb(undefined, e)
-                return
-            }
-            cb(ret)
-        })
+        }
+        return cb ? _fstat(o, cb) : coReturn(a, _fstat, o)
     }
     /**
      * Sets the offset for the next Read or Write on file to offset
      */
-    seekSync(opts: SeekOptions): number {
+    seekSync(opts: SeekSyncOptions): number {
         const f = this._file()
         return deps.seek({
             fd: f.fd,
@@ -564,17 +551,14 @@ export class File {
      * Similar to seekSync but called asynchronously, notifying the result in cb
      */
     seek(a: any, b: any) {
-        const [opts, cb] = parseAB<SeekAsyncOptions, (n?: number, e?: any) => void>(a, b)
-        return cb ? this._seek(opts, cb) : coReturn(a, this._seek.bind(this), opts)
-    }
-    private _seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void {
-        const f = this._file()
-        deps.seek({
-            fd: f.fd,
+        const [opts, cb] = parseAB<SeekOptions, (n?: number, e?: any) => void>(a, b)
+        const o: deps.SeekOptions = {
+            fd: this._file().fd,
             offset: opts.offset,
             whence: opts.whence,
             post: opts.post ? true : false,
-        }, cb)
+        }
+        return cb ? deps.seek(o, cb) : coReturn(a, deps.seek, o)
     }
     /**
      * Read data to dst
@@ -592,13 +576,7 @@ export class File {
      * Similar to readSync but called asynchronously, notifying the result in cb
      */
     read(a: any, b: any) {
-        const [opts, cb] = parseAB<ReadAsyncOptions, (n?: number, e?: any) => void>(a, b)
-        return cb ? this._read(opts, cb) : coReturn(a, this._read.bind(this), opts)
-    }
-    private _read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void {
-        if (typeof cb !== "function") {
-            throw new TypeError("cb must be a function")
-        }
+        const [opts, cb] = parseAB<ReadOptions, (n?: number, e?: any) => void>(a, b)
         const f = this._file()
         const o: deps.ReadOptions = deps.isBufferData(opts) ? {
             fd: f.fd,
@@ -609,7 +587,6 @@ export class File {
             dst: opts.dst,
             post: opts.post ? true : false,
         }
-
         let args = this.read_
         if (args) {
             this.read_ = undefined
@@ -617,23 +594,33 @@ export class File {
             args = deps.read_args()
         }
         o.args = args
-        try {
-            deps.read(o, (n, e) => {
+        if (cb) {
+            try {
+                deps.read(o, (n, e) => {
+                    if (this.file_) {
+                        this.read_ = args
+                    }
+                    cb(n, e)
+                })
+            } catch (e) {
+                this.read_ = args
+                throw e
+            }
+        } else {
+            try {
+                return coReturn(a, deps.read, o)
+            } finally {
                 if (this.file_) {
                     this.read_ = args
                 }
-                cb(n, e)
-            })
-        } catch (e) {
-            this.read_ = args
-            throw e
+            }
         }
     }
     /**
      * Read the data at the specified offset
      * @returns the actual length of bytes read, or 0 if eof is read
      */
-    readAtSync(opts: ReadAtOptions): number {
+    readAtSync(opts: ReadAtSyncOptions): number {
         const f = this._file()
         return deps.readAt({
             fd: f.fd,
@@ -646,33 +633,39 @@ export class File {
      * Similar to readAtSync but called asynchronously, notifying the result in cb
      */
     readAt(a: any, b: any) {
-        const [opts, cb] = parseAB<ReadAtAsyncOptions, (n?: number, e?: any) => void>(a, b)
-        return cb ? this._readAt(opts, cb) : coReturn(a, this._readAt.bind(this), opts)
-    }
-    private _readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void {
+        const [opts, cb] = parseAB<ReadAtOptions, (n?: number, e?: any) => void>(a, b)
         const f = this._file()
+        const o: deps.ReadAtOptions = {
+            fd: f.fd,
+            dst: opts.dst,
+            offset: opts.offset,
+            post: opts.post ? true : false,
+        }
         let args = this.readAt_
         if (args) {
             this.readAt_ = undefined
         } else {
             args = deps.readAt_args()
         }
-        try {
-            deps.readAt({
-                fd: f.fd,
-                dst: opts.dst,
-                offset: opts.offset,
-                args: args,
-                post: opts.post ? true : false,
-            }, (n, e) => {
-                if (this.file_) {
-                    this.readAt_ = args
-                }
-                cb(n, e)
-            })
-        } catch (e) {
-            this.readAt_ = args
-            throw e
+        o.args = args
+        if (cb) {
+            try {
+                deps.readAt(o, (n, e) => {
+                    if (this.file_) {
+                        this.readAt_ = args
+                    }
+                    cb(n, e)
+                })
+            } catch (e) {
+                this.readAt_ = args
+                throw e
+            }
+        } else {
+            try {
+                return coReturn(a, deps.readAt, o)
+            } finally {
+                this.readAt_ = args
+            }
         }
     }
     /**
@@ -691,10 +684,7 @@ export class File {
      * Similar to writeSync but called asynchronously, notifying the result in cb
      */
     write(a: any, b: any) {
-        const [opts, cb] = parseAB<WriteAsyncOptions, (n?: number, e?: any) => void>(a, b)
-        return cb ? this._write(opts, cb) : coReturn(a, this._write.bind(this), opts)
-    }
-    private _write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void {
+        const [opts, cb] = parseAB<WriteOptions | Uint8Array | string, (n?: number, e?: any) => void>(a, b)
         const f = this._file()
         const o: deps.WriteOptions = deps.isBufferData(opts) || typeof opts === "string" ? {
             fd: f.fd,
@@ -705,7 +695,6 @@ export class File {
             src: opts.src,
             post: opts.post ? true : false,
         }
-
         let args = this.write_
         if (args) {
             this.write_ = undefined
@@ -713,23 +702,31 @@ export class File {
             args = deps.write_args()
         }
         o.args = args
-        try {
-            deps.write(o, (n, e) => {
-                if (this.file_) {
-                    this.write_ = args
-                }
-                cb(n, e)
-            })
-        } catch (e) {
-            this.write_ = args
-            throw e
+        if (cb) {
+            try {
+                deps.write(o, (n, e) => {
+                    if (this.file_) {
+                        this.write_ = args
+                    }
+                    cb(n, e)
+                })
+            } catch (e) {
+                this.write_ = args
+                throw e
+            }
+        } else {
+            try {
+                return coReturn(a, deps.write, o)
+            } finally {
+                this.write_ = args
+            }
         }
     }
     /**
      * Write the data at the specified offset
      * @returns the actual length of bytes write
      */
-    writeAtSync(opts: WriteAtOptions): number {
+    writeAtSync(opts: WriteAtSyncOptions): number {
         const f = this._file()
         return deps.writeAt({
             fd: f.fd,
@@ -742,35 +739,42 @@ export class File {
      * Similar to writeAtSync but called asynchronously, notifying the result in cb
      */
     writeAt(a: any, b: any) {
-        const [opts, cb] = parseAB<WriteAtAsyncOptions, (n?: number, e?: any) => void>(a, b)
-        return cb ? this._writeAt(opts, cb) : coReturn(a, this._writeAt.bind(this), opts)
-    }
-    private _writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void) {
+        const [opts, cb] = parseAB<WriteAtOptions, (n?: number, e?: any) => void>(a, b)
         const f = this._file()
+        const o: deps.WriteAtOptions = {
+            fd: f.fd,
+            src: opts.src,
+            offset: opts.offset,
+            post: opts.post ? true : false,
+        }
         let args = this.writeAt_
         if (args) {
             this.writeAt_ = undefined
         } else {
             args = deps.writeAt_args()
         }
-        try {
-            deps.writeAt({
-                fd: f.fd,
-                src: opts.src,
-                offset: opts.offset,
-                args: args,
-                post: opts.post ? true : false,
-            }, (n, e) => {
-                if (this.file_) {
-                    this.writeAt_ = args
-                }
-                cb(n, e)
-            })
-        } catch (e) {
-            this.writeAt_ = args
-            throw e
+        o.args = args
+        if (cb) {
+            try {
+                deps.writeAt(o, (n, e) => {
+                    if (this.file_) {
+                        this.writeAt_ = args
+                    }
+                    cb(n, e)
+                })
+            } catch (e) {
+                this.writeAt_ = args
+                throw e
+            }
+        } else {
+            try {
+                return coReturn(a, deps.writeAt, o)
+            } finally {
+                this.writeAt_ = args
+            }
         }
     }
+
     /**
      * Commits the current contents of the file to stable storage.
      * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
@@ -813,7 +817,7 @@ export class File {
      * Similar to chmodSync but called asynchronously, notifying the result in cb
      */
     chmod(a: any, b: any): void {
-        const [opts, cb] = parseAB<ChmodAsyncOptions, (e?: any) => void>(a, b);
+        const [opts, cb] = parseAB<FileChmodAsyncOptions, (e?: any) => void>(a, b);
         const o: deps.FChmodOptions = {
             fd: this._file().fd,
             perm: opts.perm,
@@ -824,7 +828,7 @@ export class File {
     /**
      * changes the uid and gid of the file
      */
-    chownSync(opts: ChownOptions): void {
+    chownSync(opts: FileChownSyncOptions): void {
         const f = this._file()
         deps.fchown({
             fd: f.fd,
@@ -836,7 +840,7 @@ export class File {
      * Similar to chownSync but called asynchronously, notifying the result in cb
      */
     chown(a: any, b: any): void {
-        const [opts, cb] = parseAB<ChownAsyncOptions, (e?: any) => void>(a, b);
+        const [opts, cb] = parseAB<FileChownOptions, (e?: any) => void>(a, b);
         const o: deps.FChownOptions = {
             fd: this._file().fd,
             uid: opts.uid,
@@ -859,7 +863,7 @@ export class File {
      * Similar to truncateSync but called asynchronously, notifying the result in cb
      */
     truncate(a: any, b: any): void {
-        const [opts, cb] = parseAB<TruncateAsyncOptions, (e?: any) => void>(a, b);
+        const [opts, cb] = parseAB<FileTruncateOptions, (e?: any) => void>(a, b);
         const o: deps.FTruncateOptions = {
             fd: this._file().fd,
             size: opts.size,
@@ -870,11 +874,11 @@ export class File {
 }
 
 export interface Reader {
-    read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
+    read(opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
 }
 class readerAll {
     cb: (n?: number, e?: any) => void
-    constructor(readonly r: Reader, readonly opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined) {
+    constructor(readonly r: Reader, readonly opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined) {
         this.cb = (n, e) => {
             const quit = cb(n, e)
             if (quit || n === undefined || n === 0) {
@@ -891,10 +895,296 @@ class readerAll {
  * Continue reading the data in the reader until all is read or cb returns true
  * @returns should we stop reading?
  */
-export function readAll(reader: Reader, opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined): void {
+export function readAll(reader: Reader, opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined): void {
     if (typeof cb !== "function") {
         throw new TypeError("cb must be a function")
     }
     const r = new readerAll(reader, opts, cb)
     r.next()
+}
+
+export function statSync(name: string): FileInfo {
+    const info = deps.stat({
+        name: name
+    })
+    return new fileInfo(info)
+}
+export function stat(a: any, b: any, opts?: AsyncOptions) {
+    const [name, cb] = parseAB<string, (info?: FileInfo, e?: any) => void>(a, b)
+    const o: deps.StatOptions = {
+        name: name,
+        post: opts?.post ? true : false,
+    }
+    return cb ? _stat(o, cb) : coReturn(a, _stat, o)
+}
+export function _stat(opts: deps.StatOptions, cb: (info?: FileInfo, e?: any) => void) {
+    deps.stat(opts, (info, e) => {
+        if (!info) {
+            cb(undefined, e)
+            return
+        }
+        let ret: FileInfo
+        try {
+            ret = new fileInfo(info)
+        } catch (e) {
+            cb(undefined, e)
+            return
+        }
+        cb(ret)
+    })
+}
+export interface ChmodSyncOptions {
+    name: string
+    perm: number
+}
+export interface ChmodOptions extends ChmodSyncOptions, AsyncOptions { }
+/**
+ * changes the mode of the file to mode
+ */
+export function chmodSync(opts: ChmodSyncOptions): void {
+    deps.chmod({
+        name: opts.name,
+        perm: opts.perm,
+    })
+}
+/**
+ * Similar to chmodSync but called asynchronously, notifying the result in cb
+ */
+export function chmod(a: any, b: any) {
+    const [opts, cb] = parseAB<ChmodOptions, (e?: any) => void>(a, b)
+    const o: deps.ChmodOptions = {
+        name: opts.name,
+        perm: opts.perm,
+        post: opts.post ? true : false,
+    }
+    return cb ? deps.chmod(o) : coVoid(a, deps.chmod, o)
+}
+
+export interface ChownSyncOptions {
+    name: string
+    uid: number
+    gid: number
+}
+export interface ChownOptions extends ChownSyncOptions, AsyncOptions { }
+/**
+ * changes the uid and gid of the file
+ */
+export function chownSync(opts: ChownSyncOptions): void {
+    deps.chown({
+        name: opts.name,
+        uid: opts.uid,
+        gid: opts.gid,
+    })
+}
+/**
+ * Similar to chownSync but called asynchronously, notifying the result in cb
+ */
+export function chown(a: any, b: any) {
+    const [opts, cb] = parseAB<ChownOptions, (e?: any) => void>(a, b)
+    const o: deps.ChownOptions = {
+        name: opts.name,
+        uid: opts.uid,
+        gid: opts.gid,
+        post: opts.post ? true : false,
+    }
+    return cb ? deps.chown(o) : coVoid(a, deps.chown, o)
+}
+export interface TruncateSyncOptions {
+    name: string
+    size: number
+}
+export interface TruncateOptions extends TruncateSyncOptions, AsyncOptions { }
+/**
+ * changes the size of the file
+ */
+export function truncateSync(opts: TruncateSyncOptions): void {
+    deps.truncate({
+        name: opts.name,
+        size: opts.size,
+    })
+}
+/**
+ * Similar to truncateSync but called asynchronously, notifying the result in cb
+ */
+export function truncate(a: any, b: any) {
+    const [opts, cb] = parseAB<TruncateOptions, (e?: any) => void>(a, b)
+    const o: deps.TruncateOptions = {
+        name: opts.name,
+        size: opts.size,
+        post: opts.post ? true : false,
+    }
+    return cb ? deps.truncate(o) : coVoid(a, deps.truncate, o)
+}
+export interface ReadFileOptions extends AsyncOptions {
+    name: string
+}
+/**
+ * Read file contents
+ */
+export function readFileSync(name: string): Uint8Array {
+    const len = deps.file_len({
+        name: name,
+    })
+    if (!len) {
+        return new Uint8Array()
+    }
+    const buf = new Uint8Array(len)
+    const n = deps.readFile({
+        name: name,
+        buf: buf,
+    })
+    return buf.subarray(0, n)
+}
+/**
+ * abbreviation for new TextDecoder().decode(readFileSync(name))
+ */
+export function readTextFileSync(name: string): string {
+    const len = deps.file_len({
+        name: name,
+    })
+    if (!len) {
+        return ""
+    }
+    const buf = new Uint8Array(len)
+    const n = deps.readFile({
+        name: name,
+        buf: buf,
+    })
+    return new TextDecoder().decode(buf.subarray(0, n))
+}
+export interface _ReadFileOptions extends AsyncOptions {
+    name: string
+    s?: boolean
+}
+function _readFile<T>(opts: _ReadFileOptions, cb: (data?: T, e?: any) => void) {
+    const post = opts.post ? true : false
+    deps.file_len({
+        name: opts.name,
+        post: post,
+    }, (len, e) => {
+        if (e) {
+            cb(undefined, e)
+        }
+        if (!len) {
+            let data: any
+            try {
+                if (opts.s) {
+                    data = ""
+                } else {
+                    data = new Uint8Array()
+                }
+            } catch (e) {
+                cb(undefined, e)
+                return
+            }
+            cb(data)
+            return
+        }
+        try {
+            const buf = new Uint8Array(len)
+            deps.readFile({
+                name: opts.name,
+                buf: buf,
+                post: post,
+            }, (n, e) => {
+                if (n === undefined) {
+                    cb(undefined, e)
+                    return
+                }
+                let data: any
+                try {
+                    data = buf.subarray(0, n)
+                    if (opts.s) {
+                        data = new TextDecoder().decode(data)
+                    }
+                } catch (e) {
+                    cb(undefined, e)
+                    return
+                }
+                cb(data)
+            })
+        } catch (e) {
+            cb(undefined, e)
+        }
+    })
+}
+export function readFile(a: any, b: any) {
+    const [opts, cb] = parseAB<string | ReadFileOptions, (data?: Uint8Array, e?: any) => void>(a, b)
+    const o: _ReadFileOptions = typeof opts === "string" ? {
+        name: opts,
+        post: false,
+    } : {
+        name: opts.name,
+        post: opts.post ? true : false,
+    }
+    return cb ? _readFile(o, cb) : coReturn(a, _readFile, o)
+}
+export function readTextFile(a: any, b: any) {
+    const [opts, cb] = parseAB<string | ReadFileOptions, (s?: string, e?: any) => void>(a, b)
+    const o: _ReadFileOptions = typeof opts === "string" ? {
+        name: opts,
+        post: false,
+        s: true,
+    } : {
+        name: opts.name,
+        post: opts.post ? true : false,
+        s: true,
+    }
+    return cb ? _readFile(o, cb) : coReturn(a, _readFile, o)
+}
+
+export interface WriteFileSyncOptions {
+    name: string
+    data?: Uint8Array
+    perm?: number
+    sync?: boolean
+}
+export interface WriteFileOptions extends WriteFileSyncOptions, AsyncOptions { }
+/**
+ * Create archive and write data
+ */
+export function writeFileSync(opts: WriteFileSyncOptions): void {
+    deps.writeFile({
+        name: opts.name,
+        data: opts.data,
+        perm: opts.perm ?? 0o666,
+        sync: opts.sync ? true : false,
+    })
+}
+export function writeFile(a: any, b: any): void {
+    const [opts, cb] = parseAB<WriteFileOptions, (e?: any) => void>(a, b)
+    const o: deps.WriteFileOptions = {
+        name: opts.name,
+        data: opts.data,
+        perm: opts.perm ?? 0o666,
+        sync: opts.sync ? true : false,
+        post: opts.post ? true : false,
+    }
+    return cb ? deps.writeFile(o) : coVoid(a, deps.writeFile, o)
+}
+export interface WriteTextFileSyncOptions {
+    name: string
+    data: string
+    perm?: number
+    sync?: boolean
+}
+export interface WriteTextFileOptions extends WriteTextFileSyncOptions, AsyncOptions { }
+export function writeTextFileSync(opts: WriteTextFileSyncOptions): void {
+    deps.writeFile({
+        name: opts.name,
+        data: opts.data === "" ? undefined : new TextEncoder().encode(opts.data),
+        perm: opts.perm ?? 0o666,
+        sync: opts.sync ? true : false,
+    })
+}
+export function writeTextFile(a: any, b: any): void {
+    const [opts, cb] = parseAB<WriteTextFileOptions, (e?: any) => void>(a, b)
+    const o: deps.WriteFileOptions = {
+        name: opts.name,
+        data: opts.data === "" ? undefined : new TextEncoder().encode(opts.data),
+        perm: opts.perm ?? 0o666,
+        sync: opts.sync ? true : false,
+        post: opts.post ? true : false,
+    }
+    return cb ? deps.writeFile(o) : coVoid(a, deps.writeFile, o)
 }

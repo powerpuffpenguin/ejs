@@ -6,7 +6,11 @@
 void _ejs_async_post_or_send(duk_context *ctx, ejs_async_function_t worker_cb, duk_c_function return_cb)
 {
     duk_get_prop_lstring(ctx, -3, "post", 4);
-    duk_bool_t post = duk_get_boolean_default(ctx, -1, 0);
+    if (!duk_is_boolean(ctx, -1))
+    {
+        duk_to_boolean(ctx, -1);
+    }
+    duk_bool_t post = duk_require_boolean(ctx, -1);
     duk_pop(ctx);
 
     duk_swap_top(ctx, -2);

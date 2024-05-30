@@ -116,6 +116,10 @@ extern "C"
      * close(obj.fd)
      */
     DUK_EXTERNAL duk_ret_t ejs_fd_finalizer(duk_context *ctx);
+    /**
+     * free(buffer)
+     */
+    DUK_EXTERNAL duk_ret_t ejs_external_buffer_finalizer(duk_context *ctx);
 
     typedef void (*ejs_async_function_t)(void *userdata);
     /**

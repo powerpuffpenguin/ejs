@@ -1008,12 +1008,12 @@ declare module "ejs/os" {
          */
         post?: boolean
     }
-    export interface OpenFileOptions {
+    export interface OpenFileSyncOptions {
         name: string
         flag?: number
         perm?: number
     }
-    export interface OpenFileAsyncOptions extends OpenFileOptions, AsyncOptions { }
+    export interface OpenFileOptions extends OpenFileSyncOptions, AsyncOptions { }
 
     export interface FileInfo {
         /**
@@ -1032,44 +1032,49 @@ declare module "ejs/os" {
          * modification time
          */
         modTime(): Date
+        /**
+         * abbreviation for mode().isDir()
+         */
         isDir(): boolean
+        /**
+         * abbreviation for mode().isRegular()
+         */
         isRegular(): boolean
     }
-    /**
-     * returns the FileInfo describing file.
-     */
-    export function statSync(name: string): FileInfo
-    /**
-     * Similar to statSync but called asynchronously, notifying the result in cb
-     */
-    export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
-    /**
-     * returns the FileInfo describing file.
-     */
-    export function stat(co: YieldContext, name: string, opts?: AsyncOptions): FileInfo
 
-    export interface SeekOptions {
+    export interface SeekSyncOptions {
         offset: number
-        whence?: number
+        whence: number
     }
-    export interface SeekAsyncOptions extends SeekOptions, AsyncOptions { }
-    export interface ReadAtOptions {
+    export interface SeekOptions extends SeekSyncOptions, AsyncOptions { }
+    export interface ReadOptions extends AsyncOptions {
+        dst: Uint8Array
+    }
+    export interface ReadAtSyncOptions {
         dst: Uint8Array
         offset: number
     }
-    export interface ReadAtAsyncOptions extends ReadAtOptions, AsyncOptions { }
-    export interface ChmodOptions extends AsyncOptions {
+    export interface ReadAtOptions extends ReadAtSyncOptions, AsyncOptions { }
+    export interface WriteOptions extends AsyncOptions {
+        src: Uint8Array | string
+    }
+    export interface WriteAtSyncOptions {
+        src: Uint8Array | string
+        offset: number
+    }
+    export interface WriteAtOptions extends WriteAtSyncOptions, AsyncOptions { }
+    export interface FileChmodAsyncOptions extends AsyncOptions {
         perm: number
     }
-    export interface ChownOptions {
+    export interface FileTruncateOptions extends AsyncOptions {
+        size: number
+    }
+    export interface FileChownSyncOptions {
         fd: any
         uid: number
         gid: number
     }
-    export interface ChownAsyncOptions extends ChownOptions, AsyncOptions { }
-    export interface TruncateAsyncOptions extends AsyncOptions {
-        size: number
-    }
+    export interface FileChownOptions extends FileChownSyncOptions, AsyncOptions { }
     export class File {
         private constructor()
         /**
@@ -1101,15 +1106,15 @@ declare module "ejs/os" {
         /**
          * Open files in customized mode
          */
-        static openFileSync(opts: OpenFileOptions): File
+        static openFileSync(opts: OpenFileSyncOptions): File
         /**
          * Similar to openFileSync but called asynchronously, notifying the result in cb
          */
-        static openFile(opts: OpenFileAsyncOptions, cb: (f?: File, e?: any) => void): void
+        static openFile(opts: OpenFileOptions, cb: (f?: File, e?: any) => void): void
         /**
          * Open files in customized mode
          */
-        static openFile(co: YieldContext, opts: OpenFileAsyncOptions): File
+        static openFile(co: YieldContext, opts: OpenFileOptions): File
 
         /**
          * close file
@@ -1135,15 +1140,15 @@ declare module "ejs/os" {
         /**
          * Sets the offset for the next Read or Write on file to offset
          */
-        seekSync(opts: SeekOptions): number
+        seekSync(opts: SeekSyncOptions): number
         /**
          * Similar to seekSync but called asynchronously, notifying the result in cb
          */
-        seek(opts: SeekAsyncOptions, cb: (offset?: number, e?: any) => void): void
+        seek(opts: SeekOptions, cb: (offset?: number, e?: any) => void): void
         /**
          * Sets the offset for the next Read or Write on file to offset
          */
-        seek(co: YieldContext, opts: SeekAsyncOptions): number
+        seek(co: YieldContext, opts: SeekOptions): number
         /**
          * Read data to dst
          * @returns the actual length of bytes read, or 0 if eof is read
@@ -1152,26 +1157,26 @@ declare module "ejs/os" {
         /**
          * Similar to readSync but called asynchronously, notifying the result in cb
          */
-        read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
+        read(opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
         /**
          * Read data to dst
          * @returns the actual length of bytes read, or 0 if eof is read
          */
-        read(co: YieldContext, opts: ReadAsyncOptions | Uint8Array): number
+        read(co: YieldContext, opts: ReadOptions | Uint8Array): number
         /**
          * Read the data at the specified offset
          * @returns the actual length of bytes read, or 0 if eof is read
          */
-        readAtSync(opts: ReadAtOptions): number
+        readAtSync(opts: ReadAtSyncOptions): number
         /**
          * Similar to readAtSync but called asynchronously, notifying the result in cb
          */
-        readAt(opts: ReadAtAsyncOptions, cb: (n?: number, e?: any) => void): void
+        readAt(opts: ReadAtOptions, cb: (n?: number, e?: any) => void): void
         /**
          * Read the data at the specified offset
          * @returns the actual length of bytes read, or 0 if eof is read
          */
-        readAt(co: YieldContext, opts: ReadAtAsyncOptions): number
+        readAt(co: YieldContext, opts: ReadAtOptions): number
         /**
          * Write data
          * @returns the actual length of bytes write
@@ -1180,21 +1185,26 @@ declare module "ejs/os" {
         /**
          * Similar to writeSync but called asynchronously, notifying the result in cb
          */
-        write(opts: WriteAsyncOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void
+        write(opts: WriteOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void
         /**
          * Write data
          * @returns the actual length of bytes write
          */
-        write(co: YieldContext, opts: WriteAsyncOptions | Uint8Array | string): number
+        write(co: YieldContext, opts: WriteOptions | Uint8Array | string): number
         /**
          * Write the data at the specified offset
          * @returns the actual length of bytes write
          */
-        writeAtSync(opts: WriteAtOptions): number
+        writeAtSync(opts: WriteAtSyncOptions): number
         /**
          * Similar to writeAtSync but called asynchronously, notifying the result in cb
          */
-        writeAt(opts: WriteAtAsyncOptions, cb: (n?: number, e?: any) => void): void
+        writeAt(opts: WriteAtOptions, cb: (n?: number, e?: any) => void): void
+        /**
+         * Write the data at the specified offset
+         * @returns the actual length of bytes write
+         */
+        writeAt(co: YieldContext, opts: WriteAtOptions): number
         /**
          * Commits the current contents of the file to stable storage.
          * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
@@ -1221,23 +1231,23 @@ declare module "ejs/os" {
         /**
          * Similar to chmodSync but called asynchronously, notifying the result in cb
          */
-        chmod(opts: ChmodAsyncOptions, cb: (e?: any) => void): void
+        chmod(opts: FileChmodAsyncOptions, cb: (e?: any) => void): void
         /**
          * changes the mode of the file to mode
          */
-        chmod(co: YieldContext, opts: ChmodAsyncOptions): void
+        chmod(co: YieldContext, opts: FileChmodAsyncOptions): void
         /**
          * changes the uid and gid of the file
          */
-        chownSync(opts: ChownOptions): void
+        chownSync(opts: FileChownSyncOptions): void
         /**
          * Similar to chownSync but called asynchronously, notifying the result in cb
          */
-        chown(opts: ChownAsyncOptions, cb: (e?: any) => void): void
+        chown(opts: FileChownOptions, cb: (e?: any) => void): void
         /**
          * changes the uid and gid of the file
          */
-        chown(co: YieldContext, opts: ChownAsyncOptions): void
+        chown(co: YieldContext, opts: FileChownOptions): void
         /**
          * changes the size of the file. It does not change the I/O offset.
          */
@@ -1245,19 +1255,158 @@ declare module "ejs/os" {
         /**
          * Similar to truncateSync but called asynchronously, notifying the result in cb
          */
-        truncate(opts: TruncateAsyncOptions, cb: (e?: any) => void): void
+        truncate(opts: FileTruncateOptions, cb: (e?: any) => void): void
         /**
          * changes the size of the file. It does not change the I/O offset.
          */
-        truncate(co: YieldContext, opts: TruncateAsyncOptions): void
+        truncate(co: YieldContext, opts: FileTruncateOptions): void
     }
 
     export interface Reader {
-        read(opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
+        read(opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
     }
     /**
      * Continue reading the data in the reader until all is read or cb returns true
      * @returns should we stop reading?
      */
-    export function readAll(reader: Reader, opts: ReadAsyncOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined): void
+    export function readAll(reader: Reader, opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined): void
+
+    /**
+     * returns the FileInfo describing file.
+     */
+    export function statSync(name: string): FileInfo
+    /**
+     * Similar to statSync but called asynchronously, notifying the result in cb
+     */
+    export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+    /**
+     * returns the FileInfo describing file.
+     */
+    export function stat(co: YieldContext, name: string, opts?: AsyncOptions): FileInfo
+
+    /**
+     * Return to working directory
+     */
+    export function cwd(): string
+    /**
+     * changes the current working directory to the named directory
+     */
+    export function chdir(path: string): void
+
+    export interface ChmodSyncOptions {
+        name: string
+        perm: number
+    }
+    export interface ChmodOptions extends ChmodSyncOptions, AsyncOptions { }
+    /**
+     * changes the mode of the file to mode
+     */
+    export function chmodSync(opts: ChmodSyncOptions): void
+    /**
+     * Similar to chmodSync but called asynchronously, notifying the result in cb
+     */
+    export function chmod(opts: ChmodOptions, cb: (e?: any) => void): void
+    /**
+     * changes the mode of the file to mode
+     */
+    export function chmod(co: YieldContext, opts: ChmodSyncOptions): void
+
+    export interface ChownSyncOptions {
+        name: string
+        uid: number
+        gid: number
+    }
+    export interface ChownOptions extends ChownSyncOptions, AsyncOptions { }
+    /**
+     * changes the uid and gid of the file
+     */
+    export function chownSync(opts: ChownSyncOptions): void
+    /**
+     * Similar to chownSync but called asynchronously, notifying the result in cb
+     */
+    export function chown(opts: ChownOptions, cb: (e?: any) => void): void
+    /**
+     * changes the uid and gid of the file
+     */
+    export function chown(co: YieldContext, opts: ChownOptions): void
+    export interface TruncateSyncOptions {
+        name: string
+        size: number
+    }
+    export interface TruncateOptions extends TruncateSyncOptions, AsyncOptions { }
+    /**
+     * changes the size of the file
+     */
+    export function truncateSync(opts: TruncateSyncOptions): void
+    /**
+     * Similar to truncateSync but called asynchronously, notifying the result in cb
+     */
+    export function truncate(opts: TruncateOptions, cb: (e?: any) => void): void
+    /**
+     * changes the size of the file
+     */
+    export function truncate(co: YieldContext, opts: TruncateOptions): void
+
+    export interface ReadFileOptions extends AsyncOptions {
+        name: string
+    }
+    /**
+     * Read file contents
+     */
+    export function readFileSync(name: string): Uint8Array
+    /**
+     * Similar to readFileSync but called asynchronously, notifying the result in cb
+     */
+    export function readFile(opts: string | ReadFileOptions, cb: (data?: Uint8Array, e?: any) => void): void
+    /**
+     * Read file contents
+     */
+    export function readFile(co: YieldContext, opts: string | ReadFileOptions): Uint8Array
+
+    /**
+     * abbreviation for new TextDecoder().decode(readFileSync(name))
+     */
+    export function readTextFileSync(name: string): string
+    /**
+     * Similar to readTextFileSync but called asynchronously, notifying the result in cb
+     */
+    export function readTextFile(opts: string | ReadFileOptions, cb: (data?: string, e?: any) => void): void
+    /**
+     * abbreviation for new TextDecoder().decode(readFile(co, name))
+     */
+    export function readTextFile(co: YieldContext, opts: string | ReadFileOptions): string
+
+    export interface WriteFileSyncOptions {
+        name: string
+        data?: Uint8Array
+        perm?: number
+        sync?: boolean
+    }
+    export interface WriteFileOptions extends WriteFileSyncOptions, AsyncOptions { }
+    /**
+     * Create archive and write data
+     */
+    export function writeFileSync(opts: WriteFileSyncOptions): void
+    /**
+     * Similar to writeFileSync but called asynchronously, notifying the result in cb
+     */
+    export function writeFile(opts: WriteFileOptions, cb: (e?: any) => void): void
+    /**
+     * Create archive and write data
+     */
+    export function writeFile(co: YieldContext, opts: WriteFileOptions): void
+    /**
+     * 
+     * abbreviation for writeFileSync(opts..data=new TextEncoder().encode(opts.data))
+     */
+    export function writeTextFileSync(opts: WriteTextFileSyncOptions): void
+    /**
+     * Similar to writeTextFileSync but called asynchronously, notifying the result in cb
+     */
+    export function writeTextFile(opts: WriteTextFileOptions, cb: (e?: any) => void): void
+    /**
+     * 
+     * abbreviation for writeFile(co, opts..data=new TextEncoder().encode(opts.data))
+     */
+    export function writeTextFile(co: YieldContext, opts: WriteTextFileOptions): void
 }
