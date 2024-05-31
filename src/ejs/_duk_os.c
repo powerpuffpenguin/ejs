@@ -1090,6 +1090,24 @@ typedef struct
     int n;
     DIR *dir;
 } f_fread_dir_args_t;
+typedef struct
+{
+    int err;
+    int fd;
+    int n;
+    ppp_buffer_t buffer;
+} f_fread_dir_async_args_t;
+static duk_ret_t f_fread_dir_async_args_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    f_fread_dir_async_args_t *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        ppp_buffer_destroy(&p->buffer);
+        free(p);
+    }
+    return 0;
+}
 static duk_ret_t f_fread_dir_impl(duk_context *ctx)
 {
     f_fread_dir_args_t *args = duk_require_pointer(ctx, -1);
@@ -1137,6 +1155,116 @@ static duk_ret_t f_fread_dir_impl(duk_context *ctx)
     }
     return 1;
 }
+
+static void f_fread_dir_async_impl(void *userdata)
+{
+    f_fread_dir_async_args_t *args = userdata;
+    DIR *dir = fdopendir(args->fd);
+    if (!dir)
+    {
+        args->err = errno;
+    }
+    struct dirent *dirent;
+    int i = 0;
+    duk_uint16_t len;
+    struct stat info;
+    while (args->n < 1 || args->n > i)
+    {
+        errno = 0;
+        dirent = readdir(dir);
+        if (!dirent)
+        {
+            if (errno)
+            {
+                args->err = errno;
+                ppp_buffer_destroy(&args->buffer);
+                closedir(dir);
+                return;
+            }
+            break;
+        }
+        if (dirent->d_name[0] == '.')
+        {
+            if (dirent->d_name[1] == 0)
+            {
+                continue;
+            }
+            else if (dirent->d_name[2] == 0 && dirent->d_name[1] == '.')
+            {
+                continue;
+            }
+        }
+        if (fstatat(args->fd, dirent->d_name, &info, 0))
+        {
+            args->err = errno;
+            ppp_buffer_destroy(&args->buffer);
+            closedir(dir);
+            return;
+        }
+
+        len = strlen(dirent->d_name);
+        if (!len)
+        {
+            continue;
+        }
+        if (ppp_buffer_write(&args->buffer, &len, 2, PPP_BUFFER_DEFAULT_ALLOC) != 2)
+        {
+            args->err = errno;
+            ppp_buffer_destroy(&args->buffer);
+            closedir(dir);
+            return;
+        }
+        else if (ppp_buffer_write(&args->buffer, dirent->d_name, len, PPP_BUFFER_DEFAULT_ALLOC) != len)
+        {
+            args->err = errno;
+            ppp_buffer_destroy(&args->buffer);
+            closedir(dir);
+            return;
+        }
+        else if (ppp_buffer_write(&args->buffer, &info, sizeof(struct stat), PPP_BUFFER_DEFAULT_ALLOC) != sizeof(struct stat))
+        {
+            args->err = errno;
+            ppp_buffer_destroy(&args->buffer);
+            closedir(dir);
+            return;
+        }
+
+        ++i;
+    }
+    args->err = 0;
+    closedir(dir);
+}
+static duk_ret_t f_fread_dir_async_return(duk_context *ctx)
+{
+    f_fread_dir_async_args_t *args = _ejs_async_return(ctx);
+    if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_push_array(ctx);
+        duk_uarridx_t i = 0;
+        duk_uint16_t len;
+        struct dirent dirent;
+        struct stat info;
+        while (ppp_buffer_read(&args->buffer, &len, 2))
+        {
+            ppp_buffer_read(&args->buffer, dirent.d_name, len);
+            dirent.d_name[len] = 0;
+            ppp_buffer_read(&args->buffer, &info, sizeof(struct stat));
+            f_push_fstat(ctx, dirent.d_name, &info);
+            duk_put_prop_index(ctx, -2, i++);
+        }
+        ppp_buffer_destroy(&args->buffer);
+        duk_call(ctx, 1);
+    }
+    return 0;
+}
+
 static duk_ret_t f_fread_dir(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "fd", 2);
@@ -1163,7 +1291,11 @@ static duk_ret_t f_fread_dir(duk_context *ctx)
         }
         return 1;
     }
-
+    f_fread_dir_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_fread_dir_async_args_t), f_fread_dir_async_args_finalizer);
+    ppp_buffer_init(&p->buffer);
+    p->fd = fd;
+    p->n = n;
+    _ejs_async_post_or_send(ctx, f_fread_dir_async_impl, f_fread_dir_async_return);
     return 0;
 }
 
@@ -1209,27 +1341,10 @@ static duk_ret_t f_fread_dir_names_impl(duk_context *ctx)
     }
     return 1;
 }
-typedef struct
-{
-    int err;
-    int fd;
-    int n;
-    ppp_buffer_t buffer;
-} f_fread_dir_names_async_args_t;
-static duk_ret_t f_fread_dir_names_async_args_finalizer(duk_context *ctx)
-{
-    duk_get_prop_lstring(ctx, -1, "p", 1);
-    f_fread_dir_names_async_args_t *p = duk_get_pointer_default(ctx, -1, 0);
-    if (p)
-    {
-        ppp_buffer_destroy(&p->buffer);
-        free(p);
-    }
-    return 0;
-}
+
 static void f_fread_dir_names_async_impl(void *userdata)
 {
-    f_fread_dir_names_async_args_t *args = userdata;
+    f_fread_dir_async_args_t *args = userdata;
     DIR *dir = fdopendir(args->fd);
     if (!dir)
     {
@@ -1287,7 +1402,7 @@ static void f_fread_dir_names_async_impl(void *userdata)
 }
 static duk_ret_t f_fread_dir_names_async_return(duk_context *ctx)
 {
-    f_fread_dir_names_async_args_t *args = _ejs_async_return(ctx);
+    f_fread_dir_async_args_t *args = _ejs_async_return(ctx);
     if (args->err)
     {
         ejs_new_os_error(ctx, args->err, 0);
@@ -1307,6 +1422,7 @@ static duk_ret_t f_fread_dir_names_async_return(duk_context *ctx)
             duk_push_lstring(ctx, dirent.d_name, len);
             duk_put_prop_index(ctx, -2, i++);
         }
+        ppp_buffer_destroy(&args->buffer);
         duk_call(ctx, 1);
     }
     return 0;
@@ -1338,7 +1454,7 @@ static duk_ret_t f_fread_dir_names(duk_context *ctx)
         }
         return 1;
     }
-    f_fread_dir_names_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_fread_dir_names_async_args_t), f_fread_dir_names_async_args_finalizer);
+    f_fread_dir_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_fread_dir_async_args_t), f_fread_dir_async_args_finalizer);
     ppp_buffer_init(&p->buffer);
     p->fd = fd;
     p->n = n;

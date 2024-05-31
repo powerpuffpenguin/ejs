@@ -1278,6 +1278,20 @@ declare module "ejs/os" {
          * @param n If greater than 0, the maximum length of the returned array is n
          */
         readDirNames(co: YieldContext, opts?: FileReadDirOptions | number): Array<string>
+        /**
+         * Read the file info in the folder
+         * @param n If greater than 0, the maximum length of the returned array is n
+         */
+        readDirSync(n?: number): Array<FileInfo>
+        /**
+         * Similar to readDirSync but called asynchronously, notifying the result in cb
+         */
+        readDir(cb: (dirs?: Array<FileInfo>, e?: any) => void, opts?: FileReadDirOptions | number): void
+        /**
+         * Read the file info in the folder
+         * @param n If greater than 0, the maximum length of the returned array is n
+         */
+        readDir(co: YieldContext, opts?: FileReadDirOptions | number): Array<FileInfo>
     }
 
     export interface Reader {
