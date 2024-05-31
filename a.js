@@ -6,7 +6,10 @@ sync.go(function (co) {
     var f
     try {
         f = File.open(co, "src")
-        var dirs = f.readDir(co)
+        var dirs = os.readDir(co, {
+            name: "src",
+            n: 5,
+        })
         for (var i = 0; i < dirs.length; i++) {
             var dir = dirs[i]
             console.log(dir)

@@ -84,3 +84,14 @@ duk_ret_t _ejs_async_return_number_impl(duk_context *ctx)
     }
     return 0;
 }
+duk_ret_t _ejs_async_return_buffer_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    _ejs_async_return_buffer_t *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        ppp_buffer_destroy(&p->buffer);
+        free(p);
+    }
+    return 0;
+}
