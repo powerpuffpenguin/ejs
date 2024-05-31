@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define PPP_BUFFER_MIN_ALLOC_P 4
+#define PPP_BUFFER_DEFAULT_ALLOC (4 + sizeof(struct ppp_buffer_element))
+
 #ifndef PPP_BUFFER_MIN_ALLOC_P
 #define PPP_BUFFER_MIN_ALLOC_P 128
 #endif

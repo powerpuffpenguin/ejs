@@ -25,7 +25,6 @@ int ppp_buffer_write(ppp_buffer_t *buf, const void *src, size_t n, size_t alloc)
     {
         return 0;
     }
-
     struct ppp_buffer_element *ele = buf->back;
     if (!ele)
     {
@@ -40,13 +39,12 @@ int ppp_buffer_write(ppp_buffer_t *buf, const void *src, size_t n, size_t alloc)
         {
             return -1;
         }
+        memmove(PPP_BUFFER_ELEMENT_P(ele), src, n);
 
         ele->next = 0;
         ele->capacity = cap;
         ele->offset = 0;
         ele->len = n;
-
-        memmove(PPP_BUFFER_ELEMENT_P(ele), src, n);
 
         buf->front = ele;
         buf->back = ele;
@@ -75,7 +73,7 @@ int ppp_buffer_write(ppp_buffer_t *buf, const void *src, size_t n, size_t alloc)
     if (writable)
     {
         memmove(PPP_BUFFER_ELEMENT_P(ele) + ele->offset + ele->len, src, writable);
-        ele->len += n;
+        ele->len += writable;
         src = (const uint8_t *)src + writable;
     }
 

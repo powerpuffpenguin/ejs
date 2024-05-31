@@ -1236,7 +1236,7 @@ static void f_fread_dir_names_async_impl(void *userdata)
         args->err = errno;
     }
     struct dirent *dirent;
-    int i;
+    int i = 0;
     duk_uint16_t len;
     while (args->n < 1 || args->n > i)
     {
@@ -1265,6 +1265,7 @@ static void f_fread_dir_names_async_impl(void *userdata)
             }
         }
         len = strlen(dirent->d_name);
+
         if (ppp_buffer_write(&args->buffer, &len, 2, PPP_BUFFER_DEFAULT_ALLOC) != 2)
         {
             args->err = errno;
@@ -1279,6 +1280,7 @@ static void f_fread_dir_names_async_impl(void *userdata)
             closedir(dir);
             return;
         }
+        ++i;
     }
     args->err = 0;
     closedir(dir);
