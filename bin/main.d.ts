@@ -1075,6 +1075,9 @@ declare module "ejs/os" {
         gid: number
     }
     export interface FileChownOptions extends FileChownSyncOptions, AsyncOptions { }
+    export interface FileReadDirOptions extends AsyncOptions {
+        n?: number
+    }
     export class File {
         private constructor()
         /**
@@ -1260,6 +1263,21 @@ declare module "ejs/os" {
          * changes the size of the file. It does not change the I/O offset.
          */
         truncate(co: YieldContext, opts: FileTruncateOptions): void
+
+        /**
+         * Read the file name in the folder
+         * @param n If greater than 0, the maximum length of the returned array is n
+         */
+        readDirNamesSync(n?: number): Array<string>
+        /**
+         * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
+         */
+        readDirNames(cb: (dirs?: Array<string>, e?: any) => void, opts?: FileReadDirOptions | number): void
+        /**
+         * Read the file name in the folder
+         * @param n If greater than 0, the maximum length of the returned array is n
+         */
+        readDirNames(co: YieldContext, opts?: FileReadDirOptions | number): Array<string>
     }
 
     export interface Reader {

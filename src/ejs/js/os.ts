@@ -32,9 +32,15 @@ declare namespace deps {
         size: number        // length in bytes for regular files; system-dependent for others
         mode: number     // file mode bits
         modTime?: Date // modification time
+        // modTime
         _m: number
-        dir: boolean
-        regular: boolean
+
+        /**
+         * * dir 0x1
+         * * regular 0x2
+         * * link 0x4
+         */
+        _mode: number
     }
     export function fileinfo_name(info: deps.FileInfo): string
     interface AsyncOptions {
@@ -194,6 +200,17 @@ declare namespace deps {
     }
     export function writeFile(opts: WriteFileOptions): void
     export function writeFile(opts: WriteFileOptions, cb: (e?: any) => void): void
+
+    export interface FReadDirOptions extends AsyncOptions {
+        fd: any
+        n?: number
+    }
+    export function fread_dir_names(opts: FReadDirOptions): Array<string>
+    export function fread_dir_names(opts: FReadDirOptions, cb: (v: Array<string>, e?: any) => void): void
+
+    export function fread_dir(opts: FReadDirOptions): Array<FileInfo>
+    export function fread_dir(opts: FReadDirOptions, cb: (v: Array<FileInfo>, e?: any) => void): void
+
 }
 
 /**
@@ -318,6 +335,10 @@ export interface FileInfo {
      * abbreviation for mode().isRegular()
      */
     isRegular(): boolean
+    /**
+     * abbreviation for mode().isLink()
+     */
+    isLink(): boolean
 }
 function _fstat(opts: deps.FileStatOptions, cb: (info?: FileInfo, e?: any) => void) {
     deps.fstat(opts, (info, e) => {
@@ -362,10 +383,13 @@ export class fileInfo implements FileInfo {
         return v
     }
     isDir(): boolean {
-        return this.info.dir
+        return this.info._mode & 0x1 ? true : false
     }
     isRegular(): boolean {
-        return this.info.regular
+        return this.info._mode & 0x2 ? true : false
+    }
+    isLink(): boolean {
+        return this.info._mode & 0x4 ? true : false
     }
 }
 
@@ -402,6 +426,26 @@ export interface FileChownSyncOptions {
     gid: number
 }
 export interface FileChownOptions extends FileChownSyncOptions, AsyncOptions { }
+
+export interface FileReadDirOptions extends AsyncOptions {
+    n?: number
+}
+export function _fread_dir(opts: deps.FReadDirOptions, cb: (items?: Array<FileInfo>, e?: any) => void) {
+    deps.fread_dir(opts, (items, e) => {
+        if (e === undefined) {
+            let ret: Array<FileInfo>
+            try {
+                ret = items.map((v) => new fileInfo(v))
+            } catch (e) {
+                cb(undefined, e)
+                return
+            }
+            cb(ret)
+        } else {
+            cb(undefined, e)
+        }
+    })
+}
 export class File {
     private constructor(private file_: deps.File | undefined) { }
     /**
@@ -423,7 +467,7 @@ export class File {
             name: opts.name,
             flags: opts.flags ?? deps.O_RDONLY,
             perm: opts.perm ?? 0,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         return cb ? File._openFile(o, cb) : coReturn(a, File._openFile, o)
     }
@@ -432,7 +476,7 @@ export class File {
             name: opts.name,
             flags: opts.flags ?? deps.O_RDONLY,
             perm: opts.perm ?? 0,
-            post: opts.post ? true : false,
+            post: opts.post,
         }, (f, e) => {
             if (f) {
                 let file: File
@@ -529,10 +573,10 @@ export class File {
         return new fileInfo(info)
     }
     stat(a: any, b: any) {
-        const [cb, opts] = parseBA<(info?: FileInfo, e?: any) => void, AsyncOptions>(a, b)
+        const [cb, opts] = parseBA<(info?: FileInfo, e?: any) => void, AsyncOptions | undefined>(a, b)
         const o: deps.FileStatOptions = {
             file: this._file(),
-            post: opts?.post ? true : false,
+            post: opts?.post,
         }
         return cb ? _fstat(o, cb) : coReturn(a, _fstat, o)
     }
@@ -556,7 +600,7 @@ export class File {
             fd: this._file().fd,
             offset: opts.offset,
             whence: opts.whence,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         return cb ? deps.seek(o, cb) : coReturn(a, deps.seek, o)
     }
@@ -581,11 +625,10 @@ export class File {
         const o: deps.ReadOptions = deps.isBufferData(opts) ? {
             fd: f.fd,
             dst: opts,
-            post: false,
         } : {
             fd: f.fd,
             dst: opts.dst,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         let args = this.read_
         if (args) {
@@ -639,7 +682,7 @@ export class File {
             fd: f.fd,
             dst: opts.dst,
             offset: opts.offset,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         let args = this.readAt_
         if (args) {
@@ -689,11 +732,10 @@ export class File {
         const o: deps.WriteOptions = deps.isBufferData(opts) || typeof opts === "string" ? {
             fd: f.fd,
             src: opts,
-            post: false,
         } : {
             fd: f.fd,
             src: opts.src,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         let args = this.write_
         if (args) {
@@ -745,7 +787,7 @@ export class File {
             fd: f.fd,
             src: opts.src,
             offset: opts.offset,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         let args = this.writeAt_
         if (args) {
@@ -789,10 +831,10 @@ export class File {
      * Similar to syncSync but called asynchronously, notifying the result in cb
      */
     sync(a: any, b: any): void {
-        const [cb, opts] = parseBA<(e?: any) => void, AsyncOptions>(a, b);
+        const [cb, opts] = parseBA<(e?: any) => void, AsyncOptions | undefined>(a, b);
         const o: deps.FSyncOptions = {
             fd: this._file().fd,
-            post: opts.post ? true : false,
+            post: opts?.post,
         }
         return cb ? deps.fsync(o, cb) : coVoid(a, deps.fsync, o)
     }
@@ -821,7 +863,7 @@ export class File {
         const o: deps.FChmodOptions = {
             fd: this._file().fd,
             perm: opts.perm,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         return cb ? deps.fchmod(o, cb) : coVoid(a, deps.fchmod, o)
     }
@@ -845,7 +887,7 @@ export class File {
             fd: this._file().fd,
             uid: opts.uid,
             gid: opts.gid,
-            post: opts.post ? true : false,
+            post: opts.post,
         }
         return cb ? deps.fchown(o, cb) : coVoid(a, deps.fchown, o)
     }
@@ -867,10 +909,69 @@ export class File {
         const o: deps.FTruncateOptions = {
             fd: this._file().fd,
             size: opts.size,
-            post: opts.post ? true : false
+            post: opts.post,
         }
         return cb ? deps.ftruncate(o, cb) : coVoid(a, deps.ftruncate, o)
     }
+
+    /**
+     * Read the file name in the folder
+     * @param n If greater than 0, the maximum length of the returned array is n
+     */
+    readDirNamesSync(n?: number): Array<string> {
+        const f = this._file()
+        return deps.fread_dir_names({
+            fd: f.fd,
+            n: n,
+        })
+    }
+    /**
+     * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
+     */
+    readDirNames(a: any, b: any) {
+        const [cb, opts] = parseBA<(dirs?: Array<string>, e?: any) => void, FileReadDirOptions | number | undefined>(a, b)
+        const f = this._file()
+        const o: deps.FReadDirOptions = typeof opts === "number" ? {
+            fd: f.fd,
+            n: opts,
+        } : {
+            fd: f.fd,
+            n: opts?.n,
+            post: opts?.post,
+        }
+        return cb ? deps.fread_dir_names(o, cb) : coReturn(a, deps.fread_dir_names, o)
+    }
+
+    /**
+     * Read the file info in the folder
+     * @param n If greater than 0, the maximum length of the returned array is n
+     */
+    readDirSync(n?: number): Array<FileInfo> {
+        const f = this._file()
+        return deps.fread_dir({
+            fd: f.fd,
+            n: n,
+        }).map((info) => {
+            return new fileInfo(info)
+        })
+    }
+    /**
+     * Similar to readDirSync but called asynchronously, notifying the result in cb
+     */
+    readDir(a: any, b: any) {
+        const [cb, opts] = parseBA<(dirs?: Array<FileInfo>, e?: any) => void, FileReadDirOptions | number | undefined>(a, b)
+        const f = this._file()
+        const o: deps.FReadDirOptions = typeof opts === "number" ? {
+            fd: f.fd,
+            n: opts,
+        } : {
+            fd: f.fd,
+            n: opts?.n,
+            post: opts?.post,
+        }
+        return cb ? _fread_dir(o, cb) : coReturn(a, _fread_dir, o)
+    }
+
 }
 
 export interface Reader {
@@ -913,7 +1014,7 @@ export function stat(a: any, b: any, opts?: AsyncOptions) {
     const [name, cb] = parseAB<string, (info?: FileInfo, e?: any) => void>(a, b)
     const o: deps.StatOptions = {
         name: name,
-        post: opts?.post ? true : false,
+        post: opts?.post,
     }
     return cb ? _stat(o, cb) : coReturn(a, _stat, o)
 }
@@ -955,7 +1056,7 @@ export function chmod(a: any, b: any) {
     const o: deps.ChmodOptions = {
         name: opts.name,
         perm: opts.perm,
-        post: opts.post ? true : false,
+        post: opts.post,
     }
     return cb ? deps.chmod(o) : coVoid(a, deps.chmod, o)
 }
@@ -985,7 +1086,7 @@ export function chown(a: any, b: any) {
         name: opts.name,
         uid: opts.uid,
         gid: opts.gid,
-        post: opts.post ? true : false,
+        post: opts.post,
     }
     return cb ? deps.chown(o) : coVoid(a, deps.chown, o)
 }
@@ -1011,7 +1112,7 @@ export function truncate(a: any, b: any) {
     const o: deps.TruncateOptions = {
         name: opts.name,
         size: opts.size,
-        post: opts.post ? true : false,
+        post: opts.post,
     }
     return cb ? deps.truncate(o) : coVoid(a, deps.truncate, o)
 }
@@ -1112,10 +1213,9 @@ export function readFile(a: any, b: any) {
     const [opts, cb] = parseAB<string | ReadFileOptions, (data?: Uint8Array, e?: any) => void>(a, b)
     const o: _ReadFileOptions = typeof opts === "string" ? {
         name: opts,
-        post: false,
     } : {
         name: opts.name,
-        post: opts.post ? true : false,
+        post: opts.post,
     }
     return cb ? _readFile(o, cb) : coReturn(a, _readFile, o)
 }
@@ -1123,11 +1223,10 @@ export function readTextFile(a: any, b: any) {
     const [opts, cb] = parseAB<string | ReadFileOptions, (s?: string, e?: any) => void>(a, b)
     const o: _ReadFileOptions = typeof opts === "string" ? {
         name: opts,
-        post: false,
         s: true,
     } : {
         name: opts.name,
-        post: opts.post ? true : false,
+        post: opts.post,
         s: true,
     }
     return cb ? _readFile(o, cb) : coReturn(a, _readFile, o)
@@ -1158,7 +1257,7 @@ export function writeFile(a: any, b: any): void {
         data: opts.data,
         perm: opts.perm ?? 0o666,
         sync: opts.sync ? true : false,
-        post: opts.post ? true : false,
+        post: opts.post,
     }
     return cb ? deps.writeFile(o) : coVoid(a, deps.writeFile, o)
 }
@@ -1184,7 +1283,7 @@ export function writeTextFile(a: any, b: any): void {
         data: opts.data === "" ? undefined : new TextEncoder().encode(opts.data),
         perm: opts.perm ?? 0o666,
         sync: opts.sync ? true : false,
-        post: opts.post ? true : false,
+        post: opts.post,
     }
     return cb ? deps.writeFile(o) : coVoid(a, deps.writeFile, o)
 }
