@@ -1467,4 +1467,9 @@ declare module "ejs/os" {
      * Read the file info in the folder
      */
     export function readDirSync(opts: ReadDirSyncOptions): Array<FileInfo>
+
+    // readlink
+    // remove
+    // rename
+    // rmdir
 }

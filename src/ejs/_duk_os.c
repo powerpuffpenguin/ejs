@@ -1462,7 +1462,7 @@ typedef struct
     const char *name;
     int n;
     DIR *dir;
-} f_read_dir_names_args_t;
+} f_read_dir_args_t;
 typedef struct
 {
     EJS_ASYNC_DEFINE_RETURN_BUFFER;
@@ -1473,7 +1473,7 @@ typedef struct
 
 static duk_ret_t f_read_dir_names_impl(duk_context *ctx)
 {
-    f_read_dir_names_args_t *args = duk_require_pointer(ctx, -1);
+    f_read_dir_args_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
     args->dir = opendir(args->name);
@@ -1515,7 +1515,7 @@ static duk_ret_t f_read_dir_names(duk_context *ctx)
     duk_pop(ctx);
     if (duk_is_undefined(ctx, 1))
     {
-        f_read_dir_names_args_t args = {
+        f_read_dir_args_t args = {
             .name = name,
             .n = n,
             .dir = 0,
@@ -1537,54 +1537,46 @@ static duk_ret_t f_read_dir_names(duk_context *ctx)
     _ejs_async_post_or_send(ctx, f_read_dir_names_async_impl, _read_dir_return_names);
     return 0;
 }
-typedef struct
-{
-    const char *name;
-    int n;
-    int fd;
-    DIR *dir;
-} f_read_dir_args_t;
+
 static duk_ret_t f_read_dir_impl(duk_context *ctx)
 {
     f_read_dir_args_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
-    args->fd = open(args->name, O_RDONLY, 0);
-    if (EJS_INVALID_FD(args->fd))
-    {
-        ejs_throw_os_errno(ctx);
-    }
-    args->dir = fdopendir(args->fd);
+    args->dir = opendir(args->name);
     if (!args->dir)
     {
         ejs_throw_os_errno(ctx);
     }
-    _read_dir_impl(ctx, args->dir, args->fd, args->n);
+    int fd = dirfd(args->dir);
+    if (EJS_INVALID_FD(fd))
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    _read_dir_impl(ctx, args->dir, fd, args->n);
     closedir(args->dir);
-    close(args->fd);
     args->dir = 0;
-    args->fd = -1;
     return 1;
 }
 
 static void f_read_dir_async_impl(void *userdata)
 {
     f_read_dir_async_args_t *args = userdata;
-    int fd = open(args->name, O_RDONLY, 0);
-    if (EJS_INVALID_FD(fd))
-    {
-        args->result.err = errno;
-        return;
-    }
     DIR *dir = opendir(args->name);
     if (!dir)
     {
         args->result.err = errno;
-        close(fd);
         return;
     }
+    int fd = dirfd(dir);
+    if (EJS_INVALID_FD(fd))
+    {
+        args->result.err = errno;
+        closedir(dir);
+        return;
+    }
+
     args->result.err = _read_dir_async_impl(dir, fd, args->n, &args->result.buffer);
     closedir(dir);
-    close(fd);
     if (args->result.err)
     {
         ppp_buffer_destroy(&args->result.buffer);
@@ -1606,17 +1598,12 @@ static duk_ret_t f_read_dir(duk_context *ctx)
             .name = name,
             .n = n,
             .dir = 0,
-            .fd = -1,
         };
         if (ejs_pcall_function(ctx, f_read_dir_impl, &args))
         {
-            if (!EJS_INVALID_FD(args.fd))
+            if (args.dir)
             {
-                if (args.dir)
-                {
-                    closedir(args.dir);
-                }
-                close(args.fd);
+                closedir(args.dir);
             }
             duk_throw(ctx);
         }
