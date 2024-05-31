@@ -211,6 +211,18 @@ declare namespace deps {
     export function fread_dir(opts: FReadDirOptions): Array<FileInfo>
     export function fread_dir(opts: FReadDirOptions, cb: (v: Array<FileInfo>, e?: any) => void): void
 
+    export interface ReadDirOptions extends AsyncOptions {
+        name: string
+        /**
+         * If greater than 0, the maximum length of the returned array is n
+         */
+        n?: number
+    }
+    export function read_dir_names(opts: ReadDirOptions): Array<string>
+    export function read_dir_names(opts: ReadDirOptions, cb: (v: Array<string>, e?: any) => void): void
+
+    export function read_dir(opts: ReadDirOptions): Array<FileInfo>
+    export function read_dir(opts: ReadDirOptions, cb: (v: Array<FileInfo>, e?: any) => void): void
 }
 
 /**
@@ -435,7 +447,7 @@ export function _fread_dir(opts: deps.FReadDirOptions, cb: (items?: Array<FileIn
         if (e === undefined) {
             let ret: Array<FileInfo>
             try {
-                ret = items.map((v) => new fileInfo(v))
+                ret = items.length ? items.map((v) => new fileInfo(v)) : items as any
             } catch (e) {
                 cb(undefined, e)
                 return
@@ -948,12 +960,11 @@ export class File {
      */
     readDirSync(n?: number): Array<FileInfo> {
         const f = this._file()
-        return deps.fread_dir({
+        const items = deps.fread_dir({
             fd: f.fd,
             n: n,
-        }).map((info) => {
-            return new fileInfo(info)
         })
+        return items.length ? items.map((info) => new fileInfo(info)) : items as any
     }
     /**
      * Similar to readDirSync but called asynchronously, notifying the result in cb
@@ -1058,7 +1069,7 @@ export function chmod(a: any, b: any) {
         perm: opts.perm,
         post: opts.post,
     }
-    return cb ? deps.chmod(o) : coVoid(a, deps.chmod, o)
+    return cb ? deps.chmod(o, cb) : coVoid(a, deps.chmod, o)
 }
 
 export interface ChownSyncOptions {
@@ -1088,7 +1099,7 @@ export function chown(a: any, b: any) {
         gid: opts.gid,
         post: opts.post,
     }
-    return cb ? deps.chown(o) : coVoid(a, deps.chown, o)
+    return cb ? deps.chown(o, cb) : coVoid(a, deps.chown, o)
 }
 export interface TruncateSyncOptions {
     name: string
@@ -1114,7 +1125,7 @@ export function truncate(a: any, b: any) {
         size: opts.size,
         post: opts.post,
     }
-    return cb ? deps.truncate(o) : coVoid(a, deps.truncate, o)
+    return cb ? deps.truncate(o, cb) : coVoid(a, deps.truncate, o)
 }
 export interface ReadFileOptions extends AsyncOptions {
     name: string
@@ -1259,7 +1270,7 @@ export function writeFile(a: any, b: any): void {
         sync: opts.sync ? true : false,
         post: opts.post,
     }
-    return cb ? deps.writeFile(o) : coVoid(a, deps.writeFile, o)
+    return cb ? deps.writeFile(o, cb) : coVoid(a, deps.writeFile, o)
 }
 export interface WriteTextFileSyncOptions {
     name: string
@@ -1285,5 +1296,79 @@ export function writeTextFile(a: any, b: any): void {
         sync: opts.sync ? true : false,
         post: opts.post,
     }
-    return cb ? deps.writeFile(o) : coVoid(a, deps.writeFile, o)
+    return cb ? deps.writeFile(o, cb) : coVoid(a, deps.writeFile, o)
+}
+
+export interface ReadDirSyncOptions {
+    name: string
+    /**
+     * If greater than 0, the maximum length of the returned array is n
+     */
+    n?: number
+}
+export interface ReadDirOptions extends ReadDirSyncOptions, AsyncOptions { }
+/**
+ * Read the file name in the folder
+ */
+export function readDirNamesSync(opts: ReadDirSyncOptions): Array<string> {
+    return deps.read_dir_names({
+        name: opts.name,
+        n: opts.n,
+    })
+}
+/**
+ * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
+ */
+export function readDirNames(a: any, b: any) {
+    const [opts, cb] = parseAB<ReadDirOptions, (dirs?: Array<string>, e?: any) => void>(a, b)
+    const o: deps.ReadDirOptions = {
+        name: opts.name,
+        n: opts.n,
+        post: opts.post,
+    }
+    return cb ? deps.read_dir_names(o, cb) : coReturn(a, deps.read_dir_names, o)
+}
+
+/**
+ * Read the file info in the folder
+ */
+export function readDirSync(opts: ReadDirSyncOptions): Array<FileInfo> {
+    const items = deps.read_dir({
+        name: opts.name,
+        n: opts.n,
+    })
+    return items.length ? items.map((v) => new fileInfo(v)) : items as any
+}
+
+function _readDir(opts: deps.ReadDirOptions, cb: (items?: Array<FileInfo>, e?: any) => void) {
+    deps.read_dir({
+        name: opts.name,
+        n: opts.n,
+        post: opts.post,
+    }, (items, e) => {
+        if (e === undefined) {
+            let ret: Array<FileInfo>
+            try {
+                ret = items.length ? items.map((v) => new fileInfo(v)) : items as any
+            } catch (e) {
+                cb(undefined, e)
+                return
+            }
+            cb(ret)
+        } else {
+            cb(undefined, e)
+        }
+    })
+}
+/**
+ * Similar to readDirSync but called asynchronously, notifying the result in cb
+ */
+export function readDir(a: any, b: any) {
+    const [opts, cb] = parseAB<ReadDirOptions, (dirs?: Array<FileInfo>, e?: any) => void>(a, b)
+    const o: deps.ReadDirOptions = {
+        name: opts.name,
+        n: opts.n,
+        post: opts.post,
+    }
+    return cb ? _readDir(o, cb) : coReturn(a, _readDir, o)
 }

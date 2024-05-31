@@ -1441,4 +1441,30 @@ declare module "ejs/os" {
      * abbreviation for writeFile(co, opts..data=new TextEncoder().encode(opts.data))
      */
     export function writeTextFile(co: YieldContext, opts: WriteTextFileOptions): void
+
+    export interface ReadDirSyncOptions {
+        name: string
+        /**
+         * If greater than 0, the maximum length of the returned array is n
+         */
+        n?: number
+    }
+    export interface ReadDirOptions extends ReadDirSyncOptions, AsyncOptions { }
+    /**
+     * Read the file name in the folder
+     */
+    export function readDirNamesSync(opts: ReadDirSyncOptions): Array<string>
+    /**
+     * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
+     */
+    export function readDirNames(opts: ReadDirOptions, cb: (dirs?: Array<string>, e?: any) => void): void
+    /**
+     * Read the file name in the folder
+     */
+    export function readDirNames(co: YieldContext, opts: ReadDirOptions): Array<string>
+
+    /**
+     * Read the file info in the folder
+     */
+    export function readDirSync(opts: ReadDirSyncOptions): Array<FileInfo>
 }
