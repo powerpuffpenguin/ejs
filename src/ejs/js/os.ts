@@ -223,6 +223,27 @@ declare namespace deps {
 
     export function read_dir(opts: ReadDirOptions): Array<FileInfo>
     export function read_dir(opts: ReadDirOptions, cb: (v: Array<FileInfo>, e?: any) => void): void
+
+    export interface ReadLinkOptions extends AsyncOptions {
+        name: string
+    }
+    export function read_link(opts: ReadLinkOptions): string
+    export function read_link(opts: ReadLinkOptions, cb: (path?: string, e?: any) => void): void
+
+    export interface RenameOptions extends AsyncOptions {
+        from: string
+        to: string
+    }
+    export function rename(opts: RenameOptions): void
+    export function rename(opts: RenameOptions, cb: (e?: any) => void): void
+
+    export interface RemoveOptions extends AsyncOptions {
+        name: string
+        all?: boolean
+    }
+    export function remove(opts: RemoveOptions): void
+    export function remove(opts: RemoveOptions, cb: (e?: any) => void): void
+
 }
 
 /**
@@ -1371,4 +1392,83 @@ export function readDir(a: any, b: any) {
         post: opts.post,
     }
     return cb ? _readDir(o, cb) : coReturn(a, _readDir, o)
+}
+
+export interface ReadLinkOptions extends AsyncOptions {
+    name: string
+}
+/**
+ * returns the destination of the named symbolic link
+ */
+export function readLinkSync(name: string): string {
+    return deps.read_link({
+        name: name,
+    })
+}
+
+/**
+ * Similar to readLinkSync but called asynchronously, notifying the result in cb
+ */
+export function readLink(a: any, b: any) {
+    const [opts, cb] = parseAB<string | ReadLinkOptions, (path?: string, e?: any) => void>(a, b)
+    const o: deps.ReadLinkOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
+        name: opts.name,
+        post: opts.post,
+    }
+    return cb ? deps.read_link(o, cb) : coReturn(a, deps.read_link, o)
+}
+
+export interface RenameSyncOptions {
+    from: string
+    to: string
+}
+export interface RenameOptions extends RenameSyncOptions, AsyncOptions { }
+/**
+ *  renames (moves) opts.from to opts.to
+ */
+export function renameSync(opts: RenameSyncOptions): void {
+    return deps.rename({
+        from: opts.from,
+        to: opts.to,
+    })
+}
+/**
+ *  Similar to renameSync but called asynchronously, notifying the result in cb
+ */
+export function rename(a: any, b: any) {
+    const [opts, cb] = parseAB<RenameOptions, (e?: any) => void>(a, b)
+    const o: deps.RenameOptions = {
+        from: opts.from,
+        to: opts.to,
+        post: opts.post,
+    }
+    return cb ? deps.rename(o, cb) : coVoid(a, deps.rename, o)
+}
+
+export interface RemoveSyncOptions {
+    name: string
+    all?: boolean
+}
+export interface RemoveOptions extends RemoveSyncOptions, AsyncOptions { }
+export function removeSync(opts: RemoveSyncOptions | string): void {
+    const o: deps.RemoveOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
+        name: opts.name,
+        all: opts.all,
+    }
+    return deps.remove(o)
+}
+export function remove(a: any, b: any) {
+    const [opts, cb] = parseAB<RemoveOptions | string, (e?: any) => void>(a, b)
+    const o: deps.RemoveOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
+        name: opts.name,
+        all: opts.all,
+        post: opts.post,
+    }
+    return cb ? deps.remove(o, cb) : coVoid(a, deps.remove, o)
 }

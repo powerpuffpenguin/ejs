@@ -1601,16 +1601,28 @@ declare module "ejs/os" {
     /**
      *  Similar to renameSync but called asynchronously, notifying the result in cb
      */
-    export function renameSync(opts: RenameOptions, cb: (e?: any) => void): void
+    export function rename(opts: RenameOptions, cb: (e?: any) => void): void
     /**
      *  renames (moves) opts.from to opts.to
      */
     export function rename(co: YieldContext, opts: RenameOptions): void
 
-    /**
-     * delete a file
-     */
-    export function remove(name: string): void
 
-  
+    export interface RemoveSyncOptions {
+        name: string
+        all?: boolean
+    }
+    export interface RemoveOptions extends RemoveSyncOptions, AsyncOptions { }
+    /**
+     * removes the named file or directory
+     */
+    export function removeSync(opts: RemoveSyncOptions | string): void
+    /**
+     *  Similar to removeSync but called asynchronously, notifying the result in cb
+     */
+    export function remove(opts: RemoveOptions | string, cb: (e?: any) => void): void
+    /**
+     * removes the named file or directory
+     */
+    export function remove(co: YieldContext, opts: RemoveOptions | string): void
 }
