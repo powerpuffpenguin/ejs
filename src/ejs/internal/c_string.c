@@ -20,42 +20,51 @@ void ppp_c_string_destroy(ppp_c_string_t *s)
 }
 int ppp_c_string_grow(ppp_c_string_t *s, size_t n)
 {
-    // calculate capacity
-    size_t cap;
-    if (!s->cap && n < 64)
+    if (n)
     {
-        cap = 64;
-    }
-    else
-    {
-        size_t c = s->len + n;
-        cap = s->cap ? s->cap * 2 : 64 * 2;
-        if (c >= cap)
+        size_t available = s->cap ? s->cap - s->len : 0;
+        if (available < n)
         {
-            cap = c;
-        }
-    }
+            n -= available;
 
-    // malloc
-    if (s->cap)
-    {
-        void *p = realloc(s->str, cap + 1);
-        if (!p)
-        {
-            return -1;
+            // calculate capacity
+            size_t cap;
+            if (!s->cap && n < 64)
+            {
+                cap = 64;
+            }
+            else
+            {
+                size_t c = s->len + n;
+                cap = s->cap ? (s->cap * 2) : (64 * 2);
+                if (c >= cap)
+                {
+                    cap = c;
+                }
+            }
+            // malloc
+            if (s->cap)
+            {
+                void *p = realloc(s->str, cap + 1);
+                if (!p)
+                {
+                    return -1;
+                }
+                s->str = p;
+            }
+            else
+            {
+                void *p = malloc(cap + 1);
+                if (!p)
+                {
+                    return -1;
+                }
+                memmove(p, s->str, s->len);
+                s->str = p;
+            }
+            s->cap = cap;
         }
     }
-    else
-    {
-        void *p = malloc(cap + 1);
-        if (!p)
-        {
-            return -1;
-        }
-        memmove(p, s->str, s->len);
-        s->str = p;
-    }
-    s->cap = cap;
     return 0;
 }
 void ppp_c_string_append_raw(ppp_c_string_t *s, const char *str, size_t n)

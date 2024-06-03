@@ -5,9 +5,14 @@ var File = os.File;
 sync.go(function (co) {
     var f
     try {
+        // console.log(os.removeSync({
+        //     name: 'a',
+        //     all: true,
+        // }))
+
         console.log(os.remove(co, {
             name: 'a',
-            // all: true,
+            all: true,
         }))
 
         // f = File.create(co, "a.txt")

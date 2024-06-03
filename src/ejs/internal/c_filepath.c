@@ -16,7 +16,6 @@ int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n)
         {
             return ppp_c_string_append(path, name, n);
         }
-
 #ifdef PPP_FILEPATH_WINDOWS
         if (ppp_c_string_end_with(path, "\\", 1) || ppp_c_string_end_with(path, "//", 1) ||
             (n > 0 && (name[0] == '\\' || name[0] == '/')))
@@ -114,7 +113,8 @@ static int _ppp_c_filepath_remove_all_impl(ppp_c_string_t *path)
             errno = err;
             return -1;
         }
-        else if (lstat(path->str, &info))
+        path->str[path->len] = 0;
+        if (lstat(path->str, &info))
         {
             err = errno;
             closedir(dir);
@@ -133,31 +133,31 @@ static int _ppp_c_filepath_remove_all_impl(ppp_c_string_t *path)
         }
         else
         {
-            printf(" remove %s\n", path->str);
-            // if (remove(path->str))
-            // {
-            //     err = errno;
-            //     if (err != ENOENT)
-            //     {
-            //         closedir(dir);
-            //         errno = err;
-            //         return -1;
-            //     }
-            // }
+            // printf(" remove %s\n", path->str);
+            if (remove(path->str))
+            {
+                err = errno;
+                if (err != ENOENT)
+                {
+                    closedir(dir);
+                    errno = err;
+                    return -1;
+                }
+            }
         }
     }
 
     // remove empty dir
     path->str[path_len] = 0;
-    printf(" rmdir %s\n", path->str);
-    // if (rmdir(path->str))
-    // {
-    //     err = errno;
-    //     if (err != ENOENT) // already remove by other
-    //     {
-    //         return -1;
-    //     }
-    // }
+    // printf(" rmdir %s\n", path->str);
+    if (rmdir(path->str))
+    {
+        err = errno;
+        if (err != ENOENT) // already remove by other
+        {
+            return -1;
+        }
+    }
     return 0;
 }
 int ppp_c_filepath_remove_all(ppp_c_string_t *path)
@@ -207,7 +207,7 @@ int ppp_c_filepath_remove_all(ppp_c_string_t *path)
                 return -1;
             }
         }
-
+        dir.str[dir.len] = 0;
         if (_ppp_c_filepath_remove_all_impl(&dir))
         {
             int err = errno;

@@ -1775,6 +1775,7 @@ static duk_ret_t f_remove(duk_context *ctx)
 
     f_remove_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_remove_async_args_t), ejs_default_finalizer);
     p->name = name;
+    p->len = len;
     p->all = all;
 
     EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_remove_impl);
