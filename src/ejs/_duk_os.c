@@ -5,12 +5,12 @@
 #include "defines.h"
 #include "_duk_async.h"
 #include "internal/buffer.h"
+#include "internal/c_filepath.h"
 
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
 
@@ -1061,7 +1061,7 @@ static duk_ret_t f_writeFile(duk_context *ctx)
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "sync", 4);
-    opts.sync = duk_require_boolean(ctx, -1);
+    opts.sync = EJS_BOOL_VALUE(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "perm", 4);
@@ -1616,6 +1616,170 @@ static duk_ret_t f_read_dir(duk_context *ctx)
     _ejs_async_post_or_send(ctx, f_read_dir_async_impl, f_read_dir_return_dirs);
     return 0;
 }
+typedef struct
+{
+    int err;
+    char path[PATH_MAX];
+    ssize_t n;
+    const char *name;
+} f_read_link_async_args_t;
+static void f_read_link_impl(void *userdata)
+{
+    f_read_link_async_args_t *args = userdata;
+    args->n = readlink(args->name, args->path, PATH_MAX);
+    args->err = EJS_SYSTEM_ERROR(args->n) ? errno : 0;
+}
+static duk_ret_t f_read_link_return(duk_context *ctx)
+{
+    f_read_link_async_args_t *args = _ejs_async_return(ctx);
+    if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_push_lstring(ctx, args->path, args->n);
+        duk_call(ctx, 1);
+    }
+    return 0;
+}
+static duk_ret_t f_read_link(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "name", 4);
+    const char *name = duk_require_string(ctx, -1);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        char path[PATH_MAX];
+        ssize_t n = readlink(name, path, PATH_MAX);
+        if (EJS_SYSTEM_ERROR(n))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        duk_pop_2(ctx);
+        duk_push_lstring(ctx, path, n);
+        return 1;
+    }
+
+    f_read_link_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_read_link_async_args_t), ejs_default_finalizer);
+    p->name = name;
+
+    _ejs_async_post_or_send(ctx, f_read_link_impl, f_read_link_return);
+    return 0;
+}
+
+typedef struct
+{
+    EJS_ASYNC_DEFINE_RETURN_VOID;
+    const char *from;
+    const char *to;
+} f_rename_async_args_t;
+static void f_rename_impl(void *userdata)
+{
+    f_rename_async_args_t *args = userdata;
+    args->result.err = rename(args->from, args->to) ? errno : 0;
+}
+static duk_ret_t f_rename(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "from", 4);
+    const char *from = duk_require_string(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "to", 2);
+    const char *to = duk_require_string(ctx, -1);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (rename(from, to))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        return 0;
+    }
+
+    f_rename_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_rename_async_args_t), ejs_default_finalizer);
+    p->from = from;
+    p->to = to;
+
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_rename_impl);
+    return 0;
+}
+
+typedef struct
+{
+    EJS_ASYNC_DEFINE_RETURN_VOID;
+    const char *name;
+    size_t len;
+    duk_bool_t all;
+} f_remove_async_args_t;
+
+static void f_remove_impl(void *userdata)
+{
+    f_remove_async_args_t *args = userdata;
+    if (args->all)
+    {
+        ppp_c_string_t path = {
+            .cap = 0,
+            .len = args->len,
+            .str = (char *)args->name,
+        };
+        args->result.err = ppp_c_filepath_remove_all(&path) ? errno : 0;
+    }
+    else
+    {
+        args->result.err = remove(args->name) ? errno : 0;
+    }
+}
+static duk_ret_t f_remove(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "name", 4);
+    duk_size_t len;
+    const char *name = duk_require_lstring(ctx, -1, &len);
+    if (len == 0)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "name must be not empty");
+        duk_throw(ctx);
+    }
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "all", 3);
+    duk_bool_t all = EJS_BOOL_VALUE(ctx, -1);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (all)
+        {
+            ppp_c_string_t path = {
+                .cap = 0,
+                .len = len,
+                .str = (char *)name,
+            };
+            if (ppp_c_filepath_remove_all(&path))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+        }
+        else
+        {
+            if (remove(name))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+        }
+        return 0;
+    }
+
+    f_remove_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_remove_async_args_t), ejs_default_finalizer);
+    p->name = name;
+    p->all = all;
+
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_remove_impl);
+    return 0;
+}
 
 duk_ret_t _ejs_native_os_init(duk_context *ctx)
 {
@@ -1730,6 +1894,14 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "read_dir_names", 14);
         duk_push_c_lightfunc(ctx, f_read_dir, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "read_dir", 8);
+
+        duk_push_c_lightfunc(ctx, f_read_link, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "read_link", 9);
+        duk_push_c_lightfunc(ctx, f_rename, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "rename", 6);
+
+        duk_push_c_lightfunc(ctx, f_remove, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "remove", 6);
     }
 
     /*
@@ -1758,7 +1930,7 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
     _ejs_define_os_uint(ctx, SEEK_END);
     _ejs_define_os_uint(ctx, SEEK_SET);
 
-    // errno
+    // errno [1,34]
     _ejs_define_os_uint(ctx, EPERM);
     _ejs_define_os_uint(ctx, ENOENT);
     _ejs_define_os_uint(ctx, ESRCH);
@@ -1794,5 +1966,111 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
     _ejs_define_os_uint(ctx, EDOM);
     _ejs_define_os_uint(ctx, ERANGE);
 
+    // errno [35,133]
+    _ejs_define_os_uint(ctx, EDEADLK);
+    _ejs_define_os_uint(ctx, ENAMETOOLONG);
+    _ejs_define_os_uint(ctx, ENOLCK);
+    _ejs_define_os_uint(ctx, ENOSYS);
+
+    _ejs_define_os_uint(ctx, ENOTEMPTY);
+    _ejs_define_os_uint(ctx, ELOOP);
+    // _ejs_define_os_uint(ctx, EWOULDBLOCK);
+    _ejs_define_os_uint(ctx, ENOMSG);
+    _ejs_define_os_uint(ctx, EIDRM);
+    _ejs_define_os_uint(ctx, ECHRNG);
+    _ejs_define_os_uint(ctx, EL2NSYNC);
+    _ejs_define_os_uint(ctx, EL3HLT);
+    _ejs_define_os_uint(ctx, EL3RST);
+    _ejs_define_os_uint(ctx, ELNRNG);
+    _ejs_define_os_uint(ctx, EUNATCH);
+    _ejs_define_os_uint(ctx, ENOCSI);
+    _ejs_define_os_uint(ctx, EL2HLT);
+    _ejs_define_os_uint(ctx, EBADE);
+    _ejs_define_os_uint(ctx, EBADR);
+    _ejs_define_os_uint(ctx, EXFULL);
+    _ejs_define_os_uint(ctx, ENOANO);
+    _ejs_define_os_uint(ctx, EBADRQC);
+    _ejs_define_os_uint(ctx, EBADSLT);
+    _ejs_define_os_uint(ctx, EDEADLOCK);
+
+    _ejs_define_os_uint(ctx, EBFONT);
+    _ejs_define_os_uint(ctx, ENOSTR);
+    _ejs_define_os_uint(ctx, ENODATA);
+    _ejs_define_os_uint(ctx, ETIME);
+    _ejs_define_os_uint(ctx, ENOSR);
+    _ejs_define_os_uint(ctx, ENONET);
+    _ejs_define_os_uint(ctx, ENOPKG);
+    _ejs_define_os_uint(ctx, EREMOTE);
+    _ejs_define_os_uint(ctx, ENOLINK);
+    _ejs_define_os_uint(ctx, EADV);
+    _ejs_define_os_uint(ctx, ESRMNT);
+    _ejs_define_os_uint(ctx, ECOMM);
+    _ejs_define_os_uint(ctx, EPROTO);
+    _ejs_define_os_uint(ctx, EMULTIHOP);
+    _ejs_define_os_uint(ctx, EDOTDOT);
+    _ejs_define_os_uint(ctx, EBADMSG);
+    _ejs_define_os_uint(ctx, EOVERFLOW);
+    _ejs_define_os_uint(ctx, ENOTUNIQ);
+    _ejs_define_os_uint(ctx, EBADFD);
+    _ejs_define_os_uint(ctx, EREMCHG);
+    _ejs_define_os_uint(ctx, ELIBACC);
+    _ejs_define_os_uint(ctx, ELIBBAD);
+    _ejs_define_os_uint(ctx, ELIBSCN);
+    _ejs_define_os_uint(ctx, ELIBMAX);
+    _ejs_define_os_uint(ctx, ELIBEXEC);
+    _ejs_define_os_uint(ctx, EILSEQ);
+    _ejs_define_os_uint(ctx, ERESTART);
+    _ejs_define_os_uint(ctx, ESTRPIPE);
+    _ejs_define_os_uint(ctx, EUSERS);
+    _ejs_define_os_uint(ctx, ENOTSOCK);
+    _ejs_define_os_uint(ctx, EDESTADDRREQ);
+    _ejs_define_os_uint(ctx, EMSGSIZE);
+    _ejs_define_os_uint(ctx, EPROTOTYPE);
+    _ejs_define_os_uint(ctx, ENOPROTOOPT);
+    _ejs_define_os_uint(ctx, EPROTONOSUPPORT);
+    _ejs_define_os_uint(ctx, ESOCKTNOSUPPORT);
+    _ejs_define_os_uint(ctx, EOPNOTSUPP);
+    _ejs_define_os_uint(ctx, EPFNOSUPPORT);
+    _ejs_define_os_uint(ctx, EAFNOSUPPORT);
+    _ejs_define_os_uint(ctx, EADDRINUSE);
+    _ejs_define_os_uint(ctx, EADDRNOTAVAIL);
+    _ejs_define_os_uint(ctx, ENETDOWN);
+    _ejs_define_os_uint(ctx, ENETUNREACH);
+    _ejs_define_os_uint(ctx, ENETRESET);
+    _ejs_define_os_uint(ctx, ECONNABORTED);
+    _ejs_define_os_uint(ctx, ECONNRESET);
+    _ejs_define_os_uint(ctx, ENOBUFS);
+    _ejs_define_os_uint(ctx, EISCONN);
+    _ejs_define_os_uint(ctx, ENOTCONN);
+    _ejs_define_os_uint(ctx, ESHUTDOWN);
+    _ejs_define_os_uint(ctx, ETOOMANYREFS);
+    _ejs_define_os_uint(ctx, ETIMEDOUT);
+    _ejs_define_os_uint(ctx, ECONNREFUSED);
+    _ejs_define_os_uint(ctx, EHOSTDOWN);
+    _ejs_define_os_uint(ctx, EHOSTUNREACH);
+    _ejs_define_os_uint(ctx, EALREADY);
+    _ejs_define_os_uint(ctx, EINPROGRESS);
+    _ejs_define_os_uint(ctx, ESTALE);
+    _ejs_define_os_uint(ctx, EUCLEAN);
+    _ejs_define_os_uint(ctx, ENOTNAM);
+    _ejs_define_os_uint(ctx, ENAVAIL);
+    _ejs_define_os_uint(ctx, EISNAM);
+    _ejs_define_os_uint(ctx, EREMOTEIO);
+    _ejs_define_os_uint(ctx, EDQUOT);
+
+    _ejs_define_os_uint(ctx, ENOMEDIUM);
+    _ejs_define_os_uint(ctx, EMEDIUMTYPE);
+    _ejs_define_os_uint(ctx, ECANCELED);
+    _ejs_define_os_uint(ctx, ENOKEY);
+    _ejs_define_os_uint(ctx, EKEYEXPIRED);
+    _ejs_define_os_uint(ctx, EKEYREVOKED);
+    _ejs_define_os_uint(ctx, EKEYREJECTED);
+
+    _ejs_define_os_uint(ctx, EOWNERDEAD);
+    _ejs_define_os_uint(ctx, ENOTRECOVERABLE);
+
+    _ejs_define_os_uint(ctx, ERFKILL);
+
+    _ejs_define_os_uint(ctx, EHWPOISON);
     return 0;
 }

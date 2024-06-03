@@ -56,4 +56,5 @@
 #define EJS_OS_LINUX
 #endif
 
+#define EJS_BOOL_VALUE(ctx, idx) (duk_is_null_or_undefined(ctx, idx) ? 0 : (duk_is_boolean(ctx, idx) ? duk_require_boolean(ctx, idx) : duk_to_boolean(ctx, idx)))
 #endif

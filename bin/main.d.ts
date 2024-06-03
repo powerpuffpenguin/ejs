@@ -981,7 +981,110 @@ declare module "ejs/os" {
      */
     const ERANGE: number
 
+    const EDEADLK: number
+    const ENAMETOOLONG: number
+    const ENOLCK: number
+    const ENOSYS: number
 
+    const ENOTEMPTY: number
+    const ELOOP: number
+    // const EWOULDBLOCK: number
+    const ENOMSG: number
+    const EIDRM: number
+    const ECHRNG: number
+    const EL2NSYNC: number
+    const EL3HLT: number
+    const EL3RST: number
+    const ELNRNG: number
+    const EUNATCH: number
+    const ENOCSI: number
+    const EL2HLT: number
+    const EBADE: number
+    const EBADR: number
+    const EXFULL: number
+    const ENOANO: number
+    const EBADRQC: number
+    const EBADSLT: number
+    const EDEADLOCK: number
+    const EBFONT: number
+    const ENOSTR: number
+    const ENODATA: number
+    const ETIME: number
+    const ENOSR: number
+    const ENONET: number
+    const ENOPKG: number
+    const EREMOTE: number
+    const ENOLINK: number
+    const EADV: number
+    const ESRMNT: number
+    const ECOMM: number
+    const EPROTO: number
+    const EMULTIHOP: number
+    const EDOTDOT: number
+    const EBADMSG: number
+    const EOVERFLOW: number
+    const ENOTUNIQ: number
+    const EBADFD: number
+    const EREMCHG: number
+    const ELIBACC: number
+    const ELIBBAD: number
+    const ELIBSCN: number
+    const ELIBMAX: number
+    const ELIBEXEC: number
+    const EILSEQ: number
+    const ERESTART: number
+    const ESTRPIPE: number
+    const EUSERS: number
+    const ENOTSOCK: number
+    const EDESTADDRREQ: number
+    const EMSGSIZE: number
+    const EPROTOTYPE: number
+    const ENOPROTOOPT: number
+    const EPROTONOSUPPORT: number
+    const ESOCKTNOSUPPORT: number
+    const EOPNOTSUPP: number
+    const EPFNOSUPPORT: number
+    const EAFNOSUPPORT: number
+    const EADDRINUSE: number
+    const EADDRNOTAVAIL: number
+    const ENETDOWN: number
+    const ENETUNREACH: number
+    const ENETRESET: number
+    const ECONNABORTED: number
+    const ECONNRESET: number
+    const ENOBUFS: number
+    const EISCONN: number
+    const ENOTCONN: number
+    const ESHUTDOWN: number
+    const ETOOMANYREFS: number
+    const ETIMEDOUT: number
+    const ECONNREFUSED: number
+    const EHOSTDOWN: number
+    const EHOSTUNREACH: number
+    const EALREADY: number
+    const EINPROGRESS: number
+    const ESTALE: number
+    const EUCLEAN: number
+    const ENOTNAM: number
+    const ENAVAIL: number
+    const EISNAM: number
+    const EREMOTEIO: number
+    const EDQUOT: number
+
+    const ENOMEDIUM: number
+    const EMEDIUMTYPE: number
+    const ECANCELED: number
+    const ENOKEY: number
+    const EKEYEXPIRED: number
+    const EKEYREVOKED: number
+    const EKEYREJECTED: number
+
+    const EOWNERDEAD: number
+    const ENOTRECOVERABLE: number
+
+    const ERFKILL: number
+
+    const EHWPOISON: number
 
     // Exactly one of O_RDONLY, O_WRONLY, or O_RDWR must be specified.
     const O_RDONLY: number    // open the file read-only.
@@ -1468,8 +1571,46 @@ declare module "ejs/os" {
      */
     export function readDirSync(opts: ReadDirSyncOptions): Array<FileInfo>
 
-    // readlink
-    // remove
-    // rename
-    // rmdir
+    export interface ReadLinkOptions extends AsyncOptions {
+        name: string
+    }
+    /**
+     * returns the destination of the named symbolic link
+     */
+    export function readLinkSync(name: string): string
+
+    /**
+     * Similar to readLinkSync but called asynchronously, notifying the result in cb
+     */
+    export function readLink(name: string | ReadLinkOptions, cb: (path?: string, e?: any) => void): void
+    /**
+     * returns the destination of the named symbolic link
+     */
+    export function readLink(co: YieldContext, name: string | ReadLinkOptions): string
+
+
+    export interface RenameSyncOptions {
+        from: string
+        to: string
+    }
+    export interface RenameOptions extends RenameSyncOptions, AsyncOptions { }
+    /**
+     *  renames (moves) opts.from to opts.to
+     */
+    export function renameSync(opts: RenameSyncOptions): void
+    /**
+     *  Similar to renameSync but called asynchronously, notifying the result in cb
+     */
+    export function renameSync(opts: RenameOptions, cb: (e?: any) => void): void
+    /**
+     *  renames (moves) opts.from to opts.to
+     */
+    export function rename(co: YieldContext, opts: RenameOptions): void
+
+    /**
+     * delete a file
+     */
+    export function remove(name: string): void
+
+  
 }
