@@ -104,6 +104,56 @@ namespace ejs {
      * Modify the thread pool settings and create the thread pool if it has not been created yet
      */
     export function threadsSet(opts?: ThreadsSetOptions): void
+
+    /**
+     * Some helper functions to simplify programming
+     */
+    namespace js {
+        /**
+         * Context used for the coroutine to give up the CPU
+         */
+        export interface YieldContext {
+            /**
+             * After calling function f, release the cpu so that other coroutines can run
+             * @remarks
+             * Usually f should be an asynchronous function, you can use coroutines to wait for the asynchronous function to complete
+             */
+            yield<T>(f: (notify: ResumeContext<T>) => void): T
+        }
+        /**
+         * The context used to wake up the coroutine
+         * @remarks
+         * You can only call the member function once to wake up the waiting coroutine. Multiple calls will throw an exception.
+         */
+        export interface ResumeContext<T> {
+            /**
+             * Wake up the coroutine and return the value v for it
+             */
+            value(v: T): void
+            /**
+             * Wake up the coroutine and throw an exception.  
+             * The exception can be caught by try catch in the coroutine
+             */
+            error(e?: any): void
+            /**
+             * After calling the function resume, wake up the coroutine. 
+             * The return value of resume is used as the return value of the coroutine.  
+             * Exceptions thrown by resume can be caught by the coroutine
+             */
+            next(resume: () => T): void
+        }
+        function isYieldContext(v: any): v is YieldContext
+        function coVoid(co: YieldContext, f: (opts: any, cb: (e?: any) => void) => void, opts: any): void
+        function coReturn<T>(co: YieldContext, f: (opts: any, cb: (v: T, e?: any) => void) => void, opts: any): T
+        /**
+         * <Options, CB> -> [Options, CB | undefined]
+         */
+        function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
+        /**
+         * <CB, Options> -> [CB | undefined, Options]
+         */
+        function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
+    }
 }
 
 declare module "ejs/net" {
@@ -1625,4 +1675,29 @@ declare module "ejs/os" {
      * removes the named file or directory
      */
     export function remove(co: YieldContext, opts: RemoveOptions | string): void
+
+    export interface LinkSyncOptions {
+        from: string
+        to: string
+        hard?: boolean
+    }
+    export interface LinkOptions extends LinkSyncOptions, AsyncOptions { }
+    /**
+     * creates opts.to as a link to the opts.from file.
+     */
+    export function linkSync(opts: LinkSyncOptions): void
+    /**
+     *  Similar to linkSync but called asynchronously, notifying the result in cb
+     */
+    export function link(opts: LinkSyncOptions, cb: (e?: any) => void): void
+    /**
+     * creates opts.to as a link to the opts.from file.
+     */
+    export function link(co: YieldContext, opts: LinkSyncOptions): void
+
+
+    /**
+     * returns the default directory to use for temporary files
+     */
+    export function tempDir(): string
 }

@@ -3,6 +3,7 @@
 #include "stash.h"
 #include "duk.h"
 #include "defines.h"
+#include "config.h"
 #include "_duk_async.h"
 #include "internal/buffer.h"
 #include "internal/c_filepath.h"
@@ -14,10 +15,18 @@
 #include <unistd.h>
 #include <dirent.h>
 
+inline static const char *_ejs_os_get_define(const char *s, size_t n, size_t *p)
+{
+    if (p)
+    {
+        *p = n;
+    }
+    return s;
+}
+
 #define _ejs_define_os_uint(ctx, macro) _ejs_define_os_uint_impl(ctx, #macro, macro)
 static void _ejs_define_os_uint_impl(duk_context *ctx, const char *name, duk_uint_t val)
 {
-    // fdopendir();
     duk_push_string(ctx, name);
     duk_push_uint(ctx, val);
     duk_def_prop(ctx, -3, DUK_DEFPROP_HAVE_VALUE);
@@ -1712,6 +1721,65 @@ static duk_ret_t f_rename(duk_context *ctx)
 typedef struct
 {
     EJS_ASYNC_DEFINE_RETURN_VOID;
+    const char *from;
+    const char *to;
+    duk_bool_t hard;
+} f_link_async_args_t;
+static void f_link_impl(void *userdata)
+{
+    f_link_async_args_t *args = userdata;
+    if (args->hard)
+    {
+        args->result.err = link(args->from, args->to) ? errno : 0;
+    }
+    else
+    {
+        args->result.err = symlink(args->from, args->to) ? errno : 0;
+    }
+}
+static duk_ret_t f_link(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "from", 4);
+    const char *from = duk_require_string(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "to", 2);
+    const char *to = duk_require_string(ctx, -1);
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "hard", 4);
+    duk_bool_t hard = EJS_BOOL_VALUE(ctx, -1);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (hard)
+        {
+            if (link(from, to))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+        }
+        else
+        {
+            if (symlink(from, to))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+        }
+        return 0;
+    }
+
+    f_link_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_link_async_args_t), ejs_default_finalizer);
+    p->from = from;
+    p->to = to;
+    p->hard = hard;
+
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_link_impl);
+    return 0;
+}
+
+typedef struct
+{
+    EJS_ASYNC_DEFINE_RETURN_VOID;
     const char *name;
     size_t len;
     duk_bool_t all;
@@ -1781,7 +1849,28 @@ static duk_ret_t f_remove(duk_context *ctx)
     EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_remove_impl);
     return 0;
 }
-
+static duk_ret_t _tempDir(duk_context *ctx)
+{
+    const char *dir = getenv("TMPDIR");
+    if (dir)
+    {
+        duk_push_string(ctx, dir);
+    }
+    else
+    {
+        size_t len;
+        const char *os = _ejs_os_get_define(EJS_CONFIG_OS, &len);
+        if (7 == len && !memcmp(os, "android", 7))
+        {
+            duk_push_lstring(ctx, "/data/local/tmp", 15);
+        }
+        else
+        {
+            duk_push_lstring(ctx, "/tmp", 4);
+        }
+    }
+    return 1;
+}
 duk_ret_t _ejs_native_os_init(duk_context *ctx)
 {
     /*
@@ -1900,6 +1989,8 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "read_link", 9);
         duk_push_c_lightfunc(ctx, f_rename, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "rename", 6);
+        duk_push_c_lightfunc(ctx, f_link, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "link", 4);
 
         duk_push_c_lightfunc(ctx, f_remove, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "remove", 6);
@@ -1914,6 +2005,8 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "cwd", 3);
     duk_push_c_lightfunc(ctx, _chdir, 1, 1, 0);
     duk_put_prop_lstring(ctx, -2, "chdir", 5);
+    duk_push_c_lightfunc(ctx, _tempDir, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "tempDir", 7);
 
     // open
     _ejs_define_os_uint(ctx, O_RDONLY);

@@ -76,6 +76,7 @@
         "thread_pool.h": "c",
         "sysinfo.h": "c",
         "types.h": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "config.h": "c"
     }
 }
