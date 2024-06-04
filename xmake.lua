@@ -33,6 +33,8 @@ target("ejs")
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
     add_defines("_XOPEN_SOURCE=700")
+    add_defines("_DEFAULT_SOURCE")
+     add_defines("_SVID_SOURCE")
     add_syslinks("pthread")
     add_packages("libevent")
 
@@ -67,6 +69,8 @@ target("ejs_test")
         add_defines('EJS_CONFIG_ARCH="'..arch..'", '..arch:len())
     end
     add_defines("_XOPEN_SOURCE=700")
+    add_defines("_DEFAULT_SOURCE")
+    add_defines("_SVID_SOURCE")
     add_syslinks("pthread")
     add_packages("libevent")
 

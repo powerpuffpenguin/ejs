@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <stdlib.h>
 
 inline static const char *_ejs_os_get_define(const char *s, size_t n, size_t *p)
 {
@@ -1871,6 +1872,429 @@ static duk_ret_t _tempDir(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t _userHomeDir(duk_context *ctx)
+{
+    size_t len;
+    const char *os = _ejs_os_get_define(EJS_CONFIG_OS, &len);
+    const char *key = "HOME";
+    switch (len)
+    {
+    case 7:
+        if (!memcmp(os, "windows", 7))
+        {
+            key = "USERPROFILE";
+        }
+        break;
+    case 5:
+        if (!memcmp(os, "plan9", 5))
+        {
+            key = "home";
+        }
+        break;
+    }
+    const char *val = getenv(key);
+    if (val)
+    {
+        len = strlen(val);
+        if (len)
+        {
+            duk_push_lstring(ctx, val, len);
+            return 1;
+        }
+    }
+    switch (len)
+    {
+    case 7:
+        if (!memcmp(os, "android", 7))
+        {
+            duk_push_lstring(ctx, "/sdcard", 7);
+            return 1;
+        }
+        break;
+    case 3:
+        if (!memcmp(os, "ios", 3))
+        {
+            duk_push_lstring(ctx, "/", 1);
+            return 1;
+        }
+        break;
+    }
+    return 0;
+}
+static duk_ret_t _userConfigDir(duk_context *ctx)
+{
+    size_t len;
+    const char *os = _ejs_os_get_define(EJS_CONFIG_OS, &len);
+    switch (len)
+    {
+    case 7:
+        if (!memcmp(os, "windows", 7))
+        {
+            char *dir = getenv("AppData");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    return 1;
+                }
+            }
+        }
+        break;
+    case 6:
+        if (!memcmp(os, "darwin", 6))
+        {
+            char *dir = getenv("HOME");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    duk_push_lstring(ctx, "/Library/Application Support", 28);
+                    duk_concat(ctx, 2);
+                    return 1;
+                }
+            }
+        }
+        break;
+    case 3:
+        if (!memcmp(os, "ios", 3))
+        {
+            char *dir = getenv("HOME");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    duk_push_lstring(ctx, "/Library/Application Support", 28);
+                    duk_concat(ctx, 2);
+                    return 1;
+                }
+            }
+        }
+        break;
+    case 5:
+        if (!memcmp(os, "plan9", 5))
+        {
+            char *dir = getenv("home");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    duk_push_lstring(ctx, "/lib", 4);
+                    duk_concat(ctx, 2);
+                    return 1;
+                }
+            }
+        }
+        break;
+    default:
+    {
+
+        char *dir = getenv("XDG_CONFIG_HOME");
+        if (dir)
+        {
+            len = strlen(dir);
+            if (len)
+            {
+                duk_push_lstring(ctx, dir, len);
+                return 1;
+            }
+        }
+        dir = getenv("HOME");
+        if (dir)
+        {
+            len = strlen(dir);
+            if (len)
+            {
+                duk_push_lstring(ctx, dir, len);
+                duk_push_lstring(ctx, "/.config", 8);
+                duk_concat(ctx, 2);
+                return 1;
+            }
+        }
+    }
+    break;
+    }
+    return 0;
+}
+static duk_ret_t _userCacheDir(duk_context *ctx)
+{
+    size_t len;
+    const char *os = _ejs_os_get_define(EJS_CONFIG_OS, &len);
+    switch (len)
+    {
+    case 7:
+        if (!memcmp(os, "windows", 7))
+        {
+            char *dir = getenv("LocalAppData");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    return 1;
+                }
+            }
+        }
+        break;
+    case 6:
+        if (!memcmp(os, "darwin", 6))
+        {
+            char *dir = getenv("HOME");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    duk_push_lstring(ctx, "/Library/Caches", 15);
+                    duk_concat(ctx, 2);
+                    return 1;
+                }
+            }
+        }
+        break;
+    case 3:
+        if (!memcmp(os, "ios", 3))
+        {
+            char *dir = getenv("HOME");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    duk_push_lstring(ctx, "/Library/Caches", 15);
+                    duk_concat(ctx, 2);
+                    return 1;
+                }
+            }
+        }
+        break;
+    case 5:
+        if (!memcmp(os, "plan9", 5))
+        {
+            char *dir = getenv("home");
+            if (dir)
+            {
+                len = strlen(dir);
+                if (len)
+                {
+                    duk_push_lstring(ctx, dir, len);
+                    duk_push_lstring(ctx, "/lib/cache", 10);
+                    duk_concat(ctx, 2);
+                    return 1;
+                }
+            }
+        }
+        break;
+    default:
+    {
+
+        char *dir = getenv("XDG_CACHE_HOME");
+        if (dir)
+        {
+            len = strlen(dir);
+            if (len)
+            {
+                duk_push_lstring(ctx, dir, len);
+                return 1;
+            }
+        }
+        dir = getenv("HOME");
+        if (dir)
+        {
+            len = strlen(dir);
+            if (len)
+            {
+                duk_push_lstring(ctx, dir, len);
+                duk_push_lstring(ctx, "/.cache", 7);
+                duk_concat(ctx, 2);
+                return 1;
+            }
+        }
+    }
+    break;
+    }
+    return 0;
+}
+
+static duk_ret_t _getuid(duk_context *ctx)
+{
+#ifdef EJS_OS_LINUX
+    duk_push_number(ctx, getuid());
+#else
+    duk_push_int(ctx, -1);
+#endif
+    return 1;
+}
+static duk_ret_t _geteuid(duk_context *ctx)
+{
+#ifdef EJS_OS_LINUX
+    duk_push_number(ctx, geteuid());
+#else
+    duk_push_int(ctx, -1);
+#endif
+    return 1;
+}
+static duk_ret_t _getgid(duk_context *ctx)
+{
+#ifdef EJS_OS_LINUX
+    duk_push_number(ctx, getgid());
+#else
+    duk_push_int(ctx, -1);
+#endif
+    return 1;
+}
+static duk_ret_t _getegid(duk_context *ctx)
+{
+#ifdef EJS_OS_LINUX
+    duk_push_number(ctx, getegid());
+#else
+    duk_push_int(ctx, -1);
+#endif
+    return 1;
+}
+#ifdef EJS_OS_LINUX
+typedef struct
+{
+    int n;
+    gid_t *list;
+} _getgroups_args_t;
+static duk_ret_t _getgroups_impl(duk_context *ctx)
+{
+    _getgroups_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    args->list = malloc(sizeof(gid_t) * args->n);
+    if (!args->list)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+
+    int n = getgroups(args->n, args->list);
+    if (n < 0)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    duk_push_array(ctx);
+    for (int i = 0; i < n; i++)
+    {
+        duk_push_number(ctx, args->list[i]);
+        duk_put_prop_index(ctx, -2, i);
+    }
+    free(args->list);
+    args->list = 0;
+    return 1;
+}
+#endif
+static duk_ret_t _getgroups(duk_context *ctx)
+{
+#ifdef EJS_OS_LINUX
+    int n = getgroups(0, 0);
+    if (EJS_SYSTEM_ERROR(n))
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    if (n > 32)
+    {
+        _getgroups_args_t args = {
+            .list = 0,
+            .n = n,
+        };
+        if (ejs_pcall_function(ctx, _getgroups_impl, &args))
+        {
+            if (args.list)
+            {
+                free(args.list);
+            }
+            duk_throw(ctx);
+        }
+    }
+    else if (n > 0)
+    {
+        gid_t list[32] = {0};
+        n = getgroups(32, list);
+        if (EJS_SYSTEM_ERROR(n))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+
+        duk_push_array(ctx);
+        for (int i = 0; i < n; i++)
+        {
+            duk_push_number(ctx, list[i]);
+            duk_put_prop_index(ctx, -2, i);
+        }
+    }
+#else
+    duk_push_array(ctx);
+#endif
+    return 1;
+}
+extern char **environ;
+static duk_ret_t _environ(duk_context *ctx)
+{
+    duk_push_array(ctx);
+    if (environ)
+    {
+        char **s = environ;
+        duk_uarridx_t i = 0;
+        while (*s)
+        {
+            duk_push_string(ctx, *s);
+            duk_put_prop_index(ctx, -2, i++);
+            s++;
+        }
+    }
+    return 1;
+}
+static duk_ret_t _clearenv(duk_context *ctx)
+{
+    if (clearenv())
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    return 0;
+}
+static duk_ret_t _setenv(duk_context *ctx)
+{
+    const char *key = duk_require_string(ctx, 0);
+    const char *value = duk_require_string(ctx, 1);
+    int replace = EJS_BOOL_VALUE_DEFAULT(ctx, 2, 1);
+    if (setenv(key, value, replace))
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    return 0;
+}
+static duk_ret_t _unsetenv(duk_context *ctx)
+{
+    const char *key = duk_require_string(ctx, 0);
+    if (unsetenv(key))
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    return 0;
+}
+static duk_ret_t _getenv(duk_context *ctx)
+{
+    const char *key = duk_require_string(ctx, 0);
+    const char *s = getenv(key);
+    if (s)
+    {
+        duk_pop(ctx);
+        duk_push_string(ctx, s);
+        return 1;
+    }
+    return 0;
+}
 duk_ret_t _ejs_native_os_init(duk_context *ctx)
 {
     /*
@@ -1995,6 +2419,8 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, f_remove, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "remove", 6);
     }
+    // getenv
+    // setenv
 
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
@@ -2005,8 +2431,37 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "cwd", 3);
     duk_push_c_lightfunc(ctx, _chdir, 1, 1, 0);
     duk_put_prop_lstring(ctx, -2, "chdir", 5);
+
     duk_push_c_lightfunc(ctx, _tempDir, 0, 0, 0);
     duk_put_prop_lstring(ctx, -2, "tempDir", 7);
+    duk_push_c_lightfunc(ctx, _userHomeDir, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "userHomeDir", 11);
+    duk_push_c_lightfunc(ctx, _userConfigDir, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "userConfigDir", 13);
+    duk_push_c_lightfunc(ctx, _userCacheDir, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "userCacheDir", 13);
+
+    duk_push_c_lightfunc(ctx, _getuid, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "getuid", 6);
+    duk_push_c_lightfunc(ctx, _geteuid, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "geteuid", 7);
+    duk_push_c_lightfunc(ctx, _getgid, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "getgid", 6);
+    duk_push_c_lightfunc(ctx, _getegid, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "getegid", 7);
+    duk_push_c_lightfunc(ctx, _getgroups, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "getgroups", 9);
+
+    duk_push_c_lightfunc(ctx, _environ, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "environ", 7);
+    duk_push_c_lightfunc(ctx, _clearenv, 0, 0, 0);
+    duk_put_prop_lstring(ctx, -2, "clearenv", 8);
+    duk_push_c_lightfunc(ctx, _setenv, 3, 3, 0);
+    duk_put_prop_lstring(ctx, -2, "setenv", 6);
+    duk_push_c_lightfunc(ctx, _unsetenv, 1, 1, 0);
+    duk_put_prop_lstring(ctx, -2, "unsetenv", 8);
+    duk_push_c_lightfunc(ctx, _getenv, 1, 1, 0);
+    duk_put_prop_lstring(ctx, -2, "getenv", 6);
 
     // open
     _ejs_define_os_uint(ctx, O_RDONLY);

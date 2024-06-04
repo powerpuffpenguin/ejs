@@ -1700,4 +1700,103 @@ declare module "ejs/os" {
      * returns the default directory to use for temporary files
      */
     export function tempDir(): string
+    /**
+     * returns the current user's home directory.
+     * 
+     * On Unix, including macOS, it returns the $HOME environment variable.
+     * On Windows, it returns %USERPROFILE%.
+     * On Plan 9, it returns the $home environment variable.
+     * 
+     * If the expected variable is not set in the environment, userHomeDir
+     * returns either a platform-specific default value or a undefined
+     */
+    export function userHomeDir(): string | undefined
+    /**
+     * returns the default root directory to use for user-specific
+     * configuration data. Users should create their own application-specific
+     * subdirectory within this one and use that.
+     * 
+     * On Unix systems, it returns $XDG_CONFIG_HOME as specified by
+     * https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+     * non-empty, else $HOME/.config.
+     * On Darwin, it returns $HOME/Library/Application Support.
+     * On Windows, it returns %AppData%.
+     * On Plan 9, it returns $home/lib.
+     * 
+     * If the location cannot be determined (for example, $HOME is not defined),
+     * then it will return a undefined
+     */
+    export function userConfigDir(): string
+
+    /**
+     * returns the default root directory to use for user-specific
+     * cached data. Users should create their own application-specific subdirectory
+     * within this one and use that.
+     * 
+     * On Unix systems, it returns $XDG_CACHE_HOME as specified by
+     * https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+     * non-empty, else $HOME/.cache.
+     * On Darwin, it returns $HOME/Library/Caches.
+     * On Windows, it returns %LocalAppData%.
+     * On Plan 9, it returns $home/lib/cache.
+     * 
+     * If the location cannot be determined (for example, $HOME is not defined),
+     * then it will return a undefined
+     */
+    export function userCacheDir(): string
+
+    /**
+     *  returns the numeric user id of the caller.
+     * 
+     * On Windows, it returns -1.
+     */
+    export function getuid(): number
+    /**
+     *  returns the numeric effective user id of the caller.
+     * 
+     * On Windows, it returns -1.
+     */
+    export function geteuid(): number
+
+    /**
+     *  returns the numeric group id of the caller.
+     * 
+     * On Windows, it returns -1.
+     */
+    export function getgid(): number
+    /**
+     *  returns the numeric effective group id of the caller.
+     * 
+     * On Windows, it returns -1.
+     */
+    export function getegid(): number
+
+    /**
+     * returns a list of the numeric ids of groups that the caller belongs to.
+     * 
+     * On Windows, it returns []
+     */
+    export function getgroups(): Array<number>
+
+    /**
+     * returns a copy of strings representing the environment, in the form "key=value".
+     */
+    export function environ(): Array<string>
+    /**
+     * deletes all environment variables.
+     */
+    export function clearenv(): void
+    /**
+     *  sets the value of the environment variable named by the key
+     */
+    export function setenv(key: string, value: string, replace = true): void
+    /**
+     *  unsets a single environment variable
+     */
+    export function unsetenv(key: string): void
+
+    /**
+     * etrieves the value of the environment variable named by the key
+     */
+    export function getenv(key: string): string | undefined
 }

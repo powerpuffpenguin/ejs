@@ -5,27 +5,23 @@ var File = os.File;
 sync.go(function (co) {
     var f
     try {
-        // console.log(os.removeSync({
-        //     name: 'a',
-        //     all: true,
-        // }))
-        console.log(os.tempDir())
+        os.clearenv()
+        console.log(os.environ())
+        // f = File.create(co, "a.txt")
+        // f.writeAt(co, {
+        //     src: "ok",
+        //     offset: 2,
+        // })
+        // f.writeAt(co, {
+        //     src: "12",
+        //     offset: 8,
+        // })
 
-        f = File.create(co, "a.txt")
-        f.writeAt(co, {
-            src: "ok",
-            offset: 2,
-        })
-        f.writeAt(co, {
-            src: "12",
-            offset: 8,
-        })
-
-        console.log(f.stat(co))
-        console.log(f instanceof os.File)
-        var buf = new Uint8Array(128)
-        var n = f.read(co, buf)
-        console.log(n, buf.subarray(0, n))
+        // console.log(f.stat(co))
+        // console.log(f instanceof os.File)
+        // var buf = new Uint8Array(128)
+        // var n = f.read(co, buf)
+        // console.log(n, buf.subarray(0, n))
     } catch (e) {
         console.log('err', e, e.toString())
         if (f) {
