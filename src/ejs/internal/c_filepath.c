@@ -8,6 +8,26 @@
 #include <dirent.h>
 #include <unistd.h>
 
+int ppp_c_filepath_append_separator(ppp_c_string_t *path)
+{
+    if (path->len)
+    {
+        switch (path->str[path->len - 1])
+        {
+        case '/':
+#ifdef PPP_FILEPATH_WINDOWS
+        case '\\':
+#endif
+            return 0;
+        }
+    }
+
+#ifdef PPP_FILEPATH_WINDOWS
+    return ppp_c_string_append(path, "\\", 1);
+#else
+    return ppp_c_string_append(path, "/", 1);
+#endif
+}
 int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n)
 {
     if (n)

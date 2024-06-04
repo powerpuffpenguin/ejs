@@ -21,6 +21,7 @@
 #define PPP_FILEPATH_WINDOWS
 #endif
 
+int ppp_c_filepath_append_separator(ppp_c_string_t *path);
 int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n);
 BOOL ppp_c_filepath_is_abc(ppp_c_string_t *path);
 

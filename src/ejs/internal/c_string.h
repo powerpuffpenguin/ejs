@@ -46,7 +46,7 @@ typedef struct
 /**
  * return c string
  */
-char *ppp_c_string_c_str(ppp_c_string_t *s, size_t n);
+char *ppp_c_string_c_str(ppp_c_string_t *s);
 
 /**
  * free dynamically allocated memory

@@ -1163,7 +1163,7 @@ declare module "ejs/os" {
     }
     export interface OpenFileSyncOptions {
         name: string
-        flag?: number
+        flags?: number
         perm?: number
     }
     export interface OpenFileOptions extends OpenFileSyncOptions, AsyncOptions { }
@@ -1231,8 +1231,45 @@ declare module "ejs/os" {
     export interface FileReadDirOptions extends AsyncOptions {
         n?: number
     }
+    export interface FileCreateTempSyncOptions {
+        pattern: string
+        /**
+         * @default tempDir()
+         */
+        dir?: string
+
+        /**
+         * @default 0o600
+         */
+        perm?: number
+    }
+    export interface FileCreateTempOptions extends FileCreateTempSyncOptions, AsyncOptions { }
     export class File {
         private constructor()
+        /**
+         * creates a new temporary file in the directory dir
+         */
+        static createTempSync(pattern: string): File
+        /**
+         * creates a new temporary file in the directory dir
+         */
+        static createTempSync(opts: FileCreateTempSyncOptions): File
+        /**
+         * Similar to createTempSync but called asynchronously, notifying the result in cb
+         */
+        static createTemp(pattern: string, cb: (f?: File, e?: any) => void): void
+        /**
+         * Similar to createTempSync but called asynchronously, notifying the result in cb
+         */
+        static createTemp(opts: FileCreateTempOptions, cb: (f?: File, e?: any) => void): void
+        /**
+         * creates a new temporary file in the directory dir
+         */
+        static createTemp(co: YieldContext, pattern: string): File
+        /**
+         * creates a new temporary file in the directory dir
+         */
+        static createTemp(co: YieldContext, opts: FileCreateTempOptions): File
         /**
          * Open the file as read-only (O_RDONLY)
          */
@@ -1694,12 +1731,10 @@ declare module "ejs/os" {
      * creates opts.to as a link to the opts.from file.
      */
     export function link(co: YieldContext, opts: LinkSyncOptions): void
-
-
     /**
      * returns the default directory to use for temporary files
      */
-    export function tempDir(): string
+    export function tempDir(): string | undefined
     /**
      * returns the current user's home directory.
      * 

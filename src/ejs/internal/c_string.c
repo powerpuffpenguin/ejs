@@ -1,6 +1,6 @@
 #include "c_string.h"
 #include <string.h>
-char *ppp_c_string_c_str(ppp_c_string_t *s, size_t n)
+char *ppp_c_string_c_str(ppp_c_string_t *s)
 {
     if (s->cap)
     {

@@ -5,9 +5,14 @@ var File = os.File;
 sync.go(function (co) {
     var f
     try {
-        os.clearenv()
-        console.log(os.environ())
+        f = File.createTempSync("test*.log")
+        // f = File.openFile(co, {
+        //     name: 'a.txt',
+        //     flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,
+        //     perm: 0o664,
+        // })
         // f = File.create(co, "a.txt")
+        console.log(f)
         // f.writeAt(co, {
         //     src: "ok",
         //     offset: 2,

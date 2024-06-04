@@ -77,6 +77,9 @@
         "sysinfo.h": "c",
         "types.h": "c",
         "unistd.h": "c",
-        "config.h": "c"
+        "config.h": "c",
+        "dirent.h": "c",
+        "param.h": "c",
+        "_duk_rand.h": "c"
     }
 }

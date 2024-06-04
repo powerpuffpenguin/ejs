@@ -294,6 +294,20 @@ declare namespace deps {
     }
     export function link(opts: LinkOptions): void
     export function link(opts: LinkOptions, cb: (e?: any) => void): void
+
+    export interface CreateTempOptions extends AsyncOptions {
+        pattern: string
+        /**
+         * @default tempDir()
+         */
+        dir?: string
+        /**
+         * @default 0o600
+         */
+        perm?: number
+    }
+    export function createTemp(opts: CreateTempOptions): File
+    export function createTemp(opts: CreateTempOptions, cb: (f?: File, e?: any) => void): File
 }
 const coVoid = __duk.js.coVoid
 const coReturn = __duk.js.coReturn
@@ -448,8 +462,68 @@ export function _fread_dir(opts: deps.FReadDirOptions, cb: (items?: Array<FileIn
         }
     })
 }
+export interface FileCreateTempSyncOptions {
+    pattern: string
+    /**
+     * @default tempDir()
+     */
+    dir?: string
+
+    /**
+     * @default 0o600
+     */
+    perm?: number
+}
+export interface FileCreateTempOptions extends FileCreateTempSyncOptions, AsyncOptions { }
+
 export class File {
     private constructor(private file_: deps.File | undefined) { }
+    /**
+    * creates a new temporary file in the directory dir
+    */
+    static createTempSync(opts: string | FileCreateTempSyncOptions): File {
+        const o: deps.CreateTempOptions = typeof opts === "string" ? {
+            pattern: opts,
+        } : {
+            pattern: opts.pattern,
+            dir: opts.dir,
+            perm: opts.perm,
+        }
+        const f = deps.createTemp(o)
+        return new File(f)
+    }
+    static _createTemp(opts: deps.CreateTempOptions, cb: (f?: File, e?: any) => void) {
+        deps.createTemp(opts, (f, e) => {
+            if (f) {
+                let file: File
+                try {
+                    file = new File(f!)
+                } catch (e) {
+                    cb(undefined, e)
+                    return
+                }
+                cb(file)
+            } else {
+                cb(undefined, e)
+            }
+        })
+    }
+    /**
+     * Similar to createTempSync but called asynchronously, notifying the result in cb
+     */
+    static createTemp(a: any, b: any) {
+        const [opts, cb] = parseAB<FileCreateTempOptions | string, (f?: File, e?: any) => void>(a, b)
+        const o: deps.CreateTempOptions = typeof opts === "string" ? {
+            pattern: opts,
+        } : {
+            pattern: opts.pattern,
+            dir: opts.dir,
+            perm: opts.perm,
+            post: opts.post,
+        }
+        return cb ? File._createTemp(o, cb) : coReturn(a, File._createTemp, o)
+    }
+
     /**
      * Open files in customized mode
      */
@@ -488,7 +562,7 @@ export class File {
                     cb(undefined, e)
                     return
                 }
-                cb(file, e)
+                cb(file)
             } else {
                 cb(undefined, e)
             }

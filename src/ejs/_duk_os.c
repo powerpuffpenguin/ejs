@@ -7,6 +7,8 @@
 #include "_duk_async.h"
 #include "internal/buffer.h"
 #include "internal/c_filepath.h"
+#include "internal/itoa.h"
+#include "_duk_rand.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -25,6 +27,35 @@ inline static const char *_ejs_os_get_define(const char *s, size_t n, size_t *p)
     return s;
 }
 
+static const char *_ejs_os_temp_dir(size_t *outlen)
+{
+    const char *dir = getenv("TMPDIR");
+    if (dir)
+    {
+        *outlen = strlen(dir);
+        return dir;
+    }
+    else
+    {
+        size_t len;
+        const char *os = _ejs_os_get_define(EJS_CONFIG_OS, &len);
+        if (7 == len && !memcmp(os, "android", 7))
+        {
+
+            *outlen = 15;
+
+            return "/data/local/tmp";
+        }
+        else
+        {
+            *outlen = 4;
+            return "/tmp";
+        }
+    }
+    *outlen = 0;
+    return 0;
+}
+
 #define _ejs_define_os_uint(ctx, macro) _ejs_define_os_uint_impl(ctx, #macro, macro)
 static void _ejs_define_os_uint_impl(duk_context *ctx, const char *name, duk_uint_t val)
 {
@@ -35,22 +66,29 @@ static void _ejs_define_os_uint_impl(duk_context *ctx, const char *name, duk_uin
 
 typedef struct
 {
+    int err;
+    int fd;
+
     const char *name;
+    size_t len;
     int flags;
     int perm;
-} f_open_options_t;
-typedef struct
-{
-    f_open_options_t opts;
-
-    int fd;
-    int err;
 } f_open_async_args_t;
 static void f_open_async_impl(void *userdata)
 {
     f_open_async_args_t *args = userdata;
-    args->fd = open(args->opts.name, args->opts.flags, args->opts.perm);
+    args->fd = open(args->name, args->flags, args->perm);
     args->err = EJS_INVALID_FD(args->fd) ? errno : 0;
+}
+static void f_push_file_object(duk_context *ctx, int fd, const char *name, duk_size_t len)
+{
+    duk_push_object(ctx);
+    DUK_PUSH_FD(ctx, fd);
+    duk_put_prop_lstring(ctx, -2, "fd", 2);
+    duk_push_lstring(ctx, name, len);
+    duk_put_prop_lstring(ctx, -2, "name", 4);
+    duk_push_c_lightfunc(ctx, ejs_fd_finalizer, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
 }
 static duk_ret_t f_open_async_return(duk_context *ctx)
 {
@@ -64,13 +102,7 @@ static duk_ret_t f_open_async_return(duk_context *ctx)
     }
     else
     {
-        duk_push_object(ctx);
-        DUK_PUSH_FD(ctx, args->fd);
-        duk_put_prop_lstring(ctx, -2, "fd", 2);
-        duk_push_string(ctx, args->opts.name);
-        duk_put_prop_lstring(ctx, -2, "name", 4);
-        duk_push_c_lightfunc(ctx, ejs_fd_finalizer, 1, 1, 0);
-        duk_set_finalizer(ctx, -2);
+        f_push_file_object(ctx, args->fd, args->name, args->len);
         duk_call(ctx, 1);
     }
     return 0;
@@ -78,13 +110,33 @@ static duk_ret_t f_open_async_return(duk_context *ctx)
 typedef struct
 {
     int fd;
+    const char *name;
+    duk_size_t len;
+    int flags;
+    int perm;
 } f_open_args_t;
 static duk_ret_t f_open_impl(duk_context *ctx)
 {
     f_open_args_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
-    f_open_options_t opts;
+    args->fd = open(args->name, args->flags, args->perm);
+    if (EJS_INVALID_FD(args->fd))
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    duk_push_object(ctx);
+    DUK_PUSH_FD(ctx, args->fd);
+    duk_put_prop_lstring(ctx, -2, "fd", 2);
+    duk_push_lstring(ctx, args->name, args->len);
+    duk_put_prop_lstring(ctx, -2, "name", 4);
+    duk_push_c_lightfunc(ctx, ejs_fd_finalizer, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->fd = -1;
+    return 1;
+}
+static duk_ret_t f_open(duk_context *ctx)
+{
     duk_get_prop_lstring(ctx, 0, "name", 4);
     if (!duk_is_string(ctx, -1))
     {
@@ -92,63 +144,44 @@ static duk_ret_t f_open_impl(duk_context *ctx)
         duk_throw(ctx);
     }
     duk_size_t len;
-    if (duk_is_undefined(ctx, 1))
-    {
-        opts.name = duk_require_string(ctx, -1);
-    }
-    else
-    {
-        opts.name = duk_require_lstring(ctx, -1, &len);
-    }
+    const char *name = duk_require_lstring(ctx, -1, &len);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "flags", 5);
-    opts.flags = duk_get_uint_default(ctx, -1, 0);
+    int flags = duk_get_uint_default(ctx, -1, 0);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "perm", 4);
-    opts.perm = duk_get_uint_default(ctx, -1, 0);
+    int perm = duk_get_uint_default(ctx, -1, 0);
     duk_pop(ctx);
-
     if (duk_is_undefined(ctx, 1))
     {
-        args->fd = open(opts.name, opts.flags, opts.perm);
-        if (EJS_INVALID_FD(args->fd))
+        f_open_args_t args = {
+            .name = name,
+            .len = len,
+            .flags = flags,
+            .perm = perm,
+            .fd = -1,
+        };
+        duk_pop(ctx);
+        if (ejs_pcall_function(ctx, f_open_impl, &args))
         {
-            duk_pop_2(ctx);
-            ejs_throw_os_errno(ctx);
+            if (EJS_VALID_FD(args.fd))
+            {
+                close(args.fd);
+            }
+            duk_throw(ctx);
         }
-        duk_pop_2(ctx);
-        duk_push_object(ctx);
-        DUK_PUSH_FD(ctx, args->fd);
-        duk_put_prop_lstring(ctx, -2, "fd", 2);
-        duk_push_string(ctx, opts.name);
-        duk_put_prop_lstring(ctx, -2, "name", 4);
-        duk_push_c_lightfunc(ctx, ejs_fd_finalizer, 1, 1, 0);
-        duk_set_finalizer(ctx, -2);
-        args->fd = -1;
         return 1;
     }
 
     f_open_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_open_async_args_t), ejs_default_finalizer);
-    p->opts = opts;
+    p->flags = flags;
+    p->perm = perm;
+    p->name = name;
+    p->len = len;
     _ejs_async_post_or_send(ctx, f_open_async_impl, f_open_async_return);
     return 0;
-}
-static duk_ret_t f_open(duk_context *ctx)
-{
-    f_open_args_t args = {
-        .fd = -1,
-    };
-    if (ejs_pcall_function_n(ctx, f_open_impl, &args, 3))
-    {
-        if (!EJS_INVALID_FD(args.fd))
-        {
-            close(args.fd);
-        }
-        duk_throw(ctx);
-    }
-    return 1;
 }
 static void f_push_fstat(duk_context *ctx, const char *name, struct stat *info)
 {
@@ -1850,27 +1883,183 @@ static duk_ret_t f_remove(duk_context *ctx)
     EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_remove_impl);
     return 0;
 }
-static duk_ret_t _tempDir(duk_context *ctx)
+
+typedef struct
 {
-    const char *dir = getenv("TMPDIR");
-    if (dir)
+    duk_size_t len;
+    const char *pattern;
+    duk_size_t dir_len;
+    const char *dir;
+    int perm;
+
+    int fd;
+    ppp_c_string_t name;
+} f_createTemp_args_t;
+static const char *createTemp_impl(f_createTemp_args_t *args)
+{
+    args->fd = -1;
+
+    duk_size_t pos = args->len;
+    for (duk_size_t i = 0; i < args->len; i++)
     {
-        duk_push_string(ctx, dir);
+        switch (args->pattern[i])
+        {
+        case '/':
+#ifdef EJS_OS_WINDOWS
+        case '\\':
+#endif
+            return "pattern contains path separator";
+        case '*':
+            pos = i;
+            break;
+        }
+    }
+    ppp_c_string_t *s = &args->name;
+    if (args->dir_len)
+    {
+        if (ppp_c_string_append(s, args->dir, args->dir_len))
+        {
+            return 0;
+        }
     }
     else
     {
-        size_t len;
-        const char *os = _ejs_os_get_define(EJS_CONFIG_OS, &len);
-        if (7 == len && !memcmp(os, "android", 7))
+        size_t n;
+        const char *dir = _ejs_os_temp_dir(&n);
+        if (n)
         {
-            duk_push_lstring(ctx, "/data/local/tmp", 15);
-        }
-        else
-        {
-            duk_push_lstring(ctx, "/tmp", 4);
+            if (ppp_c_string_append(s, dir, n))
+            {
+                return 0;
+            }
         }
     }
+    if (pos)
+    {
+        if (ppp_c_filepath_join_raw(s, args->pattern, pos))
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        if (ppp_c_filepath_append_separator(s))
+        {
+            return 0;
+        }
+    }
+
+    duk_size_t prefix = s->len;
+    char random[10] = {0};
+    int random_len;
+    size_t try = 0;
+    while (1)
+    {
+        s->len = prefix;
+        random_len = ppp_itoa(_ejs_rand() & 2147483647, random, sizeof(random), 10);
+        if (random_len < 0)
+        {
+            continue;
+        }
+        if (ppp_c_string_append(s, random, random_len))
+        {
+            return 0;
+        }
+        if (pos != args->len)
+        {
+            size_t n = args->len - pos - 1;
+            if (n && ppp_c_string_append(s, args->pattern + pos + 1, n))
+            {
+                return 0;
+            }
+        }
+        args->fd = open(ppp_c_string_c_str(s), O_RDWR | O_CREAT | O_EXCL, args->perm);
+        if (EJS_INVALID_FD(args->fd))
+        {
+            if (errno == EEXIST && ++try < 10000)
+            {
+                continue;
+            }
+        }
+        break;
+    }
+    return 0;
+}
+static duk_ret_t f_createTemp_impl(duk_context *ctx)
+{
+    f_createTemp_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    const char *err = createTemp_impl(args);
+    if (err)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, err);
+        duk_throw(ctx);
+    }
+    else if (EJS_INVALID_FD(args->fd))
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    f_push_file_object(ctx, args->fd, args->name.str, args->name.len);
     return 1;
+}
+static duk_ret_t f_createTemp(duk_context *ctx)
+{
+    ejs_dump_context_stdout(ctx);
+
+    f_createTemp_args_t args = {0};
+    duk_get_prop_lstring(ctx, 0, "pattern", 7);
+    args.pattern = duk_require_lstring(ctx, -1, &args.len);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "dir", 3);
+    if (duk_is_null_or_undefined(ctx, -1))
+    {
+        args.dir = 0;
+        args.dir_len = 0;
+    }
+    else
+    {
+        args.dir = duk_require_lstring(ctx, -1, &args.dir_len);
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "dir", 3);
+    if (duk_is_null_or_undefined(ctx, -1))
+    {
+        args.perm = 0600;
+    }
+    else
+    {
+        args.perm = duk_require_number(ctx, -1);
+    }
+    duk_pop(ctx);
+    if (duk_is_undefined(ctx, 1))
+    {
+        args.fd = -1;
+        if (ejs_pcall_function(ctx, f_createTemp_impl, &args))
+        {
+            ppp_c_string_destroy(&args.name);
+            if (EJS_VALID_FD(args.fd))
+            {
+                close(args.fd);
+            }
+            duk_throw(ctx);
+        }
+        return 1;
+    }
+    return 0;
+}
+static duk_ret_t _tempDir(duk_context *ctx)
+{
+    size_t len;
+    const char *dir = _ejs_os_temp_dir(&len);
+    if (len)
+    {
+        duk_push_lstring(ctx, dir, len);
+        return 1;
+    }
+    return 0;
 }
 static duk_ret_t _userHomeDir(duk_context *ctx)
 {
@@ -2295,6 +2484,7 @@ static duk_ret_t _getenv(duk_context *ctx)
     }
     return 0;
 }
+
 duk_ret_t _ejs_native_os_init(duk_context *ctx)
 {
     /*
@@ -2418,6 +2608,9 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, f_remove, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "remove", 6);
+
+        duk_push_c_lightfunc(ctx, f_createTemp, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "createTemp", 10);
     }
     // getenv
     // setenv

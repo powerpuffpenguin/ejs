@@ -34,6 +34,7 @@
     free(p)
 
 #define EJS_INVALID_FD(fd) ((fd) == -1)
+#define EJS_VALID_FD(fd) ((fd) != -1)
 #define EJS_SYSTEM_ERROR(code) (code == -1)
 
 #define DUK_PUSH_FD(ctx, fd) duk_push_pointer((ctx), (void *)(size_t)(fd))
