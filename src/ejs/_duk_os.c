@@ -1895,6 +1895,17 @@ typedef struct
     int fd;
     ppp_c_string_t name;
 } f_createTemp_args_t;
+static duk_ret_t f_createTemp_args_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    f_createTemp_args_t *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        ppp_c_string_destroy(&p->name);
+        free(p);
+    }
+    return 0;
+}
 static const char *createTemp_impl(f_createTemp_args_t *args)
 {
     args->fd = -1;
@@ -2003,6 +2014,45 @@ static duk_ret_t f_createTemp_impl(duk_context *ctx)
     f_push_file_object(ctx, args->fd, args->name.str, args->name.len);
     return 1;
 }
+typedef struct
+{
+    f_createTemp_args_t opts;
+    int err;
+    const char *emsg;
+} f_createTemp_async_args_t;
+static void f_createTemp_async_impl(void *userdata)
+{
+    f_createTemp_async_args_t *args = userdata;
+    args->emsg = createTemp_impl(&args->opts);
+    if (!args->emsg)
+    {
+        args->err = EJS_INVALID_FD(args->opts.fd) ? errno : 0;
+    }
+}
+static duk_ret_t f_createTemp_async_return(duk_context *ctx)
+{
+    f_createTemp_async_args_t *args = _ejs_async_return(ctx);
+    if (args->emsg)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, args->emsg);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        f_push_file_object(ctx, args->opts.fd, args->opts.name.str, args->opts.name.len);
+        duk_call(ctx, 1);
+    }
+    return 0;
+}
 static duk_ret_t f_createTemp(duk_context *ctx)
 {
     ejs_dump_context_stdout(ctx);
@@ -2024,7 +2074,7 @@ static duk_ret_t f_createTemp(duk_context *ctx)
     }
     duk_pop(ctx);
 
-    duk_get_prop_lstring(ctx, 0, "dir", 3);
+    duk_get_prop_lstring(ctx, 0, "perm", 3);
     if (duk_is_null_or_undefined(ctx, -1))
     {
         args.perm = 0600;
@@ -2048,6 +2098,10 @@ static duk_ret_t f_createTemp(duk_context *ctx)
         }
         return 1;
     }
+    f_createTemp_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_createTemp_async_args_t), f_createTemp_args_finalizer);
+    p->opts = args;
+
+    _ejs_async_post_or_send(ctx, f_createTemp_async_impl, f_createTemp_async_return);
     return 0;
 }
 static duk_ret_t _tempDir(duk_context *ctx)
