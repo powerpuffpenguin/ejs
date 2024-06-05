@@ -180,6 +180,69 @@ static int _ppp_c_filepath_remove_all_impl(ppp_c_string_t *path)
     }
     return 0;
 }
+int _ppp_c_filepath_rmdir_all_impl(ppp_c_string_t *path)
+{
+    ppp_c_string_t dir = {0};
+    if (ppp_c_filepath_is_abc(path))
+    {
+        if (ppp_c_string_append(&dir, path->str, path->len))
+        {
+            return -1;
+        }
+    }
+    else
+    {
+        dir.cap = MAXPATHLEN;
+        dir.str = malloc(MAXPATHLEN + 1);
+        if (!dir.str)
+        {
+            return -1;
+        }
+        if (!getcwd(dir.str, MAXPATHLEN))
+        {
+            int err = errno;
+            free(dir.str);
+            errno = err;
+            return -1;
+        }
+        dir.len = strlen(dir.str);
+        if (ppp_c_filepath_join_raw(&dir, path->str, path->len))
+        {
+            int err = errno;
+            free(dir.str);
+            errno = err;
+            return -1;
+        }
+    }
+    dir.str[dir.len] = 0;
+    if (_ppp_c_filepath_remove_all_impl(&dir))
+    {
+        int err = errno;
+        free(dir.str);
+        errno = err;
+        return -1;
+    }
+    free(dir.str);
+    return 0;
+}
+int ppp_c_filepath_rmdir_all(ppp_c_string_t *path)
+{
+    if (rmdir(path->str))
+    {
+        int err = errno;
+        switch (err)
+        {
+        case ENOTEMPTY:
+            break;
+        case ENOENT:
+            return 0;
+        default:
+            return -1;
+        }
+        return _ppp_c_filepath_rmdir_all_impl(path);
+    }
+    return 0;
+}
 int ppp_c_filepath_remove_all(ppp_c_string_t *path)
 {
     if (remove(path->str))
@@ -194,48 +257,7 @@ int ppp_c_filepath_remove_all(ppp_c_string_t *path)
         default:
             return -1;
         }
-
-        ppp_c_string_t dir = {0};
-        if (ppp_c_filepath_is_abc(path))
-        {
-            if (ppp_c_string_append(&dir, path->str, path->len))
-            {
-                return -1;
-            }
-        }
-        else
-        {
-            dir.cap = MAXPATHLEN;
-            dir.str = malloc(MAXPATHLEN + 1);
-            if (!dir.str)
-            {
-                return -1;
-            }
-            if (!getcwd(dir.str, MAXPATHLEN))
-            {
-                int err = errno;
-                free(dir.str);
-                errno = err;
-                return -1;
-            }
-            dir.len = strlen(dir.str);
-            if (ppp_c_filepath_join_raw(&dir, path->str, path->len))
-            {
-                int err = errno;
-                free(dir.str);
-                errno = err;
-                return -1;
-            }
-        }
-        dir.str[dir.len] = 0;
-        if (_ppp_c_filepath_remove_all_impl(&dir))
-        {
-            int err = errno;
-            free(dir.str);
-            errno = err;
-            return -1;
-        }
-        free(dir.str);
+        return _ppp_c_filepath_rmdir_all_impl(path);
     }
     return 0;
 }

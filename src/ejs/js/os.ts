@@ -308,6 +308,10 @@ declare namespace deps {
     }
     export function createTemp(opts: CreateTempOptions): File
     export function createTemp(opts: CreateTempOptions, cb: (f?: File, e?: any) => void): File
+
+    export function rmdir(opts: RemoveOptions): void
+    export function rmdir(opts: RemoveOptions, cb: (e?: any) => void): void
+
 }
 const coVoid = __duk.js.coVoid
 const coReturn = __duk.js.coReturn
@@ -1543,4 +1547,27 @@ export function link(a: any, b: any) {
         post: opts.post,
     }
     return cb ? deps.link(o, cb) : coVoid(a, deps.link, o)
+}
+
+/**
+ * removes the named empty directory
+ */
+export function rmdirSync(name: string): void {
+    return deps.rmdir({
+        name: name,
+    })
+}
+/**
+ *  Similar to rmdirSync but called asynchronously, notifying the result in cb
+ */
+export function rmdir(a: any, b: any): void {
+    const [opts, cb] = parseAB<string | RemoveOptions, (e?: any) => void>(a, b)
+    const o: deps.RemoveOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
+        name: opts.name,
+        all: opts.all,
+        post: opts.post,
+    }
+    return cb ? deps.rmdir(o, cb) : coVoid(a, deps.rmdir, o)
 }

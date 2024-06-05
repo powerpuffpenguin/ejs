@@ -1870,4 +1870,29 @@ declare module "ejs/os" {
      * etrieves the value of the environment variable named by the key
      */
     export function getenv(key: string): string | undefined
+
+    /**
+     * removes the named empty directory
+     */
+    export function rmdirSync(name: string): void
+    /**
+     *  Similar to rmdirSync but called asynchronously, notifying the result in cb
+     */
+    export function rmdir(name: string, cb: (e?: any) => void): void
+    /**
+     *  Similar to rmdirSync but called asynchronously, notifying the result in cb
+     */
+    export function rmdir(opts: RemoveOptions, cb: (e?: any) => void): void
+    /**
+     * removes the named empty directory
+     */
+    export function rmdir(co: YieldContext, name: string): void
+    /**
+     * removes the named empty directory
+     */
+    export function rmdir(co: YieldContext, opts: RemoveOptions): void
+
+    // mkdir
+    // mkdirTemp
+
 }

@@ -1884,6 +1884,71 @@ static duk_ret_t f_remove(duk_context *ctx)
     return 0;
 }
 
+static void f_rmdir_impl(void *userdata)
+{
+    f_remove_async_args_t *args = userdata;
+    if (args->all)
+    {
+        ppp_c_string_t path = {
+            .cap = 0,
+            .len = args->len,
+            .str = (char *)args->name,
+        };
+        args->result.err = ppp_c_filepath_rmdir_all(&path) ? errno : 0;
+    }
+    else
+    {
+        args->result.err = rmdir(args->name) ? errno : 0;
+    }
+}
+static duk_ret_t f_rmdir(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "name", 4);
+    duk_size_t len;
+    const char *name = duk_require_lstring(ctx, -1, &len);
+    if (len == 0)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "name must be not empty");
+        duk_throw(ctx);
+    }
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "all", 3);
+    duk_bool_t all = EJS_BOOL_VALUE(ctx, -1);
+    duk_pop(ctx);
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        if (all)
+        {
+            ppp_c_string_t path = {
+                .cap = 0,
+                .len = len,
+                .str = (char *)name,
+            };
+            if (ppp_c_filepath_rmdir_all(&path))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+        }
+        else
+        {
+            if (rmdir(name))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+        }
+        return 0;
+    }
+
+    f_remove_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_remove_async_args_t), ejs_default_finalizer);
+    p->name = name;
+    p->len = len;
+    p->all = all;
+
+    EJS_ASYNC_POST_OR_SEND_VOID(ctx, f_rmdir_impl);
+    return 0;
+}
+
 typedef struct
 {
     duk_size_t len;
@@ -2662,6 +2727,8 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, f_remove, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "remove", 6);
+        duk_push_c_lightfunc(ctx, f_rmdir, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "rmdir", 5);
 
         duk_push_c_lightfunc(ctx, f_createTemp, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "createTemp", 10);

@@ -5,25 +5,26 @@ var File = os.File;
 sync.go(function (co) {
     var f
     try {
-        f = File.createTemp(co, {
-            pattern: "test*.log",
-            dir: '',
-        })
+        // f = File.createTemp(co, {
+        //     pattern: "test*.log",
+        //     dir: '',
+        // })
+        os.rmdir(co, { name: 'c.txt', all: true })
         // f = File.openFile(co, {
         //     name: 'a.txt',
         //     flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,
         //     perm: 0o664,
         // })
         // f = File.create(co, "a.txt")
-        console.log(f)
-        f.writeAt(co, {
-            src: "ok",
-            offset: 2,
-        })
-        f.writeAt(co, {
-            src: "12",
-            offset: 8,
-        })
+        // console.log(f)
+        // f.writeAt(co, {
+        //     src: "ok",
+        //     offset: 2,
+        // })
+        // f.writeAt(co, {
+        //     src: "12",
+        //     offset: 8,
+        // })
 
         // console.log(f.stat(co))
         // console.log(f instanceof os.File)
