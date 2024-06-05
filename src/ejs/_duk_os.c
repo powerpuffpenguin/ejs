@@ -1933,7 +1933,7 @@ static const char *createTemp_impl(f_createTemp_args_t *args)
             return 0;
         }
     }
-    else
+    else if (!args->dir)
     {
         size_t n;
         const char *dir = _ejs_os_temp_dir(&n);
@@ -1952,7 +1952,7 @@ static const char *createTemp_impl(f_createTemp_args_t *args)
             return 0;
         }
     }
-    else
+    else if (s->len)
     {
         if (ppp_c_filepath_append_separator(s))
         {

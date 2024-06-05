@@ -1579,11 +1579,19 @@ declare module "ejs/os" {
     /**
      * Similar to readFileSync but called asynchronously, notifying the result in cb
      */
-    export function readFile(opts: string | ReadFileOptions, cb: (data?: Uint8Array, e?: any) => void): void
+    export function readFile(opts: ReadFileOptions, cb: (data?: Uint8Array, e?: any) => void): void
+    /**
+     * Similar to readFileSync but called asynchronously, notifying the result in cb
+     */
+    export function readFile(name: string, cb: (data?: Uint8Array, e?: any) => void): void
     /**
      * Read file contents
      */
-    export function readFile(co: YieldContext, opts: string | ReadFileOptions): Uint8Array
+    export function readFile(co: YieldContext, opts: ReadFileOptions): Uint8Array
+    /**
+     * Read file contents
+     */
+    export function readFile(co: YieldContext, name: string): Uint8Array
 
     /**
      * abbreviation for new TextDecoder().decode(readFileSync(name))
@@ -1592,11 +1600,19 @@ declare module "ejs/os" {
     /**
      * Similar to readTextFileSync but called asynchronously, notifying the result in cb
      */
-    export function readTextFile(opts: string | ReadFileOptions, cb: (data?: string, e?: any) => void): void
+    export function readTextFile(opts: ReadFileOptions, cb: (data?: string, e?: any) => void): void
+    /**
+     * Similar to readTextFileSync but called asynchronously, notifying the result in cb
+     */
+    export function readTextFile(name: string, cb: (data?: string, e?: any) => void): void
+    /**
+     * abbreviation for new TextDecoder().decode(readFile(co, opts))
+     */
+    export function readTextFile(co: YieldContext, opts: ReadFileOptions): string
     /**
      * abbreviation for new TextDecoder().decode(readFile(co, name))
      */
-    export function readTextFile(co: YieldContext, opts: string | ReadFileOptions): string
+    export function readTextFile(co: YieldContext, name: string): string
 
     export interface WriteFileSyncOptions {
         name: string
@@ -1669,11 +1685,19 @@ declare module "ejs/os" {
     /**
      * Similar to readLinkSync but called asynchronously, notifying the result in cb
      */
-    export function readLink(name: string | ReadLinkOptions, cb: (path?: string, e?: any) => void): void
+    export function readLink(opts: ReadLinkOptions, cb: (path?: string, e?: any) => void): void
+    /**
+     * Similar to readLinkSync but called asynchronously, notifying the result in cb
+     */
+    export function readLink(name: string, cb: (path?: string, e?: any) => void): void
     /**
      * returns the destination of the named symbolic link
      */
-    export function readLink(co: YieldContext, name: string | ReadLinkOptions): string
+    export function readLink(co: YieldContext, opts: ReadLinkOptions): string
+    /**
+     * returns the destination of the named symbolic link
+     */
+    export function readLink(co: YieldContext, name: string): string
 
 
     export interface RenameSyncOptions {
@@ -1703,15 +1727,27 @@ declare module "ejs/os" {
     /**
      * removes the named file or directory
      */
-    export function removeSync(opts: RemoveSyncOptions | string): void
-    /**
-     *  Similar to removeSync but called asynchronously, notifying the result in cb
-     */
-    export function remove(opts: RemoveOptions | string, cb: (e?: any) => void): void
+    export function removeSync(opts: RemoveSyncOptions): void
     /**
      * removes the named file or directory
      */
-    export function remove(co: YieldContext, opts: RemoveOptions | string): void
+    export function removeSync(name: string): void
+    /**
+     *  Similar to removeSync but called asynchronously, notifying the result in cb
+     */
+    export function remove(opts: RemoveOptions, cb: (e?: any) => void): void
+    /**
+     *  Similar to removeSync but called asynchronously, notifying the result in cb
+     */
+    export function remove(name: string, cb: (e?: any) => void): void
+    /**
+     * removes the named file or directory
+     */
+    export function remove(co: YieldContext, opts: RemoveOptions): void
+    /**
+     * removes the named file or directory
+     */
+    export function remove(co: YieldContext, name: string): void
 
     export interface LinkSyncOptions {
         from: string

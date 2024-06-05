@@ -7,7 +7,7 @@ sync.go(function (co) {
     try {
         f = File.createTemp(co, {
             pattern: "test*.log",
-            dir: '.',
+            dir: '',
         })
         // f = File.openFile(co, {
         //     name: 'a.txt',
