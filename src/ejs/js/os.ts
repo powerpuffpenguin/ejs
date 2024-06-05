@@ -312,6 +312,14 @@ declare namespace deps {
     export function rmdir(opts: RemoveOptions): void
     export function rmdir(opts: RemoveOptions, cb: (e?: any) => void): void
 
+    export interface MkdirOptions extends AsyncOptions {
+        name: string
+        perm?: number
+        all?: boolean
+    }
+    export function mkdir(opts: MkdirOptions): void
+    export function mkdir(opts: MkdirOptions, cb: (e?: any) => void): void
+
 }
 const coVoid = __duk.js.coVoid
 const coReturn = __duk.js.coReturn
@@ -1570,4 +1578,33 @@ export function rmdir(a: any, b: any): void {
         post: opts.post,
     }
     return cb ? deps.rmdir(o, cb) : coVoid(a, deps.rmdir, o)
+}
+export interface MkdirSyncOptions {
+    name: string
+    perm?: number
+    all?: boolean
+}
+export interface MkdirOptions extends MkdirSyncOptions, AsyncOptions { }
+/**
+ * creates a directory named opts.name
+ */
+export function mkdirSync(opts: MkdirSyncOptions): void {
+    return deps.mkdir({
+        name: opts.name,
+        perm: opts.perm,
+        all: opts.all,
+    })
+}
+/**
+ *  Similar to mkdirSync but called asynchronously, notifying the result in cb
+ */
+export function mkdir(a: any, b: any): void {
+    const [opts, cb] = parseAB<MkdirOptions, (e?: any) => void>(a, b)
+    const o: deps.MkdirOptions = {
+        name: opts.name,
+        perm: opts.perm,
+        post: opts.post,
+        all: opts.all,
+    }
+    return cb ? deps.mkdir(o, cb) : coVoid(a, deps.mkdir, o)
 }

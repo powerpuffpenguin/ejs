@@ -80,6 +80,7 @@
         "config.h": "c",
         "dirent.h": "c",
         "param.h": "c",
-        "_duk_rand.h": "c"
+        "_duk_rand.h": "c",
+        "sstream": "c"
     }
 }

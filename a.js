@@ -9,7 +9,7 @@ sync.go(function (co) {
         //     pattern: "test*.log",
         //     dir: '',
         // })
-        os.rmdir(co, { name: 'c.txt', all: true })
+        os.mkdir(co, { name: 'a/b/c/d/e', all: true })
         // f = File.openFile(co, {
         //     name: 'a.txt',
         //     flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,

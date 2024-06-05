@@ -60,4 +60,6 @@
 #define EJS_BOOL_VALUE_DEFAULT(ctx, idx, def) (duk_is_null_or_undefined(ctx, idx) ? (def) : (duk_is_boolean(ctx, idx) ? duk_require_boolean(ctx, idx) : duk_to_boolean(ctx, idx)))
 #define EJS_BOOL_VALUE(ctx, idx) EJS_BOOL_VALUE_DEFAULT(ctx, idx, 0)
 
+#define EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, idx, def) (duk_is_null_or_undefined(ctx, idx) ? (def) : duk_require_number(ctx, idx))
+
 #endif

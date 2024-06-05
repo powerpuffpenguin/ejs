@@ -1892,7 +1892,24 @@ declare module "ejs/os" {
      */
     export function rmdir(co: YieldContext, opts: RemoveOptions): void
 
-    // mkdir
-    // mkdirTemp
+    export interface MkdirSyncOptions {
+        name: string
+        perm?: number
+        all?: boolean
+    }
+    export interface MkdirOptions extends MkdirSyncOptions, AsyncOptions { }
+    /**
+     * creates a directory named opts.name
+     */
+    export function mkdirSync(opts: MkdirSyncOptions): void
+    /**
+     *  Similar to mkdirSync but called asynchronously, notifying the result in cb
+     */
+    export function mkdir(opts: MkdirOptions, cb: (e?: any) => void): void
+    /**
+     * creates a directory named opts.name
+     */
+    export function mkdir(co: YieldContext, opts: MkdirOptions): void
 
+    // mkdirTemp
 }

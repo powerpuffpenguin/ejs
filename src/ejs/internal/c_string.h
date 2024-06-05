@@ -55,7 +55,7 @@ void ppp_c_string_destroy(ppp_c_string_t *s);
 /**
  * Grows strings to guarantee space for n more bytes.
  *
- * On failure, the function return -1, and errno is set to indicate the error.
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
  */
 int ppp_c_string_grow(ppp_c_string_t *s, size_t n);
 
@@ -65,13 +65,25 @@ int ppp_c_string_grow(ppp_c_string_t *s, size_t n);
  * You must ensure there is sufficient capacity before calling.
  */
 void ppp_c_string_append_raw(ppp_c_string_t *s, const char *str, size_t n);
-
+/**
+ * Concatenate c to the end of s.
+ *
+ * You must ensure there is sufficient capacity before calling.
+ */
+void ppp_c_string_append_raw_char(ppp_c_string_t *s, const char c);
 /**
  * Concatenate str to the end of s.
  *
- * On failure, the function return -1, and errno is set to indicate the error.
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
  */
 int ppp_c_string_append(ppp_c_string_t *s, const char *str, size_t n);
+
+/**
+ * Concatenate c to the end of s.
+ *
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
+ */
+int ppp_c_string_append_char(ppp_c_string_t *s, const char c);
 
 /**
  * Returns TRUE if it ends with the specified string, otherwise returns FALSE

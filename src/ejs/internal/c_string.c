@@ -72,6 +72,10 @@ void ppp_c_string_append_raw(ppp_c_string_t *s, const char *str, size_t n)
     memmove(s->str + s->len, str, n);
     s->len += n;
 }
+void ppp_c_string_append_raw_char(ppp_c_string_t *s, const char c)
+{
+    s->str[s->len++] = c;
+}
 int ppp_c_string_append(ppp_c_string_t *s, const char *str, size_t n)
 {
     if (n)
@@ -88,6 +92,19 @@ int ppp_c_string_append(ppp_c_string_t *s, const char *str, size_t n)
         memmove(s->str + s->len, str, n);
         s->len += n;
     }
+    return 0;
+}
+int ppp_c_string_append_char(ppp_c_string_t *s, const char c)
+{
+    size_t available = s->cap ? s->cap - s->len : 0;
+    if (available < 1)
+    {
+        if (ppp_c_string_grow(s, 1))
+        {
+            return -1;
+        }
+    }
+    s->str[s->len++] = c;
     return 0;
 }
 BOOL ppp_c_string_end_with(ppp_c_string_t *s, const char *str, size_t n)
