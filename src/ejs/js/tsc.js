@@ -163,6 +163,9 @@
         var OsError =/** @class */ (function (_super) {
             __extends(OsError, _super);
             function OsError(errno, message) {
+                if (message === undefined || message === null) {
+                    message = deps.strerror(errno)
+                }
                 var _this = _super.call(this, message, { cause: 1 }) || this;
                 _this.errno = errno;
                 _this.name = "OsError";

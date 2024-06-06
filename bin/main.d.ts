@@ -170,6 +170,11 @@ namespace ejs {
          */
         export function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
         /**
+         * <Options, CB> | < CB> -> [Options, CB | undefined]
+         */
+        export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, CB | undefined]
+
+        /**
          * <CB, Options> -> [CB | undefined, Options]
          */
         export function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
@@ -1268,6 +1273,9 @@ declare module "ejs/os" {
     }
     export interface FileChownOptions extends FileChownSyncOptions, AsyncOptions { }
     export interface FileReadDirOptions extends AsyncOptions {
+        /**
+         * If greater than 0, the maximum length of the returned array is n
+         */
         n?: number
     }
     export interface FileCreateTempSyncOptions {
@@ -1440,87 +1448,141 @@ declare module "ejs/os" {
         /**
          * Commits the current contents of the file to stable storage.
          * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
+         * @throws PathError
          */
         syncSync(): void
         /**
          * Similar to syncSync but called asynchronously, notifying the result in cb
          */
-        sync(cb: (e?: any) => void, opts?: AsyncOptions): void
+        sync(cb: (e?: PathError) => void): void
+        /**
+         * Similar to syncSync but called asynchronously, notifying the result in cb
+         */
+        sync(opts: AsyncOptions, cb: (e?: PathError) => void): void
         /**
          * Commits the current contents of the file to stable storage.
          * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
+         * @throws PathError
          */
         sync(co: YieldContext, opts?: AsyncOptions): void
 
         /**
          * changes the current working directory to the file, which must be a directory.
+         * @throws PathError
          */
         chdir(): void
         /**
          * changes the mode of the file to mode
+         * @throws PathError
          */
         chmodSync(perm: number): void
         /**
          * Similar to chmodSync but called asynchronously, notifying the result in cb
          */
-        chmod(opts: FileChmodAsyncOptions, cb: (e?: any) => void): void
+        chmod(opts: FileChmodAsyncOptions, cb: (PathError?: any) => void): void
         /**
          * changes the mode of the file to mode
+         * @throws PathError
          */
         chmod(co: YieldContext, opts: FileChmodAsyncOptions): void
         /**
          * changes the uid and gid of the file
+         * @throws PathError
          */
         chownSync(opts: FileChownSyncOptions): void
         /**
          * Similar to chownSync but called asynchronously, notifying the result in cb
          */
-        chown(opts: FileChownOptions, cb: (e?: any) => void): void
+        chown(opts: FileChownOptions, cb: (PathError?: any) => void): void
         /**
          * changes the uid and gid of the file
+         * @throws PathError
          */
         chown(co: YieldContext, opts: FileChownOptions): void
         /**
          * changes the size of the file. It does not change the I/O offset.
+         * @throws PathError
          */
         truncateSync(size: number): void
         /**
          * Similar to truncateSync but called asynchronously, notifying the result in cb
          */
-        truncate(opts: FileTruncateOptions, cb: (e?: any) => void): void
+        truncate(opts: FileTruncateOptions, cb: (PathError?: any) => void): void
         /**
          * changes the size of the file. It does not change the I/O offset.
+         * @throws PathError
          */
         truncate(co: YieldContext, opts: FileTruncateOptions): void
 
         /**
          * Read the file name in the folder
+         * @throws PathError
          * @param n If greater than 0, the maximum length of the returned array is n
          */
         readDirNamesSync(n?: number): Array<string>
         /**
          * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
          */
-        readDirNames(cb: (dirs?: Array<string>, e?: any) => void, opts?: FileReadDirOptions | number): void
+        readDirNames(cb: (dirs?: Array<string>, PathError?: any) => void): void
+        /**
+         * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
+         */
+        readDirNames(n: number, cb: (dirs?: Array<string>, PathError?: any) => void): void
+        /**
+        * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
+        */
+        readDirNames(opts: FileReadDirOptions, cb: (dirs?: Array<string>, PathError?: any) => void): void
         /**
          * Read the file name in the folder
+         * @throws PathError
+        */
+        readDirNames(co: YieldContext): Array<string>
+        /**
+         * Read the file name in the folder
+         * @throws PathError
          * @param n If greater than 0, the maximum length of the returned array is n
          */
-        readDirNames(co: YieldContext, opts?: FileReadDirOptions | number): Array<string>
+        readDirNames(co: YieldContext, n: number): Array<string>
+        /**
+         * Read the file name in the folder
+         * @throws PathError
+        */
+        readDirNames(co: YieldContext, opts: FileReadDirOptions): Array<string>
+
         /**
          * Read the file info in the folder
+         * @throws PathError
          * @param n If greater than 0, the maximum length of the returned array is n
          */
         readDirSync(n?: number): Array<FileInfo>
         /**
          * Similar to readDirSync but called asynchronously, notifying the result in cb
          */
-        readDir(cb: (dirs?: Array<FileInfo>, e?: any) => void, opts?: FileReadDirOptions | number): void
+        readDir(cb: (dirs?: Array<FileInfo>, e?: PathError) => void): void
+        /**
+         * Similar to readDirSync but called asynchronously, notifying the result in cb
+         */
+        readDir(n: number, cb: (dirs?: Array<FileInfo>, e?: PathError) => void): void
+        /**
+         * Similar to readDirSync but called asynchronously, notifying the result in cb
+         */
+        readDir(opts: FileReadDirOptions, cb: (dirs?: Array<FileInfo>, e?: PathError) => void): void
         /**
          * Read the file info in the folder
+         * @throws PathError
+         */
+        readDir(co: YieldContext): Array<FileInfo>
+        /**
+         * Read the file info in the folder
+         * @throws PathError
+         */
+        readDir(co: YieldContext, opts: FileReadDirOptions): Array<FileInfo>
+        /**
+         * Read the file info in the folder
+         * @throws PathError
          * @param n If greater than 0, the maximum length of the returned array is n
          */
-        readDir(co: YieldContext, opts?: FileReadDirOptions | number): Array<FileInfo>
+        readDir(co: YieldContext, n: number): Array<FileInfo>
     }
 
     export interface Reader {
@@ -1531,19 +1593,32 @@ declare module "ejs/os" {
      * @returns should we stop reading?
      */
     export function readAll(reader: Reader, opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => boolean | undefined): void
-
+    export interface StatOptions extends AsyncOptions {
+        name: string
+    }
     /**
      * returns the FileInfo describing file.
+     * @throws PathError
      */
     export function statSync(name: string): FileInfo
     /**
      * Similar to statSync but called asynchronously, notifying the result in cb
      */
-    export function stat(name: string, cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+    export function stat(name: string, cb: (info?: FileInfo, e?: PathError) => void): void
+    /**
+     * Similar to statSync but called asynchronously, notifying the result in cb
+     */
+    export function stat(opts: StatOptions, cb: (info?: FileInfo, e?: PathError) => void): void
     /**
      * returns the FileInfo describing file.
+     * @throws PathError
      */
-    export function stat(co: YieldContext, name: string, opts?: AsyncOptions): FileInfo
+    export function stat(co: YieldContext, name: string): FileInfo
+    /**
+     * returns the FileInfo describing file.
+     * @throws PathError
+     */
+    export function stat(co: YieldContext, opts: StatOptions): FileInfo
 
     /**
      * Return to working directory

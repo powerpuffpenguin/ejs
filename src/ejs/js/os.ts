@@ -72,6 +72,11 @@ declare namespace __duk {
          */
         export function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
         /**
+         * <Options, CB> | < CB> -> [Options, CB | undefined]
+         */
+        export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, CB | undefined]
+
+        /**
          * <CB, Options> -> [CB | undefined, Options]
          */
         export function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
@@ -352,6 +357,7 @@ const coReturn = __duk.js.coReturn
 const cbVoid = __duk.js.cbVoid
 const cbReturn = __duk.js.cbReturn
 const parseAB = __duk.js.parseAB
+const parseBorAB = __duk.js.parseBorAB
 const parseBA = __duk.js.parseBA
 
 
@@ -550,22 +556,7 @@ export interface FileChownOptions extends FileChownSyncOptions, AsyncOptions { }
 export interface FileReadDirOptions extends AsyncOptions {
     n?: number
 }
-export function _fread_dir(opts: deps.FReadDirOptions, cb: (items?: Array<FileInfo>, e?: any) => void) {
-    deps.fread_dir(opts, (items, e) => {
-        if (e === undefined) {
-            let ret: Array<FileInfo>
-            try {
-                ret = items.length ? items.map((v) => new fileInfo(v)) : items as any
-            } catch (e) {
-                cb(undefined, e)
-                return
-            }
-            cb(ret)
-        } else {
-            cb(undefined, e)
-        }
-    })
-}
+
 export interface FileCreateTempSyncOptions {
     pattern: string
     /**
@@ -579,9 +570,12 @@ export interface FileCreateTempSyncOptions {
     perm?: number
 }
 export interface FileCreateTempOptions extends FileCreateTempSyncOptions, AsyncOptions { }
-
+const errClosed = new OsError(deps.EBADF)
 export class File {
-    private constructor(private file_: deps.File | undefined) { }
+    private constructor(private file_: deps.File | undefined) {
+        this.name_ = file_!.name
+    }
+    private name_: string
     /**
     * creates a new temporary file in the directory dir
     */
@@ -724,10 +718,18 @@ export class File {
         const f = this.file_
         if (f) {
             this.file_ = undefined
-            this.read_ = undefined
-            this.readAt_ = undefined
-            this.write_ = undefined
-            this.writeAt_ = undefined
+            if (this.read_) {
+                this.read_ = undefined
+            }
+            if (this.readAt_) {
+                this.readAt_ = undefined
+            }
+            if (this.write_) {
+                this.write_ = undefined
+            }
+            if (this.writeAt_) {
+                this.writeAt_ = undefined
+            }
             deps.close(f)
         }
     }
@@ -735,7 +737,18 @@ export class File {
     private _file(): deps.File {
         const f = this.file_
         if (!f) {
-            throw new OsError(deps.EBADF, "file already closed")
+            throw new OsError(deps.EBADF)
+        }
+        return f;
+    }
+    private _pathFile(op: string): deps.File {
+        const f = this.file_
+        if (!f) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: errClosed,
+            })
         }
         return f;
     }
@@ -743,7 +756,7 @@ export class File {
      * @returns the archive name passed when opening
      */
     name(): string {
-        return this._file().name;
+        return this.name_;
     }
     statSync(): FileInfo {
         const f = this._file()
@@ -1000,157 +1013,277 @@ export class File {
     /**
      * Commits the current contents of the file to stable storage.
      * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
+     * @throws PathError
      */
     syncSync(): void {
-        const f = this._file()
-        deps.fsync({
-            fd: f.fd,
-        })
+        const op = 'syncSync'
+        const f = this._pathFile(op)
+        try {
+            deps.fsync({
+                fd: f.fd,
+            })
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to syncSync but called asynchronously, notifying the result in cb
      */
     sync(a: any, b: any): void {
-        const [cb, opts] = parseBA<(e?: any) => void, AsyncOptions | undefined>(a, b);
+        const op = 'sync'
+        const f = this._pathFile(op)
+        const [opts, cb] = parseBorAB<AsyncOptions, (e?: any) => void>(a, b);
         const o: deps.FSyncOptions = {
-            fd: this._file().fd,
+            fd: f.fd,
             post: opts?.post,
         }
-        return cb ? deps.fsync(o, cb) : coVoid(a, deps.fsync, o)
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbVoid(cb, deps.fsync, o, ce) : coVoid(a, deps.fsync, o, ce)
     }
     /**
      * changes the current working directory to the file, which must be a directory.
+     * @throws PathError
      */
     chdir(): void {
-        const f = this._file()
-        deps.fchdir(f.fd)
+        const op = 'chdir'
+        const f = this._pathFile(op)
+        try {
+            return deps.fchdir(f.fd)
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * changes the mode of the file to mode
+     * @throws PathError
      */
     chmodSync(perm: number): void {
-        const f = this._file()
-        deps.fchmod({
+        const op = 'chmodSync'
+        const f = this._pathFile(op)
+        const o: deps.FChmodOptions = {
             fd: f.fd,
             perm: perm,
-        })
+        }
+        try {
+            return deps.fchmod(o)
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to chmodSync but called asynchronously, notifying the result in cb
      */
     chmod(a: any, b: any): void {
+        const op = 'chmod'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<FileChmodAsyncOptions, (e?: any) => void>(a, b);
         const o: deps.FChmodOptions = {
-            fd: this._file().fd,
+            fd: f.fd,
             perm: opts.perm,
             post: opts.post,
         }
-        return cb ? deps.fchmod(o, cb) : coVoid(a, deps.fchmod, o)
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbVoid(cb, deps.fchmod, o, ce) : coVoid(a, deps.fchmod, o, ce)
     }
     /**
      * changes the uid and gid of the file
+     * @throws PathError
      */
     chownSync(opts: FileChownSyncOptions): void {
-        const f = this._file()
-        deps.fchown({
+        const op = 'chownSync'
+        const f = this._pathFile(op)
+        const o: deps.FChownOptions = {
             fd: f.fd,
             uid: opts.uid,
             gid: opts.gid,
-        })
+        }
+        try {
+            return deps.fchown(o)
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to chownSync but called asynchronously, notifying the result in cb
      */
     chown(a: any, b: any): void {
+        const op = 'chown'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<FileChownOptions, (e?: any) => void>(a, b);
         const o: deps.FChownOptions = {
-            fd: this._file().fd,
+            fd: f.fd,
             uid: opts.uid,
             gid: opts.gid,
             post: opts.post,
         }
-        return cb ? deps.fchown(o, cb) : coVoid(a, deps.fchown, o)
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbVoid(cb, deps.fchown, o, ce) : coVoid(a, deps.fchown, o, ce)
     }
     /**
      * changes the size of the file. It does not change the I/O offset.
+     * @throws PathError
      */
     truncateSync(size: number): void {
-        const f = this._file()
-        deps.ftruncate({
+        const op = 'truncateSync'
+        const f = this._pathFile(op)
+        const o: deps.FTruncateOptions = {
             fd: f.fd,
             size: size,
-        })
+        }
+        try {
+            return deps.ftruncate(o)
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to truncateSync but called asynchronously, notifying the result in cb
      */
     truncate(a: any, b: any): void {
+        const op = 'truncate'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<FileTruncateOptions, (e?: any) => void>(a, b);
         const o: deps.FTruncateOptions = {
-            fd: this._file().fd,
+            fd: f.fd,
             size: opts.size,
             post: opts.post,
         }
-        return cb ? deps.ftruncate(o, cb) : coVoid(a, deps.ftruncate, o)
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbVoid(cb, deps.ftruncate, o, ce) : coVoid(a, deps.ftruncate, o, ce)
     }
 
     /**
      * Read the file name in the folder
+     * @throws PathError
      * @param n If greater than 0, the maximum length of the returned array is n
      */
     readDirNamesSync(n?: number): Array<string> {
-        const f = this._file()
-        return deps.fread_dir_names({
-            fd: f.fd,
-            n: n,
-        })
+        const op = 'readDirNamesSync'
+        const f = this._pathFile(op)
+        try {
+            return deps.fread_dir_names({
+                fd: f.fd,
+                n: n,
+            })
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
      */
     readDirNames(a: any, b: any) {
-        const [cb, opts] = parseBA<(dirs?: Array<string>, e?: any) => void, FileReadDirOptions | number | undefined>(a, b)
-        const f = this._file()
+        const op = 'readDirNames'
+        const f = this._pathFile(op)
+        const [opts, cb] = parseBorAB<number | FileReadDirOptions, (dirs?: Array<string>, e?: any) => void>(a, b)
         const o: deps.FReadDirOptions = typeof opts === "number" ? {
             fd: f.fd,
             n: opts,
-        } : {
-            fd: f.fd,
-            n: opts?.n,
-            post: opts?.post,
-        }
-        return cb ? deps.fread_dir_names(o, cb) : coReturn(a, deps.fread_dir_names, o)
+        } : (
+            opts === undefined || opts === null ? {
+                fd: f.fd,
+            } : {
+                fd: f.fd,
+                n: opts.n,
+                post: opts.post,
+            }
+        )
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbReturn(cb, deps.fread_dir_names, o, undefined, ce) : coReturn(a, deps.fread_dir_names, o, undefined, ce)
     }
 
     /**
      * Read the file info in the folder
+     * @throws PathError
      * @param n If greater than 0, the maximum length of the returned array is n
      */
     readDirSync(n?: number): Array<FileInfo> {
-        const f = this._file()
-        const items = deps.fread_dir({
-            fd: f.fd,
-            n: n,
-        })
-        return items.length ? items.map((info) => new fileInfo(info)) : items as any
+        const op = 'readDirSync'
+        const f = this._pathFile(op)
+        try {
+            const items = deps.fread_dir({
+                fd: f.fd,
+                n: n,
+            })
+            return items.length ? items.map((info) => new fileInfo(info)) : items as any
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to readDirSync but called asynchronously, notifying the result in cb
      */
     readDir(a: any, b: any) {
-        const [cb, opts] = parseBA<(dirs?: Array<FileInfo>, e?: any) => void, FileReadDirOptions | number | undefined>(a, b)
-        const f = this._file()
+        const op = 'readDir'
+        const f = this._pathFile(op)
+        const [opts, cb] = parseBorAB<number | FileReadDirOptions, (dirs?: Array<FileInfo>, e?: any) => void>(a, b)
         const o: deps.FReadDirOptions = typeof opts === "number" ? {
             fd: f.fd,
             n: opts,
-        } : {
-            fd: f.fd,
-            n: opts?.n,
-            post: opts?.post,
-        }
-        return cb ? _fread_dir(o, cb) : coReturn(a, _fread_dir, o)
+        } : (
+            opts === undefined || opts === null ? {
+                fd: f.fd,
+            } : {
+                fd: f.fd,
+                n: opts.n,
+                post: opts.post,
+            }
+        )
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbReturn(cb, deps.fread_dir, o, fileInfo.mapArray, ce) : coReturn(a, deps.fread_dir, o, fileInfo.mapArray, ce)
     }
-
 }
 
 export interface Reader {
@@ -1182,37 +1315,39 @@ export function readAll(reader: Reader, opts: ReadOptions | Uint8Array, cb: (n?:
     const r = new readerAll(reader, opts, cb)
     r.next()
 }
-
+export interface StatOptions extends AsyncOptions {
+    name: string
+}
 export function statSync(name: string): FileInfo {
-    const info = deps.stat({
-        name: name
-    })
-    return new fileInfo(info)
-}
-export function stat(a: any, b: any, opts?: AsyncOptions) {
-    const [name, cb] = parseAB<string, (info?: FileInfo, e?: any) => void>(a, b)
-    const o: deps.StatOptions = {
-        name: name,
-        post: opts?.post,
+    try {
+        const info = deps.stat({
+            name: name
+        })
+        return new fileInfo(info)
+    } catch (e) {
+        throw new PathError({
+            op: 'statSync',
+            path: name,
+            err: e,
+        })
     }
-    return cb ? _stat(o, cb) : coReturn(a, _stat, o)
 }
-export function _stat(opts: deps.StatOptions, cb: (info?: FileInfo, e?: any) => void) {
-    deps.stat(opts, (info, e) => {
-        if (!info) {
-            cb(undefined, e)
-            return
-        }
-        let ret: FileInfo
-        try {
-            ret = new fileInfo(info)
-        } catch (e) {
-            cb(undefined, e)
-            return
-        }
-        cb(ret)
+export function stat(a: any, b: any) {
+    const [opts, cb] = parseAB<string | StatOptions, (info?: FileInfo, e?: any) => void>(a, b)
+    const o: deps.StatOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
+        name: opts.name,
+        post: opts.post,
+    }
+    const ce = (e: any) => new PathError({
+        op: 'stat',
+        path: o.name,
+        err: e,
     })
+    return cb ? cbReturn(cb, deps.stat, o, fileInfo.map, ce) : coReturn(a, deps.stat, o, fileInfo.map, ce)
 }
+
 /**
  * changes the current working directory to the named directory
  * @throws PathError

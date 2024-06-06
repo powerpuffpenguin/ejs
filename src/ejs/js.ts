@@ -186,12 +186,23 @@ export function cbReturn<T>(cb: CallbackReturn<T>,
 export function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined] {
     if (isYieldContext(a)) {
         return [b, undefined]
-    } else {
-        if (typeof b !== "function") {
-            throw new TypeError("cb must be a function")
-        }
+    } else if (typeof b === "function") {
         return [a, b]
     }
+    throw new TypeError("cb must be a function")
+}
+/**
+ * <Options, CB> | < CB> -> [Options, CB | undefined]
+ */
+export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, CB | undefined] {
+    if (isYieldContext(a)) {
+        return [b, undefined]
+    } else if (typeof a === "function") {
+        return [undefined, a]
+    } else if (typeof b === "function") {
+        return [a, b]
+    }
+    throw new TypeError("cb must be a function")
 }
 /**
  * <CB, Options> -> [CB | undefined, Options]
@@ -199,11 +210,9 @@ export function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined] 
 export function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options] {
     if (isYieldContext(a)) {
         return [undefined, b]
-    } else {
-        if (typeof a !== "function") {
-            throw new TypeError("cb must be a function")
-        }
+    } else if (typeof a === "function") {
         return [a, b]
     }
+    throw new TypeError("cb must be a function")
 }
 

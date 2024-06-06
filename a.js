@@ -5,19 +5,17 @@ var File = os.File;
 sync.go(function (co) {
     var f
     try {
-        const items = os.readDirNames(co, {
-            name: 'src',
+        f = File.open(co, "src")
+        f.readDirNames(function (items, e) {
+            if (e) {
+                console.log(e)
+                return
+            }
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i]
+                console.log(item)
+            }
         })
-        for (var index = 0; index < items.length; index++) {
-            const item = items[index];
-            console.log(item)
-        }
-
-        // f = File.createTemp(co, {
-        //     pattern: "test*.log",
-        //     dir: '',
-        // })
-        // os.mkdir(co, { name: 'a/b/c/d/e', all: true })
 
         // const e = new os.LinkError({
         //     op: "ab",
