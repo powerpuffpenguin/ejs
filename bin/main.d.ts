@@ -1295,64 +1295,75 @@ declare module "ejs/os" {
         private constructor()
         /**
          * creates a new temporary file in the directory dir
+         * @throws PathError
          */
         static createTempSync(pattern: string): File
         /**
          * creates a new temporary file in the directory dir
+         * @throws PathError
          */
         static createTempSync(opts: FileCreateTempSyncOptions): File
         /**
          * Similar to createTempSync but called asynchronously, notifying the result in cb
          */
-        static createTemp(pattern: string, cb: (f?: File, e?: any) => void): void
+        static createTemp(pattern: string, cb: (f?: File, e?: PathError) => void): void
         /**
          * Similar to createTempSync but called asynchronously, notifying the result in cb
          */
-        static createTemp(opts: FileCreateTempOptions, cb: (f?: File, e?: any) => void): void
+        static createTemp(opts: FileCreateTempOptions, cb: (f?: File, e?: PathError) => void): void
         /**
          * creates a new temporary file in the directory dir
+         * @throws PathError
          */
         static createTemp(co: YieldContext, pattern: string): File
         /**
          * creates a new temporary file in the directory dir
+         * @throws PathError
          */
         static createTemp(co: YieldContext, opts: FileCreateTempOptions): File
+
         /**
          * Open the file as read-only (O_RDONLY)
+         * @throws PathError
          */
         static openSync(name: string): File
         /**
          * Similar to openSync but called asynchronously, notifying the result in cb
          */
-        static open(name: string, cb: (f?: File, e?: any) => void): void
+        static open(name: string, cb: (f?: File, e?: PathError) => void): void
         /**
          * Open the file as read-only (O_RDONLY)
+         * @throws PathError
          */
         static open(co: YieldContext, name: string): File
 
         /**
          * Create a new profile
+         * @throws PathError
          */
         static createSync(name: string): File
         /**
          * Similar to createSync but called asynchronously, notifying the result in cb
          */
-        static create(name: string, cb: (f?: File, e?: any) => void): void
+        static create(name: string, cb: (f?: File, e?: PathError) => void): void
         /**
          * Create a new profile
+         * @throws PathError
          */
         static create(co: YieldContext, name: string): File
 
         /**
          * Open files in customized mode
+         * @throws PathError
          */
         static openFileSync(opts: OpenFileSyncOptions): File
         /**
          * Similar to openFileSync but called asynchronously, notifying the result in cb
          */
-        static openFile(opts: OpenFileOptions, cb: (f?: File, e?: any) => void): void
+        static openFile(opts: OpenFileOptions, cb: (f?: File, e?: PathError) => void): void
         /**
          * Open files in customized mode
+         * @throws PathError
          */
         static openFile(co: YieldContext, opts: OpenFileOptions): File
 
@@ -1367,81 +1378,97 @@ declare module "ejs/os" {
         name(): string
         /**
          * returns the FileInfo describing file.
+         * @throws PathError
          */
         statSync(): FileInfo
         /**
          * Similar to statSync but called asynchronously, notifying the result in cb
          */
-        stat(cb: (info?: FileInfo, e?: any) => void, opts?: AsyncOptions): void
+        stat(cb: (info?: FileInfo, e?: PathError) => void): void
+        /**
+         * Similar to statSync but called asynchronously, notifying the result in cb
+         */
+        stat(opts: AsyncOptions, cb: (info?: FileInfo, e?: PathError) => void): void
         /**
          * returns the FileInfo describing file.
+         * @throws PathError
          */
         stat(co: YieldContext, opts?: AsyncOptions): FileInfo
         /**
          * Sets the offset for the next Read or Write on file to offset
+         * @throws PathError
          */
         seekSync(opts: SeekSyncOptions): number
         /**
          * Similar to seekSync but called asynchronously, notifying the result in cb
          */
-        seek(opts: SeekOptions, cb: (offset?: number, e?: any) => void): void
+        seek(opts: SeekOptions, cb: (offset?: number, e?: PathError) => void): void
         /**
          * Sets the offset for the next Read or Write on file to offset
+         * @throws PathError
          */
         seek(co: YieldContext, opts: SeekOptions): number
         /**
          * Read data to dst
+         * @throws PathError
          * @returns the actual length of bytes read, or 0 if eof is read
          */
         readSync(dst: Uint8Array): number
         /**
          * Similar to readSync but called asynchronously, notifying the result in cb
          */
-        read(opts: ReadOptions | Uint8Array, cb: (n?: number, e?: any) => void): void
+        read(opts: ReadOptions | Uint8Array, cb: (n?: number, e?: PathError) => void): void
         /**
          * Read data to dst
+         * @throws PathError
          * @returns the actual length of bytes read, or 0 if eof is read
          */
         read(co: YieldContext, opts: ReadOptions | Uint8Array): number
         /**
          * Read the data at the specified offset
+         * @throws PathError
          * @returns the actual length of bytes read, or 0 if eof is read
          */
         readAtSync(opts: ReadAtSyncOptions): number
         /**
          * Similar to readAtSync but called asynchronously, notifying the result in cb
          */
-        readAt(opts: ReadAtOptions, cb: (n?: number, e?: any) => void): void
+        readAt(opts: ReadAtOptions, cb: (n?: number, e?: PathError) => void): void
         /**
          * Read the data at the specified offset
+         * @throws PathError
          * @returns the actual length of bytes read, or 0 if eof is read
          */
         readAt(co: YieldContext, opts: ReadAtOptions): number
         /**
          * Write data
+         * @throws PathError
          * @returns the actual length of bytes write
          */
         writeSync(data: Uint8Array | string): number
         /**
          * Similar to writeSync but called asynchronously, notifying the result in cb
          */
-        write(opts: WriteOptions | Uint8Array | string, cb: (n?: number, e?: any) => void): void
+        write(opts: WriteOptions | Uint8Array | string, cb: (n?: number, e?: PathError) => void): void
         /**
          * Write data
+         * @throws PathError
          * @returns the actual length of bytes write
          */
         write(co: YieldContext, opts: WriteOptions | Uint8Array | string): number
         /**
          * Write the data at the specified offset
+         * @throws PathError
          * @returns the actual length of bytes write
          */
         writeAtSync(opts: WriteAtSyncOptions): number
         /**
          * Similar to writeAtSync but called asynchronously, notifying the result in cb
          */
-        writeAt(opts: WriteAtOptions, cb: (n?: number, e?: any) => void): void
+        writeAt(opts: WriteAtOptions, cb: (n?: number, e?: PathError) => void): void
         /**
          * Write the data at the specified offset
+         * @throws PathError
          * @returns the actual length of bytes write
          */
         writeAt(co: YieldContext, opts: WriteAtOptions): number

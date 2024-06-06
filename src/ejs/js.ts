@@ -40,12 +40,12 @@ export function isYieldContext(v: any): v is YieldContext {
 }
 export type CallbackVoid = (e?: any) => void
 export type CallbackReturn<T> = (value?: T, e?: any) => void
-export type InterfaceVoid = (opts: any, cb: CallbackVoid) => void
-export type InterfaceReturn<T> = (opts: any, cb: CallbackReturn<T>) => any
-export type CallbackMap = (v: any) => any
-export function coVoid(co: YieldContext,
-    f: InterfaceVoid, opts: any,
-    ce?: CallbackMap,
+export type InterfaceVoid<Options> = (opts: Options, cb: CallbackVoid) => void
+export type InterfaceReturn<Options, Result> = (opts: Options, cb: CallbackReturn<Result>) => void
+export type CallbackMap<Input, Output> = (v: Input) => Output
+export function coVoid<Options>(co: YieldContext,
+    f: InterfaceVoid<Options>, opts: Options,
+    ce?: CallbackMap<any, any>,
 ): void {
     if (ce) {
         try {
@@ -73,9 +73,9 @@ export function coVoid(co: YieldContext,
         })
     }
 }
-export function cbVoid(cb: CallbackVoid,
-    f: InterfaceVoid, opts: any,
-    ce?: CallbackMap,
+export function cbVoid<Options>(cb: CallbackVoid,
+    f: InterfaceVoid<Options>, opts: Options,
+    ce?: CallbackMap<any, any>,
 ): void {
     if (ce) {
         try {
@@ -103,14 +103,13 @@ export function cbVoid(cb: CallbackVoid,
         }
     }
 }
-export function coReturn<T>(co: YieldContext,
-    f: InterfaceReturn<T>, opts: any,
-    cv?: CallbackMap, ce?: CallbackMap,
-): T {
-    let v: any
+export function coReturn<Options, Result>(co: YieldContext,
+    f: InterfaceReturn<Options, any>, opts: Options,
+    cv?: CallbackMap<any, any>, ce?: CallbackMap<any, any>,
+): Result {
     if (ce) {
         try {
-            v = co.yield<T>((notify) => {
+            const v = co.yield((notify) => {
                 f(opts, (v, e) => {
                     if (e === undefined) {
                         notify.value(v!)
@@ -119,11 +118,12 @@ export function coReturn<T>(co: YieldContext,
                     }
                 })
             })
+            return cv ? cv(v) : v
         } catch (e) {
             throw ce(e)
         }
     } else {
-        v = co.yield<T>((notify) => {
+        const v = co.yield<Result>((notify) => {
             f(opts, (v, e) => {
                 if (e === undefined) {
                     notify.value(v!)
@@ -132,13 +132,14 @@ export function coReturn<T>(co: YieldContext,
                 }
             })
         })
+        return cv ? cv(v) : v
     }
-    return cv ? cv(v) : v
 }
-export function cbReturn<T>(cb: CallbackReturn<T>,
-    f: InterfaceReturn<T>, opts: any,
-    cv?: CallbackMap, ce?: CallbackMap): void {
-    if (cv || ce) {
+export function cbReturn<Options, Result>(cb: CallbackReturn<Result>,
+    f: InterfaceReturn<Options, any>, opts: Options,
+    cv?: CallbackMap<any, any>, ce?: CallbackMap<any, any>,
+): void {
+    if (ce) {
         try {
             f(opts, (v, e) => {
                 if (e === undefined) {
@@ -146,30 +147,43 @@ export function cbReturn<T>(cb: CallbackReturn<T>,
                         try {
                             v = cv(v)
                         } catch (e) {
+                            try {
+                                e = ce(e)
+                            } catch (err) {
+                                e = err
+                            }
                             cb(undefined, e)
                             return
                         }
                     }
                     cb(v)
                 } else {
-                    if (ce) {
-                        try {
-                            e = ce(e)
-                        } catch (err) {
-                            e = err
-                        }
+                    try {
+                        e = ce(e)
+                    } catch (err) {
+                        e = err
                     }
                     cb(undefined, e)
                 }
             })
         } catch (e) {
-            if (ce) {
-                try {
-                    e = ce(e)
-                } catch (err) {
-                    e = err
+            cb(undefined, e)
+        }
+    } else if (cv) {
+        try {
+            f(opts, (v, e) => {
+                if (e === undefined) {
+                    try {
+                        v = cv(v)
+                    } catch (e) {
+                        cb(undefined, e)
+                    }
+                    cb(v)
+                } else {
+                    cb(undefined, e)
                 }
-            }
+            })
+        } catch (e) {
             cb(undefined, e)
         }
     } else {
@@ -200,17 +214,6 @@ export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, C
     } else if (typeof a === "function") {
         return [undefined, a]
     } else if (typeof b === "function") {
-        return [a, b]
-    }
-    throw new TypeError("cb must be a function")
-}
-/**
- * <CB, Options> -> [CB | undefined, Options]
- */
-export function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options] {
-    if (isYieldContext(a)) {
-        return [undefined, b]
-    } else if (typeof a === "function") {
         return [a, b]
     }
     throw new TypeError("cb must be a function")

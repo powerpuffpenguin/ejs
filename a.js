@@ -5,18 +5,6 @@ var File = os.File;
 sync.go(function (co) {
     var f
     try {
-        f = File.open(co, "src")
-        f.readDirNames(function (items, e) {
-            if (e) {
-                console.log(e)
-                return
-            }
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i]
-                console.log(item)
-            }
-        })
-
         // const e = new os.LinkError({
         //     op: "ab",
         //     from: "a",
@@ -31,17 +19,19 @@ sync.go(function (co) {
         //     flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,
         //     perm: 0o664,
         // })
-        // f = File.create(co, "a.txt")
-        // console.log(f)
-        // f.writeAt(co, {
-        //     src: "ok",
-        //     offset: 2,
-        // })
-        // f.writeAt(co, {
-        //     src: "12",
-        //     offset: 8,
-        // })
+        f = File.create(co, "a.txt")
+        console.log(f)
+        f.writeAt(co, {
+            src: "ok",
+            offset: 2,
+        })
 
+        f.writeAt({
+            src: "12",
+            offset: 8,
+        }, function (v, e) {
+            console.log(v, e, f.name())
+        })
         // console.log(f.stat(co))
         // console.log(f instanceof os.File)
         // var buf = new Uint8Array(128)

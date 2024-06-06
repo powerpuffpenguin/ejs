@@ -43,30 +43,26 @@ declare namespace __duk {
         export function isYieldContext(v: any): v is YieldContext
         export type CallbackVoid = (e?: any) => void
         export type CallbackReturn<T> = (value?: T, e?: any) => void
-        export type InterfaceVoid = (opts: any, cb: CallbackVoid) => void
-        export type InterfaceReturn<T> = (opts: any, cb: CallbackReturn<T>) => any
-        export type SyncVoid = (opts: any) => void
-        export type SyncReturn<T> = (opts: any) => T
-        export type CallbackMap = (v: any) => any
-        export function coVoid(co: YieldContext,
-            f: InterfaceVoid, opts: any,
-            ce?: CallbackMap,
+        export type InterfaceVoid<Options> = (opts: Options, cb: CallbackVoid) => void
+        export type InterfaceReturn<Options, Result> = (opts: Options, cb: CallbackReturn<Result>) => void
+        export type CallbackMap<Input, Output> = (v: Input) => Output
+        export function coVoid<Options>(co: YieldContext,
+            f: InterfaceVoid<Options>, opts: Options,
+            ce?: CallbackMap<any, any>,
         ): void
-        export function cbVoid(cb: CallbackVoid,
-            f: InterfaceVoid, opts: any,
-            ce?: CallbackMap,
+        export function cbVoid<Options>(cb: CallbackVoid,
+            f: InterfaceVoid<Options>, opts: Options,
+            ce?: CallbackMap<any, any>,
         ): void
-        export function syncVoid(f: SyncVoid, opts: any,
-            ce?: CallbackMap): void
-        export function coReturn<T>(co: YieldContext,
-            f: InterfaceReturn<T>, opts: any,
-            cv?: CallbackMap, ce?: CallbackMap,
-        ): T
-        export function cbReturn<T>(cb: CallbackReturn<T>,
-            f: InterfaceReturn<T>, opts: any,
-            cv?: CallbackMap, ce?: CallbackMap): void
-        export function syncReturn<T>(f: SyncReturn<T>, opts: any,
-            cv?: CallbackMap, ce?: CallbackMap): T
+
+        export function coReturn<Options, Result, Map>(co: YieldContext,
+            f: InterfaceReturn<Options, Result>, opts: Options,
+            cv?: CallbackMap<Result, Map>, ce?: CallbackMap<any, any>,
+        ): Map
+        export function cbReturn<Options, Result, Map>(cb: CallbackReturn<Map>,
+            f: InterfaceReturn<Options, Result>, opts: Options,
+            cv?: CallbackMap<Result, Map>, ce?: CallbackMap<any, any>): void
+
         /**
          * <Options, CB> -> [Options, CB | undefined]
          */
@@ -75,11 +71,6 @@ declare namespace __duk {
          * <Options, CB> | < CB> -> [Options, CB | undefined]
          */
         export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, CB | undefined]
-
-        /**
-         * <CB, Options> -> [CB | undefined, Options]
-         */
-        export function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
     }
 }
 declare namespace deps {
@@ -358,7 +349,6 @@ const cbVoid = __duk.js.cbVoid
 const cbReturn = __duk.js.cbReturn
 const parseAB = __duk.js.parseAB
 const parseBorAB = __duk.js.parseBorAB
-const parseBA = __duk.js.parseBA
 
 
 export type OsError = __duk.OsError
@@ -459,22 +449,7 @@ export interface FileInfo {
      */
     isLink(): boolean
 }
-function _fstat(opts: deps.FileStatOptions, cb: (info?: FileInfo, e?: any) => void) {
-    deps.fstat(opts, (info, e) => {
-        if (!info) {
-            cb(undefined, e)
-            return
-        }
-        let ret: FileInfo
-        try {
-            ret = new fileInfo(info)
-        } catch (e) {
-            cb(undefined, e)
-            return
-        }
-        cb(ret)
-    })
-}
+
 class fileInfo implements FileInfo {
     static mapArray(items: Array<deps.FileInfo>): Array<FileInfo> {
         return items.length ? items.map((v) => new fileInfo(v)) : (items as any)
@@ -571,6 +546,7 @@ export interface FileCreateTempSyncOptions {
 }
 export interface FileCreateTempOptions extends FileCreateTempSyncOptions, AsyncOptions { }
 const errClosed = new OsError(deps.EBADF)
+
 export class File {
     private constructor(private file_: deps.File | undefined) {
         this.name_ = file_!.name
@@ -587,24 +563,16 @@ export class File {
             dir: opts.dir,
             perm: opts.perm,
         }
-        const f = deps.createTemp(o)
-        return new File(f)
-    }
-    static _createTemp(opts: deps.CreateTempOptions, cb: (f?: File, e?: any) => void) {
-        deps.createTemp(opts, (f, e) => {
-            if (f) {
-                let file: File
-                try {
-                    file = new File(f!)
-                } catch (e) {
-                    cb(undefined, e)
-                    return
-                }
-                cb(file)
-            } else {
-                cb(undefined, e)
-            }
-        })
+        try {
+            const f = deps.createTemp(o)
+            return new File(f)
+        } catch (e) {
+            throw new PathError({
+                op: 'createTempSync',
+                path: o.pattern,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to createTempSync but called asynchronously, notifying the result in cb
@@ -619,18 +587,34 @@ export class File {
             perm: opts.perm,
             post: opts.post,
         }
-        return cb ? File._createTemp(o, cb) : coReturn(a, File._createTemp, o)
+        const cv = (v: deps.File) => new File(v)
+        const ce = (e: any) => new PathError({
+            op: 'createTemp',
+            path: o.pattern,
+            err: e,
+        })
+        return cb ? cbReturn(cb, deps.createTemp, o, cv, ce) : coReturn(a, deps.createTemp, o, cv, ce)
     }
 
     /**
      * Open files in customized mode
+     * @throws PathError
      */
     static openFileSync(opts: OpenFileSyncOptions): File {
-        return new File(deps.open({
+        const o: deps.OpenOptions = {
             name: opts.name,
             flags: opts.flags ?? deps.O_RDONLY,
             perm: opts.perm ?? 0,
-        }))
+        }
+        try {
+            return new File(deps.open(o))
+        } catch (e) {
+            throw new PathError({
+                op: 'openFileSync',
+                path: o.name,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to openFileSync but called asynchronously, notifying the result in cb
@@ -643,7 +627,12 @@ export class File {
             perm: opts.perm ?? 0,
             post: opts.post,
         }
-        return cb ? File._openFile(o, cb) : coReturn(a, File._openFile, o)
+        const ce = (e: any) => new PathError({
+            op: 'openFile',
+            path: o.name,
+            err: e,
+        })
+        return cb ? cbReturn(cb, File._openFile, o, undefined, ce) : coReturn(a, File._openFile, o, undefined, ce)
     }
     static _openFile(opts: deps.OpenOptions, cb: (f?: File, e?: any) => void): void {
         deps.open({
@@ -668,13 +657,23 @@ export class File {
     }
     /**
      * Open the file as read-only (O_RDONLY)
+     * @throws PathError
      */
     static openSync(name: string): File {
-        return new File(deps.open({
+        const o: deps.OpenOptions = {
             name: name,
             flags: deps.O_RDONLY,
             perm: 0,
-        }))
+        }
+        try {
+            return new File(deps.open(o))
+        } catch (e) {
+            throw new PathError({
+                op: 'openSync',
+                path: o.name,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to openSync but called asynchronously, notifying the result in cb
@@ -686,17 +685,33 @@ export class File {
             flags: deps.O_RDONLY,
             perm: 0,
         }
-        return cb ? File._openFile(o, cb) : coReturn(a, File._openFile, o)
+        const ce = (e: any) => new PathError({
+            op: 'open',
+            path: o.name,
+            err: e,
+        })
+        return cb ? cbReturn(cb, File._openFile, o, undefined, ce) : coReturn(a, File._openFile, o, undefined, ce)
     }
     /**
      * Create a new profile
+     * @throws PathError
      */
     static createSync(name: string): File {
-        return new File(deps.open({
+        const o: deps.OpenOptions = {
             name: name,
             flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
             perm: 0o666,
-        }))
+        }
+        try {
+            return new File(deps.open(o))
+        } catch (e) {
+            throw new PathError({
+                op: 'createSync',
+                path: o.name,
+                err: e,
+            })
+        }
+
     }
     /**
      * Similar to createSync but called asynchronously, notifying the result in cb
@@ -708,7 +723,12 @@ export class File {
             flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
             perm: 0o666,
         }
-        return cb ? File._openFile(o, cb) : coReturn(a, File._openFile, o)
+        const ce = (e: any) => new PathError({
+            op: 'create',
+            path: o.name,
+            err: e,
+        })
+        return cb ? cbReturn(cb, File._openFile, o, undefined, ce) : coReturn(a, File._openFile, o, undefined, ce)
     }
 
     isClosed(): boolean {
@@ -733,14 +753,6 @@ export class File {
             deps.close(f)
         }
     }
-
-    private _file(): deps.File {
-        const f = this.file_
-        if (!f) {
-            throw new OsError(deps.EBADF)
-        }
-        return f;
-    }
     private _pathFile(op: string): deps.File {
         const f = this.file_
         if (!f) {
@@ -759,255 +771,357 @@ export class File {
         return this.name_;
     }
     statSync(): FileInfo {
-        const f = this._file()
-        const info = deps.fstat({
-            file: f
-        })
-        return new fileInfo(info)
+        const op = 'statSync'
+        const f = this._pathFile(op)
+        try {
+            return new fileInfo(deps.fstat({
+                file: f,
+            }))
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     stat(a: any, b: any) {
-        const [cb, opts] = parseBA<(info?: FileInfo, e?: any) => void, AsyncOptions | undefined>(a, b)
+        const op = 'stat'
+        const f = this._pathFile(op)
+        const [opts, cb] = parseBorAB<AsyncOptions, (info?: FileInfo, e?: any) => void>(a, b)
         const o: deps.FileStatOptions = {
-            file: this._file(),
+            file: f,
             post: opts?.post,
         }
-        return cb ? _fstat(o, cb) : coReturn(a, _fstat, o)
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbReturn(cb, deps.fstat, o, fileInfo.map, ce) : coReturn(a, deps.fstat, o, fileInfo.map, ce)
     }
     /**
      * Sets the offset for the next Read or Write on file to offset
+     * @throws PathError
      */
     seekSync(opts: SeekSyncOptions): number {
-        const f = this._file()
-        return deps.seek({
-            fd: f.fd,
-            offset: opts.offset,
-            whence: opts.whence,
-        })
+        const op = 'seekSync'
+        const f = this._pathFile(op)
+        try {
+            return deps.seek({
+                fd: f.fd,
+                offset: opts.offset,
+                whence: opts.whence,
+            })
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     /**
      * Similar to seekSync but called asynchronously, notifying the result in cb
      */
     seek(a: any, b: any) {
+        const op = 'seek'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<SeekOptions, (n?: number, e?: any) => void>(a, b)
         const o: deps.SeekOptions = {
-            fd: this._file().fd,
+            fd: f.fd,
             offset: opts.offset,
             whence: opts.whence,
             post: opts.post,
         }
-        return cb ? deps.seek(o, cb) : coReturn(a, deps.seek, o)
+        const ce = (e: any) => new PathError({
+            op: op,
+            path: this.name_,
+            err: e,
+        })
+        return cb ? cbReturn(cb, deps.seek, o, undefined, ce) : coReturn(a, deps.seek, o, undefined, ce)
     }
     /**
      * Read data to dst
+     * @throws PathError
      * @returns the actual length of bytes read, or 0 if eof is read
      */
     readSync(dst: Uint8Array): number {
-        const f = this._file()
-        return deps.read({
-            fd: f.fd,
-            dst: dst,
-        })
+        const op = 'readSync'
+        const f = this._pathFile(op)
+        try {
+            return deps.read({
+                fd: f.fd,
+                dst: dst,
+            })
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     private read_?: deps.ReadArgs
     /**
      * Similar to readSync but called asynchronously, notifying the result in cb
      */
     read(a: any, b: any) {
+        const op = 'read'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<ReadOptions, (n?: number, e?: any) => void>(a, b)
-        const f = this._file()
-        const o: deps.ReadOptions = deps.isBufferData(opts) ? {
-            fd: f.fd,
-            dst: opts,
-        } : {
-            fd: f.fd,
-            dst: opts.dst,
-            post: opts.post,
-        }
         let args = this.read_
         if (args) {
             this.read_ = undefined
         } else {
-            args = deps.read_args()
-        }
-        o.args = args
-        if (cb) {
             try {
-                deps.read(o, (n, e) => {
-                    if (this.file_) {
-                        this.read_ = args
-                    }
-                    cb(n, e)
-                })
+                args = deps.read_args()
             } catch (e) {
-                this.read_ = args
-                throw e
-            }
-        } else {
-            try {
-                return coReturn(a, deps.read, o)
-            } finally {
-                if (this.file_) {
-                    this.read_ = args
-                }
+                throw new PathError({
+                    op: op,
+                    path: this.name_,
+                    err: e,
+                })
             }
         }
+        const o: deps.ReadOptions = deps.isBufferData(opts) ? {
+            fd: f.fd,
+            dst: opts,
+            args: args,
+        } : {
+            fd: f.fd,
+            dst: opts.dst,
+            args: args,
+            post: opts.post,
+        }
+        const cv = (v: any) => {
+            if (this.file_) {
+                this.read_ = args
+            }
+            return v
+        }
+        const ce = (e: any) => {
+            if (this.file_) {
+                this.read_ = args
+            }
+            return new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
+        return cb ? cbReturn(cb, deps.read, o, cv, ce) : coReturn(a, deps.read, o, cv, ce)
     }
     /**
      * Read the data at the specified offset
+     * @throws PathError
      * @returns the actual length of bytes read, or 0 if eof is read
      */
     readAtSync(opts: ReadAtSyncOptions): number {
-        const f = this._file()
-        return deps.readAt({
-            fd: f.fd,
-            dst: opts.dst,
-            offset: opts.offset,
-        })
+        const op = 'readAtSync'
+        const f = this._pathFile(op)
+        try {
+            return deps.readAt({
+                fd: f.fd,
+                dst: opts.dst,
+                offset: opts.offset,
+            })
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     private readAt_?: deps.ReadAtArgs
     /**
      * Similar to readAtSync but called asynchronously, notifying the result in cb
      */
     readAt(a: any, b: any) {
+        const op = 'readAt'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<ReadAtOptions, (n?: number, e?: any) => void>(a, b)
-        const f = this._file()
-        const o: deps.ReadAtOptions = {
-            fd: f.fd,
-            dst: opts.dst,
-            offset: opts.offset,
-            post: opts.post,
-        }
         let args = this.readAt_
         if (args) {
             this.readAt_ = undefined
         } else {
-            args = deps.readAt_args()
-        }
-        o.args = args
-        if (cb) {
             try {
-                deps.readAt(o, (n, e) => {
-                    if (this.file_) {
-                        this.readAt_ = args
-                    }
-                    cb(n, e)
-                })
+                args = deps.readAt_args()
             } catch (e) {
-                this.readAt_ = args
-                throw e
-            }
-        } else {
-            try {
-                return coReturn(a, deps.readAt, o)
-            } finally {
-                this.readAt_ = args
+                throw new PathError({
+                    op: op,
+                    path: this.name_,
+                    err: e,
+                })
             }
         }
+        const o: deps.ReadAtOptions = {
+            fd: f.fd,
+            dst: opts.dst,
+            offset: opts.offset,
+            args: args,
+            post: opts.post,
+        }
+
+        const cv = (v: any) => {
+            if (this.file_) {
+                this.readAt_ = args
+            }
+            return v
+        }
+        const ce = (e: any) => {
+            if (this.file_) {
+                this.readAt_ = args
+            }
+            return new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
+        return cb ? cbReturn(cb, deps.readAt, o, cv, ce) : coReturn(a, deps.readAt, o, cv, ce)
     }
     /**
      * Write data
+     * @throws PathError
      * @returns the actual length of bytes write
      */
     writeSync(data: Uint8Array | string): number {
-        const f = this._file()
-        return deps.write({
-            fd: f.fd,
-            src: data,
-        })
+        const op = 'writeSync'
+        const f = this._pathFile(op)
+        try {
+            return deps.write({
+                fd: f.fd,
+                src: data,
+            })
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     private write_?: deps.WriteArgs
     /**
      * Similar to writeSync but called asynchronously, notifying the result in cb
      */
     write(a: any, b: any) {
+        const op = 'write'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<WriteOptions | Uint8Array | string, (n?: number, e?: any) => void>(a, b)
-        const f = this._file()
-        const o: deps.WriteOptions = deps.isBufferData(opts) || typeof opts === "string" ? {
-            fd: f.fd,
-            src: opts,
-        } : {
-            fd: f.fd,
-            src: opts.src,
-            post: opts.post,
-        }
         let args = this.write_
         if (args) {
             this.write_ = undefined
         } else {
-            args = deps.write_args()
-        }
-        o.args = args
-        if (cb) {
             try {
-                deps.write(o, (n, e) => {
-                    if (this.file_) {
-                        this.write_ = args
-                    }
-                    cb(n, e)
-                })
+                args = deps.write_args()
             } catch (e) {
-                this.write_ = args
-                throw e
-            }
-        } else {
-            try {
-                return coReturn(a, deps.write, o)
-            } finally {
-                this.write_ = args
+                throw new PathError({
+                    op: op,
+                    path: this.name_,
+                    err: e,
+                })
             }
         }
+        const o: deps.WriteOptions = deps.isBufferData(opts) || typeof opts === "string" ? {
+            fd: f.fd,
+            src: opts,
+            args: args,
+        } : {
+            fd: f.fd,
+            src: opts.src,
+            args: args,
+            post: opts.post,
+        }
+
+        const cv = (v: any) => {
+            if (this.file_) {
+                this.write_ = args
+            }
+            return v
+        }
+        const ce = (e: any) => {
+            if (this.file_) {
+                this.write_ = args
+            }
+            return new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
+        return cb ? cbReturn(cb, deps.write, o, cv, ce) : coReturn(a, deps.write, o, cv, ce)
     }
     /**
      * Write the data at the specified offset
+     * @throws PathError
      * @returns the actual length of bytes write
      */
     writeAtSync(opts: WriteAtSyncOptions): number {
-        const f = this._file()
-        return deps.writeAt({
-            fd: f.fd,
-            src: opts.src,
-            offset: opts.offset,
-        })
+        const op = 'writeAtSync'
+        const f = this._pathFile(op)
+        try {
+            return deps.writeAt({
+                fd: f.fd,
+                src: opts.src,
+                offset: opts.offset,
+            })
+        } catch (e) {
+            throw new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
     }
     private writeAt_?: deps.WriteAtArgs
     /**
      * Similar to writeAtSync but called asynchronously, notifying the result in cb
      */
     writeAt(a: any, b: any) {
+        const op = 'writeAt'
+        const f = this._pathFile(op)
         const [opts, cb] = parseAB<WriteAtOptions, (n?: number, e?: any) => void>(a, b)
-        const f = this._file()
-        const o: deps.WriteAtOptions = {
-            fd: f.fd,
-            src: opts.src,
-            offset: opts.offset,
-            post: opts.post,
-        }
         let args = this.writeAt_
         if (args) {
             this.writeAt_ = undefined
         } else {
-            args = deps.writeAt_args()
-        }
-        o.args = args
-        if (cb) {
             try {
-                deps.writeAt(o, (n, e) => {
-                    if (this.file_) {
-                        this.writeAt_ = args
-                    }
-                    cb(n, e)
-                })
+                args = deps.writeAt_args()
             } catch (e) {
-                this.writeAt_ = args
-                throw e
-            }
-        } else {
-            try {
-                return coReturn(a, deps.writeAt, o)
-            } finally {
-                this.writeAt_ = args
+                throw new PathError({
+                    op: op,
+                    path: this.name_,
+                    err: e,
+                })
             }
         }
+        const o: deps.WriteAtOptions = {
+            fd: f.fd,
+            src: opts.src,
+            offset: opts.offset,
+            args: args,
+            post: opts.post,
+        }
+        const cv = (v: any) => {
+            if (this.file_) {
+                this.writeAt_ = args
+            }
+            return v
+        }
+        const ce = (e: any) => {
+            if (this.file_) {
+                this.writeAt_ = args
+            }
+            return new PathError({
+                op: op,
+                path: this.name_,
+                err: e,
+            })
+        }
+        return cb ? cbReturn(cb, deps.writeAt, o, cv, ce) : coReturn(a, deps.writeAt, o, cv, ce)
     }
 
     /**
