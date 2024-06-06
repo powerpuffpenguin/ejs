@@ -2811,6 +2811,9 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, f_createTemp, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "createTemp", 10);
+
+        duk_push_c_lightfunc(ctx, _chdir, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "chdir", 5);
     }
     // getenv
     // setenv
@@ -2822,8 +2825,6 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
 
     duk_push_c_lightfunc(ctx, _cwd, 0, 0, 0);
     duk_put_prop_lstring(ctx, -2, "cwd", 3);
-    duk_push_c_lightfunc(ctx, _chdir, 1, 1, 0);
-    duk_put_prop_lstring(ctx, -2, "chdir", 5);
 
     duk_push_c_lightfunc(ctx, _tempDir, 0, 0, 0);
     duk_put_prop_lstring(ctx, -2, "tempDir", 7);

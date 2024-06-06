@@ -1551,6 +1551,7 @@ declare module "ejs/os" {
     export function cwd(): string
     /**
      * changes the current working directory to the named directory
+     * @throws PathError
      */
     export function chdir(path: string): void
 
@@ -1561,14 +1562,16 @@ declare module "ejs/os" {
     export interface ChmodOptions extends ChmodSyncOptions, AsyncOptions { }
     /**
      * changes the mode of the file to mode
+     * @throws PathError
      */
     export function chmodSync(opts: ChmodSyncOptions): void
     /**
      * Similar to chmodSync but called asynchronously, notifying the result in cb
      */
-    export function chmod(opts: ChmodOptions, cb: (e?: any) => void): void
+    export function chmod(opts: ChmodOptions, cb: (e?: PathError) => void): void
     /**
      * changes the mode of the file to mode
+     * @throws PathError
      */
     export function chmod(co: YieldContext, opts: ChmodSyncOptions): void
 
@@ -1580,14 +1583,16 @@ declare module "ejs/os" {
     export interface ChownOptions extends ChownSyncOptions, AsyncOptions { }
     /**
      * changes the uid and gid of the file
+     * @throws PathError
      */
     export function chownSync(opts: ChownSyncOptions): void
     /**
      * Similar to chownSync but called asynchronously, notifying the result in cb
      */
-    export function chown(opts: ChownOptions, cb: (e?: any) => void): void
+    export function chown(opts: ChownOptions, cb: (e?: PathError) => void): void
     /**
      * changes the uid and gid of the file
+     * @throws PathError
      */
     export function chown(co: YieldContext, opts: ChownOptions): void
     export interface TruncateSyncOptions {
@@ -1597,14 +1602,16 @@ declare module "ejs/os" {
     export interface TruncateOptions extends TruncateSyncOptions, AsyncOptions { }
     /**
      * changes the size of the file
+     * @throws PathError
      */
     export function truncateSync(opts: TruncateSyncOptions): void
     /**
      * Similar to truncateSync but called asynchronously, notifying the result in cb
      */
-    export function truncate(opts: TruncateOptions, cb: (e?: any) => void): void
+    export function truncate(opts: TruncateOptions, cb: (e?: PathError) => void): void
     /**
      * changes the size of the file
+     * @throws PathError
      */
     export function truncate(co: YieldContext, opts: TruncateOptions): void
 

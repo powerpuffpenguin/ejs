@@ -143,6 +143,8 @@ declare namespace deps {
     export function stat(opts: StatOptions): FileInfo
     export function stat(opts: StatOptions, cb: (info?: FileInfo, e?: any) => void): void
 
+    export function chdir(name: string): void
+
     export interface SeekOptions extends AsyncOptions {
         fd: any
         offset: number
@@ -1211,6 +1213,21 @@ export function _stat(opts: deps.StatOptions, cb: (info?: FileInfo, e?: any) => 
         cb(ret)
     })
 }
+/**
+ * changes the current working directory to the named directory
+ * @throws PathError
+ */
+export function chdir(path: string): void {
+    try {
+        return deps.chdir(path)
+    } catch (e) {
+        throw new PathError({
+            op: 'chdir',
+            path: path,
+            err: e,
+        })
+    }
+}
 export interface ChmodSyncOptions {
     name: string
     perm: number
@@ -1218,12 +1235,22 @@ export interface ChmodSyncOptions {
 export interface ChmodOptions extends ChmodSyncOptions, AsyncOptions { }
 /**
  * changes the mode of the file to mode
+ * @throws PathError
  */
 export function chmodSync(opts: ChmodSyncOptions): void {
-    deps.chmod({
+    const o: deps.ChmodOptions = {
         name: opts.name,
         perm: opts.perm,
-    })
+    }
+    try {
+        return deps.chmod(o)
+    } catch (e) {
+        throw new PathError({
+            op: 'chmodSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 /**
  * Similar to chmodSync but called asynchronously, notifying the result in cb
@@ -1235,7 +1262,12 @@ export function chmod(a: any, b: any) {
         perm: opts.perm,
         post: opts.post,
     }
-    return cb ? deps.chmod(o, cb) : coVoid(a, deps.chmod, o)
+    const ce = (e: any) => new PathError({
+        op: 'chmod',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.chmod, o, ce) : coVoid(a, deps.chmod, o, ce)
 }
 
 export interface ChownSyncOptions {
@@ -1246,13 +1278,23 @@ export interface ChownSyncOptions {
 export interface ChownOptions extends ChownSyncOptions, AsyncOptions { }
 /**
  * changes the uid and gid of the file
+ * @throws PathError
  */
 export function chownSync(opts: ChownSyncOptions): void {
-    deps.chown({
+    const o: deps.ChownOptions = {
         name: opts.name,
         uid: opts.uid,
         gid: opts.gid,
-    })
+    }
+    try {
+        return deps.chown(o)
+    } catch (e) {
+        throw new PathError({
+            op: 'chownSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 /**
  * Similar to chownSync but called asynchronously, notifying the result in cb
@@ -1265,7 +1307,12 @@ export function chown(a: any, b: any) {
         gid: opts.gid,
         post: opts.post,
     }
-    return cb ? deps.chown(o, cb) : coVoid(a, deps.chown, o)
+    const ce = (e: any) => new PathError({
+        op: 'chown',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.chown, o, ce) : coVoid(a, deps.chown, o, ce)
 }
 export interface TruncateSyncOptions {
     name: string
@@ -1274,12 +1321,22 @@ export interface TruncateSyncOptions {
 export interface TruncateOptions extends TruncateSyncOptions, AsyncOptions { }
 /**
  * changes the size of the file
+ * @throws PathError
  */
 export function truncateSync(opts: TruncateSyncOptions): void {
-    deps.truncate({
+    const o: deps.TruncateOptions = {
         name: opts.name,
         size: opts.size,
-    })
+    }
+    try {
+        return deps.truncate(o)
+    } catch (e) {
+        throw new PathError({
+            op: 'truncateSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 /**
  * Similar to truncateSync but called asynchronously, notifying the result in cb
@@ -1291,7 +1348,12 @@ export function truncate(a: any, b: any) {
         size: opts.size,
         post: opts.post,
     }
-    return cb ? deps.truncate(o, cb) : coVoid(a, deps.truncate, o)
+    const ce = (e: any) => new PathError({
+        op: 'truncate',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.truncate, o, ce) : coVoid(a, deps.truncate, o, ce)
 }
 export interface ReadFileOptions extends AsyncOptions {
     name: string
