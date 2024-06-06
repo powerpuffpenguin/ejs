@@ -38,27 +38,147 @@ export interface ResumeContext<T> {
 export function isYieldContext(v: any): v is YieldContext {
     return typeof v === "object" && typeof v.yield === "function"
 }
-export function coVoid(co: YieldContext, f: (opts: any, cb: (e?: any) => void) => void, opts: any): void {
-    return co.yield<void>((notify) => {
-        f(opts, (e) => {
-            if (e === undefined) {
-                notify.value()
-            } else {
-                notify.error(e)
-            }
+export type CallbackVoid = (e?: any) => void
+export type CallbackReturn<T> = (value?: T, e?: any) => void
+export type InterfaceVoid = (opts: any, cb: CallbackVoid) => void
+export type InterfaceReturn<T> = (opts: any, cb: CallbackReturn<T>) => any
+export type CallbackMap = (v: any) => any
+export function coVoid(co: YieldContext,
+    f: InterfaceVoid, opts: any,
+    ce?: CallbackMap,
+): void {
+    if (ce) {
+        try {
+            return co.yield<void>((notify) => {
+                f(opts, (e) => {
+                    if (e === undefined) {
+                        notify.value()
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } catch (e) {
+            throw ce(e)
+        }
+    } else {
+        return co.yield<void>((notify) => {
+            f(opts, (e) => {
+                if (e === undefined) {
+                    notify.value()
+                } else {
+                    notify.error(e)
+                }
+            })
         })
-    })
+    }
 }
-export function coReturn<T>(co: YieldContext, f: (opts: any, cb: (v: T, e?: any) => void) => void, opts: any): T {
-    return co.yield<T>((notify) => {
-        f(opts, (v, e) => {
-            if (e === undefined) {
-                notify.value(v)
-            } else {
-                notify.error(e)
+export function cbVoid(cb: CallbackVoid,
+    f: InterfaceVoid, opts: any,
+    ce?: CallbackMap,
+): void {
+    if (ce) {
+        try {
+            f(opts, (e) => {
+                try {
+                    e = ce(e)
+                } catch (err) {
+                    e = err
+                }
+                cb(e)
+            })
+        } catch (e) {
+            try {
+                e = ce(e)
+            } catch (err) {
+                e = err
             }
+            cb(e)
+        }
+    } else {
+        try {
+            f(opts, cb)
+        } catch (e) {
+            cb(e)
+        }
+    }
+}
+export function coReturn<T>(co: YieldContext,
+    f: InterfaceReturn<T>, opts: any,
+    cv?: CallbackMap, ce?: CallbackMap,
+): T {
+    let v: any
+    if (ce) {
+        try {
+            v = co.yield<T>((notify) => {
+                f(opts, (v, e) => {
+                    if (e === undefined) {
+                        notify.value(v!)
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } catch (e) {
+            throw ce(e)
+        }
+    } else {
+        v = co.yield<T>((notify) => {
+            f(opts, (v, e) => {
+                if (e === undefined) {
+                    notify.value(v!)
+                } else {
+                    notify.error(e)
+                }
+            })
         })
-    })
+    }
+    return cv ? cv(v) : v
+}
+export function cbReturn<T>(cb: CallbackReturn<T>,
+    f: InterfaceReturn<T>, opts: any,
+    cv?: CallbackMap, ce?: CallbackMap): void {
+    if (cv || ce) {
+        try {
+            f(opts, (v, e) => {
+                if (e === undefined) {
+                    if (cv) {
+                        try {
+                            v = cv(v)
+                        } catch (e) {
+                            cb(undefined, e)
+                            return
+                        }
+                    }
+                    cb(v)
+                } else {
+                    if (ce) {
+                        try {
+                            e = ce(e)
+                        } catch (err) {
+                            e = err
+                        }
+                    }
+                    cb(undefined, e)
+                }
+            })
+        } catch (e) {
+            if (ce) {
+                try {
+                    e = ce(e)
+                } catch (err) {
+                    e = err
+                }
+            }
+            cb(undefined, e)
+        }
+    } else {
+        try {
+            f(opts, cb)
+        } catch (e) {
+            cb(undefined, e)
+        }
+    }
 }
 /**
  * <Options, CB> -> [Options, CB | undefined]

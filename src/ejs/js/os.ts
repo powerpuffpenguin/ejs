@@ -40,17 +40,41 @@ declare namespace __duk {
              */
             next(resume: () => T): void
         }
-        function isYieldContext(v: any): v is YieldContext
-        function coVoid(co: YieldContext, f: (opts: any, cb: (e?: any) => void) => void, opts: any): void
-        function coReturn<T>(co: YieldContext, f: (opts: any, cb: (v: T, e?: any) => void) => void, opts: any): T
+        export function isYieldContext(v: any): v is YieldContext
+        export type CallbackVoid = (e?: any) => void
+        export type CallbackReturn<T> = (value?: T, e?: any) => void
+        export type InterfaceVoid = (opts: any, cb: CallbackVoid) => void
+        export type InterfaceReturn<T> = (opts: any, cb: CallbackReturn<T>) => any
+        export type SyncVoid = (opts: any) => void
+        export type SyncReturn<T> = (opts: any) => T
+        export type CallbackMap = (v: any) => any
+        export function coVoid(co: YieldContext,
+            f: InterfaceVoid, opts: any,
+            ce?: CallbackMap,
+        ): void
+        export function cbVoid(cb: CallbackVoid,
+            f: InterfaceVoid, opts: any,
+            ce?: CallbackMap,
+        ): void
+        export function syncVoid(f: SyncVoid, opts: any,
+            ce?: CallbackMap): void
+        export function coReturn<T>(co: YieldContext,
+            f: InterfaceReturn<T>, opts: any,
+            cv?: CallbackMap, ce?: CallbackMap,
+        ): T
+        export function cbReturn<T>(cb: CallbackReturn<T>,
+            f: InterfaceReturn<T>, opts: any,
+            cv?: CallbackMap, ce?: CallbackMap): void
+        export function syncReturn<T>(f: SyncReturn<T>, opts: any,
+            cv?: CallbackMap, ce?: CallbackMap): T
         /**
          * <Options, CB> -> [Options, CB | undefined]
          */
-        function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
+        export function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
         /**
          * <CB, Options> -> [CB | undefined, Options]
          */
-        function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
+        export function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
     }
 }
 declare namespace deps {
@@ -238,8 +262,8 @@ declare namespace deps {
     export interface WriteFileOptions extends AsyncOptions {
         name: string
         data?: Uint8Array
-        sync: boolean
-        perm: number
+        sync?: boolean
+        perm?: number
     }
     export function writeFile(opts: WriteFileOptions): void
     export function writeFile(opts: WriteFileOptions, cb: (e?: any) => void): void
@@ -323,12 +347,71 @@ declare namespace deps {
 }
 const coVoid = __duk.js.coVoid
 const coReturn = __duk.js.coReturn
+const cbVoid = __duk.js.cbVoid
+const cbReturn = __duk.js.cbReturn
 const parseAB = __duk.js.parseAB
 const parseBA = __duk.js.parseBA
 
-export type Error = __duk.OsError
-export const Error = __duk.OsError
-const osError = __duk.OsError
+
+export type OsError = __duk.OsError
+export const OsError = __duk.OsError
+
+export interface LinkErrorOptions {
+    op: string
+    from: string
+    to: string
+    err: any
+}
+export class LinkError extends Error {
+    constructor(public opts: LinkErrorOptions) {
+        super()
+        // restore prototype chain   
+        const proto = new.target.prototype
+        if (Object.setPrototypeOf) {
+            Object.setPrototypeOf(this, proto)
+        }
+        else {
+            (this as any).__proto__ = proto
+        }
+        this.name = "LinkError"
+    }
+    get message(): string {
+        const opts = this.opts
+        const err = opts.err
+        return `${opts.op} ${opts.from} ${opts.to}: ${err instanceof Error ? err.message : err}`
+    }
+    unwrap() {
+        return this.opts.err
+    }
+}
+export interface PathErrorOptions {
+    op: string
+    path: string
+    err: any
+}
+export class PathError extends Error {
+    constructor(public opts: PathErrorOptions) {
+        super()
+        // restore prototype chain   
+        const proto = new.target.prototype
+        if (Object.setPrototypeOf) {
+            Object.setPrototypeOf(this, proto)
+        }
+        else {
+            (this as any).__proto__ = proto
+        }
+        this.name = "PathError"
+    }
+    get message(): string {
+        const opts = this.opts
+        const err = opts.err
+        return `${opts.op} ${opts.path}: ${err instanceof Error ? err.message : err}`
+    }
+    unwrap() {
+        return this.opts.err
+    }
+}
+
 export interface AsyncOptions {
     post?: boolean
 }
@@ -384,7 +467,13 @@ function _fstat(opts: deps.FileStatOptions, cb: (info?: FileInfo, e?: any) => vo
         cb(ret)
     })
 }
-export class fileInfo implements FileInfo {
+class fileInfo implements FileInfo {
+    static mapArray(items: Array<deps.FileInfo>): Array<FileInfo> {
+        return items.length ? items.map((v) => new fileInfo(v)) : (items as any)
+    }
+    static map(info: deps.FileInfo): FileInfo {
+        return new fileInfo(info)
+    }
     constructor(private readonly info: deps.FileInfo) { }
     name(): string {
         const info = this.info
@@ -420,6 +509,7 @@ export class fileInfo implements FileInfo {
         return this.info._mode & 0x4 ? true : false
     }
 }
+
 
 export interface SeekSyncOptions {
     offset: number
@@ -643,7 +733,7 @@ export class File {
     private _file(): deps.File {
         const f = this.file_
         if (!f) {
-            throw new osError(deps.EBADF, "file already closed")
+            throw new OsError(deps.EBADF, "file already closed")
         }
         return f;
     }
@@ -1208,37 +1298,55 @@ export interface ReadFileOptions extends AsyncOptions {
 }
 /**
  * Read file contents
+ * @throws PathError
  */
 export function readFileSync(name: string): Uint8Array {
-    const len = deps.file_len({
-        name: name,
-    })
-    if (!len) {
-        return new Uint8Array()
+    try {
+        const len = deps.file_len({
+            name: name,
+        })
+        if (!len) {
+            return new Uint8Array()
+        }
+        const buf = new Uint8Array(len)
+        const n = deps.readFile({
+            name: name,
+            buf: buf,
+        })
+        return buf.subarray(0, n)
+    } catch (e) {
+        throw new PathError({
+            op: 'readFileSync',
+            path: name,
+            err: e,
+        })
     }
-    const buf = new Uint8Array(len)
-    const n = deps.readFile({
-        name: name,
-        buf: buf,
-    })
-    return buf.subarray(0, n)
 }
 /**
  * abbreviation for new TextDecoder().decode(readFileSync(name))
+ * @throws PathError
  */
 export function readTextFileSync(name: string): string {
-    const len = deps.file_len({
-        name: name,
-    })
-    if (!len) {
-        return ""
+    try {
+        const len = deps.file_len({
+            name: name,
+        })
+        if (!len) {
+            return ""
+        }
+        const buf = new Uint8Array(len)
+        const n = deps.readFile({
+            name: name,
+            buf: buf,
+        })
+        return new TextDecoder().decode(buf.subarray(0, n))
+    } catch (e) {
+        throw new PathError({
+            op: 'readTextFileSync',
+            path: name,
+            err: e,
+        })
     }
-    const buf = new Uint8Array(len)
-    const n = deps.readFile({
-        name: name,
-        buf: buf,
-    })
-    return new TextDecoder().decode(buf.subarray(0, n))
 }
 export interface _ReadFileOptions extends AsyncOptions {
     name: string
@@ -1304,7 +1412,12 @@ export function readFile(a: any, b: any) {
         name: opts.name,
         post: opts.post,
     }
-    return cb ? _readFile(o, cb) : coReturn(a, _readFile, o)
+    const ce = (e: any) => new PathError({
+        op: 'readFile',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbReturn(cb, _readFile, o, undefined, ce) : coReturn(a, _readFile, o, undefined, ce)
 }
 export function readTextFile(a: any, b: any) {
     const [opts, cb] = parseAB<string | ReadFileOptions, (s?: string, e?: any) => void>(a, b)
@@ -1316,7 +1429,12 @@ export function readTextFile(a: any, b: any) {
         post: opts.post,
         s: true,
     }
-    return cb ? _readFile(o, cb) : coReturn(a, _readFile, o)
+    const ce = (e: any) => new PathError({
+        op: 'readTextFile',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbReturn(cb, _readFile, o, undefined, ce) : coReturn(a, _readFile, o, undefined, ce)
 }
 
 export interface WriteFileSyncOptions {
@@ -1330,23 +1448,37 @@ export interface WriteFileOptions extends WriteFileSyncOptions, AsyncOptions { }
  * Create archive and write data
  */
 export function writeFileSync(opts: WriteFileSyncOptions): void {
-    deps.writeFile({
+    const o: deps.WriteFileOptions = {
         name: opts.name,
         data: opts.data,
-        perm: opts.perm ?? 0o666,
-        sync: opts.sync ? true : false,
-    })
+        perm: opts.perm,
+        sync: opts.sync,
+    }
+    try {
+        return deps.writeFile(o)
+    } catch (e) {
+        throw new PathError({
+            op: "writeFileSync",
+            path: o.name,
+            err: e,
+        })
+    }
 }
 export function writeFile(a: any, b: any): void {
     const [opts, cb] = parseAB<WriteFileOptions, (e?: any) => void>(a, b)
     const o: deps.WriteFileOptions = {
         name: opts.name,
         data: opts.data,
-        perm: opts.perm ?? 0o666,
-        sync: opts.sync ? true : false,
+        perm: opts.perm,
+        sync: opts.sync,
         post: opts.post,
     }
-    return cb ? deps.writeFile(o, cb) : coVoid(a, deps.writeFile, o)
+    const ce = (e: any) => new PathError({
+        op: "writeFile",
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.writeFile, o, ce) : coVoid(a, deps.writeFile, o, ce)
 }
 export interface WriteTextFileSyncOptions {
     name: string
@@ -1356,23 +1488,37 @@ export interface WriteTextFileSyncOptions {
 }
 export interface WriteTextFileOptions extends WriteTextFileSyncOptions, AsyncOptions { }
 export function writeTextFileSync(opts: WriteTextFileSyncOptions): void {
-    deps.writeFile({
+    const o: deps.WriteFileOptions = {
         name: opts.name,
         data: opts.data === "" ? undefined : new TextEncoder().encode(opts.data),
-        perm: opts.perm ?? 0o666,
-        sync: opts.sync ? true : false,
-    })
+        perm: opts.perm,
+        sync: opts.sync,
+    }
+    try {
+        return deps.writeFile(o)
+    } catch (e) {
+        throw new PathError({
+            op: "writeTextFileSync",
+            path: o.name,
+            err: e,
+        })
+    }
 }
 export function writeTextFile(a: any, b: any): void {
     const [opts, cb] = parseAB<WriteTextFileOptions, (e?: any) => void>(a, b)
     const o: deps.WriteFileOptions = {
         name: opts.name,
         data: opts.data === "" ? undefined : new TextEncoder().encode(opts.data),
-        perm: opts.perm ?? 0o666,
-        sync: opts.sync ? true : false,
+        perm: opts.perm,
+        sync: opts.sync,
         post: opts.post,
     }
-    return cb ? deps.writeFile(o, cb) : coVoid(a, deps.writeFile, o)
+    const ce = (e: any) => new PathError({
+        op: "writeTextFile",
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.writeFile, o, ce) : coVoid(a, deps.writeFile, o, ce)
 }
 
 export interface ReadDirSyncOptions {
@@ -1385,12 +1531,22 @@ export interface ReadDirSyncOptions {
 export interface ReadDirOptions extends ReadDirSyncOptions, AsyncOptions { }
 /**
  * Read the file name in the folder
+ * @throws PathError
  */
 export function readDirNamesSync(opts: ReadDirSyncOptions): Array<string> {
-    return deps.read_dir_names({
+    const o: deps.ReadDirOptions = {
         name: opts.name,
         n: opts.n,
-    })
+    }
+    try {
+        return deps.read_dir_names(o)
+    } catch (e) {
+        throw new PathError({
+            op: 'readDirNamesSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 /**
  * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
@@ -1402,40 +1558,36 @@ export function readDirNames(a: any, b: any) {
         n: opts.n,
         post: opts.post,
     }
-    return cb ? deps.read_dir_names(o, cb) : coReturn(a, deps.read_dir_names, o)
+    const ce = (e: any) => new PathError({
+        op: 'readDirNames',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbReturn(cb, deps.read_dir_names, o, undefined, ce) : coReturn(a, deps.read_dir_names, o, undefined, ce)
 }
 
 /**
  * Read the file info in the folder
+ * @throws PathError
  */
 export function readDirSync(opts: ReadDirSyncOptions): Array<FileInfo> {
-    const items = deps.read_dir({
+    const o: deps.ReadDirOptions = {
         name: opts.name,
         n: opts.n,
-    })
-    return items.length ? items.map((v) => new fileInfo(v)) : items as any
+    }
+    try {
+        const items = deps.read_dir(o)
+        return items.length ? items.map((v) => new fileInfo(v)) : items as any
+
+    } catch (e) {
+        throw new PathError({
+            op: 'readDirSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 
-function _readDir(opts: deps.ReadDirOptions, cb: (items?: Array<FileInfo>, e?: any) => void) {
-    deps.read_dir({
-        name: opts.name,
-        n: opts.n,
-        post: opts.post,
-    }, (items, e) => {
-        if (e === undefined) {
-            let ret: Array<FileInfo>
-            try {
-                ret = items.length ? items.map((v) => new fileInfo(v)) : items as any
-            } catch (e) {
-                cb(undefined, e)
-                return
-            }
-            cb(ret)
-        } else {
-            cb(undefined, e)
-        }
-    })
-}
 /**
  * Similar to readDirSync but called asynchronously, notifying the result in cb
  */
@@ -1446,7 +1598,12 @@ export function readDir(a: any, b: any) {
         n: opts.n,
         post: opts.post,
     }
-    return cb ? _readDir(o, cb) : coReturn(a, _readDir, o)
+    const ce = (e: any) => new PathError({
+        op: 'readDir',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbReturn(cb, deps.read_dir, o, fileInfo.mapArray, ce) : coReturn(a, deps.read_dir, o, fileInfo.mapArray, ce)
 }
 
 export interface ReadLinkOptions extends AsyncOptions {
@@ -1484,10 +1641,20 @@ export interface RenameOptions extends RenameSyncOptions, AsyncOptions { }
  *  renames (moves) opts.from to opts.to
  */
 export function renameSync(opts: RenameSyncOptions): void {
-    return deps.rename({
+    const o: deps.RenameOptions = {
         from: opts.from,
         to: opts.to,
-    })
+    }
+    try {
+        return deps.rename(o)
+    } catch (e) {
+        throw new LinkError({
+            op: 'renameSync',
+            from: o.from,
+            to: o.to,
+            err: e,
+        })
+    }
 }
 /**
  *  Similar to renameSync but called asynchronously, notifying the result in cb
@@ -1499,7 +1666,13 @@ export function rename(a: any, b: any) {
         to: opts.to,
         post: opts.post,
     }
-    return cb ? deps.rename(o, cb) : coVoid(a, deps.rename, o)
+    const ce = (e: any) => new LinkError({
+        op: 'rename',
+        from: o.from,
+        to: o.to,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.rename, o, ce) : coVoid(a, deps.rename, o, ce)
 }
 
 export interface RemoveSyncOptions {
@@ -1507,6 +1680,11 @@ export interface RemoveSyncOptions {
     all?: boolean
 }
 export interface RemoveOptions extends RemoveSyncOptions, AsyncOptions { }
+
+/**
+ * removes the named file or directory
+ * @throws PathError
+ */
 export function removeSync(opts: RemoveSyncOptions | string): void {
     const o: deps.RemoveOptions = typeof opts === "string" ? {
         name: opts,
@@ -1514,7 +1692,15 @@ export function removeSync(opts: RemoveSyncOptions | string): void {
         name: opts.name,
         all: opts.all,
     }
-    return deps.remove(o)
+    try {
+        return deps.remove(o)
+    } catch (e) {
+        throw new PathError({
+            op: o.all ? 'removeAllSync' : 'removeSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 export function remove(a: any, b: any) {
     const [opts, cb] = parseAB<RemoveOptions | string, (e?: any) => void>(a, b)
@@ -1525,7 +1711,12 @@ export function remove(a: any, b: any) {
         all: opts.all,
         post: opts.post,
     }
-    return cb ? deps.remove(o, cb) : coVoid(a, deps.remove, o)
+    const ce = (e: any) => new PathError({
+        op: o.all ? 'removeAll' : 'remove',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.remove, o, ce) : coVoid(a, deps.remove, o, ce)
 }
 export interface LinkSyncOptions {
     from: string
@@ -1533,16 +1724,29 @@ export interface LinkSyncOptions {
     hard?: boolean
 }
 export interface LinkOptions extends LinkSyncOptions, AsyncOptions { }
+
 /**
  * creates opts.to as a link to the opts.from file.
+ * @throws LinkError
  */
 export function linkSync(opts: LinkSyncOptions) {
-    return deps.link({
+    const o: deps.LinkOptions = {
         from: opts.from,
         to: opts.to,
         hard: opts.hard,
-    })
+    }
+    try {
+        return deps.link(o)
+    } catch (e) {
+        throw new LinkError({
+            op: o.hard ? 'linkSync' : 'symlinkSync',
+            from: o.from,
+            to: o.to,
+            err: e,
+        })
+    }
 }
+
 /**
  *  Similar to linkSync but called asynchronously, notifying the result in cb
  */
@@ -1554,16 +1758,35 @@ export function link(a: any, b: any) {
         hard: opts.hard,
         post: opts.post,
     }
-    return cb ? deps.link(o, cb) : coVoid(a, deps.link, o)
+    const ce = (e: any) => new LinkError({
+        op: o.hard ? 'link' : 'symlink',
+        from: o.from,
+        to: o.to,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.link, o, ce) : coVoid(a, deps.link, o, ce)
 }
 
 /**
  * removes the named empty directory
+ * @throws PathError
  */
-export function rmdirSync(name: string): void {
-    return deps.rmdir({
-        name: name,
-    })
+export function rmdirSync(opts: string | RemoveSyncOptions): void {
+    const o: deps.RemoveOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
+        name: opts.name,
+        all: opts.all,
+    }
+    try {
+        return deps.rmdir(o)
+    } catch (e) {
+        throw new PathError({
+            op: o.all ? 'rmdirAllSync' : 'rmdirSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 /**
  *  Similar to rmdirSync but called asynchronously, notifying the result in cb
@@ -1577,7 +1800,12 @@ export function rmdir(a: any, b: any): void {
         all: opts.all,
         post: opts.post,
     }
-    return cb ? deps.rmdir(o, cb) : coVoid(a, deps.rmdir, o)
+    const ce = (e: any) => new PathError({
+        op: o.all ? 'rmdirAll' : 'rmdir',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.rmdir, o, ce) : coVoid(a, deps.rmdir, o, ce)
 }
 export interface MkdirSyncOptions {
     name: string
@@ -1587,13 +1815,23 @@ export interface MkdirSyncOptions {
 export interface MkdirOptions extends MkdirSyncOptions, AsyncOptions { }
 /**
  * creates a directory named opts.name
+ * @throws PathError
  */
 export function mkdirSync(opts: MkdirSyncOptions): void {
-    return deps.mkdir({
+    const o: deps.MkdirOptions = {
         name: opts.name,
         perm: opts.perm,
         all: opts.all,
-    })
+    }
+    try {
+        return deps.mkdir(o)
+    } catch (e) {
+        throw new PathError({
+            op: o.all ? 'mkdirAllSync' : 'mkdirSync',
+            path: o.name,
+            err: e,
+        })
+    }
 }
 /**
  *  Similar to mkdirSync but called asynchronously, notifying the result in cb
@@ -1606,5 +1844,10 @@ export function mkdir(a: any, b: any): void {
         post: opts.post,
         all: opts.all,
     }
-    return cb ? deps.mkdir(o, cb) : coVoid(a, deps.mkdir, o)
+    const ce = (e: any) => new PathError({
+        op: o.all ? 'mkdirAll' : 'mkdir',
+        path: o.name,
+        err: e,
+    })
+    return cb ? cbVoid(cb, deps.mkdir, o, ce) : coVoid(a, deps.mkdir, o, ce)
 }

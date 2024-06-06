@@ -5,11 +5,29 @@ var File = os.File;
 sync.go(function (co) {
     var f
     try {
+        const items = os.readDirNames(co, {
+            name: 'src',
+        })
+        for (var index = 0; index < items.length; index++) {
+            const item = items[index];
+            console.log(item)
+        }
+
         // f = File.createTemp(co, {
         //     pattern: "test*.log",
         //     dir: '',
         // })
-        os.mkdir(co, { name: 'a/b/c/d/e', all: true })
+        // os.mkdir(co, { name: 'a/b/c/d/e', all: true })
+
+        // const e = new os.LinkError({
+        //     op: "ab",
+        //     from: "a",
+        //     to: "x",
+        //     err: new Error("456")
+        // })
+        // console.log(e instanceof os.LinkError, e instanceof os.OsError)
+        // console.log(e.toString())
+        // console.log(e.message)
         // f = File.openFile(co, {
         //     name: 'a.txt',
         //     flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,
@@ -32,7 +50,9 @@ sync.go(function (co) {
         // var n = f.read(co, buf)
         // console.log(n, buf.subarray(0, n))
     } catch (e) {
-        console.log('err', e, e.toString())
+        console.log(e)
+        console.log(e.message)
+        console.log(e.toString())
         if (f) {
             f.close()
         }

@@ -1108,7 +1108,7 @@ static duk_ret_t f_writeFile(duk_context *ctx)
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "perm", 4);
-    opts.perm = duk_require_number(ctx, -1);
+    opts.perm = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 0666);
     duk_pop(ctx);
 
     if (duk_is_undefined(ctx, 1))
@@ -2199,8 +2199,6 @@ static duk_ret_t f_createTemp_async_return(duk_context *ctx)
 }
 static duk_ret_t f_createTemp(duk_context *ctx)
 {
-    ejs_dump_context_stdout(ctx);
-
     f_createTemp_args_t args = {0};
     duk_get_prop_lstring(ctx, 0, "pattern", 7);
     args.pattern = duk_require_lstring(ctx, -1, &args.len);

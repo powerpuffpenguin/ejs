@@ -142,17 +142,37 @@ namespace ejs {
              */
             next(resume: () => T): void
         }
-        function isYieldContext(v: any): v is YieldContext
-        function coVoid(co: YieldContext, f: (opts: any, cb: (e?: any) => void) => void, opts: any): void
-        function coReturn<T>(co: YieldContext, f: (opts: any, cb: (v: T, e?: any) => void) => void, opts: any): T
+        export function isYieldContext(v: any): v is YieldContext
+        export type CallbackVoid = (e?: any) => void
+        export type CallbackReturn<T> = (value?: T, e?: any) => void
+        export type InterfaceVoid = (opts: any, cb: CallbackVoid) => void
+        export type InterfaceReturn<T> = (opts: any, cb: CallbackReturn<T>) => any
+        export type SyncVoid = (opts: any) => void
+        export type SyncReturn<T> = (opts: any) => T
+        export type CallbackMap = (v: any) => any
+        export function coVoid(co: YieldContext,
+            f: InterfaceVoid, opts: any,
+            ce?: CallbackMap,
+        ): void
+        export function cbVoid(cb: CallbackVoid,
+            f: InterfaceVoid, opts: any,
+            ce?: CallbackMap,
+        ): void
+        export function coReturn<T>(co: YieldContext,
+            f: InterfaceReturn<T>, opts: any,
+            cv?: CallbackMap, ce?: CallbackMap,
+        ): T
+        export function cbReturn<T>(cb: CallbackReturn<T>,
+            f: InterfaceReturn<T>, opts: any,
+            cv?: CallbackMap, ce?: CallbackMap): void
         /**
          * <Options, CB> -> [Options, CB | undefined]
          */
-        function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
+        export function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
         /**
          * <CB, Options> -> [CB | undefined, Options]
          */
-        function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
+        export function parseBA<CB, Options>(a: any, b: any): [CB | undefined, Options]
     }
 }
 
@@ -894,6 +914,25 @@ declare module "ejs/sync" {
 declare module "ejs/os" {
     import { YieldContext } from "ejs/sync";
     export const OsError = ejs.OsError
+    export interface LinkErrorOptions {
+        op: string
+        from: string
+        to: string
+        err: any
+    }
+    export class LinkError extends Error {
+        constructor(public opts: LinkErrorOptions)
+        unwrap(): any
+    }
+    export interface PathErrorOptions {
+        op: string
+        path: string
+        err: any
+    }
+    export class PathError extends Error {
+        constructor(public opts: PathErrorOptions)
+        unwrap(): any
+    }
     /**
      * Operation not permitted 
      */
@@ -1574,43 +1613,49 @@ declare module "ejs/os" {
     }
     /**
      * Read file contents
+     * @throws PathError
      */
     export function readFileSync(name: string): Uint8Array
     /**
      * Similar to readFileSync but called asynchronously, notifying the result in cb
      */
-    export function readFile(opts: ReadFileOptions, cb: (data?: Uint8Array, e?: any) => void): void
+    export function readFile(opts: ReadFileOptions, cb: (data?: Uint8Array, e?: PathError) => void): void
     /**
      * Similar to readFileSync but called asynchronously, notifying the result in cb
      */
-    export function readFile(name: string, cb: (data?: Uint8Array, e?: any) => void): void
+    export function readFile(name: string, cb: (data?: Uint8Array, e?: PathError) => void): void
     /**
      * Read file contents
+     * @throws PathError
      */
     export function readFile(co: YieldContext, opts: ReadFileOptions): Uint8Array
     /**
      * Read file contents
+     * @throws PathError
      */
     export function readFile(co: YieldContext, name: string): Uint8Array
 
     /**
      * abbreviation for new TextDecoder().decode(readFileSync(name))
+     * @throws PathError
      */
     export function readTextFileSync(name: string): string
     /**
      * Similar to readTextFileSync but called asynchronously, notifying the result in cb
      */
-    export function readTextFile(opts: ReadFileOptions, cb: (data?: string, e?: any) => void): void
+    export function readTextFile(opts: ReadFileOptions, cb: (data?: string, e?: PathError) => void): void
     /**
      * Similar to readTextFileSync but called asynchronously, notifying the result in cb
      */
-    export function readTextFile(name: string, cb: (data?: string, e?: any) => void): void
+    export function readTextFile(name: string, cb: (data?: string, e?: PathError) => void): void
     /**
      * abbreviation for new TextDecoder().decode(readFile(co, opts))
+     * @throws PathError
      */
     export function readTextFile(co: YieldContext, opts: ReadFileOptions): string
     /**
      * abbreviation for new TextDecoder().decode(readFile(co, name))
+     * @throws PathError
      */
     export function readTextFile(co: YieldContext, name: string): string
 
@@ -1623,27 +1668,29 @@ declare module "ejs/os" {
     export interface WriteFileOptions extends WriteFileSyncOptions, AsyncOptions { }
     /**
      * Create archive and write data
+     * @throws PathError
      */
     export function writeFileSync(opts: WriteFileSyncOptions): void
     /**
      * Similar to writeFileSync but called asynchronously, notifying the result in cb
      */
-    export function writeFile(opts: WriteFileOptions, cb: (e?: any) => void): void
+    export function writeFile(opts: WriteFileOptions, cb: (e?: PathError) => void): void
     /**
      * Create archive and write data
+     * @throws PathError
      */
     export function writeFile(co: YieldContext, opts: WriteFileOptions): void
     /**
-     * 
+     * @throws PathError
      * abbreviation for writeFileSync(opts..data=new TextEncoder().encode(opts.data))
      */
     export function writeTextFileSync(opts: WriteTextFileSyncOptions): void
     /**
      * Similar to writeTextFileSync but called asynchronously, notifying the result in cb
      */
-    export function writeTextFile(opts: WriteTextFileOptions, cb: (e?: any) => void): void
+    export function writeTextFile(opts: WriteTextFileOptions, cb: (e?: PathError) => void): void
     /**
-     * 
+     * @throws PathError
      * abbreviation for writeFile(co, opts..data=new TextEncoder().encode(opts.data))
      */
     export function writeTextFile(co: YieldContext, opts: WriteTextFileOptions): void
@@ -1658,21 +1705,35 @@ declare module "ejs/os" {
     export interface ReadDirOptions extends ReadDirSyncOptions, AsyncOptions { }
     /**
      * Read the file name in the folder
+     * @throws PathError
      */
     export function readDirNamesSync(opts: ReadDirSyncOptions): Array<string>
     /**
      * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
      */
-    export function readDirNames(opts: ReadDirOptions, cb: (dirs?: Array<string>, e?: any) => void): void
+    export function readDirNames(opts: ReadDirOptions, cb: (dirs?: Array<string>, e?: PathError) => void): void
     /**
      * Read the file name in the folder
+     * @throws PathError
      */
     export function readDirNames(co: YieldContext, opts: ReadDirOptions): Array<string>
 
     /**
      * Read the file info in the folder
+     * @throws PathError
      */
     export function readDirSync(opts: ReadDirSyncOptions): Array<FileInfo>
+    /**
+     * Similar to readDirSync but called asynchronously, notifying the result in cb
+     */
+    export function readDirSync(opts: ReadDirOptions, cb: (dirs?: Array<FileInfo>, e?: PathError) => void): void
+    /**
+     * Read the file info in the folder
+     * @throws PathError
+     */
+    export function readDirSync(co: YieldContext, opts: ReadDirOptions): Array<FileInfo>
+
+
 
     export interface ReadLinkOptions extends AsyncOptions {
         name: string
@@ -1707,14 +1768,16 @@ declare module "ejs/os" {
     export interface RenameOptions extends RenameSyncOptions, AsyncOptions { }
     /**
      *  renames (moves) opts.from to opts.to
+     * @throws LinkError
      */
     export function renameSync(opts: RenameSyncOptions): void
     /**
      *  Similar to renameSync but called asynchronously, notifying the result in cb
      */
-    export function rename(opts: RenameOptions, cb: (e?: any) => void): void
+    export function rename(opts: RenameOptions, cb: (LinkError?: any) => void): void
     /**
      *  renames (moves) opts.from to opts.to
+     * @throws LinkError
      */
     export function rename(co: YieldContext, opts: RenameOptions): void
 
@@ -1726,26 +1789,30 @@ declare module "ejs/os" {
     export interface RemoveOptions extends RemoveSyncOptions, AsyncOptions { }
     /**
      * removes the named file or directory
+     * @throws PathError
      */
     export function removeSync(opts: RemoveSyncOptions): void
     /**
      * removes the named file or directory
+     * @throws PathError
      */
     export function removeSync(name: string): void
     /**
      *  Similar to removeSync but called asynchronously, notifying the result in cb
      */
-    export function remove(opts: RemoveOptions, cb: (e?: any) => void): void
+    export function remove(opts: RemoveOptions, cb: (e?: PathError) => void): void
     /**
      *  Similar to removeSync but called asynchronously, notifying the result in cb
      */
-    export function remove(name: string, cb: (e?: any) => void): void
+    export function remove(name: string, cb: (e?: PathError) => void): void
     /**
      * removes the named file or directory
+     * @throws PathError
      */
     export function remove(co: YieldContext, opts: RemoveOptions): void
     /**
      * removes the named file or directory
+     * @throws PathError
      */
     export function remove(co: YieldContext, name: string): void
 
@@ -1757,14 +1824,16 @@ declare module "ejs/os" {
     export interface LinkOptions extends LinkSyncOptions, AsyncOptions { }
     /**
      * creates opts.to as a link to the opts.from file.
+     * @throws LinkError
      */
     export function linkSync(opts: LinkSyncOptions): void
     /**
      *  Similar to linkSync but called asynchronously, notifying the result in cb
      */
-    export function link(opts: LinkSyncOptions, cb: (e?: any) => void): void
+    export function link(opts: LinkSyncOptions, cb: (e?: LinkError) => void): void
     /**
      * creates opts.to as a link to the opts.from file.
+     * @throws LinkError
      */
     export function link(co: YieldContext, opts: LinkSyncOptions): void
     /**
@@ -1873,22 +1942,30 @@ declare module "ejs/os" {
 
     /**
      * removes the named empty directory
+     * @throws PathError
      */
     export function rmdirSync(name: string): void
     /**
-     *  Similar to rmdirSync but called asynchronously, notifying the result in cb
+     * removes the named empty directory
+     * @throws PathError
      */
-    export function rmdir(name: string, cb: (e?: any) => void): void
+    export function rmdirSync(opts: RemoveSyncOptions): void
     /**
      *  Similar to rmdirSync but called asynchronously, notifying the result in cb
      */
-    export function rmdir(opts: RemoveOptions, cb: (e?: any) => void): void
+    export function rmdir(name: string, cb: (e?: PathError) => void): void
+    /**
+     *  Similar to rmdirSync but called asynchronously, notifying the result in cb
+     */
+    export function rmdir(opts: RemoveOptions, cb: (e?: PathError) => void): void
     /**
      * removes the named empty directory
+     * @throws PathError
      */
     export function rmdir(co: YieldContext, name: string): void
     /**
      * removes the named empty directory
+     * @throws PathError
      */
     export function rmdir(co: YieldContext, opts: RemoveOptions): void
 
@@ -1900,14 +1977,16 @@ declare module "ejs/os" {
     export interface MkdirOptions extends MkdirSyncOptions, AsyncOptions { }
     /**
      * creates a directory named opts.name
+     * @throws PathError
      */
     export function mkdirSync(opts: MkdirSyncOptions): void
     /**
      *  Similar to mkdirSync but called asynchronously, notifying the result in cb
      */
-    export function mkdir(opts: MkdirOptions, cb: (e?: any) => void): void
+    export function mkdir(opts: MkdirOptions, cb: (e?: PathError) => void): void
     /**
      * creates a directory named opts.name
+     * @throws PathError
      */
     export function mkdir(co: YieldContext, opts: MkdirOptions): void
 
