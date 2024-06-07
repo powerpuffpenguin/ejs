@@ -2030,158 +2030,91 @@ static duk_ret_t f_mkdir(duk_context *ctx)
 
 typedef struct
 {
-    duk_size_t len;
-    const char *pattern;
-    duk_size_t dir_len;
-    const char *dir;
-    int perm;
-
+    ppp_c_filepath_create_temp_options_t *opts;
     int fd;
-    ppp_c_string_t name;
+    char *name;
 } f_createTemp_args_t;
-static duk_ret_t f_createTemp_args_finalizer(duk_context *ctx)
-{
-    duk_get_prop_lstring(ctx, -1, "p", 1);
-    f_createTemp_args_t *p = duk_get_pointer_default(ctx, -1, 0);
-    if (p)
-    {
-        ppp_c_string_destroy(&p->name);
-        free(p);
-    }
-    return 0;
-}
-static const char *createTemp_impl(f_createTemp_args_t *args)
-{
-    args->fd = -1;
 
-    duk_size_t pos = args->len;
-    for (duk_size_t i = 0; i < args->len; i++)
-    {
-        switch (args->pattern[i])
-        {
-        case '/':
-#ifdef EJS_OS_WINDOWS
-        case '\\':
-#endif
-            return "pattern contains path separator";
-        case '*':
-            pos = i;
-            break;
-        }
-    }
-    ppp_c_string_t *s = &args->name;
-    if (args->dir_len)
-    {
-        if (ppp_c_string_append(s, args->dir, args->dir_len))
-        {
-            return 0;
-        }
-    }
-    else if (!args->dir)
-    {
-        size_t n;
-        const char *dir = _ejs_os_temp_dir(&n);
-        if (n)
-        {
-            if (ppp_c_string_append(s, dir, n))
-            {
-                return 0;
-            }
-        }
-    }
-    if (pos)
-    {
-        if (ppp_c_filepath_join_raw(s, args->pattern, pos))
-        {
-            return 0;
-        }
-    }
-    else if (s->len)
-    {
-        if (ppp_c_filepath_append_separator(s))
-        {
-            return 0;
-        }
-    }
-
-    duk_size_t prefix = s->len;
-    char random[10] = {0};
-    int random_len;
-    size_t try = 0;
-    while (1)
-    {
-        s->len = prefix;
-        random_len = ppp_itoa(_ejs_rand() & 2147483647, random, sizeof(random), 10);
-        if (random_len < 0)
-        {
-            continue;
-        }
-        if (ppp_c_string_append(s, random, random_len))
-        {
-            return 0;
-        }
-        if (pos != args->len)
-        {
-            size_t n = args->len - pos - 1;
-            if (n && ppp_c_string_append(s, args->pattern + pos + 1, n))
-            {
-                return 0;
-            }
-        }
-        args->fd = open(ppp_c_string_c_str(s), O_RDWR | O_CREAT | O_EXCL, args->perm);
-        if (EJS_INVALID_FD(args->fd))
-        {
-            if (errno == EEXIST && ++try < 10000)
-            {
-                continue;
-            }
-        }
-        break;
-    }
-    return 0;
-}
 static duk_ret_t f_createTemp_impl(duk_context *ctx)
 {
     f_createTemp_args_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
-    const char *err = createTemp_impl(args);
-    if (err)
+    if (!args->opts->dir)
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, err);
-        duk_throw(ctx);
+        args->opts->dir = _ejs_os_temp_dir(&args->opts->dir_len);
+        if (!args->opts->dir_len)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "unknow temp dir");
+            duk_throw(ctx);
+        }
     }
-    else if (EJS_INVALID_FD(args->fd))
+    ppp_c_filepath_create_temp_result_t result;
+    if (!ppp_c_filepath_create_temp(args->opts, &result))
     {
-        ejs_throw_os_errno(ctx);
+        if (result.err)
+        {
+            ejs_throw_os(ctx, result.err, 0);
+        }
+        else
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "pattern contains path separator");
+            duk_throw(ctx);
+        }
     }
-    f_push_file_object(ctx, args->fd, args->name.str, args->name.len);
+    args->fd = result.fd;
+    args->name = result.name.str;
+    f_push_file_object(ctx, result.fd, result.name.str, result.name.len);
+    free(args->name);
+    args->name = 0;
     return 1;
 }
 typedef struct
 {
-    f_createTemp_args_t opts;
+    ppp_c_filepath_create_temp_options_t opts;
     int err;
-    const char *emsg;
+    int fd;
+    char *name;
+    size_t name_len;
 } f_createTemp_async_args_t;
 static void f_createTemp_async_impl(void *userdata)
 {
     f_createTemp_async_args_t *args = userdata;
-    args->emsg = createTemp_impl(&args->opts);
-    if (!args->emsg)
+    if (!args->opts.dir)
     {
-        args->err = EJS_INVALID_FD(args->opts.fd) ? errno : 0;
+        args->opts.dir = _ejs_os_temp_dir(&args->opts.dir_len);
+        if (!args->opts.dir_len)
+        {
+            return;
+        }
+    }
+    ppp_c_filepath_create_temp_result_t result;
+    if (ppp_c_filepath_create_temp(&args->opts, &result))
+    {
+        args->fd = result.fd;
+        args->name = result.name.str;
+        args->name_len = result.name.len;
+    }
+    else
+    {
+        args->err = result.err;
     }
 }
 static duk_ret_t f_createTemp_async_return(duk_context *ctx)
 {
     f_createTemp_async_args_t *args = _ejs_async_return(ctx);
-    if (args->emsg)
+    if (!args->opts.dir)
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, args->emsg);
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "unknow temp dir");
         duk_push_undefined(ctx);
         duk_swap_top(ctx, -2);
         duk_call(ctx, 2);
+    }
+    else if (args->name)
+    {
+        f_push_file_object(ctx, args->fd, args->name, args->name_len);
+        free(args->name);
+        duk_call(ctx, 1);
     }
     else if (args->err)
     {
@@ -2192,56 +2125,59 @@ static duk_ret_t f_createTemp_async_return(duk_context *ctx)
     }
     else
     {
-        f_push_file_object(ctx, args->opts.fd, args->opts.name.str, args->opts.name.len);
-        duk_call(ctx, 1);
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "pattern contains path separator");
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
     }
     return 0;
 }
 static duk_ret_t f_createTemp(duk_context *ctx)
 {
-    f_createTemp_args_t args = {0};
+    ppp_c_filepath_create_temp_options_t opts = {0};
     duk_get_prop_lstring(ctx, 0, "pattern", 7);
-    args.pattern = duk_require_lstring(ctx, -1, &args.len);
+    opts.pattern = duk_require_lstring(ctx, -1, &opts.pattern_len);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "dir", 3);
     if (duk_is_null_or_undefined(ctx, -1))
     {
-        args.dir = 0;
-        args.dir_len = 0;
+        opts.dir = 0;
+        opts.dir_len = 0;
     }
     else
     {
-        args.dir = duk_require_lstring(ctx, -1, &args.dir_len);
+        opts.dir = duk_require_lstring(ctx, -1, &opts.dir_len);
     }
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "perm", 3);
-    if (duk_is_null_or_undefined(ctx, -1))
-    {
-        args.perm = 0600;
-    }
-    else
-    {
-        args.perm = duk_require_number(ctx, -1);
-    }
+    opts.perm = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 0600);
     duk_pop(ctx);
     if (duk_is_undefined(ctx, 1))
     {
-        args.fd = -1;
+        f_createTemp_args_t args = {
+            .opts = &opts,
+            .fd = -1,
+            .name = 0,
+        };
         if (ejs_pcall_function(ctx, f_createTemp_impl, &args))
         {
-            ppp_c_string_destroy(&args.name);
             if (EJS_VALID_FD(args.fd))
             {
                 close(args.fd);
+                if (args.name)
+                {
+                    free(args.name);
+                }
             }
             duk_throw(ctx);
         }
         return 1;
     }
-    f_createTemp_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_createTemp_async_args_t), f_createTemp_args_finalizer);
-    p->opts = args;
+    f_createTemp_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_createTemp_async_args_t), ejs_default_finalizer);
+    p->opts = opts;
+    p->name = 0;
 
     _ejs_async_post_or_send(ctx, f_createTemp_async_impl, f_createTemp_async_return);
     return 0;

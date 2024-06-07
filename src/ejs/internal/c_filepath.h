@@ -60,4 +60,53 @@ int ppp_c_filepath_remove_all(ppp_c_string_t *path);
  */
 int ppp_c_filepath_mkdir_all(ppp_c_string_t *path, int perm);
 
+typedef struct
+{
+    /**
+     * The temporary file will be created in this directory, or in the current working directory if empty.
+     */
+    const char *dir;
+    size_t dir_len;
+
+    /**
+     * File names such as "exe_*.log" or "", The last * will be replaced with a random integer
+     */
+    const char *pattern;
+    size_t pattern_len;
+
+    /**
+     * File permissions
+     */
+    int perm;
+
+    /**
+     * If name is valid (name->cap!=0), the return value will attempt to be created using the memory it provided
+     */
+    ppp_c_string_t *name;
+} ppp_c_filepath_create_temp_options_t;
+typedef struct
+{
+    /**
+     * On success, set file fd.  On error, -1 is set
+     */
+    int fd;
+
+    /**
+     * errno or 0.
+     * On error, 0 means 'pattern' contains path separator.
+     */
+    int err;
+
+    /**
+     *  created archive name on success
+     */
+    ppp_c_string_t name;
+} ppp_c_filepath_create_temp_result_t;
+/**
+ * Create a temporary file.
+ *
+ * Returns the created archive name on success.
+ */
+BOOL ppp_c_filepath_create_temp(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result);
+
 #endif

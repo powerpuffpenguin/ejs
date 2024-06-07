@@ -1,4 +1,5 @@
 #include "c_filepath.h"
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,6 +8,46 @@
 #include <sys/param.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+size_t ppp_filepath_itoa(size_t num, unsigned char *str, size_t len, int base)
+{
+    if (!len)
+    {
+        return -1;
+    }
+
+    size_t sum = num;
+    size_t i = 0;
+    size_t digit;
+
+    do
+    {
+        digit = sum % base;
+        if (digit < 0xA)
+        {
+            str[i++] = '0' + digit;
+        }
+        else
+        {
+            str[i++] = 'A' + digit - 0xA;
+        }
+        sum /= base;
+    } while (sum && (i < len));
+
+    if (i == len && sum)
+    {
+        return -1;
+    }
+
+    for (int j = 0; j < i / 2; j++)
+    {
+        char temp = str[j];
+        str[j] = str[i - j - 1];
+        str[i - j - 1] = temp;
+    }
+    return i;
+}
 
 int ppp_c_filepath_append_separator(ppp_c_string_t *path)
 {
@@ -383,4 +424,147 @@ int ppp_c_filepath_mkdir_all(ppp_c_string_t *path, int perm)
         }
     }
     return err;
+}
+
+BOOL ppp_c_filepath_create_temp(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result)
+{
+    size_t pos = opts->pattern_len;
+    for (size_t i = 0; i < opts->pattern_len; i++)
+    {
+        switch (opts->pattern[i])
+        {
+        case '/':
+#ifdef EJS_OS_WINDOWS
+        case '\\':
+#endif
+            result->fd = -1;
+            result->err = 0;
+            return FALSE;
+        case '*':
+            pos = i;
+            break;
+        }
+    }
+    // name len
+    size_t cap = opts->pattern_len + 10;
+    if (pos != opts->pattern_len)
+    {
+        // '*' length is 1
+        --cap;
+    }
+
+    ppp_c_string_t s = {};
+    s.len = 0;
+    uint8_t setname = 0;
+    if (opts->name && opts->name->cap && opts->name->str)
+    {
+        s.cap = opts->name->cap;
+        s.str = opts->name->str;
+        setname = 1;
+    }
+
+    if (opts->dir_len && opts->dir)
+    {
+        cap += opts->dir_len;
+        uint8_t joinSeparator = 0;
+        switch (opts->dir[opts->dir_len - 1])
+        {
+        case '/':
+#ifdef EJS_OS_WINDOWS
+        case '\\':
+#endif
+            break;
+        default:
+            // join separator length is 1. '/' or '\\'
+            ++cap;
+            joinSeparator = 1;
+            break;
+        }
+
+        if (s.cap < cap)
+        {
+            s.str = malloc(cap + 1);
+            if (!s.str)
+            {
+                result->fd = -1;
+                result->err = errno;
+                return FALSE;
+            }
+            s.cap = cap;
+        }
+        memmove(s.str, opts->dir, opts->dir_len);
+        if (joinSeparator)
+        {
+            s.str[opts->dir_len] = PPP_FILEPATH_SEPARATOR;
+            s.len = opts->dir_len + 1;
+        }
+        else
+        {
+            s.len = opts->dir_len;
+        }
+    }
+    else
+    {
+        if (s.cap < cap)
+        {
+            s.str = malloc(cap + 1);
+            if (!s.str)
+            {
+                result->fd = -1;
+                result->err = errno;
+                return FALSE;
+            }
+            s.cap = cap;
+        }
+    }
+
+    if (pos)
+    {
+        ppp_c_string_append_raw(&s, opts->pattern, pos);
+    }
+
+    size_t prefix = s.len;
+    size_t suffix_len = 0;
+    const char *suffix = 0;
+    if (pos != opts->pattern_len)
+    {
+        suffix_len = pos + 1;
+        suffix = opts->pattern + suffix_len;
+        suffix_len = opts->pattern_len - suffix_len;
+    }
+    char random[10] = {0};
+    int random_len;
+    size_t try = 0;
+    while (1)
+    {
+        s.len = prefix;
+        random_len = ppp_filepath_itoa(rand() & 2147483647, random, sizeof(random), 10);
+        if (random_len == -1)
+        {
+            continue;
+        }
+        ppp_c_string_append_raw(&s, random, random_len);
+        if (suffix)
+        {
+            ppp_c_string_append_raw(&s, suffix, suffix_len);
+        }
+        result->fd = open(ppp_c_string_c_str(&s), O_RDWR | O_CREAT | O_EXCL, opts->perm);
+        if (result->fd == -1)
+        {
+            if (errno == EEXIST && ++try < 10000)
+            {
+                continue;
+            }
+            result->err = errno;
+            if (!setname || s.str != opts->name->str)
+            {
+                free(s.str);
+            }
+            return FALSE;
+        }
+        result->name = s;
+        result->err = 0;
+        break;
+    }
+    return TRUE;
 }

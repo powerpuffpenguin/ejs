@@ -2098,6 +2098,46 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function mkdir(co: YieldContext, opts: MkdirOptions): void
+    export interface MkdirTempSyncOptions {
+        pattern: string
+        /**
+         * @default tempDir()
+         */
+        dir?: string
 
-    // mkdirTemp
+        /**
+         * @default 0o600
+         */
+        perm?: number
+    }
+    export interface MkdirTempOptions extends MkdirTempSyncOptions, AsyncOptions { }
+
+    /**
+     * creates a new temporary directory
+     * @throws PathError
+     */
+    export function mkdirTempSync(pattern: string): string
+    /**
+     * creates a new temporary directory
+     * @throws PathError
+     */
+    export function mkdirTempSync(opts: MkdirTempSyncOptions): string
+    /**
+     *  Similar to mkdirTempSync but called asynchronously, notifying the result in cb
+     */
+    export function mkdirTemp(pattern: string, cb: (dir?: string, e?: PathError) => void): void
+    /**
+     *  Similar to mkdirTempSync but called asynchronously, notifying the result in cb
+     */
+    export function mkdirTemp(opts: MkdirTempOptions, cb: (dir?: string, e?: PathError) => void): void
+    /**
+     * creates a new temporary directory
+     * @throws PathError
+     */
+    export function mkdirTemp(co: YieldContext, pattern: string): string
+    /**
+     * creates a new temporary directory
+     * @throws PathError
+     */
+    export function mkdirTemp(co: YieldContext, opts: MkdirTempOptions): string
 }
