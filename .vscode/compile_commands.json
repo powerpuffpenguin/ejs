@@ -96,11 +96,6 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/itoa.c.o", "src/ejs/internal/itoa.c"],
-  "file": "src/ejs/internal/itoa.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/c_string.c.o", "src/ejs/internal/c_string.c"],
   "file": "src/ejs/internal/c_string.c"
 },
@@ -228,11 +223,6 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/internal/queue.c.o", "src/ejs/internal/queue.c"],
   "file": "src/ejs/internal/queue.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/internal/itoa.c.o", "src/ejs/internal/itoa.c"],
-  "file": "src/ejs/internal/itoa.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",

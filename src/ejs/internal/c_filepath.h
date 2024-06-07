@@ -36,7 +36,16 @@
 int ppp_c_filepath_append_separator(ppp_c_string_t *path);
 int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n);
 
-BOOL ppp_c_filepath_is_abc(ppp_c_string_t *path);
+/**
+ * reports whether the path is absolute
+ */
+BOOL ppp_c_filepath_is_abc_raw(const char *path, const size_t path_len);
+/**
+ * * BOOL (ppp_c_fast_string_t* s)
+ * * BOOL (ppp_c_string_t* s)
+ * reports whether the path is absolute
+ */
+#define ppp_c_filepath_is_abc(s) ppp_c_filepath_is_abc_raw((const char *)(s)->str, (s)->len)
 
 /**
  * remove directory and its subprojects

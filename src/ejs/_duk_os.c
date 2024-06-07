@@ -7,7 +7,6 @@
 #include "_duk_async.h"
 #include "internal/buffer.h"
 #include "internal/c_filepath.h"
-#include "internal/itoa.h"
 #include "_duk_rand.h"
 
 #include <errno.h>

@@ -49,6 +49,95 @@ size_t ppp_filepath_itoa(size_t num, unsigned char *str, size_t len, int base)
     return i;
 }
 
+#ifndef PPP_FILEPATH_WINDOWS
+// cutPath slices path around the first path separator.
+static BOOL ppp_c_filepath_cut_path(ppp_c_fast_string_t *path,
+                                    ppp_c_fast_string_t *before, ppp_c_fast_string_t *after)
+{
+    for (size_t i = 0; i < path->len; i++)
+    {
+        switch (path->str[i])
+        {
+        case '\\':
+        case '/':
+            if (before)
+            {
+                ppp_c_string_sub_end(before, path, i);
+            }
+            if (after)
+            {
+                ppp_c_string_sub_begin(after, path, i);
+            }
+            return TRUE;
+        }
+    }
+    if (before)
+    {
+        *before = *path;
+    }
+    if (after)
+    {
+        after->len = 0;
+        after->str = 0;
+    }
+    return FALSE;
+}
+
+static size_t ppp_c_filepath_volume_name_len(const char *path, size_t path_len)
+{
+    if (path_len < 2)
+    {
+        return 0;
+    }
+    // with drive letter
+    if (path[1] == ':' &&
+        (('a' <= path[0] && path[0] <= 'z') ||
+         ('A' <= path[0] && path[0] <= 'Z')))
+    {
+        return 2;
+    }
+    // UNC and DOS device paths start with two slashes.
+    if (!PPP_FILEPATH_IS_SEPARATOR(path[0]) || !PPP_FILEPATH_IS_SEPARATOR(path[1]))
+    {
+        return 0;
+    }
+    ppp_c_fast_string_t rest = {
+        .str = path + 2,
+        .len = path_len - 2,
+    };
+    ppp_c_fast_string_t p1, p2;
+    ppp_c_filepath_cut_path(&rest, &p1, &rest);
+    ppp_c_filepath_cut_path(&rest, &p2, &rest);
+
+    if (!ppp_c_filepath_cut_path(&rest, &p2, &rest))
+    {
+        return path_len;
+    }
+    if (p1.len != 1 || (p1.str[0] != '.' && p1.str[0] != '?'))
+    {
+        // This is a UNC path: \\${HOST}\${SHARE}\ 
+		return path_len - rest.len - 1;
+    }
+    // This is a DOS device path.
+    if (p2.len == 3 &&
+        PPP_CHAR_TO_UPPER(p2.str[0]) == 'U' &&
+        PPP_CHAR_TO_UPPER(p2.str[1]) == 'N' &&
+        PPP_CHAR_TO_UPPER(p2.str[2]) == 'C')
+
+    {
+        // This is a DOS device path that links to a UNC: \\.\UNC\${HOST}\${SHARE}\ 
+         ppp_c_filepath_cut_path(&rest, 0, &rest); // host
+        if (!ppp_c_filepath_cut_path(&rest, 0, &rest)) // share
+        {
+            return path_len;
+        }
+    }
+    return path_len - rest.len - 1;
+}
+#else
+#define ppp_c_filepath_volume_name_len(xx) 0
+#endif
+
 int ppp_c_filepath_append_separator(ppp_c_string_t *path)
 {
     if (path->len && PPP_FILEPATH_IS_SEPARATOR(path->str[path->len - 1]))
@@ -80,7 +169,7 @@ int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n)
     }
     return 0;
 }
-BOOL ppp_c_filepath_is_abc(ppp_c_string_t *path)
+BOOL ppp_c_filepath_is_abc_raw(const char *path, const size_t path_len)
 {
 #ifdef PPP_FILEPATH_WINDOWS
     if (path->len > 1 &&
@@ -90,7 +179,7 @@ BOOL ppp_c_filepath_is_abc(ppp_c_string_t *path)
          ('A' <= path->str[0] && path->str[0] <= 'Z')) &&
         (path->len == 2 || path->str[2] == '\\' || path->str[2] == '/'))
 #else
-    if (path->len > 0 && path->str[0] == '/')
+    if (path_len > 0 && path[0] == '/')
 #endif
     {
         return TRUE;
