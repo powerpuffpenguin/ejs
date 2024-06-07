@@ -21,8 +21,8 @@ sync.go(function (co) {
         // })
         f = File.createTemp(co, {
             pattern: "test_*.log",
-            dir: '/'
-            // dir: ''
+            // dir: '/'
+            dir: ''
         })
         // f = File.createTempSync({
         //     pattern: "test_*.log",
@@ -30,22 +30,22 @@ sync.go(function (co) {
         //     dir: '.'
         // })
         console.log(f)
-        // f.writeAt(co, {
-        //     src: "ok",
-        //     offset: 2,
-        // })
+        f.writeAt(co, {
+            src: "ok",
+            offset: 2,
+        })
 
-        // f.writeAt({
-        //     src: "12",
-        //     offset: 8,
-        // }, function (v, e) {
-        //     console.log(v, e, f.name())
-        // })
-        // console.log(f.stat(co))
-        // console.log(f instanceof os.File)
-        // var buf = new Uint8Array(128)
-        // var n = f.read(co, buf)
-        // console.log(n, buf.subarray(0, n))
+        f.writeAt({
+            src: "12",
+            offset: 8,
+        }, function (v, e) {
+            console.log(v, e, f.name())
+        })
+        console.log(f.stat(co))
+        console.log(f instanceof os.File)
+        var buf = new Uint8Array(128)
+        var n = f.read(co, buf)
+        console.log(n, buf.subarray(0, n))
     } catch (e) {
         console.log(e)
         console.log(e.message)

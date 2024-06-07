@@ -426,7 +426,7 @@ int ppp_c_filepath_mkdir_all(ppp_c_string_t *path, int perm)
     return err;
 }
 
-BOOL ppp_c_filepath_create_temp(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result)
+BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result, char *buf, size_t buf_len)
 {
     size_t pos = opts->pattern_len;
     for (size_t i = 0; i < opts->pattern_len; i++)
@@ -453,14 +453,11 @@ BOOL ppp_c_filepath_create_temp(ppp_c_filepath_create_temp_options_t *opts, ppp_
         --cap;
     }
 
-    ppp_c_string_t s = {};
-    s.len = 0;
-    uint8_t setname = 0;
-    if (opts->name && opts->name->cap && opts->name->str)
+    ppp_c_string_t s = {0};
+    if (buf && buf_len)
     {
-        s.cap = opts->name->cap;
-        s.str = opts->name->str;
-        setname = 1;
+        s.cap = buf_len;
+        s.str = buf;
     }
 
     if (opts->dir_len && opts->dir)
@@ -556,7 +553,14 @@ BOOL ppp_c_filepath_create_temp(ppp_c_filepath_create_temp_options_t *opts, ppp_
                 continue;
             }
             result->err = errno;
-            if (!setname || s.str != opts->name->str)
+            if (buf && buf_len)
+            {
+                if (s.str != buf)
+                {
+                    free(s.str);
+                }
+            }
+            else
             {
                 free(s.str);
             }

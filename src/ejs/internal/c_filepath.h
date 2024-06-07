@@ -79,10 +79,6 @@ typedef struct
      */
     int perm;
 
-    /**
-     * If name is valid (name->cap!=0), the return value will attempt to be created using the memory it provided
-     */
-    ppp_c_string_t *name;
 } ppp_c_filepath_create_temp_options_t;
 typedef struct
 {
@@ -105,8 +101,10 @@ typedef struct
 /**
  * Create a temporary file.
  *
- * Returns the created archive name on success.
+ * On success, TRUE is returned.  On error, FALSE is returned
  */
-BOOL ppp_c_filepath_create_temp(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result);
+BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result, char *buf, size_t buf_len);
+
+#define ppp_c_filepath_create_temp(opts, result) ppp_c_filepath_create_temp_with_buffer((opts), (result), 0, 0)
 
 #endif
