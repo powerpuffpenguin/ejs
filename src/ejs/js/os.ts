@@ -329,7 +329,7 @@ declare namespace deps {
         perm?: number
     }
     export function createTemp(opts: CreateTempOptions): File
-    export function createTemp(opts: CreateTempOptions, cb: (f?: File, e?: any) => void): File
+    export function createTemp(opts: CreateTempOptions, cb: (f?: File, e?: any) => void): void
 
     export function rmdir(opts: RemoveOptions): void
     export function rmdir(opts: RemoveOptions, cb: (e?: any) => void): void
@@ -342,6 +342,19 @@ declare namespace deps {
     export function mkdir(opts: MkdirOptions): void
     export function mkdir(opts: MkdirOptions, cb: (e?: any) => void): void
 
+    export interface MkdirTempOptions extends AsyncOptions {
+        pattern: string
+        /**
+         * @default tempDir()
+         */
+        dir?: string
+        /**
+         * @default 0o700
+         */
+        perm?: number
+    }
+    export function mkdirTemp(opts: MkdirTempOptions): string
+    export function mkdirTemp(opts: MkdirTempOptions, cb: (dir?: string, e?: any) => void): void
 }
 const coVoid = __duk.js.coVoid
 const coReturn = __duk.js.coReturn
@@ -2161,4 +2174,58 @@ export function mkdir(a: any, b: any): void {
         err: e,
     })
     return cb ? cbVoid(cb, deps.mkdir, o, ce) : coVoid(a, deps.mkdir, o, ce)
+}
+
+export interface MkdirTempSyncOptions {
+    pattern: string
+    /**
+     * @default tempDir()
+     */
+    dir?: string
+
+    /**
+     * @default 0o700
+     */
+    perm?: number
+}
+export interface MkdirTempOptions extends MkdirTempSyncOptions, AsyncOptions { }
+
+/**
+ * creates a new temporary directory
+ * @throws PathError
+ */
+export function mkdirTempSync(opts: string | MkdirTempSyncOptions): string {
+    const o: deps.MkdirTempOptions = typeof opts === "string" ? {
+        pattern: opts,
+    } : {
+        pattern: opts.pattern,
+        dir: opts.dir,
+        perm: opts.perm,
+    }
+    try {
+        return deps.mkdirTemp(o)
+    } catch (e) {
+        throw new PathError({
+            op: "mkdirTempSync",
+            path: o.pattern,
+            err: e,
+        })
+    }
+}
+export function mkdirTemp(a: any, b: any) {
+    const [opts, cb] = parseAB<string | MkdirTempOptions, (dir?: string, e?: any) => void>(a, b)
+    const o: deps.MkdirTempOptions = typeof opts === "string" ? {
+        pattern: opts,
+    } : {
+        pattern: opts.pattern,
+        dir: opts.dir,
+        perm: opts.perm,
+        post: opts.post,
+    }
+    const ce = (e: any) => new PathError({
+        op: 'mkdirTemp',
+        path: o.pattern,
+        err: e,
+    })
+    return cb ? cbReturn(cb, deps.mkdirTemp, o, undefined, ce) : coReturn(a, deps.mkdirTemp, o, undefined, ce)
 }

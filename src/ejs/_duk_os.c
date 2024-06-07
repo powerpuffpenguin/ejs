@@ -2181,11 +2181,160 @@ static duk_ret_t f_createTemp(duk_context *ctx)
     }
     f_createTemp_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_createTemp_async_args_t), ejs_default_finalizer);
     p->opts = opts;
-    p->name = 0;
 
     _ejs_async_post_or_send(ctx, f_createTemp_async_impl, f_createTemp_async_return);
     return 0;
 }
+
+typedef struct
+{
+    ppp_c_filepath_create_temp_options_t *opts;
+    char *name;
+} f_mkdirTemp_args_t;
+
+static duk_ret_t f_mkdirTemp_impl(duk_context *ctx)
+{
+    f_mkdirTemp_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    if (!args->opts->dir)
+    {
+        args->opts->dir = _ejs_os_temp_dir(&args->opts->dir_len);
+        if (!args->opts->dir_len)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "unknow temp dir");
+            duk_throw(ctx);
+        }
+    }
+
+    _ejs_srand(0);
+    ppp_c_filepath_mkdir_temp_result_t result;
+    if (!ppp_c_filepath_mkdir_temp(args->opts, &result))
+    {
+        if (result.err)
+        {
+            ejs_throw_os(ctx, result.err, 0);
+        }
+        else
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "pattern contains path separator");
+            duk_throw(ctx);
+        }
+    }
+    args->name = result.name.str;
+    duk_push_lstring(ctx, result.name.str, result.name.len);
+    free(args->name);
+    args->name = 0;
+    return 1;
+}
+typedef struct
+{
+    ppp_c_filepath_create_temp_options_t opts;
+    int err;
+    char *name;
+    size_t name_len;
+} f_mkdirTemp_async_args_t;
+static void f_mkdirTemp_async_impl(void *userdata)
+{
+    f_mkdirTemp_async_args_t *args = userdata;
+    if (!args->opts.dir)
+    {
+        args->opts.dir = _ejs_os_temp_dir(&args->opts.dir_len);
+        if (!args->opts.dir_len)
+        {
+            return;
+        }
+    }
+
+    _ejs_srand(0);
+    ppp_c_filepath_mkdir_temp_result_t result;
+    if (ppp_c_filepath_mkdir_temp(&args->opts, &result))
+    {
+        args->name = result.name.str;
+        args->name_len = result.name.len;
+    }
+    else
+    {
+        args->err = result.err;
+    }
+}
+static duk_ret_t f_mkdirTemp_async_return(duk_context *ctx)
+{
+    f_mkdirTemp_async_args_t *args = _ejs_async_return(ctx);
+    if (!args->opts.dir)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "unknow temp dir");
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else if (args->name)
+    {
+        duk_push_lstring(ctx, args->name, args->name_len);
+        free(args->name);
+        duk_call(ctx, 1);
+    }
+    else if (args->err)
+    {
+        ejs_new_os_error(ctx, args->err, 0);
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "pattern contains path separator");
+        duk_push_undefined(ctx);
+        duk_swap_top(ctx, -2);
+        duk_call(ctx, 2);
+    }
+    return 0;
+}
+static duk_ret_t f_mkdirTemp(duk_context *ctx)
+{
+    ppp_c_filepath_create_temp_options_t opts = {0};
+    duk_get_prop_lstring(ctx, 0, "pattern", 7);
+    opts.pattern = duk_require_lstring(ctx, -1, &opts.pattern_len);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "dir", 3);
+    if (duk_is_null_or_undefined(ctx, -1))
+    {
+        opts.dir = 0;
+        opts.dir_len = 0;
+    }
+    else
+    {
+        opts.dir = duk_require_lstring(ctx, -1, &opts.dir_len);
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "perm", 3);
+    opts.perm = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 0700);
+    duk_pop(ctx);
+    if (duk_is_undefined(ctx, 1))
+    {
+        f_mkdirTemp_args_t args = {
+            .opts = &opts,
+            .name = 0,
+        };
+        if (ejs_pcall_function(ctx, f_mkdirTemp_impl, &args))
+        {
+            if (args.name)
+            {
+                free(args.name);
+            }
+            duk_throw(ctx);
+        }
+        return 1;
+    }
+    f_mkdirTemp_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_mkdirTemp_async_args_t), ejs_default_finalizer);
+    p->opts = opts;
+
+    _ejs_async_post_or_send(ctx, f_mkdirTemp_async_impl, f_mkdirTemp_async_return);
+    return 0;
+}
+
 static duk_ret_t _tempDir(duk_context *ctx)
 {
     size_t len;
@@ -2751,6 +2900,8 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, f_createTemp, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "createTemp", 10);
+        duk_push_c_lightfunc(ctx, f_mkdirTemp, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "mkdirTemp", 9);
 
         duk_push_c_lightfunc(ctx, _chdir, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "chdir", 5);

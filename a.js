@@ -19,7 +19,7 @@ sync.go(function (co) {
         //     flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,
         //     perm: 0o664,
         // })
-        f = File.createTemp(co, {
+        f = os.mkdirTemp(co, {
             pattern: "test_*.log",
             // dir: '/'
             dir: ''
@@ -30,22 +30,22 @@ sync.go(function (co) {
         //     dir: '.'
         // })
         console.log(f)
-        f.writeAt(co, {
-            src: "ok",
-            offset: 2,
-        })
+        // f.writeAt(co, {
+        //     src: "ok",
+        //     offset: 2,
+        // })
 
-        f.writeAt({
-            src: "12",
-            offset: 8,
-        }, function (v, e) {
-            console.log(v, e, f.name())
-        })
-        console.log(f.stat(co))
-        console.log(f instanceof os.File)
-        var buf = new Uint8Array(128)
-        var n = f.read(co, buf)
-        console.log(n, buf.subarray(0, n))
+        // f.writeAt({
+        //     src: "12",
+        //     offset: 8,
+        // }, function (v, e) {
+        //     console.log(v, e, f.name())
+        // })
+        // console.log(f.stat(co))
+        // console.log(f instanceof os.File)
+        // var buf = new Uint8Array(128)
+        // var n = f.read(co, buf)
+        // console.log(n, buf.subarray(0, n))
     } catch (e) {
         console.log(e)
         console.log(e.message)

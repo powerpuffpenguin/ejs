@@ -2106,7 +2106,7 @@ declare module "ejs/os" {
         dir?: string
 
         /**
-         * @default 0o600
+         * @default 0o700
          */
         perm?: number
     }
