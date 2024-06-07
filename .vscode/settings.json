@@ -83,6 +83,7 @@
         "_duk_rand.h": "c",
         "sstream": "c",
         "c_filepath.h": "c",
-        "_duk_os.h": "c"
+        "_duk_os.h": "c",
+        "time.h": "c"
     }
 }

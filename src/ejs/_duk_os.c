@@ -2049,6 +2049,8 @@ static duk_ret_t f_createTemp_impl(duk_context *ctx)
             duk_throw(ctx);
         }
     }
+
+    _ejs_srand(0);
     ppp_c_filepath_create_temp_result_t result;
     if (!ppp_c_filepath_create_temp(args->opts, &result))
     {
@@ -2088,6 +2090,8 @@ static void f_createTemp_async_impl(void *userdata)
             return;
         }
     }
+
+    _ejs_srand(0);
     ppp_c_filepath_create_temp_result_t result;
     if (ppp_c_filepath_create_temp(&args->opts, &result))
     {

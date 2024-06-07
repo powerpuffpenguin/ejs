@@ -107,4 +107,27 @@ BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t
 
 #define ppp_c_filepath_create_temp(opts, result) ppp_c_filepath_create_temp_with_buffer((opts), (result), 0, 0)
 
+typedef struct
+{
+    /**
+     * errno or 0.
+     * On error, 0 means 'pattern' contains path separator.
+     */
+    int err;
+
+    /**
+     *  created archive name on success
+     */
+    ppp_c_string_t name;
+} ppp_c_filepath_mkdir_temp_result_t;
+
+/**
+ * Create a temporary directory.
+ *
+ * On success, TRUE is returned.  On error, FALSE is returned
+ */
+BOOL ppp_c_filepath_mkdir_temp_with_buffer(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_mkdir_temp_result_t *result, char *buf, size_t buf_len);
+
+#define ppp_c_filepath_mkdir_temp(opts, result) ppp_c_filepath_mkdir_temp_with_buffer((opts), (result), 0, 0)
+
 #endif

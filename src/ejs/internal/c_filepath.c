@@ -426,7 +426,11 @@ int ppp_c_filepath_mkdir_all(ppp_c_string_t *path, int perm)
     return err;
 }
 
-BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result, char *buf, size_t buf_len)
+static int __ppp_c_filepath_create_temp_file_or_dir(
+    ppp_c_filepath_create_temp_options_t *opts,
+    ppp_c_filepath_mkdir_temp_result_t *result,
+    char *buf, size_t buf_len,
+    BOOL dir)
 {
     size_t pos = opts->pattern_len;
     for (size_t i = 0; i < opts->pattern_len; i++)
@@ -437,9 +441,8 @@ BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t
 #ifdef EJS_OS_WINDOWS
         case '\\':
 #endif
-            result->fd = -1;
             result->err = 0;
-            return FALSE;
+            return -1;
         case '*':
             pos = i;
             break;
@@ -483,9 +486,8 @@ BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t
             s.str = malloc(cap + 1);
             if (!s.str)
             {
-                result->fd = -1;
                 result->err = errno;
-                return FALSE;
+                return -1;
             }
             s.cap = cap;
         }
@@ -507,9 +509,8 @@ BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t
             s.str = malloc(cap + 1);
             if (!s.str)
             {
-                result->fd = -1;
                 result->err = errno;
-                return FALSE;
+                return -1;
             }
             s.cap = cap;
         }
@@ -532,43 +533,105 @@ BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t
     char random[10] = {0};
     int random_len;
     size_t try = 0;
-    while (1)
+    if (dir)
     {
-        s.len = prefix;
-        random_len = ppp_filepath_itoa(rand() & 2147483647, random, sizeof(random), 10);
-        if (random_len == -1)
+        while (1)
         {
-            continue;
-        }
-        ppp_c_string_append_raw(&s, random, random_len);
-        if (suffix)
-        {
-            ppp_c_string_append_raw(&s, suffix, suffix_len);
-        }
-        result->fd = open(ppp_c_string_c_str(&s), O_RDWR | O_CREAT | O_EXCL, opts->perm);
-        if (result->fd == -1)
-        {
-            if (errno == EEXIST && ++try < 10000)
+            s.len = prefix;
+            random_len = ppp_filepath_itoa(rand() & 2147483647, random, sizeof(random), 10);
+            if (random_len == -1)
             {
                 continue;
             }
-            result->err = errno;
-            if (buf && buf_len)
+            ppp_c_string_append_raw(&s, random, random_len);
+            if (suffix)
             {
-                if (s.str != buf)
+                ppp_c_string_append_raw(&s, suffix, suffix_len);
+            }
+            if (mkdir(ppp_c_string_c_str(&s), opts->perm))
+            {
+                if (errno == EEXIST && ++try < 10000)
+                {
+                    continue;
+                }
+                result->err = errno;
+                if (buf && buf_len)
+                {
+                    if (s.str != buf)
+                    {
+                        free(s.str);
+                    }
+                }
+                else
                 {
                     free(s.str);
                 }
+                return -1;
             }
-            else
-            {
-                free(s.str);
-            }
-            return FALSE;
+            result->name = s;
+            result->err = 0;
+            break;
         }
-        result->name = s;
-        result->err = 0;
-        break;
+        return 1;
     }
+    else
+    {
+        int fd;
+        while (1)
+        {
+            s.len = prefix;
+            random_len = ppp_filepath_itoa(rand() & 2147483647, random, sizeof(random), 10);
+            if (random_len == -1)
+            {
+                continue;
+            }
+            ppp_c_string_append_raw(&s, random, random_len);
+            if (suffix)
+            {
+                ppp_c_string_append_raw(&s, suffix, suffix_len);
+            }
+            fd = open(ppp_c_string_c_str(&s), O_RDWR | O_CREAT | O_EXCL, opts->perm);
+            if (fd == -1)
+            {
+                if (errno == EEXIST && ++try < 10000)
+                {
+                    continue;
+                }
+                result->err = errno;
+                if (buf && buf_len)
+                {
+                    if (s.str != buf)
+                    {
+                        free(s.str);
+                    }
+                }
+                else
+                {
+                    free(s.str);
+                }
+                return -1;
+            }
+            result->name = s;
+            result->err = 0;
+            break;
+        }
+        return fd;
+    }
+}
+BOOL ppp_c_filepath_create_temp_with_buffer(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_create_temp_result_t *result, char *buf, size_t buf_len)
+{
+    ppp_c_filepath_mkdir_temp_result_t temp;
+    result->fd = __ppp_c_filepath_create_temp_file_or_dir(opts, &temp, buf, buf_len, 0);
+    if (result->fd == -1)
+    {
+        result->err = temp.err;
+        return FALSE;
+    }
+    result->name = temp.name;
     return TRUE;
+}
+BOOL ppp_c_filepath_mkdir_temp_with_buffer(ppp_c_filepath_create_temp_options_t *opts, ppp_c_filepath_mkdir_temp_result_t *result, char *buf, size_t buf_len)
+{
+    int fd = __ppp_c_filepath_create_temp_file_or_dir(opts, result, buf, buf_len, 1);
+    return fd == -1 ? FALSE : TRUE;
 }
