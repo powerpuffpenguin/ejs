@@ -28,6 +28,9 @@
 #define PPP_CHAR_TO_UPPER(c) (('a' <= (c) && (c) <= 'z') ? (c) - ('a' - 'A') : (c))
 #endif
 
+/**
+ * Usually used to represent const char*
+ */
 typedef struct
 {
     const char *str;
@@ -116,12 +119,21 @@ BOOL ppp_c_string_has_prefix_raw(const char *s, const size_t s_len, const char *
  */
 BOOL ppp_c_string_has_suffix(const char *s, const size_t s_len, const char *suffix, const size_t suffix_len);
 
+/**
+ * void (string_t* sub, string_t* s, size_t begin, size_t end)
+ */
 #define ppp_c_string_sub(sub, s, begin, end) \
     (sub)->str = (s)->str + (begin);         \
     sub->len = (end) - (begin)
+/**
+ * ppp_c_string_sub_begin (string_t* sub, string_t* s, size_t begin)
+ */
 #define ppp_c_string_sub_begin(sub, s, begin) \
     (sub)->str = (s)->str + (begin);          \
-    sub->len = (s)->len - (begin)
+    (sub)->len = (s)->len - (begin)
+/**
+ * void (string_t* sub, string_t* s, size_t end)
+ */
 #define ppp_c_string_sub_end(sub, s, end) \
     (sub)->str = (s)->str;                \
     (sub)->len = end

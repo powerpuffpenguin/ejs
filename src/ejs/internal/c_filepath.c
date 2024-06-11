@@ -49,7 +49,7 @@ size_t ppp_filepath_itoa(size_t num, unsigned char *str, size_t len, int base)
     return i;
 }
 
-#ifndef PPP_FILEPATH_WINDOWS
+#ifdef PPP_FILEPATH_WINDOWS
 // cutPath slices path around the first path separator.
 static BOOL ppp_c_filepath_cut_path(ppp_c_fast_string_t *path,
                                     ppp_c_fast_string_t *before, ppp_c_fast_string_t *after)
@@ -66,7 +66,7 @@ static BOOL ppp_c_filepath_cut_path(ppp_c_fast_string_t *path,
             }
             if (after)
             {
-                ppp_c_string_sub_begin(after, path, i);
+                ppp_c_string_sub_begin(after, path, i + 1);
             }
             return TRUE;
         }
@@ -107,12 +107,11 @@ static size_t ppp_c_filepath_volume_name_len(const char *path, size_t path_len)
     };
     ppp_c_fast_string_t p1, p2;
     ppp_c_filepath_cut_path(&rest, &p1, &rest);
-    ppp_c_filepath_cut_path(&rest, &p2, &rest);
-
     if (!ppp_c_filepath_cut_path(&rest, &p2, &rest))
     {
         return path_len;
     }
+
     if (p1.len != 1 || (p1.str[0] != '.' && p1.str[0] != '?'))
     {
         // This is a UNC path: \\${HOST}\${SHARE}\ 
@@ -123,7 +122,6 @@ static size_t ppp_c_filepath_volume_name_len(const char *path, size_t path_len)
         PPP_CHAR_TO_UPPER(p2.str[0]) == 'U' &&
         PPP_CHAR_TO_UPPER(p2.str[1]) == 'N' &&
         PPP_CHAR_TO_UPPER(p2.str[2]) == 'C')
-
     {
         // This is a DOS device path that links to a UNC: \\.\UNC\${HOST}\${SHARE}\ 
          ppp_c_filepath_cut_path(&rest, 0, &rest); // host
@@ -135,7 +133,7 @@ static size_t ppp_c_filepath_volume_name_len(const char *path, size_t path_len)
     return path_len - rest.len - 1;
 }
 #else
-#define ppp_c_filepath_volume_name_len(xx) 0
+#define ppp_c_filepath_volume_name_len(path, path_len) 0
 #endif
 
 int ppp_c_filepath_append_separator(ppp_c_string_t *path)
@@ -169,23 +167,446 @@ int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n)
     }
     return 0;
 }
-BOOL ppp_c_filepath_is_abc_raw(const char *path, const size_t path_len)
+
+int ppp_c_filepath_from_slash(ppp_c_string_t *path)
+{
+    if (PPP_FILEPATH_SEPARATOR != '/')
+    {
+        size_t i = 0;
+        for (; i < path->len; i++)
+        {
+            if (path->str[i] == '/')
+            {
+                if (!path->cap)
+                {
+                    char *p = malloc(path->len + 1);
+                    if (!p)
+                    {
+                        return -1;
+                    }
+                    memmove(p, path->str, path->len);
+                    p[path->len] = 0;
+                    path->str = p;
+                    path->cap = path->len;
+                }
+                path->str[i++] = PPP_FILEPATH_SEPARATOR;
+                break;
+            }
+        }
+        for (; i < path->len; i++)
+        {
+            if (path->str[i] == '/')
+            {
+                path->str[i] = PPP_FILEPATH_SEPARATOR;
+            }
+        }
+    }
+    return 0;
+}
+int ppp_c_filepath_to_slash(ppp_c_string_t *path)
+{
+    if (PPP_FILEPATH_SEPARATOR != '/')
+    {
+        size_t i = 0;
+        for (; i < path->len; i++)
+        {
+            if (path->str[i] == PPP_FILEPATH_SEPARATOR)
+            {
+                if (!path->cap)
+                {
+                    char *p = malloc(path->len + 1);
+                    if (!p)
+                    {
+                        return -1;
+                    }
+                    memmove(p, path->str, path->len);
+                    p[path->len] = 0;
+                    path->str = p;
+                }
+                path->str[i++] = '/';
+                break;
+            }
+        }
+        for (; i < path->len; i++)
+        {
+            if (path->str[i] == PPP_FILEPATH_SEPARATOR)
+            {
+                path->str[i] = '/';
+            }
+        }
+    }
+    return 0;
+}
+typedef struct
+{
+    ppp_c_fast_string_t path;
+    char *buf;
+    size_t buf_len;
+    size_t w;
+    ppp_c_string_t *volAndPath;
+
+#ifdef PPP_FILEPATH_WINDOWS
+    char *p;
+    size_t volLen;
+#endif
+} ppp_c_filepath_lazybuf_t;
+int ppp_c_filepath_lazybuf_append_char(ppp_c_filepath_lazybuf_t *b, char c)
+{
+    if (!b->buf)
+    {
+        if (b->w < b->path.len && b->path.str[b->w] == c)
+        {
+            b->w++;
+            return 0;
+        }
+
+#ifdef PPP_FILEPATH_WINDOWS
+        b->buf_len = b->path.len + b->volLen + 2;
+        b->p = malloc(b->buf_len + 1); // '.\'
+        if (!b->p)
+        {
+            return -1;
+        }
+        b->buf = b->p + b->volLen + 2;
+#else
+        b->buf_len = b->path.len;
+        b->buf = malloc(b->buf_len + 1);
+        if (!b->buf)
+        {
+            return -1;
+        }
+#endif
+        memcpy(b->buf, b->path.str, b->w);
+    }
+    b->buf[b->w] = c;
+    b->w++;
+    return 0;
+}
+static inline char ppp_c_filepath_lazybuf_index(ppp_c_filepath_lazybuf_t *b, size_t i)
+{
+    return b->buf ? b->buf[i] : b->path.str[i];
+}
+void ppp_c_filepath_lazybuf_string(ppp_c_filepath_lazybuf_t *b)
+{
+    if (b->buf)
+    {
+#ifdef PPP_FILEPATH_WINDOWS
+        if (b->volLen)
+        {
+            b->volAndPath->len = b->volLen + b->w;
+            b->buf -= b->volLen;
+            memmove(b->buf, b->volAndPath->str, b->volLen);
+            if (b->volAndPath->cap)
+            {
+                free(b->volAndPath->str);
+            }
+            b->volAndPath->str = b->buf;
+        }
+        else
+        {
+            b->volAndPath->len = b->w;
+            if (b->volAndPath->cap)
+            {
+                free(b->volAndPath->str);
+            }
+            b->volAndPath->str = b->buf;
+        }
+        if (b->buf != b->p)
+        {
+            memmove(b->p, b->buf, b->volAndPath->len);
+        }
+        b->volAndPath->str = b->p;
+        b->volAndPath->cap = b->buf_len;
+#else
+        b->volAndPath->len = b->w;
+        if (b->volAndPath->cap)
+        {
+            free(b->volAndPath->str);
+        }
+        b->volAndPath->cap = b->buf_len;
+        b->volAndPath->str = b->buf;
+#endif
+    }
+    else
+    {
+#ifdef PPP_FILEPATH_WINDOWS
+        b->volAndPath->len = b->volLen + b->w;
+#else
+        b->volAndPath->len = b->w;
+#endif
+    }
+}
+int ppp_c_filepath_clean(ppp_c_string_t *originalPath)
+{
+    ppp_c_fast_string_t path = {
+        .str = originalPath->str,
+        .len = originalPath->len,
+    };
+    size_t volLen = ppp_c_filepath_volume_name_len(path.str, path.len);
+    path.str += volLen;
+    path.len -= volLen;
+    if (!path.len)
+    {
+        if (volLen > 1 &&
+            PPP_FILEPATH_IS_SEPARATOR(originalPath->str[0]) &&
+            PPP_FILEPATH_IS_SEPARATOR(originalPath->str[1]))
+        {
+            // should be UNC
+            return ppp_c_filepath_from_slash(originalPath);
+        }
+        return ppp_c_string_append_char(originalPath, '.');
+    }
+    uint8_t rooted = PPP_FILEPATH_IS_SEPARATOR(path.str[0]);
+    // Invariants:
+    //	reading from path; r is index of next byte to process.
+    //	writing to buf; w is index of next byte to write.
+    //	dotdot is index in buf where .. must stop, either because
+    //		it is the leading slash or it is a leading ../../.. prefix.
+    size_t n = path.len;
+#ifdef PPP_FILEPATH_WINDOWS
+    ppp_c_filepath_lazybuf_t out = {
+        .path = path,
+        .buf = 0,
+        .p = 0,
+        .buf_len = 0,
+        .w = 0,
+        .volAndPath = originalPath,
+        .volLen = volLen,
+    };
+#else
+    ppp_c_filepath_lazybuf_t out = {
+        .path = path,
+        .buf = 0,
+        .buf_len = 0,
+        .w = 0,
+        .volAndPath = originalPath,
+    };
+#endif
+
+    size_t r = 0;
+    size_t dotdot = 0;
+    if (rooted)
+    {
+        if (ppp_c_filepath_lazybuf_append_char(&out, PPP_FILEPATH_SEPARATOR))
+        {
+            return -1;
+        }
+        r = 1;
+        dotdot = 1;
+    }
+    while (r < n)
+    {
+        if (PPP_FILEPATH_IS_SEPARATOR(path.str[r]))
+        {
+            r++;
+        }
+        else if (path.str[r] == '.' &&
+                 (r + 1 == n || PPP_FILEPATH_IS_SEPARATOR(path.str[r + 1])))
+        {
+            r++;
+        }
+        else if (path.str[r] == '.' &&
+                 path.str[r + 1] == '.' &&
+                 (r + 2 == n || PPP_FILEPATH_IS_SEPARATOR(path.str[r + 2])))
+        {
+            // .. element: remove to last separator
+            r += 2;
+            if (out.w > dotdot)
+            {
+                // can backtrack
+                out.w--;
+                char c;
+
+                while (out.w > dotdot)
+                {
+                    c = ppp_c_filepath_lazybuf_index(&out, out.w);
+                    if (PPP_FILEPATH_IS_SEPARATOR(c))
+                    {
+                        break;
+                    }
+                    out.w--;
+                }
+            }
+            else if (!rooted)
+            {
+                // cannot backtrack, but not rooted, so append .. element.
+                if (out.w > 0)
+                {
+                    if (ppp_c_filepath_lazybuf_append_char(&out, PPP_FILEPATH_SEPARATOR))
+                    {
+                        return -1;
+                    }
+                }
+
+                if (ppp_c_filepath_lazybuf_append_char(&out, '.'))
+                {
+                    return -1;
+                }
+                if (ppp_c_filepath_lazybuf_append_char(&out, '.'))
+                {
+                    return -1;
+                }
+                dotdot = out.w;
+            }
+        }
+        else
+        {
+            // real path element.
+            // add slash if needed
+            if (rooted && out.w != 1 || !rooted && out.w != 0)
+            {
+                if (ppp_c_filepath_lazybuf_append_char(&out, PPP_FILEPATH_SEPARATOR))
+                {
+                    return -1;
+                }
+            }
+            // copy element
+            for (; r < n && !PPP_FILEPATH_IS_SEPARATOR(path.str[r]); r++)
+            {
+                if (ppp_c_filepath_lazybuf_append_char(&out, path.str[r]))
+                {
+                    return -1;
+                }
+            }
+        }
+    }
+
+    // Turn empty string into "."
+    if (out.w == 0)
+    {
+#ifdef PPP_FILEPATH_WINDOWS
+        if (out.volLen)
+        {
+            if (ppp_c_filepath_lazybuf_append_char(&out, '.'))
+            {
+                return -1;
+            }
+            ppp_c_filepath_lazybuf_string(&out);
+            return ppp_c_filepath_from_slash(originalPath);
+        }
+#endif
+        if (originalPath->cap)
+        {
+            if (out.buf)
+            {
+#ifdef PPP_FILEPATH_WINDOWS
+                free(out.p);
+#else
+                free(out.buf);
+#endif
+            }
+            originalPath->str[0] = '.';
+            originalPath->len = 1;
+        }
+        else
+        {
+            if (out.buf)
+            {
+#ifdef PPP_FILEPATH_WINDOWS
+                originalPath->str = out.p;
+#else
+                originalPath->str = out.buf;
+#endif
+                originalPath->str[0] = '.';
+                originalPath->len = 1;
+                originalPath->cap = out.buf_len;
+            }
+            else
+            {
+
+                originalPath->str = ".";
+                originalPath->len = 1;
+                originalPath->cap = 0;
+            }
+        }
+        return 0;
+    }
+#ifdef PPP_FILEPATH_WINDOWS
+    if (!out.volLen && out.buf)
+    {
+        // If a ':' appears in the path element at the start of a Windows path,
+        // insert a .\ at the beginning to avoid converting relative paths
+        // like a/../c: into c:.
+        for (size_t i = 0; i < out.w; i++)
+        {
+            if (PPP_FILEPATH_IS_SEPARATOR(out.buf[i]))
+            {
+                break;
+            }
+            else if (out.buf[i] == ':')
+            {
+                out.buf -= 2;
+                out.buf[0] = '.';
+                out.buf[1] = '\\';
+                out.w += 2;
+                out.buf_len += 2;
+                break;
+            }
+        }
+    }
+#endif
+
+    ppp_c_filepath_lazybuf_string(&out);
+    return ppp_c_filepath_from_slash(originalPath);
+}
+BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len)
 {
 #ifdef PPP_FILEPATH_WINDOWS
-    if (path->len > 1 &&
-        path->str[1] == ':' &&
-        (('0' <= path->str[0] && path->str[0] <= '9') ||
-         ('a' <= path->str[0] && path->str[0] <= 'z') ||
-         ('A' <= path->str[0] && path->str[0] <= 'Z')) &&
-        (path->len == 2 || path->str[2] == '\\' || path->str[2] == '/'))
-#else
-    if (path_len > 0 && path[0] == '/')
-#endif
+    if (path_len < 2)
+    {
+        return FALSE;
+    }
+    size_t l = ppp_c_filepath_volume_name_len(path, path_len);
+    if (!l)
+    {
+        return FALSE;
+    }
+    // If the volume name starts with a double slash, this is an absolute path.
+    if (PPP_FILEPATH_IS_SEPARATOR(path[0]) && PPP_FILEPATH_IS_SEPARATOR(path[1]))
     {
         return TRUE;
     }
+    path_len -= l;
+    if (path_len == l)
+    {
+        return FALSE;
+    }
+    switch (path[l])
+    {
+    case '/':
+    case '\\':
+        return TRUE;
+    }
     return FALSE;
+#else
+    return path_len > 0 && path[0] == '/' ? TRUE : FALSE;
+#endif
 }
+BOOL ppp_c_filepath_is_local_raw(const char *path, size_t path_len)
+{
+    if (!path_len || ppp_c_filepath_is_abs_raw(path, path_len))
+    {
+        return FALSE;
+    }
+
+    uint8_t hasDots = FALSE;
+    // for p := path; p != ""; {
+    // 	var part string
+    // 	part, p, _ = strings.Cut(p, "/")
+    // 	if part == "." || part == ".." {
+    // 		hasDots = true
+    // 		break
+    // 	}
+    // }
+    // if hasDots {
+    // 	path = Clean(path)
+    // }
+    // if path == ".." || strings.HasPrefix(path, "../") {
+    // 	return false
+    // }
+    return TRUE;
+}
+
 typedef struct
 {
     ppp_c_string_t *path;

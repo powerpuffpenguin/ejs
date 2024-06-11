@@ -21,6 +21,8 @@
 #define PPP_FILEPATH_WINDOWS
 #endif
 
+// #define PPP_FILEPATH_WINDOWS 1
+
 #ifdef PPP_FILEPATH_WINDOWS
 #define PPP_FILEPATH_IS_SEPARATOR(c) ((c) == '\\' || (c) == '/')
 #define PPP_FILEPATH_SEPARATOR '\\'
@@ -37,15 +39,64 @@ int ppp_c_filepath_append_separator(ppp_c_string_t *path);
 int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n);
 
 /**
- * reports whether the path is absolute
+ * Convert path to its shortest pathname equivalent using pure lexical processing.
+ *
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
  */
-BOOL ppp_c_filepath_is_abc_raw(const char *path, const size_t path_len);
+int ppp_c_filepath_clean(ppp_c_string_t *path);
+
 /**
- * * BOOL (ppp_c_fast_string_t* s)
- * * BOOL (ppp_c_string_t* s)
+ * Replacing each slash ('/') character in path with a separator character.
+ * Multiple slashes are replaced by multiple separators.
+ *
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
+ */
+int ppp_c_filepath_from_slash(ppp_c_string_t *path);
+/**
+ * Replacing each separator character in path with a slash ('/') character.
+ * Multiple separators are replaced by multiple slashes.
+ *
+ *  On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
+ */
+int ppp_c_filepath_to_slash(ppp_c_string_t *path);
+/**
  * reports whether the path is absolute
  */
-#define ppp_c_filepath_is_abc(s) ppp_c_filepath_is_abc_raw((const char *)(s)->str, (s)->len)
+BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len);
+/**
+ * - BOOL (ppp_c_fast_string_t* path)
+ * - BOOL (ppp_c_string_t* path)
+ * reports whether the path is absolute
+ */
+#define ppp_c_filepath_is_abc(path) ppp_c_filepath_is_abs_raw((const char *)(path)->str, (path)->len)
+
+/**
+ * reports whether path, using lexical analysis only, has all of these properties:
+ *   - is within the subtree rooted at the directory in which path is evaluated
+ *   - is not an absolute path
+ *   - is not empty
+ *    - on Windows, is not a reserved name such as "NUL"
+ *
+ * If is_local(path) returns true,
+ * then join(base, path) will always produce a path contained within base and
+ * clean(path) will always produce an unrooted path with no ".." path elements.
+ *
+ * is_local is a purely lexical operation.
+ * In particular, it does not account for the effect of any symbolic links
+ * that may exist in the filesystem.
+ */
+BOOL ppp_c_filepath_is_local_raw(const char *path, size_t path_len);
+/**
+ * - BOOL (ppp_c_fast_string_t* path)
+ * - BOOL (ppp_c_string_t* path)
+ *
+ * reports whether path, using lexical analysis only, has all of these properties:
+ *   - is within the subtree rooted at the directory in which path is evaluated
+ *   - is not an absolute path
+ *   - is not empty
+ *    - on Windows, is not a reserved name such as "NUL"
+ */
+#define ppp_c_filepath_is_local(path) ppp_c_filepath_is_local_raw((const char *)(path)->str, (path)->len)
 
 /**
  * remove directory and its subprojects

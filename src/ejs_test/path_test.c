@@ -5,7 +5,7 @@ typedef struct
 {
     const char *path, *result;
 } path_test_t;
-path_test_t cleantests[] = {
+static path_test_t cleantests[] = {
     // Already clean
     {"", "."},
     {"abc", "abc"},
@@ -99,7 +99,7 @@ typedef struct
 {
     const char *path, *dir, *file;
 } split_test_t;
-split_test_t splittests[] = {
+static split_test_t splittests[] = {
     {"a/b", "a/", "b"},
     {"a/b/", "a/b/", ""},
     {"a/", "a/", ""},
@@ -149,7 +149,7 @@ typedef struct
     pair_c_str_t elem;
     const char *path;
 } join_test_t;
-join_test_t jointests[] = {
+static join_test_t jointests[] = {
     // zero parameters
     {0, {}, ""},
 
@@ -205,7 +205,7 @@ typedef struct
     const char *path, *ext;
 } ext_test_t;
 
-ext_test_t exttests[] = {
+static ext_test_t exttests[] = {
     {"path.go", ".go"},
     {"path.pb.go", ".go"},
     {"a.dir/b", ""},
@@ -232,7 +232,7 @@ static EJS_TESTS_GROUP_FUNC(path, ext, t)
         }
     }
 }
-path_test_t basetests[] = {
+static path_test_t basetests[] = {
     // Already clean
     {"", "."},
     {".", "."},
@@ -266,7 +266,7 @@ static EJS_TESTS_GROUP_FUNC(path, base, t)
         }
     }
 }
-path_test_t dirtests[] = {
+static path_test_t dirtests[] = {
     {"", "."},
     {".", "."},
     {"/.", "/"},
@@ -309,7 +309,7 @@ typedef struct
     const char *path;
     BOOL abs;
 } is_abs_t;
-is_abs_t isAbsTests[] = {
+static is_abs_t isAbsTests[] = {
     {"", FALSE},
     {"/", TRUE},
     {"/usr/bin/gcc", TRUE},
