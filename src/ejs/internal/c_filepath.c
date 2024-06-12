@@ -958,25 +958,23 @@ static int ppp_c_filepath_mkdir_all_impl(ppp_c_filepath_mkdir_all_args_t *args)
         // Create parent.
 
         --j;
-        size_t len;
         if (!args->path.cap)
         {
 #ifdef PPP_FILEPATH_WINDOWS
-            len = args->path.len + 2;
+            char *s = malloc(args->path.len + 2);
 #else
-            len = args->path.len + 1;
+            char *s = malloc(args->path.len + 1);
 #endif
-            char *s = malloc(len);
             if (!s)
             {
                 return -1;
             }
-            memmove(s, args->path.str, len);
+            memmove(s, args->path.str, args->path.len);
             args->path.str = s;
             args->path.cap = args->path.len;
         }
 
-        len = args->path.len;
+        size_t len = args->path.len;
         char c = args->path.str[j];
 
 #ifdef PPP_FILEPATH_WINDOWS
@@ -1030,6 +1028,25 @@ int ppp_c_filepath_mkdir_all(ppp_c_string_t *path, int perm)
         .path = *path,
         .perm = perm,
     };
+    if (path->str[path->len] && !path->cap)
+    {
+#ifdef PPP_FILEPATH_WINDOWS
+        args.path.str = malloc(path->len + 2);
+#else
+        args.path.str = malloc(path->len + 1);
+#endif
+        if (!args.path.str)
+        {
+            return -1;
+        }
+        memmove(args.path.str, path->str, path->len);
+        args.path.str[path->len] = 0;
+        args.path.len = args.path.cap = path->len;
+    }
+    else
+    {
+        args.path = *path;
+    }
     int err = ppp_c_filepath_mkdir_all_impl(&args);
     if (args.path.cap && args.path.str != path->str)
     {
