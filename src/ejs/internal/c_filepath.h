@@ -36,7 +36,7 @@
 #endif
 
 int ppp_c_filepath_append_separator(ppp_c_string_t *path);
-int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n);
+int ppp_c_filepath_join_one_raw(ppp_c_string_t *path, const char *name, size_t n);
 
 /**
  * Convert path to its shortest pathname equivalent using pure lexical processing.
