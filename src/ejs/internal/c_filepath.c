@@ -574,30 +574,6 @@ BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len)
     return path_len > 0 && path[0] == '/' ? TRUE : FALSE;
 #endif
 }
-BOOL ppp_c_filepath_is_local_raw(const char *path, size_t path_len)
-{
-    if (!path_len || ppp_c_filepath_is_abs_raw(path, path_len))
-    {
-        return FALSE;
-    }
-
-    uint8_t hasDots = FALSE;
-    // for p := path; p != ""; {
-    // 	var part string
-    // 	part, p, _ = strings.Cut(p, "/")
-    // 	if part == "." || part == ".." {
-    // 		hasDots = true
-    // 		break
-    // 	}
-    // }
-    // if hasDots {
-    // 	path = Clean(path)
-    // }
-    // if path == ".." || strings.HasPrefix(path, "../") {
-    // 	return false
-    // }
-    return TRUE;
-}
 
 typedef struct
 {

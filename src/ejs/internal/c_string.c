@@ -141,7 +141,7 @@ BOOL ppp_c_string_has_prefix_raw(const char *s, const size_t s_len, const char *
         return memcmp(s, prefix, prefix_len) ? FALSE : TRUE;
     }
 }
-BOOL ppp_c_string_has_suffix(const char *s, const size_t s_len, const char *suffix, const size_t suffix_len)
+BOOL ppp_c_string_has_suffix_raw(const char *s, const size_t s_len, const char *suffix, const size_t suffix_len)
 {
     if (s_len < suffix_len)
     {
@@ -156,4 +156,26 @@ BOOL ppp_c_string_has_suffix(const char *s, const size_t s_len, const char *suff
     default:
         return memcmp(s + s_len - suffix_len, suffix, suffix_len) ? FALSE : TRUE;
     }
+}
+size_t ppp_c_stirng_first_char_raw(const char *s, const size_t s_len, const char c)
+{
+    for (size_t i = 0; i != s_len; i++)
+    {
+        if (s[i] == c)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+size_t ppp_c_stirng_last_char_raw(const char *s, const size_t s_len, const char c)
+{
+    for (size_t i = s_len - 1; i != -1; i--)
+    {
+        if (s[i] == c)
+        {
+            return i;
+        }
+    }
+    return -1;
 }

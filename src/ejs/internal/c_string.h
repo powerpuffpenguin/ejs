@@ -117,7 +117,29 @@ BOOL ppp_c_string_has_prefix_raw(const char *s, const size_t s_len, const char *
 /**
  * tests whether the string s ends with suffix.
  */
-BOOL ppp_c_string_has_suffix(const char *s, const size_t s_len, const char *suffix, const size_t suffix_len);
+BOOL ppp_c_string_has_suffix_raw(const char *s, const size_t s_len, const char *suffix, const size_t suffix_len);
+/**
+ * tests whether the string s ends with suffix.
+ */
+#define ppp_c_string_has_suffix(s, prefix, prefix_len) ppp_c_string_has_suffix((s)->str, (s)->len, (prefix), (prefix_len))
+
+/**
+ * Find and return the position where the character first appears. If not found, -1 is returned.
+ */
+size_t ppp_c_stirng_first_char_raw(const char *s, const size_t s_len, const char c);
+/**
+ * Find and return the position where the character first appears. If not found, -1 is returned.
+ */
+#define ppp_c_stirng_first_char(s, c) ppp_c_stirng_first_char_raw((s)->str, (s)->len, c)
+
+/**
+ * Find and return the position where the character last appears. If not found, -1 is returned.
+ */
+size_t ppp_c_stirng_last_char_raw(const char *s, const size_t s_len, const char c);
+/**
+ * Find and return the position where the character last appears. If not found, -1 is returned.
+ */
+#define ppp_c_stirng_last_char(s, c) ppp_c_stirng_last_char_raw((s)->str, (s)->len, c)
 
 /**
  * void (string_t* sub, string_t* s, size_t begin, size_t end)

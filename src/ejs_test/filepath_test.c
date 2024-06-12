@@ -202,8 +202,98 @@ static EJS_TESTS_GROUP_FUNC(filepath, clean, t)
         }
     }
 }
+typedef struct
+{
+    char *path;
+    BOOL abs;
+} is_abs_t;
+static is_abs_t isabstests[] = {
+    {"", FALSE},
+    {"/", TRUE},
+    {"/usr/bin/gcc", TRUE},
+    {"..", FALSE},
+    {"/a/../bb", TRUE},
+    {".", FALSE},
+    {"./", FALSE},
+    {"lala", FALSE},
+};
+#ifdef PPP_FILEPATH_WINDOWS
+static is_abs_t winisabstests[] = {
+    {"C:\\", TRUE},
+    {"c\\", FALSE},
+    {"c::", FALSE},
+    {"c:", FALSE},
+    {"/", FALSE},
+    {"\\", FALSE},
+    {"\\Windows", FALSE},
+    {"c:a\\b", FALSE},
+    {"c:\\a\\b", TRUE},
+    {"c:/a/b", TRUE},
+    {"\\\\host\\share", TRUE},
+    {"\\\\host\\share\\", TRUE},
+    {"\\\\host\\share\\foo", TRUE},
+    {"//host/share/foo/bar", TRUE},
+};
+#endif
+static void test_isabs_raw(CuTest *t, is_abs_t *tests, size_t count)
+{
+    for (size_t i = 0; i < count; i++)
+    {
+        is_abs_t *test = tests + i;
+        CuAssertIntEquals(t, test->abs, ppp_c_filepath_is_abs_raw(test->path, strlen(test->path)));
+    }
+}
+static EJS_TESTS_GROUP_FUNC(filepath, isabs, t)
+{
+#ifdef PPP_FILEPATH_WINDOWS
+    // winisabstests
+    test_isabs_raw(t, winisabstests, sizeof(winisabstests) / sizeof(is_abs_t));
 
+    // All non-windows test should work as intended if prefixed with volume letter.
+    size_t count = sizeof(isabstests) / sizeof(is_abs_t);
+    char *s;
+    size_t n;
+    for (size_t i = 0; i < count; i++)
+    {
+        n = strlen(isabstests[i].path);
+        s = malloc(n + 2 + 1);
+        if (!s)
+        {
+            for (size_t j = 0; j < i; j++)
+            {
+                free(isabstests[j].path);
+            }
+            CuFail(t, "malloc fail");
+            return;
+        }
+        s[0] = 'c';
+        s[1] = ':';
+        memmove(s + 2, isabstests[i].path, n);
+        s[n + 2] = 0;
+
+        isabstests[i].path = s;
+    }
+    test_isabs_raw(t, isabstests, count);
+
+    // All non-windows tests should fail, because they have no volume letter.
+    for (size_t i = 0; i < count; i++)
+    {
+        isabstests[i].path += 2;
+        isabstests[i].abs = 0;
+    }
+    test_isabs_raw(t, isabstests, count);
+
+    for (size_t i = 0; i < count; i++)
+    {
+        isabstests[i].path -= 2;
+        free(isabstests[i].path);
+    }
+#else
+    test_isabs_raw(t, isabstests, sizeof(isabstests) / sizeof(is_abs_t));
+#endif
+}
 EJS_TESTS_GROUP(suite, filepath)
 {
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, clean);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, isabs);
 }
