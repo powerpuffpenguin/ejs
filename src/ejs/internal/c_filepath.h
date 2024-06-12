@@ -21,7 +21,7 @@
 #define PPP_FILEPATH_WINDOWS
 #endif
 
-#define PPP_FILEPATH_WINDOWS 1
+// #define PPP_FILEPATH_WINDOWS 1
 
 #ifdef PPP_FILEPATH_WINDOWS
 #define PPP_FILEPATH_IS_SEPARATOR(c) ((c) == '\\' || (c) == '/')
@@ -77,6 +77,16 @@ BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len);
  * reports whether the path is absolute
  */
 #define ppp_c_filepath_is_abc(path) ppp_c_filepath_is_abs_raw((const char *)(path)->str, (path)->len)
+
+/**
+ * splits path immediately following the final Separator,
+ * separating it into a directory and file name component.
+ * If there is no Separator in path, Split returns an empty dir
+ * and file set to path.
+ * The returned values have the property that path = dir+file.
+ */
+void ppp_c_filepath_split_raw(const char *path, const size_t path_len, ppp_c_fast_string_t *dir, ppp_c_fast_string_t *file);
+#define ppp_c_filepath_split(path, dir, file) ppp_c_filepath_split_raw((path)->str, (path)->len, (dir), (file))
 
 /**
  * remove directory and its subprojects

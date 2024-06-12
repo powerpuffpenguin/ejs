@@ -34,6 +34,11 @@ void ppp_c_string_destroy(ppp_c_string_t *s)
         s->cap = s->len = 0;
         s->str = 0;
     }
+    else
+    {
+        s->len = 0;
+        s->str = 0;
+    }
 }
 int ppp_c_string_grow(ppp_c_string_t *s, size_t n)
 {

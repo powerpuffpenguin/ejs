@@ -292,8 +292,121 @@ static EJS_TESTS_GROUP_FUNC(filepath, isabs, t)
     test_isabs_raw(t, isabstests, sizeof(isabstests) / sizeof(is_abs_t));
 #endif
 }
+
+static path_test_t slashtests[] = {
+    {"", ""},
+#ifdef PPP_FILEPATH_WINDOWS
+    {"/", "\\"},
+    {"/a/b", "\\a\\b"},
+    {"a//b", "a\\\\b"},
+
+#else
+    {"/", "/"},
+    {"/a/b", "/a/b"},
+    {"a//b", "a//b"},
+#endif
+};
+static EJS_TESTS_GROUP_FUNC(filepath, from_and_to_slash, t)
+{
+    size_t count = sizeof(slashtests) / sizeof(path_test_t);
+    for (size_t i = 0; i < count; i++)
+    {
+        path_test_t *test = slashtests + i;
+
+        ppp_c_string_t s = {
+            .cap = 0,
+            .str = (char *)test->path,
+            .len = strlen(test->path),
+        };
+        CuAssertIntEquals_Msg(t, test->path, 0, ppp_c_filepath_from_slash(&s));
+        if (s.len == strlen(test->result))
+        {
+            CuAssertIntEquals_Msg(t, test->path, 0, memcmp(s.str, test->result, s.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+        ppp_c_string_destroy(&s);
+
+        s.str = (char *)test->result;
+        s.len = strlen(s.str);
+        CuAssertIntEquals_Msg(t, test->path, 0, ppp_c_filepath_to_slash(&s));
+        if (s.len == strlen(test->path))
+        {
+            CuAssertIntEquals_Msg(t, test->path, 0, memcmp(s.str, test->path, s.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+        ppp_c_string_destroy(&s);
+    }
+}
+typedef struct
+{
+    char *path;
+    char *dir;
+    char *file;
+} test_split_t;
+test_split_t unixsplittests[] = {
+    {"a/b", "a/", "b"},
+    {"a/b/", "a/b/", ""},
+    {"a/", "a/", ""},
+    {"a", "", "a"},
+    {"/", "/", ""},
+};
+#ifdef PPP_FILEPATH_WINDOWS
+test_split_t winsplittests[] = {
+    {"c:", "c:", ""},
+    {"c:/", "c:/", ""},
+    {"c:/foo", "c:/", "foo"},
+    {"c:/foo/bar", "c:/foo/", "bar"},
+    {"//host/share", "//host/share", ""},
+    {"//host/share/", "//host/share/", ""},
+    {"//host/share/foo", "//host/share/", "foo"},
+    {"\\\\host\\share", "\\\\host\\share", ""},
+    {"\\\\host\\share\\", "\\\\host\\share\\", ""},
+    {"\\\\host\\share\\foo", "\\\\host\\share\\", "foo"},
+};
+#endif
+static void test_split_raw(CuTest *t, test_split_t *tests, size_t count)
+{
+    ppp_c_fast_string_t dir, file;
+    for (size_t i = 0; i < count; i++)
+    {
+        test_split_t *test = tests + i;
+        ppp_c_filepath_split_raw(test->path, strlen(test->path), &dir, &file);
+        if (dir.len == strlen(test->dir))
+        {
+            CuAssertIntEquals_Msg(t, test->path, 0, memcmp(dir.str, test->dir, dir.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+
+        if (file.len == strlen(test->file))
+        {
+            CuAssertIntEquals_Msg(t, test->path, 0, memcmp(file.str, test->file, file.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+    }
+}
+static EJS_TESTS_GROUP_FUNC(filepath, split, t)
+{
+    test_split_raw(t, unixsplittests, sizeof(unixsplittests) / sizeof(test_split_t));
+#ifdef PPP_FILEPATH_WINDOWS
+    test_split_raw(t, winsplittests, sizeof(winsplittests) / sizeof(test_split_t));
+#endif
+}
 EJS_TESTS_GROUP(suite, filepath)
 {
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, clean);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, isabs);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, from_and_to_slash);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, split);
 }

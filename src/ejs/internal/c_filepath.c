@@ -574,6 +574,40 @@ BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len)
     return path_len > 0 && path[0] == '/' ? TRUE : FALSE;
 #endif
 }
+void ppp_c_filepath_split_raw(const char *path, const size_t path_len, ppp_c_fast_string_t *dir, ppp_c_fast_string_t *file)
+{
+    if (!path_len)
+    {
+        if (dir)
+        {
+            dir->len = 0;
+            dir->str = "";
+        }
+        if (file)
+        {
+            file->len = 0;
+            file->str = "";
+        }
+        return;
+    }
+    size_t vol = ppp_c_filepath_volume_name_len(path, path_len);
+    size_t i = path_len - 1;
+    while (i >= vol && i != -1 && !PPP_FILEPATH_IS_SEPARATOR(path[i]))
+    {
+        i--;
+    }
+    i++;
+    if (dir)
+    {
+        dir->len = i;
+        dir->str = path;
+    }
+    if (file)
+    {
+        file->len = path_len - i;
+        file->str = path + i;
+    }
+}
 
 typedef struct
 {
