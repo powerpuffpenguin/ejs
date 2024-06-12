@@ -286,57 +286,45 @@ static inline char ppp_c_filepath_lazybuf_index(ppp_c_filepath_lazybuf_t *b, siz
 {
     return b->buf ? b->buf[i] : b->path.str[i];
 }
-void ppp_c_filepath_lazybuf_string(ppp_c_filepath_lazybuf_t *b)
+void ppp_c_filepath_lazybuf_string(ppp_c_filepath_lazybuf_t *b, ppp_c_string_t *s)
 {
     if (b->buf)
     {
 #ifdef PPP_FILEPATH_WINDOWS
         if (b->volLen)
         {
-            b->volAndPath->len = b->volLen + b->w;
+            s->len = b->volLen + b->w;
             b->buf -= b->volLen;
             memmove(b->buf, b->volAndPath->str, b->volLen);
-            if (b->volAndPath->cap)
-            {
-                free(b->volAndPath->str);
-            }
-            b->volAndPath->str = b->buf;
         }
         else
         {
-            b->volAndPath->len = b->w;
-            if (b->volAndPath->cap)
-            {
-                free(b->volAndPath->str);
-            }
-            b->volAndPath->str = b->buf;
+            s->len = b->w;
         }
         if (b->buf != b->p)
         {
             memmove(b->p, b->buf, b->volAndPath->len);
         }
-        b->volAndPath->str = b->p;
-        b->volAndPath->cap = b->buf_len;
+        s->str = b->p;
+        s->cap = b->buf_len;
 #else
-        b->volAndPath->len = b->w;
-        if (b->volAndPath->cap)
-        {
-            free(b->volAndPath->str);
-        }
-        b->volAndPath->cap = b->buf_len;
-        b->volAndPath->str = b->buf;
+        s->len = b->w;
+        s->cap = b->buf_len;
+        s->str = b->buf;
 #endif
     }
     else
     {
+        s->cap = b->volAndPath->cap;
+        s->str = b->volAndPath->str;
 #ifdef PPP_FILEPATH_WINDOWS
-        b->volAndPath->len = b->volLen + b->w;
+        s->len = b->volLen + b->w;
 #else
-        b->volAndPath->len = b->w;
+        s->len = b->w;
 #endif
     }
 }
-int ppp_c_filepath_clean(ppp_c_string_t *originalPath)
+int ppp_c_filepath_clean_raw(ppp_c_string_t *originalPath, ppp_c_string_t *cleaned)
 {
     ppp_c_fast_string_t path = {
         .str = originalPath->str,
@@ -347,14 +335,15 @@ int ppp_c_filepath_clean(ppp_c_string_t *originalPath)
     path.len -= volLen;
     if (!path.len)
     {
+        *cleaned = *originalPath;
         if (volLen > 1 &&
             PPP_FILEPATH_IS_SEPARATOR(originalPath->str[0]) &&
             PPP_FILEPATH_IS_SEPARATOR(originalPath->str[1]))
         {
             // should be UNC
-            return ppp_c_filepath_from_slash(originalPath);
+            return ppp_c_filepath_from_slash(cleaned);
         }
-        return ppp_c_string_append_char(originalPath, '.');
+        return ppp_c_string_append_char(cleaned, '.');
     }
     uint8_t rooted = PPP_FILEPATH_IS_SEPARATOR(path.str[0]);
     // Invariants:
@@ -481,43 +470,27 @@ int ppp_c_filepath_clean(ppp_c_string_t *originalPath)
             {
                 return -1;
             }
-            ppp_c_filepath_lazybuf_string(&out);
-            return ppp_c_filepath_from_slash(originalPath);
+            ppp_c_filepath_lazybuf_string(&out, cleaned);
+            return ppp_c_filepath_from_slash(cleaned);
         }
 #endif
-        if (originalPath->cap)
+
+        if (out.buf)
         {
-            if (out.buf)
-            {
 #ifdef PPP_FILEPATH_WINDOWS
-                free(out.p);
+            cleaned->str = out.p;
 #else
-                free(out.buf);
+            cleaned->str = out.buf;
 #endif
-            }
-            originalPath->str[0] = '.';
-            originalPath->len = 1;
+            cleaned->str[0] = '.';
+            cleaned->len = 1;
+            cleaned->cap = out.buf_len;
         }
         else
         {
-            if (out.buf)
-            {
-#ifdef PPP_FILEPATH_WINDOWS
-                originalPath->str = out.p;
-#else
-                originalPath->str = out.buf;
-#endif
-                originalPath->str[0] = '.';
-                originalPath->len = 1;
-                originalPath->cap = out.buf_len;
-            }
-            else
-            {
-
-                originalPath->str = ".";
-                originalPath->len = 1;
-                originalPath->cap = 0;
-            }
+            cleaned->str = ".";
+            cleaned->len = 1;
+            cleaned->cap = 0;
         }
         return 0;
     }
@@ -546,8 +519,27 @@ int ppp_c_filepath_clean(ppp_c_string_t *originalPath)
     }
 #endif
 
-    ppp_c_filepath_lazybuf_string(&out);
-    return ppp_c_filepath_from_slash(originalPath);
+    ppp_c_filepath_lazybuf_string(&out, cleaned);
+    return ppp_c_filepath_from_slash(cleaned);
+}
+
+int ppp_c_filepath_clean(ppp_c_string_t *path)
+{
+    ppp_c_string_t cleaned = {0};
+    int err = ppp_c_filepath_clean_raw(path, &cleaned);
+    if (err)
+    {
+        return err;
+    }
+    if (path->cap)
+    {
+        if (path->str != cleaned.str)
+        {
+            free(path->str);
+        }
+    }
+    *path = cleaned;
+    return 0;
 }
 BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len)
 {

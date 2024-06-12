@@ -40,6 +40,14 @@ int ppp_c_filepath_join_raw(ppp_c_string_t *path, const char *name, size_t n);
 
 /**
  * Convert path to its shortest pathname equivalent using pure lexical processing.
+ * 'cleaned' is only set if the function succeeds, and will not be ppp_c_string_destroy.
+ *  'cleaned' may be a substring of path.
+ *
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
+ */
+int ppp_c_filepath_clean_raw(ppp_c_string_t *path, ppp_c_string_t *cleaned);
+/**
+ * Convert path to its shortest pathname equivalent using pure lexical processing.
  *
  * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
  */
