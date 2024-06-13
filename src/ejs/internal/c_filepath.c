@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -162,7 +163,7 @@ int ppp_c_filepath_join_one_raw(ppp_c_string_t *path, const char *name, size_t n
         {
             return -1;
         }
-        ppp_c_string_append_raw_char(path, PPP_FILEPATH_SEPARATOR);
+        ppp_c_string_append_char_raw(path, PPP_FILEPATH_SEPARATOR);
         ppp_c_string_append_raw(path, name, n);
     }
     return 0;
@@ -609,6 +610,18 @@ void ppp_c_filepath_split_raw(const char *path, const size_t path_len, ppp_c_fas
     }
 }
 
+int ppp_c_filepath_join(
+    ppp_c_string_t *output,
+    ppp_c_string_iteratorable_t *iteratorable,
+    const char *sep, const size_t sep_len)
+{
+    char c = PPP_FILEPATH_SEPARATOR;
+    if (ppp_c_string_join(output, iteratorable, &c, 1))
+    {
+        return -1;
+    }
+    return ppp_c_filepath_clean(output);
+}
 typedef struct
 {
     ppp_c_string_t *path;

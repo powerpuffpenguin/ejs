@@ -89,6 +89,16 @@ void ppp_c_filepath_split_raw(const char *path, const size_t path_len, ppp_c_fas
 #define ppp_c_filepath_split(path, dir, file) ppp_c_filepath_split_raw((path)->str, (path)->len, (dir), (file))
 
 /**
+ * Concatenate iteratorable to string
+ *
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
+ */
+int ppp_c_filepath_join(
+    ppp_c_string_t *output,
+    ppp_c_string_iteratorable_t *iteratorable,
+    const char *sep, const size_t sep_len);
+
+/**
  * remove directory and its subprojects
  *
  * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.

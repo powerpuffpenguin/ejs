@@ -79,6 +79,13 @@ void ppp_c_string_destroy(ppp_c_string_t *s);
 int ppp_c_string_grow(ppp_c_string_t *s, size_t n);
 
 /**
+ * Increase the string to ensure the capacity is greater than or equal to cap.
+ *
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
+ */
+int ppp_c_string_grow_to(ppp_c_string_t *s, size_t cap);
+
+/**
  * Concatenate str to the end of s.
  *
  * You must ensure there is sufficient capacity before calling.
@@ -89,7 +96,7 @@ void ppp_c_string_append_raw(ppp_c_string_t *s, const char *str, size_t n);
  *
  * You must ensure there is sufficient capacity before calling.
  */
-void ppp_c_string_append_raw_char(ppp_c_string_t *s, const char c);
+void ppp_c_string_append_char_raw(ppp_c_string_t *s, const char c);
 /**
  * Concatenate str to the end of s.
  *
@@ -159,5 +166,93 @@ size_t ppp_c_stirng_last_char_raw(const char *s, const size_t s_len, const char 
 #define ppp_c_string_sub_end(sub, s, end) \
     (sub)->str = (s)->str;                \
     (sub)->len = end
+
+/**
+ * Iterator is used to traverse the character container
+ */
+typedef struct
+{
+    /**
+     * If non-zero, it indicates that the iterator has a value,
+     * otherwise 0 indicates that the iteration has ended.
+     */
+    uint8_t ok;
+    /**
+     * Character pointer to the current iterator
+     */
+    const char *str;
+    /**
+     * The character length of the current iterator
+     */
+    size_t len;
+} ppp_c_string_iterator_t;
+
+typedef void (*ppp_c_string_next_function)(void *state, ppp_c_string_iterator_t *iterator);
+typedef void (*ppp_c_string_reset_function)(void *state);
+/**
+ * wrapped iterable object
+ */
+typedef struct
+{
+    /**
+     * Iterate object status
+     */
+    void *state;
+    /**
+     * Reset state to iterate again
+     */
+    ppp_c_string_reset_function reset;
+    /**
+     * Iterate to get values
+     */
+    ppp_c_string_next_function next;
+} ppp_c_string_iteratorable_t;
+
+typedef struct
+{
+    void *p;
+    size_t n;
+    size_t i;
+    /**
+     * The data type being iterated
+     */
+    uint8_t t;
+} ppp_c_string_iteratorable_state_t;
+
+#define PPP_C_STRING_TYPE_STRING 1
+#define PPP_C_STRING_TYPE_STRING_PTR 2
+#define PPP_C_STRING_TYPE_FAST 3
+#define PPP_C_STRING_TYPE_FAST_PTR 4
+#define PPP_C_STRING_TYPE_C 5
+
+void ppp_c_string_iteratorable_init(
+    ppp_c_string_iteratorable_t *iteratorable, ppp_c_string_iteratorable_state_t *state,
+    ppp_c_string_t *c_string, size_t n);
+
+void ppp_c_string_iteratorable_init_ptr(
+    ppp_c_string_iteratorable_t *iteratorable, ppp_c_string_iteratorable_state_t *state,
+    ppp_c_string_t **c_string_ptr, size_t n);
+
+void ppp_c_string_iteratorable_init_fast(
+    ppp_c_string_iteratorable_t *iteratorable, ppp_c_string_iteratorable_state_t *state,
+    ppp_c_fast_string_t *c_fast_string, size_t n);
+
+void ppp_c_string_iteratorable_init_fast_ptr(
+    ppp_c_string_iteratorable_t *iteratorable, ppp_c_string_iteratorable_state_t *state,
+    ppp_c_fast_string_t **c_fast_string_ptr, size_t n);
+
+void ppp_c_string_iteratorable_init_c(
+    ppp_c_string_iteratorable_t *iteratorable, ppp_c_string_iteratorable_state_t *state,
+    char **strings, size_t n);
+
+/**
+ * Concatenate iteratorable to string
+ *
+ * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
+ */
+int ppp_c_string_join(
+    ppp_c_string_t *output,
+    ppp_c_string_iteratorable_t *iteratorable,
+    const char *sep, const size_t sep_len);
 
 #endif

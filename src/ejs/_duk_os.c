@@ -3105,5 +3105,6 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
     _ejs_define_os_uint(ctx, ERFKILL);
 
     _ejs_define_os_uint(ctx, EHWPOISON);
+
     return 0;
 }
