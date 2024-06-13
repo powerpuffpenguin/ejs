@@ -610,16 +610,144 @@ void ppp_c_filepath_split_raw(const char *path, const size_t path_len, ppp_c_fas
     }
 }
 
-int ppp_c_filepath_join(
-    ppp_c_string_t *output,
-    ppp_c_string_iteratorable_t *iteratorable,
-    const char *sep, const size_t sep_len)
+#ifndef PPP_FILEPATH_WINDOWS
+typedef struct
 {
+    ppp_c_string_iteratorable_t *raw;
+    size_t skip;
+    size_t i;
+    uint8_t join;
+} ppp_c_filepath_iteratorable_state_t;
+
+static void __ppp_c_filepath_iterator_next(void *p, ppp_c_string_iterator_t *iter)
+{
+    ppp_c_filepath_iteratorable_state_t *state = p;
+    while (state->skip != state->i)
+    {
+        state->raw->next(state->raw->state, iter);
+        ++state->i;
+        if (!iter->ok)
+        {
+            return;
+        }
+    }
+    state->raw->next(state->raw->state, iter);
+    if (state->join < 2)
+    {
+        state->join++;
+    }
+}
+static void __ppp_c_filepath_iterator_reset(void *p)
+{
+    ppp_c_filepath_iteratorable_state_t *state = p;
+    state->raw->reset(state->raw->state);
+    state->i = 0;
+    state->join = 0;
+}
+#endif
+int ppp_c_filepath_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *iteratorable)
+{
+    ppp_c_string_iterator_t iter;
+#ifdef PPP_FILEPATH_WINDOWS
+    char lastChar = 0;
+    const char *s;
+    size_t s_len;
+    output->len = 0;
+    for (iteratorable->next(iteratorable->state, &iter); iter.ok; iteratorable->next(iteratorable->state, &iter))
+    {
+        s = iter.str;
+        s_len = iter.len;
+        if (output->len) // Add the first non-empty path element unchanged.
+        {
+            switch (lastChar)
+            {
+            case '\\':
+            case '/':
+                // If the path ends in a slash, strip any leading slashes from the next
+                // path element to avoid creating a UNC path (any path starting with "\\")
+                // from non-UNC elements.
+                //
+                // The correct behavior for Join when the first element is an incomplete UNC
+                // path (for example, "\\") is underspecified. We currently join subsequent
+                // elements so Join("\\", "host", "share") produces "\\host\share".
+                while (s_len && s[0] == '\\' || s[0] == '/')
+                {
+                    s++;
+                    s_len--;
+                }
+                break;
+            case ':':
+                // If the path ends in a colon, keep the path relative to the current directory
+                // on a drive and don't add a separator. Preserve leading slashes in the next
+                // path element, which may make the path absolute.
+                //
+                // 	Join(`C:`, `f`) = `C:f`
+                //	Join(`C:`, `\f`) = `C:\f`
+                break;
+            default:
+                // In all other cases, add a separator between elements.
+                if (ppp_c_string_append_char(output, '\\'))
+                {
+                    return -1;
+                }
+                lastChar = '\\';
+                break;
+            }
+        }
+        if (s_len)
+        {
+            if (ppp_c_string_append(output, s, s_len))
+            {
+                return -1;
+            }
+            lastChar = s[s_len - 1];
+        }
+    }
+    if (!output->len)
+    {
+        return 0;
+    }
+#else
+    ppp_c_filepath_iteratorable_state_t join_state = {
+        .raw = iteratorable,
+        .skip = 0,
+        .i = 0,
+        .join = 0,
+    };
+    iteratorable->reset(iteratorable->state);
+    for (iteratorable->next(iteratorable->state, &iter); iter.ok; iteratorable->next(iteratorable->state, &iter))
+    {
+        if (iter.len)
+        {
+            break;
+        }
+        else
+        {
+            join_state.skip++;
+        }
+    }
+    if (!iter.ok)
+    {
+        output->len = 0;
+        return 0;
+    }
+    iteratorable->reset(iteratorable->state);
+
     char c = PPP_FILEPATH_SEPARATOR;
-    if (ppp_c_string_join(output, iteratorable, &c, 1))
+    ppp_c_string_iteratorable_t join_iteratorable = {
+        .state = &join_state,
+        .reset = __ppp_c_filepath_iterator_reset,
+        .next = __ppp_c_filepath_iterator_next,
+    };
+    if (ppp_c_string_join(output, &join_iteratorable, &c, 1))
     {
         return -1;
     }
+    if (join_state.join < 2)
+    {
+        return 0;
+    }
+#endif
     return ppp_c_filepath_clean(output);
 }
 typedef struct

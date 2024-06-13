@@ -21,7 +21,7 @@
 #define PPP_FILEPATH_WINDOWS
 #endif
 
-// #define PPP_FILEPATH_WINDOWS 1
+#define PPP_FILEPATH_WINDOWS 1
 
 #ifdef PPP_FILEPATH_WINDOWS
 #define PPP_FILEPATH_IS_SEPARATOR(c) ((c) == '\\' || (c) == '/')
@@ -93,10 +93,7 @@ void ppp_c_filepath_split_raw(const char *path, const size_t path_len, ppp_c_fas
  *
  * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
  */
-int ppp_c_filepath_join(
-    ppp_c_string_t *output,
-    ppp_c_string_iteratorable_t *iteratorable,
-    const char *sep, const size_t sep_len);
+int ppp_c_filepath_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *iteratorable);
 
 /**
  * remove directory and its subprojects

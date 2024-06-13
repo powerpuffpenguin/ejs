@@ -333,7 +333,6 @@ int ppp_c_string_join(
     size_t n = 0;
     for (iteratorable->next(iteratorable->state, &iter); iter.ok; iteratorable->next(iteratorable->state, &iter))
     {
-        printf("%d %d\n", count, iter.len);
         count++;
         n += iter.len;
     }

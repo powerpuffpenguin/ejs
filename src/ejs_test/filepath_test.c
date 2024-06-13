@@ -403,10 +403,117 @@ static EJS_TESTS_GROUP_FUNC(filepath, split, t)
     test_split_raw(t, winsplittests, sizeof(winsplittests) / sizeof(test_split_t));
 #endif
 }
+static void test_join_raw(CuTest *t, ...)
+{
+    char *arrs[10];
+    va_list ap;
+    va_start(ap, t);
+    size_t count = 0;
+    while (1)
+    {
+        char *s = va_arg(ap, char *);
+        if (s)
+        {
+            arrs[count++] = s;
+        }
+        else
+        {
+            break;
+        }
+    }
+    va_end(ap);
+
+    ppp_c_string_iteratorable_t iteratorable;
+    ppp_c_string_iteratorable_state_t state;
+    ppp_c_string_iteratorable_init_c(&iteratorable, &state, arrs, count - 1);
+    ppp_c_string_t str = {0};
+    CuAssertIntEquals(t, 0, ppp_c_filepath_join(&str, &iteratorable));
+
+    char *result = arrs[count - 1];
+    ppp_c_string_t expected = {
+        .str = arrs[count - 1],
+        .len = strlen(arrs[count - 1]),
+        .cap = 0,
+    };
+    ppp_c_filepath_from_slash(&expected);
+    if (expected.len == str.len)
+    {
+        CuAssertIntEquals_Msg(t, result, 0, memcmp(expected.str, str.str, str.len));
+    }
+    else
+    {
+        CuFail(t, result);
+    }
+    ppp_c_string_destroy(&str);
+    ppp_c_string_destroy(&expected);
+}
+static EJS_TESTS_GROUP_FUNC(filepath, join, t)
+{
+    // zero parameters
+    test_join_raw(t, "", 0);
+
+    // one parameter
+    test_join_raw(t, "", "", 0);
+    test_join_raw(t, "/", "/", 0);
+    test_join_raw(t, "a", "a", 0);
+
+    // two parameters
+    test_join_raw(t, "a", "b", "a/b", 0);
+    test_join_raw(t, "a", "", "a", 0);
+    test_join_raw(t, "", "b", "b", 0);
+    test_join_raw(t, "/", "a", "/a", 0);
+    test_join_raw(t, "/", "a/b", "/a/b", 0);
+    test_join_raw(t, "/", "", "/", 0);
+    test_join_raw(t, "/a", "b", "/a/b", 0);
+    test_join_raw(t, "a", "/b", "a/b", 0);
+    test_join_raw(t, "/a", "/b", "/a/b", 0);
+    test_join_raw(t, "a/", "b", "a/b", 0);
+    test_join_raw(t, "a/", "", "a", 0);
+    test_join_raw(t, "", "", "", 0);
+
+    // three parameters
+    test_join_raw(t, "/", "a", "b", "/a/b", 0);
+
+#ifdef PPP_FILEPATH_WINDOWS
+    test_join_raw(t, "directory", "file", "directory\\file", 0);
+    test_join_raw(t, "C:\\Windows\\", "System32", "C:\\Windows\\System32", 0);
+    test_join_raw(t, "C:\\Windows\\", "", "C:\\Windows", 0);
+    test_join_raw(t, "C:\\", "Windows", "C:\\Windows", 0);
+    test_join_raw(t, "C:", "a", "C:a", 0);
+    test_join_raw(t, "C:", "a\\b", "C:a\\b", 0);
+    test_join_raw(t, "C:", "a", "b", "C:a\\b", 0);
+    test_join_raw(t, "C:", "", "b", "C:b");
+    test_join_raw(t, "C:", "", "", "b", "C:b", 0);
+    test_join_raw(t, "C:", "", "C:.", 0);
+    test_join_raw(t, "C:", "", "", "C:.", 0);
+    test_join_raw(t, "C:", "\\a", "C:\\a", 0);
+    test_join_raw(t, "C:", "", "\\a", "C:\\a", 0);
+    test_join_raw(t, "C:.", "a", "C:a", 0);
+    test_join_raw(t, "C:a", "b", "C:a\\b", 0);
+    test_join_raw(t, "C:a", "b", "d", "C:a\\b\\d", 0);
+    test_join_raw(t, "\\\\host\\share", "foo", "\\\\host\\share\\foo", 0);
+    test_join_raw(t, "\\\\host\\share\\foo", "\\\\host\\share\\foo", 0);
+    test_join_raw(t, "//host/share", "foo/bar", "\\\\host\\share\\foo\\bar", 0);
+    test_join_raw(t, "\\", "\\", 0);
+    test_join_raw(t, "\\", "", "\\", 0);
+    test_join_raw(t, "\\", "a", "\\a", 0);
+    test_join_raw(t, "\\\\", "a", "\\\\a", 0);
+    test_join_raw(t, "\\", "a", "b", "\\a\\b", 0);
+    test_join_raw(t, "\\\\", "a", "b", "\\\\a\\b", 0);
+    test_join_raw(t, "\\", "\\\\a\\b", "c", "\\a\\b\\c", 0);
+    test_join_raw(t, "\\\\a", "b", "c", "\\\\a\\b\\c", 0);
+    test_join_raw(t, "\\\\a\\", "b", "c", "\\\\a\\b\\c", 0);
+    test_join_raw(t, "//", "a", "\\\\a", 0);
+    test_join_raw(t, "a:\\b\\c", "x\\..\\y:\\..\\..\\z", "a:\\b\\z", 0);
+#else
+    test_join_raw(t, "//", "a", "/a", 0);
+#endif
+}
 EJS_TESTS_GROUP(suite, filepath)
 {
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, clean);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, isabs);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, from_and_to_slash);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, split);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, join);
 }
