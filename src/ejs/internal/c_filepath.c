@@ -750,6 +750,73 @@ int ppp_c_filepath_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *ite
 #endif
     return ppp_c_filepath_clean(output);
 }
+
+int ppp_c_filepath_abs(ppp_c_string_t *path)
+{
+    // path empth return current work directory
+    if (!path->len)
+    {
+        if (path->cap)
+        {
+            if (getcwd(path->str, path->cap))
+            {
+                path->len = strlen(path->str);
+                return 0;
+            }
+            else if (errno != ERANGE || path->cap >= MAXPATHLEN)
+            {
+                return -1;
+            }
+        }
+        char *dir = malloc(MAXPATHLEN + 1);
+        if (!dir)
+        {
+            return -1;
+        }
+        if (!getcwd(dir, MAXPATHLEN))
+        {
+            free(dir);
+            return -1;
+        }
+        if (path->cap)
+        {
+            free(path->str);
+        }
+        path->str = dir;
+        path->len = strlen(dir);
+        path->cap = MAXPATHLEN;
+        return 0;
+    }
+
+    // if abs return clean
+    if (ppp_c_filepath_is_abc(path))
+    {
+        return ppp_c_filepath_clean(path);
+    }
+
+    // return clean(join(cwd,path))
+    char dir[MAXPATHLEN + 1];
+    if (!getcwd(dir, MAXPATHLEN))
+    {
+        return -1;
+    }
+
+    size_t dir_len = strlen(dir);
+    size_t offset = (path->len && PPP_FILEPATH_IS_SEPARATOR(path->str[0])) ? 0 : 1;
+    if (ppp_c_string_grow(path, dir_len + offset))
+    {
+        return -1;
+    }
+    memmove(path->str + dir_len + offset, path->str, path->len);
+    memcpy(path->str, dir, dir_len);
+    if (offset)
+    {
+        path->str[dir_len] = PPP_FILEPATH_SEPARATOR;
+    }
+    path->len += dir_len + offset;
+
+    return ppp_c_filepath_clean(path);
+}
 typedef struct
 {
     ppp_c_string_t *path;

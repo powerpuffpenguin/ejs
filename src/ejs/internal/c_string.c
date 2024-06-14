@@ -44,7 +44,19 @@ int ppp_c_string_grow(ppp_c_string_t *s, size_t n)
 {
     if (n)
     {
-        size_t available = s->cap ? s->cap - s->len : 0;
+        size_t available;
+        size_t cap;
+        if (s->cap)
+        {
+            available = s->cap - s->len;
+            cap = s->cap;
+        }
+        else
+        {
+            available = 0;
+            n += s->len;
+            cap = 64;
+        }
         if (available < n)
         {
             n -= available;
@@ -58,7 +70,7 @@ int ppp_c_string_grow(ppp_c_string_t *s, size_t n)
             else
             {
                 size_t c = s->len + n;
-                cap = s->cap ? (s->cap * 2) : (64 * 2);
+                cap *= 2;
                 if (c >= cap)
                 {
                     cap = c;
