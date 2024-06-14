@@ -584,6 +584,35 @@ static EJS_TESTS_GROUP_FUNC(filepath, base, t)
     }
 #endif
 }
+
+static EJS_TESTS_GROUP_FUNC(filepath, ext, t)
+{
+    path_test_t exttests[] = {
+        {"path.go", ".go"},
+        {"path.pb.go", ".go"},
+        {"a.dir/b", ""},
+        {"a.dir/b.go", ".go"},
+        {"a.dir/", ""},
+    };
+    size_t count = sizeof(exttests) / sizeof(path_test_t);
+
+    path_test_t *test;
+    ppp_c_fast_string_t s;
+    for (size_t i = 0; i < count; i++)
+    {
+        test = exttests + i;
+        ppp_c_filepath_ext_raw(&s, test->path, strlen(test->path));
+
+        if (s.len == strlen(test->result))
+        {
+            CuAssertIntEquals_Msg(t, test->path, 0, memcmp(s.str, test->result, s.len));
+        }
+        else
+        {
+            CuFail(t, test->path);
+        }
+    }
+}
 EJS_TESTS_GROUP(suite, filepath)
 {
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, clean);
@@ -592,4 +621,5 @@ EJS_TESTS_GROUP(suite, filepath)
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, split);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, join);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, base);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, ext);
 }

@@ -130,6 +130,22 @@ void ppp_c_filepath_base_raw(ppp_c_fast_string_t *output, const char *path, size
 #define ppp_c_filepath_base(output, s) ppp_c_filepath_base_raw((output), (s)->str, (s)->len)
 
 /**
+ * returns the file name extension used by path.
+ * The extension is the suffix beginning at the final dot
+ * in the final element of path; it is empty if there is no dot.
+ */
+void ppp_c_filepath_ext_raw(ppp_c_fast_string_t *output, const char *path, size_t path_len);
+/**
+ * - void (ppp_c_fast_string_t* output, ppp_c_fast_string_t *path)
+ * - void (ppp_c_fast_string_t* output, ppp_c_string_t *path)
+ *
+ * returns the file name extension used by path.
+ * The extension is the suffix beginning at the final dot
+ * in the final element of path; it is empty if there is no dot.
+ */
+#define ppp_c_filepath_ext(output, s) ppp_c_filepath_ext_raw((output), (s)->str, (s)->len)
+
+/**
  * remove directory and its subprojects
  *
  * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
