@@ -21,7 +21,7 @@
 #define PPP_FILEPATH_WINDOWS
 #endif
 
-#define PPP_FILEPATH_WINDOWS 1
+// #define PPP_FILEPATH_WINDOWS 1
 
 #ifdef PPP_FILEPATH_WINDOWS
 #define PPP_FILEPATH_IS_SEPARATOR(c) ((c) == '\\' || (c) == '/')
@@ -86,6 +86,16 @@ BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len);
  * The returned values have the property that path = dir+file.
  */
 void ppp_c_filepath_split_raw(const char *path, const size_t path_len, ppp_c_fast_string_t *dir, ppp_c_fast_string_t *file);
+/**
+ * - void (ppp_c_fast_string_t *path, ppp_c_fast_string_t *dir, ppp_c_fast_string_t *file)
+ * - void (ppp_c_string_t *path, ppp_c_fast_string_t *dir, ppp_c_fast_string_t *file)
+ *
+ * splits path immediately following the final Separator,
+ * separating it into a directory and file name component.
+ * If there is no Separator in path, Split returns an empty dir
+ * and file set to path.
+ * The returned values have the property that path = dir+file.
+ */
 #define ppp_c_filepath_split(path, dir, file) ppp_c_filepath_split_raw((path)->str, (path)->len, (dir), (file))
 
 /**
@@ -100,6 +110,24 @@ int ppp_c_filepath_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *ite
  * On success, zero is returned.  On error, -1 is returned, and errno is set to indicate the error.
  */
 int ppp_c_filepath_abs(ppp_c_string_t *path);
+
+/**
+ * returns the last element of path.
+ * Trailing path separators are removed before extracting the last element.
+ * If the path is empty, Base returns ".".
+ * If the path consists entirely of separators, Base returns a single separator.
+ */
+void ppp_c_filepath_base_raw(ppp_c_fast_string_t *output, const char *path, size_t path_len);
+/**
+ * - void (ppp_c_fast_string_t* output, ppp_c_fast_string_t *path)
+ * - void (ppp_c_fast_string_t* output, ppp_c_string_t *path)
+ *
+ * returns the last element of path.
+ * Trailing path separators are removed before extracting the last element.
+ * If the path is empty, Base returns ".".
+ * If the path consists entirely of separators, Base returns a single separator.
+ */
+#define ppp_c_filepath_base(output, s) ppp_c_filepath_base_raw((output), (s)->str, (s)->len)
 
 /**
  * remove directory and its subprojects

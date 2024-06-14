@@ -817,6 +817,54 @@ int ppp_c_filepath_abs(ppp_c_string_t *path)
 
     return ppp_c_filepath_clean(path);
 }
+
+void ppp_c_filepath_base_raw(ppp_c_fast_string_t *output, const char *path, size_t path_len)
+{
+    if (!path_len)
+    {
+        output->str = ".";
+        output->len = 1;
+        return;
+    }
+
+    // Strip trailing slashes.
+    while (path_len > 0 && PPP_FILEPATH_IS_SEPARATOR(path[path_len - 1]))
+    {
+        path_len--;
+    }
+// Throw away volume name
+#ifdef PPP_FILEPATH_WINDOWS
+    size_t vollen = ppp_c_filepath_volume_name_len(path, path_len);
+    path += vollen;
+    path_len -= vollen;
+#endif
+    // Find the last element
+    size_t i = path_len - 1;
+    while (i != -1 && !PPP_FILEPATH_IS_SEPARATOR(path[i]))
+    {
+        i--;
+    }
+    if (i != -1)
+    {
+        i++;
+        path += i;
+        path_len -= i;
+    }
+    // If empty now, it had only slashes.
+    if (!path_len)
+    {
+        output->len = 1;
+#ifdef PPP_FILEPATH_WINDOWS
+        output->str = "\\";
+#else
+        output->str = "/";
+#endif
+        return;
+    }
+
+    output->len = path_len;
+    output->str = path;
+}
 typedef struct
 {
     ppp_c_string_t *path;

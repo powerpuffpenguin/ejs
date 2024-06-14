@@ -509,6 +509,81 @@ static EJS_TESTS_GROUP_FUNC(filepath, join, t)
     test_join_raw(t, "//", "a", "/a", 0);
 #endif
 }
+static void test_base(CuTest *t, path_test_t *test, uint8_t clean)
+{
+    ppp_c_fast_string_t s = {
+        .str = test->path,
+        .len = strlen(test->path),
+    };
+    ppp_c_filepath_base(&s, &s);
+
+    ppp_c_string_t result = {
+        .str = (char *)test->result,
+        .len = strlen(test->result),
+        .cap = 0,
+    };
+    if (clean)
+    {
+        if (ppp_c_filepath_clean(&result))
+        {
+            CuFail(t, test->path);
+            return;
+        }
+    }
+
+    if (s.len == result.len)
+    {
+        CuAssertIntEquals_Msg(t, test->path, 0, memcmp(s.str, result.str, s.len));
+    }
+    else
+    {
+        CuFail(t, test->path);
+    }
+    ppp_c_string_destroy(&result);
+}
+static EJS_TESTS_GROUP_FUNC(filepath, base, t)
+{
+    path_test_t basetests[] = {
+        {"", "."},
+        {".", "."},
+        {"/.", "."},
+        {"/", "/"},
+        {"////", "/"},
+        {"x/", "x"},
+        {"abc", "abc"},
+        {"abc/def", "def"},
+        {"a/b/.x", ".x"},
+        {"a/b/c.", "c."},
+        {"a/b/c.x", "c.x"},
+    };
+    uint8_t clean = 0;
+#ifdef PPP_FILEPATH_WINDOWS
+    path_test_t winbasetests[] = {
+        {"c:\\", "\\"},
+        {"c:.", "."},
+        {"c:\\a\\b", "b"},
+        {"c:a\\b", "b"},
+        {"c:a\\b\\c", "c"},
+        {"\\\\host\\share\\", "\\"},
+        {"\\\\host\\share\\a", "a"},
+        {"\\\\host\\share\\a\\b", "b"},
+    };
+    clean = 1;
+#endif
+
+    size_t count = sizeof(basetests) / sizeof(path_test_t);
+    for (size_t i = 0; i < count; i++)
+    {
+        test_base(t, basetests + i, clean);
+    }
+#ifdef PPP_FILEPATH_WINDOWS
+    count = sizeof(winbasetests) / sizeof(path_test_t);
+    for (size_t i = 0; i < count; i++)
+    {
+        test_base(t, winbasetests + i, 0);
+    }
+#endif
+}
 EJS_TESTS_GROUP(suite, filepath)
 {
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, clean);
@@ -516,4 +591,5 @@ EJS_TESTS_GROUP(suite, filepath)
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, from_and_to_slash);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, split);
     EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, join);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, filepath, base);
 }
