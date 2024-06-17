@@ -26,9 +26,7 @@
 
 #define EJS_SAFE_FREE(v) EJS_SAFE_DELETE_F(free, v)
 
-#define EJS_VAR_TYPE(type, name) \
-    type name;                   \
-    memset(&name, 0, sizeof(type))
+#define EJS_VAR_TYPE(type, name) type name = {0}
 #define EJS_VAR_FREE(p) \
     if (p)              \
     free(p)

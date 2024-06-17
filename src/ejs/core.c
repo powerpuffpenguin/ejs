@@ -6,6 +6,7 @@
 #include "js/tsc.h"
 #include "strings.h"
 #include "path.h"
+#include "internal/c_filepath.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,8 +25,15 @@ static BOOL check_module_name(const char *name, duk_size_t *len)
         return FALSE;
     }
     *len = strlen(name);
-    if (*len < 1 || name[0] == '.' || name[0] == '/' || name[0] == '\\')
+    if (*len < 1)
     {
+        return FALSE;
+    }
+    switch (name[0])
+    {
+    case '.':
+    case '/':
+    case '\\':
         return FALSE;
     }
     return TRUE;
@@ -178,6 +186,8 @@ typedef struct
     duk_context *ctx;
     ejs_core_options_t *opts;
     ejs_core_t *core;
+    ppp_c_string_t dir;
+    ppp_c_string_t s;
 } ejs_core_new_args_t;
 static duk_ret_t ejs_core_new_impl(duk_context *ctx)
 {
@@ -249,14 +259,57 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
 
     // module found path
     duk_push_array(ctx);
-    if (args->opts)
+    if (args->opts && args->opts->modulec)
     {
+        ppp_c_string_t *dir = &args->dir;
+        ppp_c_string_t *path = &args->s;
+        size_t name_len;
+        const char *name;
         for (int i = 0; i < args->opts->modulec; i++)
         {
-            duk_push_string(ctx, args->opts->modulev[i]);
-            ejs_filepath_abs(ctx, -1);
-            duk_put_prop_index(ctx, -3, i);
-            duk_pop(ctx);
+            name = args->opts->modulev[i];
+            name_len = strlen(name);
+            if (ppp_c_filepath_is_abs_raw(name, name_len))
+            {
+                path->len = 0;
+                if (ppp_c_string_append(path, name, name_len))
+                {
+                    ejs_throw_os_errno(ctx);
+                }
+                if (ppp_c_filepath_clean(path))
+                {
+                    ejs_throw_os_errno(ctx);
+                }
+            }
+            else
+            {
+                if (!dir->cap)
+                {
+                    dir->str = malloc(MAXPATHLEN + 1);
+                    if (!dir->str)
+                    {
+                        ejs_throw_os_errno(ctx);
+                    }
+                    dir->cap = MAXPATHLEN;
+                    if (!getcwd(dir->str, MAXPATHLEN))
+                    {
+                        ejs_throw_os_errno(ctx);
+                    }
+                    dir->len = strlen(dir->str);
+                }
+
+                path->len = 0;
+                if (ppp_c_string_append(path, dir->str, dir->len))
+                {
+                    ejs_throw_os_errno(ctx);
+                }
+                if (ppp_c_filepath_join_one_raw(path, name, name_len))
+                {
+                    ejs_throw_os_errno(ctx);
+                }
+            }
+            duk_push_lstring(ctx, path->str, path->len);
+            duk_put_prop_index(ctx, -2, i);
         }
     }
     duk_put_prop_lstring(ctx, -2, EJS_STASH_FOUND);
@@ -315,6 +368,14 @@ DUK_EXTERNAL duk_ret_t ejs_core_new(duk_context *ctx, ejs_core_options_t *opts)
     duk_push_c_lightfunc(ctx, ejs_core_new_impl, 1, 1, 0);
     duk_push_pointer(ctx, &args);
     duk_ret_t err = duk_pcall(ctx, 1);
+    if (args.dir.cap)
+    {
+        free(args.dir.str);
+    }
+    if (args.s.cap)
+    {
+        free(args.s.str);
+    }
     if (err)
     {
         if (args.core)
@@ -394,42 +455,71 @@ DUK_EXTERNAL EJS_ERROR_RET ejs_core_dispatch(ejs_core_t *core)
 
 typedef struct
 {
-    const char *path;
-    const char *source;
-    size_t len;
+    char *source;
+    size_t source_len;
+    ppp_c_string_t path;
 } ejs_core_run_source_t;
 
-static duk_ret_t ejs_core_get_path_impl(duk_context *ctx)
+static duk_ret_t c_ejs_core_run_source_impl(duk_context *ctx, ejs_core_run_source_t *args)
 {
-    duk_pop(ctx);
-
+    // push source
+    duk_push_lstring(ctx, args->source, args->source_len);
+    // get path
     duk_push_heap_stash(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
     duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_ARGS);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
     if (duk_is_array(ctx, -1) && duk_get_length(ctx, -1) >= 2)
     {
-        duk_swap_top(ctx, -3);
-        duk_pop_2(ctx);
 
         duk_get_prop_index(ctx, -1, 1);
         duk_swap_top(ctx, -2);
         duk_pop(ctx);
+        duk_size_t len;
+
+        args->path.str = (char *)duk_get_lstring(ctx, -1, &len);
+        if (len)
+        {
+            args->path.len = len;
+        }
+        else
+        {
+            args->path.len = 7;
+            args->path.str = "main.js";
+        }
     }
     else
     {
-        duk_pop_3(ctx);
-        duk_push_lstring(ctx, "main.js", 7);
+        args->path.str = "main.js";
+        args->path.len = 7;
     }
-    ejs_filepath_abs(ctx, -1);
-    return 1;
-}
 
-static duk_ret_t ejs_core_run_path_source_impl(duk_context *ctx)
-{
-    ejs_core_run_source_t *args = duk_require_pointer(ctx, -1);
+    if (ppp_c_filepath_abs(&args->path))
+    {
+        duk_pop_2(ctx);
+        ejs_throw_os_errno(ctx);
+    }
+    else if (args->path.cap)
+    {
+        args->path.str[args->path.len] = 0;
+    }
+    else
+    {
+        char *s = malloc(args->path.len + 1);
+        if (!s)
+        {
+            ejs_throw_os(ctx, errno, "malloc path string fail");
+        }
+        s[args->path.len] = 0;
+        memcpy(s, args->path.str, args->path.len);
+        args->path.str = s;
+    }
     duk_pop(ctx);
-    duk_push_lstring(ctx, args->source, args->len);
-    if (duk_module_node_peval_main(ctx, args->path))
+    if (duk_module_node_peval_main(ctx, args->path.str))
     {
         duk_throw(ctx);
     }
@@ -438,76 +528,80 @@ static duk_ret_t ejs_core_run_path_source_impl(duk_context *ctx)
 static duk_ret_t ejs_core_run_source_impl(duk_context *ctx)
 {
     ejs_core_run_source_t *args = duk_require_pointer(ctx, -1);
-
-    // get abs path
-    duk_push_c_lightfunc(ctx, ejs_core_get_path_impl, 1, 1, 0);
-    duk_swap_top(ctx, -2);
-    duk_call(ctx, 1);
-    args->path = duk_get_string(ctx, -1);
-
-    // run
-    ejs_call_function(ctx, ejs_core_run_path_source_impl, args, NULL);
-    return 1;
+    duk_pop(ctx);
+    return c_ejs_core_run_source_impl(ctx, args);
 }
 DUK_EXTERNAL duk_ret_t ejs_core_run_source(ejs_core_t *core, const char *source)
 {
-    EJS_VAR_TYPE(ejs_core_run_source_t, args);
-    args.source = source;
-    args.len = strlen(source);
-    return ejs_pcall_function(core->duk, ejs_core_run_source_impl, &args);
+    ejs_core_run_source_t args = {0};
+    args.source = (char *)source;
+    args.source_len = strlen(source);
+    duk_ret_t err = ejs_pcall_function(core->duk, ejs_core_run_source_impl, &args);
+    if (args.path.cap)
+    {
+        free(args.path.str);
+    }
+    return err;
 }
 
 typedef struct
 {
-    const char *path;
-    char *source;
-    size_t len;
+    ejs_core_run_source_t source;
+    const char *name;
 } ejs_core_run_args_t;
 static duk_ret_t ejs_core_run_impl(duk_context *ctx)
 {
     ejs_core_run_args_t *args = duk_require_pointer(ctx, -1);
-    FILE *f = fopen(args->path, "r");
-    if (!f)
+    duk_pop(ctx);
+
+    struct stat info;
+    int fd = _ejs_open_source(args->name, &info);
+    if (fd == -1)
     {
-        ejs_throw_os_format(ctx, errno, "fopen fail: %s", args->path);
+        ejs_throw_os_format(ctx, errno, "no source exists: %s", args->name);
     }
-    if (fseek(f, 0, SEEK_END))
+    else if (!S_ISREG(info.st_mode) || !info.st_size)
     {
-        int err = errno;
-        fclose(f);
-        ejs_throw_os_format(ctx, err, "fseek fail: %s", args->path);
+        close(fd);
+        ejs_throw_os_format(ctx, EJS_ERROR_INVALID_MODULE_FILE, "invalid source file: %s", args->name);
     }
-    args->len = ftell(f);
-    if (fseek(f, 0, SEEK_SET))
+    else
     {
-        int err = errno;
-        fclose(f);
-        ejs_throw_os_format(ctx, err, "fseek fail: %s", args->path);
+        if (info.st_size > 1024 * 1024 * EJS_CONFIG_MAX_JS_SIZE)
+        {
+            close(fd);
+            ejs_throw_cause_format(ctx, EJS_ERROR_LARGE_MODULE, "source size exceeds  limit(%dmb): %s", EJS_CONFIG_MAX_JS_SIZE, args->name);
+        }
+        args->source.source = malloc(info.st_size);
+        if (!args->source.source)
+        {
+            int err = errno;
+            close(fd);
+            ejs_throw_os_format(ctx, err, "malloc read source buffer fail: %ld %s", info.st_size, args->name);
+        }
+        args->source.source_len = info.st_size;
     }
-    args->source = malloc(args->len);
-    if (!args->source)
+    if (_ejs_read_limit(fd, args->source.source, args->source.source_len))
     {
-        int err = errno;
-        fclose(f);
-        ejs_throw_os_format(ctx, err, "malloc(%d) fail", args->len);
+        close(fd);
+        ejs_throw_cause_format(ctx, EJS_ERROR_MODULE_READ_FAIL, "read source fail: %s", args->name);
     }
-    size_t readed = fread(args->source, 1, args->len, f);
-    fclose(f);
-    if (readed != args->len)
-    {
-        ejs_throw_cause(ctx, EJS_ERROR_SHORT_READ, NULL);
-    }
-    ejs_call_function(ctx, ejs_core_run_source_impl, args, NULL);
-    return 1;
+    close(fd);
+
+    return c_ejs_core_run_source_impl(ctx, &args->source);
 }
 DUK_EXTERNAL duk_ret_t ejs_core_run(ejs_core_t *core, const char *path)
 {
     EJS_VAR_TYPE(ejs_core_run_args_t, args);
-    args.path = path;
+    args.name = path;
     duk_ret_t err = ejs_pcall_function(core->duk, ejs_core_run_impl, &args);
-    if (args.source)
+    if (args.source.source_len)
     {
-        free(args.source);
+        if (args.source.path.cap)
+        {
+            free(args.source.path.str);
+        }
+        free(args.source.source);
     }
     return err;
 }

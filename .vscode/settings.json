@@ -84,6 +84,7 @@
         "sstream": "c",
         "c_filepath.h": "c",
         "_duk_os.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "_duk_async.h": "c"
     }
 }

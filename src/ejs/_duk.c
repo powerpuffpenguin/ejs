@@ -17,6 +17,72 @@
 #include "_duk_test.h"
 #include <errno.h>
 
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+int _ejs_open_source(const char *path, struct stat *info)
+{
+    int fd = open(path, O_RDONLY, 0);
+    if (fd == -1)
+    {
+        return -1;
+    }
+
+    while (1)
+    {
+        if (fstat(fd, info))
+        {
+            int err = errno;
+            close(fd);
+            errno = err;
+            return -1;
+        }
+
+        if (S_ISDIR(info->st_mode))
+        {
+            close(fd);
+            errno = EISDIR;
+            return -1;
+        }
+        else if (S_ISLNK(info->st_mode))
+        {
+            char s[MAXPATHLEN + 1];
+            ssize_t n = readlink(path, s, MAXPATHLEN);
+            if (n == -1)
+            {
+                int err = errno;
+                close(fd);
+                errno = err;
+                return -1;
+            }
+            close(fd);
+            s[n] = 0;
+            fd = open(s, O_RDONLY, 0);
+            if (fd == -1)
+            {
+                return -1;
+            }
+            continue;
+        }
+        break;
+    }
+    return fd;
+}
+int _ejs_read_limit(int fd, char *source, size_t minread)
+{
+    ssize_t n;
+    while (minread)
+    {
+        n = read(fd, source, minread);
+        if (n == -1)
+        {
+            return -1;
+        }
+        minread -= n;
+    }
+    return 0;
+}
+
 static BOOL is_relative(duk_context *ctx, const char *s, duk_size_t len)
 {
     if (len == 0)
