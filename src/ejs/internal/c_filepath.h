@@ -76,7 +76,7 @@ BOOL ppp_c_filepath_is_abs_raw(const char *path, size_t path_len);
  * - BOOL (ppp_c_string_t* path)
  * reports whether the path is absolute
  */
-#define ppp_c_filepath_is_abc(path) ppp_c_filepath_is_abs_raw((const char *)(path)->str, (path)->len)
+#define ppp_c_filepath_is_abs(path) ppp_c_filepath_is_abs_raw((const char *)(path)->str, (path)->len)
 
 /**
  * splits path immediately following the final Separator,

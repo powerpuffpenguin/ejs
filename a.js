@@ -1,5 +1,6 @@
 var sync = require("ejs/sync")
 var os = require("ejs/os")
+require("./b")
 console.log(__filename)
 // var File = os.File;
 // sync.go(function (co) {

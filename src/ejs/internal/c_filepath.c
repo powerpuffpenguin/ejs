@@ -789,7 +789,7 @@ int ppp_c_filepath_abs(ppp_c_string_t *path)
     }
 
     // if abs return clean
-    if (ppp_c_filepath_is_abc(path))
+    if (ppp_c_filepath_is_abs(path))
     {
         return ppp_c_filepath_clean(path);
     }
@@ -989,7 +989,7 @@ static int ppp_c_filepath_remove_all_impl(ppp_c_filepath_remove_all_args_t *args
 static int ppp_c_filepath_rmdir_all_impl(ppp_c_string_t *path, ppp_c_string_t *cdir)
 {
     ppp_c_string_t dir = {0};
-    if (ppp_c_filepath_is_abc(path))
+    if (ppp_c_filepath_is_abs(path))
     {
         if (cdir)
         {
