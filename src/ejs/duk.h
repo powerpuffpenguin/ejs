@@ -59,7 +59,7 @@ extern "C"
     DUK_EXTERNAL duk_int_t ejs_pcall_function_n(duk_context *ctx,
                                                 duk_c_function func, void *args, duk_idx_t n);
     /**
-     * ... string ... -> ...
+     * ... string ... -> ... string ...
      */
     DUK_EXTERNAL duk_bool_t ejs_filepath_is_abs(duk_context *ctx, duk_idx_t idx);
     /**
