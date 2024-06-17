@@ -3,8 +3,8 @@
 #include "stash.h"
 #include "defines.h"
 #include "strings.h"
-#include "path.h"
 #include "core.h"
+#include "internal/c_filepath.h"
 
 #include <unistd.h>
 #include <event2/event.h>
@@ -202,71 +202,35 @@ static void ejs_filepath_clean_args_destroy(ejs_filepath_clean_args_t *args)
 }
 static duk_ret_t ejs_filepath_clean_impl(duk_context *ctx)
 {
-    ejs_filepath_clean_args_t *args = duk_require_pointer(ctx, -1);
+    ppp_c_string_t *path = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
+    if (ppp_c_filepath_clean(path))
+    {
+        ejs_throw_os_errno(ctx);
+    }
 
-#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
-    EJS_ERROR_RET err = ejs_path_from_windows(&args->path_s, &args->path_s, &args->path_windows_r0);
-    if (err)
-    {
-        ejs_throw_cause(ctx, err, NULL);
-    }
-    char root[2];
-    BOOL abs = ejs_path_is_windows_abs(&args->path_s);
-    if (abs)
-    {
-        root[0] = args->path_s.c[0];
-        root[1] = args->path_s.c[1];
-        args->path_s.c += 2;
-        args->path_s.len -= 2;
-    }
-#else
-    EJS_ERROR_RET err;
-#endif
-    err = ejs_path_clean(&args->path_s, &args->path_s, &args->out_r);
-    if (err)
-    {
-        ejs_throw_cause(ctx, err, NULL);
-    }
-#ifdef EJS_CONFIG_SEPARATOR_WINDOWS
-    if (abs)
-    {
-        if (args->path_s.len == 1 && (args->path_s.c[0] == '.' || args->path_s.c[0] == '/'))
-        {
-            duk_push_lstring(ctx, args->path_s.c - 2, 2);
-            return 1;
-        }
-        err = ejs_path_to_windows(&args->path_s, &args->path_s, &args->path_windows_r1);
-        if (err)
-        {
-            ejs_throw_cause(ctx, err, NULL);
-        }
-
-        duk_push_lstring(ctx, root, 2);
-        duk_push_lstring(ctx, args->path_s.c, args->path_s.len);
-        duk_concat(ctx, 2);
-    }
-    else
-    {
-        err = ejs_path_to_windows(&args->path_s, &args->path_s, &args->path_windows_r1);
-        if (err)
-        {
-            ejs_throw_cause(ctx, err, NULL);
-        }
-        duk_push_lstring(ctx, args->path_s.c, args->path_s.len);
-    }
-#else
-    duk_push_lstring(ctx, args->path_s.c, args->path_s.len);
-#endif
+    duk_push_lstring(ctx, path->str, path->len);
     return 1;
 }
 DUK_EXTERNAL void ejs_filepath_clean(duk_context *ctx, duk_idx_t idx)
 {
-    EJS_VAR_TYPE(ejs_filepath_clean_args_t, args);
-    args.path_s.c = (char *)duk_require_lstring(ctx, idx, &args.path_s.len);
-    ejs_call_function(ctx,
-                      ejs_filepath_clean_impl, &args,
-                      (ejs_finally_function)ejs_filepath_clean_args_destroy);
+    duk_size_t len;
+    const char *s = duk_require_lstring(ctx, idx, &len);
+
+    ppp_c_string_t args = {
+        .cap = 0,
+        .str = (char *)s,
+        .len = len,
+    };
+    int err = ejs_pcall_function(ctx, ejs_filepath_clean_impl, &args);
+    if (args.cap)
+    {
+        free(args.str);
+    }
+    if (err)
+    {
+        duk_throw(ctx);
+    }
 }
 
 typedef struct

@@ -21,11 +21,6 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/path.c.o", "src/ejs/path.c"],
-  "file": "src/ejs/path.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk.c.o", "src/ejs/_duk.c"],
   "file": "src/ejs/_duk.c"
 },
@@ -156,11 +151,6 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/path.c.o", "src/ejs/path.c"],
-  "file": "src/ejs/path.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/_duk.c.o", "src/ejs/_duk.c"],
   "file": "src/ejs/_duk.c"
 },
@@ -263,11 +253,6 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs_test/queue_test.c.o", "src/ejs_test/queue_test.c"],
   "file": "src/ejs_test/queue_test.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.1.12/821021975db74b469f5f55641de42af0/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs_test/path_test.c.o", "src/ejs_test/path_test.c"],
-  "file": "src/ejs_test/path_test.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",

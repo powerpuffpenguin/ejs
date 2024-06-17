@@ -1,6 +1,5 @@
 #include "_duk.h"
 #include "strings.h"
-#include "path.h"
 #include "core.h"
 #include "../duk/duk_console.h"
 #include "../duk/duk_module_node.h"

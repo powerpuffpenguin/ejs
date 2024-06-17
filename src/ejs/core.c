@@ -5,7 +5,6 @@
 #include "_duk.h"
 #include "js/tsc.h"
 #include "strings.h"
-#include "path.h"
 #include "internal/c_filepath.h"
 #include <errno.h>
 #include <stdlib.h>

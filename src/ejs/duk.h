@@ -63,12 +63,12 @@ extern "C"
      */
     DUK_EXTERNAL duk_bool_t ejs_filepath_is_abs(duk_context *ctx, duk_idx_t idx);
     /**
-     * * ok  ... string ... -> ... string
+     * * ok  ... string ... -> ... string ... string
      * * err ... string ...
      */
     DUK_EXTERNAL void ejs_filepath_clean(duk_context *ctx, duk_idx_t idx);
     /**
-     * * ok  ... string ... -> ... string
+     * * ok  ... string ... -> ... string ... string
      * * err ... string ...
      */
     DUK_EXTERNAL void ejs_filepath_abs(duk_context *ctx, duk_idx_t idx);
