@@ -1,26 +1,11 @@
 var sync = require("ejs/sync")
 function fibonacciCo(co, n) {
-    for (var i = 0; i < 4000; i++) {
-        console.log('yield', i)
-        co.yield(function (notify) {
-            // console.log('notify', i)
-            // notify.value(n)
-
-            setImmediate(function () {
-                console.log('notify', i)
-                notify.value(n)
-            })
+    if (n < 2) {
+        return co.yield(function (notify) {
+            notify.value(n)
         })
     }
-    // if (n < 2) {
-    //     return co.yield(function (notify) {
-    //         notify.value(n)
-    //         // setImmediate(function () {
-    //         // notify.value(n)
-    //         // })
-    //     })
-    // }
-    // return fibonacciCo(co, n - 1) + fibonacciCo(co, n - 2)
+    return fibonacciCo(co, n - 1) + fibonacciCo(co, n - 2)
 }
 sync.go(function (co) {
     try {

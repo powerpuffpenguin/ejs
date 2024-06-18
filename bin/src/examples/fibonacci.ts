@@ -8,19 +8,19 @@ export const command = new Command({
             name: 'seed',
             short: 's',
             usage: 'fibonacci seed',
-            default: 25,
+            default: 24,
         });
         const mode = flags.string({
             name: 'mode',
             short: 'm',
             usage: 'mode',
             values: [
-                'sync',      // 0.021s
-                'co',          // 0.447s
-                'im',          // 0.962s
-                'coim',     // 1.555s
-                'pro',        // 7.748s
-                'async', // 13.65s
+                'sync',      // 0.012s
+                'co',          // 0.275s
+                'im',          // 0.662s
+                'coim',     // 0.981s
+                'pro',        // 5.058s
+                'async',   // 8.313s
             ],
             default: 'sync',
         });
