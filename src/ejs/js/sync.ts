@@ -124,33 +124,53 @@ export class Coroutine implements YieldContext {
         this._next()
     }
     private _next(v?: any) {
-        const f = Duktape.Thread.resume<(undefined | ((notify: ResumeContext<any>) => void))>(this.t_, v)
-        if (!f) {
-            this.state_ = 'finish'
-            const cb = this.onFinish
-            if (cb) {
-                cb()
-            }
-            return
-        }
-        try {
-            f(new resumeContext((v: any) => {
-                if (this.state_ != 'yield') {
-                    this._next({
-                        err: true,
-                        e: new Error(`resume on ${this.state_}`),
-                    })
-                    return
+        while (true) {
+            const f = Duktape.Thread.resume<(undefined | ((notify: ResumeContext<any>) => void))>(this.t_, v)
+            if (!f) {
+                this.state_ = 'finish'
+                const cb = this.onFinish
+                if (cb) {
+                    cb()
                 }
+                return
+            }
+            try {
+                let sync = true
+                v = undefined
+                f(new resumeContext((ret: any) => {
+                    if (sync) {
+                        if (this.state_ != 'yield') {
+                            v = {
+                                err: true,
+                                e: new Error(`resume on ${this.state_}`),
+                            }
+                            return
+                        }
+                        this.state_ = 'run'
+                        v = ret
+                    } else {
+                        if (this.state_ != 'yield') {
+                            this._next({
+                                err: true,
+                                e: new Error(`resume on ${this.state_}`),
+                            })
+                            return
+                        }
+                        this.state_ = 'run'
+                        this._next(ret)
+                    }
+                }))
+                sync = false
+                if (!v) {
+                    break
+                }
+            } catch (e) {
                 this.state_ = 'run'
-                this._next(v)
-            }))
-        } catch (e) {
-            this.state_ = 'run'
-            this._next({
-                err: true,
-                e: e,
-            })
+                v = {
+                    err: true,
+                    e: e,
+                }
+            }
         }
     }
 }

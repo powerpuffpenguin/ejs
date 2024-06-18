@@ -47,14 +47,19 @@ exports.command = new flags_1.Command({
             name: 'seed',
             short: 's',
             usage: 'fibonacci seed',
-            default: 20,
+            default: 25,
         });
         var mode = flags.string({
             name: 'mode',
             short: 'm',
             usage: 'mode',
             values: [
-                'sync', 'co', 'async', 'im', 'pro',
+                'sync',
+                'co',
+                'im',
+                'coim',
+                'pro',
+                'async', // 13.65s
             ],
             default: 'sync',
         });
@@ -64,6 +69,11 @@ exports.command = new flags_1.Command({
                 case 'co':
                     (0, sync_1.go)(function (co) {
                         fibonacciPrint("fibonacciCo", n.value, fibonacciCo(co, n.value), at);
+                    });
+                    break;
+                case 'coim':
+                    (0, sync_1.go)(function (co) {
+                        fibonacciPrint("fibonacciCoIm", n.value, fibonacciCoIm(co, n.value), at);
                     });
                     break;
                 case 'async':
@@ -92,12 +102,20 @@ function fibonacciPrint(tag, n, total, at) {
     var used = (Date.now() - at) / 1000;
     console.log("".concat(tag, "(").concat(n, ") == ").concat(total, ", used ").concat(used, "s"));
 }
-function fibonacciCo(co, n) {
+function fibonacciCoIm(co, n) {
     if (n < 2) {
         return co.yield(function (notify) {
             setImmediate(function () {
                 notify.value(n);
             });
+        });
+    }
+    return fibonacciCoIm(co, n - 1) + fibonacciCoIm(co, n - 2);
+}
+function fibonacciCo(co, n) {
+    if (n < 2) {
+        return co.yield(function (notify) {
+            notify.value(n);
         });
     }
     return fibonacciCo(co, n - 1) + fibonacciCo(co, n - 2);

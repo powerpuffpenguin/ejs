@@ -1,46 +1,35 @@
-var timer =setInterval(function (a,b,c) {
-    // clearImmediate(timer)
-    console.log(this,a,b,c)
-}, 1,'x','y');
-// var timer = setInterval(function (e) {
-//     // console.log(this)
-//     // setImmediate(function () {
-//     //     console.log(2)
-//     //     setImmediate(function () {
-//     //         console.log(4)
-//     //     })
-//     // })
-//     // setImmediate(function () {
-//     //     console.log(3)
-//     // })
- 
-// }, NaN)
-// console.log(timer)
-// clearImmediate(timer)
-// console.log(timer)
+var sync = require("ejs/sync")
+function fibonacciCo(co, n) {
+    for (var i = 0; i < 4000; i++) {
+        console.log('yield', i)
+        co.yield(function (notify) {
+            // console.log('notify', i)
+            // notify.value(n)
 
-
-// var p = new Promise(function (resolve, reject) {
-//     console.log(1)
-//     resolve('ok')
-// }).then(function () {
-//     console.log(2)
-// }).catch(function (e) {
-//     console.log('err', e)
-// })
-// console.log(0)
-// console.log(p)
-
-// setTimeout(function () {
-//     console.log('timeout')
-// }, 1000)
-
-// var t0 = setTimeout(function () {
-//     console.log("settimou", timer)
-// }, 1)
-// clearImmediate(t0)
-
-// var sync = require("ejs/sync")
+            setImmediate(function () {
+                console.log('notify', i)
+                notify.value(n)
+            })
+        })
+    }
+    // if (n < 2) {
+    //     return co.yield(function (notify) {
+    //         notify.value(n)
+    //         // setImmediate(function () {
+    //         // notify.value(n)
+    //         // })
+    //     })
+    // }
+    // return fibonacciCo(co, n - 1) + fibonacciCo(co, n - 2)
+}
+sync.go(function (co) {
+    try {
+        var v = fibonacciCo(co, 17)
+        console.log(v)
+    } catch (e) {
+        console.log('err xx', e.toString())
+    }
+})
 // var os = require("ejs/os")
 // require("./b")
 // console.log('return 0', ejs.next(function () {

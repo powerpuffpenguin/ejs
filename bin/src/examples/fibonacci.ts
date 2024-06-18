@@ -8,14 +8,19 @@ export const command = new Command({
             name: 'seed',
             short: 's',
             usage: 'fibonacci seed',
-            default: 20,
+            default: 25,
         });
         const mode = flags.string({
             name: 'mode',
             short: 'm',
             usage: 'mode',
             values: [
-                'sync', 'co', 'async', 'im', 'pro',
+                'sync',      // 0.021s
+                'co',          // 0.447s
+                'im',          // 0.962s
+                'coim',     // 1.555s
+                'pro',        // 7.748s
+                'async', // 13.65s
             ],
             default: 'sync',
         });
@@ -25,6 +30,11 @@ export const command = new Command({
                 case 'co':
                     go((co) => {
                         fibonacciPrint("fibonacciCo", n.value, fibonacciCo(co, n.value), at)
+                    })
+                    break
+                case 'coim':
+                    go((co) => {
+                        fibonacciPrint("fibonacciCoIm", n.value, fibonacciCoIm(co, n.value), at)
                     })
                     break
                 case 'async':
@@ -53,12 +63,20 @@ function fibonacciPrint(tag: string, n: number, total: number, at: number) {
     const used = (Date.now() - at) / 1000
     console.log(`${tag}(${n}) == ${total}, used ${used}s`)
 }
-function fibonacciCo(co: YieldContext, n: number): number {
+function fibonacciCoIm(co: YieldContext, n: number): number {
     if (n < 2) {
         return co.yield((notify) => {
             setImmediate(() => {
                 notify.value(n)
             })
+        })
+    }
+    return fibonacciCoIm(co, n - 1) + fibonacciCoIm(co, n - 2)
+}
+function fibonacciCo(co: YieldContext, n: number): number {
+    if (n < 2) {
+        return co.yield((notify) => {
+            notify.value(n)
         })
     }
     return fibonacciCo(co, n - 1) + fibonacciCo(co, n - 2)
