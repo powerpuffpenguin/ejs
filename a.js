@@ -1,7 +1,64 @@
-var sync = require("ejs/sync")
-var os = require("ejs/os")
-require("./b")
-console.log(__filename)
+var timer =setInterval(function (a,b,c) {
+    // clearImmediate(timer)
+    console.log(this,a,b,c)
+}, 1,'x','y');
+// var timer = setInterval(function (e) {
+//     // console.log(this)
+//     // setImmediate(function () {
+//     //     console.log(2)
+//     //     setImmediate(function () {
+//     //         console.log(4)
+//     //     })
+//     // })
+//     // setImmediate(function () {
+//     //     console.log(3)
+//     // })
+ 
+// }, NaN)
+// console.log(timer)
+// clearImmediate(timer)
+// console.log(timer)
+
+
+// var p = new Promise(function (resolve, reject) {
+//     console.log(1)
+//     resolve('ok')
+// }).then(function () {
+//     console.log(2)
+// }).catch(function (e) {
+//     console.log('err', e)
+// })
+// console.log(0)
+// console.log(p)
+
+// setTimeout(function () {
+//     console.log('timeout')
+// }, 1000)
+
+// var t0 = setTimeout(function () {
+//     console.log("settimou", timer)
+// }, 1)
+// clearImmediate(t0)
+
+// var sync = require("ejs/sync")
+// var os = require("ejs/os")
+// require("./b")
+// console.log('return 0', ejs.next(function () {
+//     console.log('0')
+//     console.log('return 1', ejs.next(function () {
+//         console.log('1')
+//     }))
+//     console.log('return 2', ejs.next(function () {
+//         console.log('2')
+//         console.log('return 3', ejs.next(function () {
+//             console.log('3')
+//         }))
+//     }))
+// }))
+
+// console.log(setTimeout(function () {
+
+// }, 1))
 // var File = os.File;
 // sync.go(function (co) {
 //     var f

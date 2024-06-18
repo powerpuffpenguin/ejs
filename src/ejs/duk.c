@@ -530,7 +530,7 @@ static ejs_thread_pool_t *_ejs_require_thread_pool_impl(duk_context *ctx, ejs_co
             ejs_throw_cause(ctx, EJS_ERROR_THREAD_POOL_INIT, ppp_thread_pool_error(err));
         }
         struct event *ev = EJS_THREAD_POOL_EV_PTR(p);
-        if (event_assign(ev, core->base, 1, EV_PERSIST, _ejs_async_cb, core))
+        if (event_assign(ev, core->base, -1, EV_PERSIST, _ejs_async_cb, core))
         {
             pthread_mutex_destroy(&p->mutex);
             ppp_thread_pool_destroy(&p->pool);

@@ -17,8 +17,8 @@
 
 #define EJS_STASH_JSON "JSON", 4
 
-#define EJS_STASH_INTERVAL "interval", 8
 #define EJS_STASH_TIMEOUT "timeout", 7
+#define EJS_STASH_IMMEDIATE "immediate", 9
 
 #define EJS_STASH_ASYNC "async", 5
 

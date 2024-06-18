@@ -3,6 +3,7 @@
 #include "stash.h"
 #include "config.h"
 #include "_duk.h"
+#include "_duk_timer.h"
 #include "js/tsc.h"
 #include "strings.h"
 #include "internal/c_filepath.h"
@@ -228,7 +229,7 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "equal", 5);
 
         duk_push_c_lightfunc(ctx, native_threads_stat, 0, 0, 0);
-        duk_put_prop_lstring(ctx, -2, "threadsStat", 7);
+        duk_put_prop_lstring(ctx, -2, "threadsStat", 11);
         duk_push_c_lightfunc(ctx, native_threads_set, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "threadsSet", 10);
 
@@ -392,6 +393,8 @@ DUK_EXTERNAL duk_ret_t ejs_core_new(duk_context *ctx, ejs_core_options_t *opts)
 static duk_ret_t _ejs_module_destroy(duk_context *ctx)
 {
     duk_push_heap_stash(ctx);
+    _ejs_destroy_timer(ctx);
+
     duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE_DESTROY);
     if (!duk_is_array(ctx, -1))
     {
