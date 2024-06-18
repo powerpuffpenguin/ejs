@@ -1,3 +1,7 @@
+namespace globalThis {
+    function setImmediate(cb: (...arguments: Array<any>) => void, ...arguments: Array<any>): number
+    function clearImmediate(cb: (...arguments: Array<any>) => void, ...arguments: Array<any>): number
+}
 namespace ejs {
     export const os: string
     export const arch: string
