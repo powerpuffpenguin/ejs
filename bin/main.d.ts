@@ -1329,7 +1329,8 @@ declare module "ejs/os" {
          */
         n?: number
     }
-    export interface FileCreateTempSyncOptions {
+
+    export interface CreateTempSyncOptions {
         pattern: string
         /**
          * @default tempDir()
@@ -1341,19 +1342,45 @@ declare module "ejs/os" {
          */
         perm?: number
     }
-    export interface FileCreateTempOptions extends FileCreateTempSyncOptions, AsyncOptions { }
+    export interface CreateTempOptions extends CreateTempSyncOptions, AsyncOptions { }
+
+    export interface OpenFileSyncOptions {
+        name: string
+        /**
+         * @default O_RDONLY
+         */
+        flags?: number
+        /**
+         * @default 0
+         */
+        perm?: number
+    }
+    export interface OpenFileOptions extends OpenFileSyncOptions, AsyncOptions { }
+
+    export interface CreateFileSyncOptions {
+        name: string
+        /**
+         * @default O_RDONLY | O_CREATE | O_TRUNC
+         */
+        flags?: number
+        /**
+         * @default 0o666
+         */
+        perm?: number
+    }
+    export interface CreateFileOptions extends CreateFileSyncOptions, AsyncOptions { }
     export class File {
         private constructor()
         /**
-         * creates a new temporary file in the directory dir
+         * creates a new temporary file in the temp directory
          * @throws PathError
          */
         static createTempSync(pattern: string): File
         /**
-         * creates a new temporary file in the directory dir
+         * creates a new temporary file in the directory opts.dir
          * @throws PathError
          */
-        static createTempSync(opts: FileCreateTempSyncOptions): File
+        static createTempSync(opts: CreateTempSyncOptions): File
         /**
          * Similar to createTempSync but called asynchronously, notifying the result in cb
          */
@@ -1361,17 +1388,27 @@ declare module "ejs/os" {
         /**
          * Similar to createTempSync but called asynchronously, notifying the result in cb
          */
-        static createTemp(opts: FileCreateTempOptions, cb: (f?: File, e?: PathError) => void): void
+        static createTemp(opts: CreateTempOptions, cb: (f?: File, e?: PathError) => void): void
         /**
-         * creates a new temporary file in the directory dir
+         * creates a new temporary file in the temp directory
          * @throws PathError
          */
         static createTemp(co: YieldContext, pattern: string): File
         /**
-         * creates a new temporary file in the directory dir
+         * creates a new temporary file in the directory opts.dir
          * @throws PathError
          */
-        static createTemp(co: YieldContext, opts: FileCreateTempOptions): File
+        static createTemp(co: YieldContext, opts: CreateTempOptions): File
+        /**
+         * creates a new temporary file in the temp directory
+         * @throws PathError
+         */
+        static createTemp(pattern: string): Promise<File>
+        /**
+         * creates a new temporary file in the directory opts.dir
+         * @throws PathError
+         */
+        static createTemp(opts: CreateTempOptions): Promise<File>
 
         /**
          * Open the file as read-only (O_RDONLY)
@@ -1379,44 +1416,77 @@ declare module "ejs/os" {
          */
         static openSync(name: string): File
         /**
+         * Open the file
+         * @throws PathError
+         */
+        static openSync(opts: OpenFileSyncOptions): File
+        /**
          * Similar to openSync but called asynchronously, notifying the result in cb
          */
         static open(name: string, cb: (f?: File, e?: PathError) => void): void
+        /**
+         * Similar to openSync but called asynchronously, notifying the result in cb
+         */
+        static open(opts: OpenFileOptions, cb: (f?: File, e?: PathError) => void): void
         /**
          * Open the file as read-only (O_RDONLY)
          * @throws PathError
          */
         static open(co: YieldContext, name: string): File
+        /**
+         * Open the file
+         * @throws PathError
+         */
+        static open(co: YieldContext, opts: OpenFileOptions): File
+        /**
+         * Open the file as read-only (O_RDONLY)
+         * @throws PathError
+         */
+        static open(name: string): Promise<File>
+        /**
+         * Open the file
+         * @throws PathError
+         */
+        static open(opts: OpenFileOptions): Promise<File>
 
         /**
-         * Create a new profile
+         * Create a new file
          * @throws PathError
          */
         static createSync(name: string): File
+        /**
+         * Create a new file
+         * @throws PathError
+         */
+        static createSync(opts: CreateFileSyncOptions): File
         /**
          * Similar to createSync but called asynchronously, notifying the result in cb
          */
         static create(name: string, cb: (f?: File, e?: PathError) => void): void
         /**
-         * Create a new profile
+         * Similar to createSync but called asynchronously, notifying the result in cb
+         */
+        static create(opts: CreateFileSyncOptions, cb: (f?: File, e?: PathError) => void): void
+        /**
+         * Create a new file
          * @throws PathError
          */
         static create(co: YieldContext, name: string): File
-
         /**
-         * Open files in customized mode
+         * Create a new file
          * @throws PathError
          */
-        static openFileSync(opts: OpenFileSyncOptions): File
+        static create(co: YieldContext, opts: CreateFileSyncOptions): File
         /**
-         * Similar to openFileSync but called asynchronously, notifying the result in cb
-         */
-        static openFile(opts: OpenFileOptions, cb: (f?: File, e?: PathError) => void): void
-        /**
-         * Open files in customized mode
+         * Create a new file
          * @throws PathError
          */
-        static openFile(co: YieldContext, opts: OpenFileOptions): File
+        static create(name: string): Promise<File>
+        /**
+         * Create a new file
+         * @throws PathError
+         */
+        static create(opts: CreateFileSyncOptions): Promise<File>
 
         /**
          * close file

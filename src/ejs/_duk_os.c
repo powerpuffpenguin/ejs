@@ -134,7 +134,7 @@ static duk_ret_t f_open_impl(duk_context *ctx)
     args->fd = -1;
     return 1;
 }
-static duk_ret_t f_open(duk_context *ctx)
+static duk_ret_t f_open_file(duk_context *ctx, int flags_def, int perm_def)
 {
     duk_get_prop_lstring(ctx, 0, "name", 4);
     if (!duk_is_string(ctx, -1))
@@ -147,11 +147,11 @@ static duk_ret_t f_open(duk_context *ctx)
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "flags", 5);
-    int flags = duk_get_uint_default(ctx, -1, 0);
+    int flags = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, flags_def);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "perm", 4);
-    int perm = duk_get_uint_default(ctx, -1, 0);
+    int perm = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, perm_def);
     duk_pop(ctx);
     if (duk_is_undefined(ctx, 1))
     {
@@ -181,6 +181,14 @@ static duk_ret_t f_open(duk_context *ctx)
     p->len = len;
     _ejs_async_post_or_send(ctx, f_open_async_impl, f_open_async_return);
     return 0;
+}
+static duk_ret_t f_open(duk_context *ctx)
+{
+    return f_open_file(ctx, O_RDONLY, 0);
+}
+static duk_ret_t f_create(duk_context *ctx)
+{
+    return f_open_file(ctx, O_RDWR | O_CREAT | O_TRUNC, 0666);
 }
 static void f_push_fstat(duk_context *ctx, const char *name, struct stat *info)
 {
@@ -2807,6 +2815,8 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, f_open, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "open", 4);
+        duk_push_c_lightfunc(ctx, f_create, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "create", 6);
         duk_push_c_lightfunc(ctx, f_fstat, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "fstat", 5);
         duk_push_c_lightfunc(ctx, f_close, 1, 1, 0);

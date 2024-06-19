@@ -133,6 +133,13 @@ declare namespace deps {
     }
     export function open(opts: OpenOptions): File
     export function open(opts: OpenOptions, cb: (f?: File, e?: any) => void): void
+    export interface CreateOptions extends AsyncOptions {
+        name: string
+        flags?: number
+        perm?: number
+    }
+    export function create(opts: CreateOptions): File
+    export function create(opts: CreateOptions, cb: (f?: File, e?: any) => void): void
 
     export function close(file: File): void
 
@@ -554,7 +561,8 @@ export interface FileReadDirOptions extends AsyncOptions {
     n?: number
 }
 
-export interface FileCreateTempSyncOptions {
+const errClosed = new OsError(deps.EBADF)
+export interface CreateTempSyncOptions {
     pattern: string
     /**
      * @default tempDir()
@@ -566,18 +574,44 @@ export interface FileCreateTempSyncOptions {
      */
     perm?: number
 }
-export interface FileCreateTempOptions extends FileCreateTempSyncOptions, AsyncOptions { }
-const errClosed = new OsError(deps.EBADF)
-
+export interface CreateTempOptions extends CreateTempSyncOptions, AsyncOptions { }
+export interface OpenFileSyncOptions {
+    name: string
+    /**
+     * @default O_RDONLY
+     */
+    flags?: number
+    /**
+     * @default 0
+     */
+    perm?: number
+}
+export interface OpenFileOptions extends OpenFileSyncOptions, AsyncOptions { }
+export interface CreateFileSyncOptions {
+    name: string
+    /**
+     * @default O_RDONLY | O_CREATE | O_TRUNC
+     */
+    flags?: number
+    /**
+     * @default 0o666
+     */
+    perm?: number
+}
+export interface CreateFileOptions extends CreateFileSyncOptions, AsyncOptions { }
 export class File {
     private constructor(private file_: deps.File | undefined) {
         this.name_ = file_!.name
     }
     private name_: string
+    private static attachFile(f: deps.File) {
+        return new File(f)
+    }
+
     /**
     * creates a new temporary file in the directory dir
     */
-    static createTempSync(opts: string | FileCreateTempSyncOptions): File {
+    static createTempSync(opts: string | CreateTempSyncOptions): File {
         const o: deps.CreateTempOptions = typeof opts === "string" ? {
             pattern: opts,
         } : {
@@ -600,7 +634,8 @@ export class File {
      * Similar to createTempSync but called asynchronously, notifying the result in cb
      */
     static createTemp(a: any, b: any) {
-        const [opts, cb] = parseAB<FileCreateTempOptions | string, (f?: File, e?: any) => void>(a, b)
+        const args = parseArgs<CreateTempOptions | string, (f?: File, e?: any) => void>('createTemp', a, b)
+        const opts = args.opts!
         const o: deps.CreateTempOptions = typeof opts === "string" ? {
             pattern: opts,
         } : {
@@ -609,83 +644,25 @@ export class File {
             perm: opts.perm,
             post: opts.post,
         }
-        const cv = (v: deps.File) => new File(v)
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: 'createTemp',
             path: o.pattern,
             err: e,
         })
-        return cb ? cbReturn(cb, deps.createTemp, o, cv, ce) : coReturn(a, deps.createTemp, o, cv, ce)
+        return callReturn(deps.createTemp, args as any, File.attachFile, ce)
     }
-
     /**
      * Open files in customized mode
      * @throws PathError
      */
-    static openFileSync(opts: OpenFileSyncOptions): File {
-        const o: deps.OpenOptions = {
+    static openSync(opts: OpenFileSyncOptions | string): File {
+        const o: deps.OpenOptions = typeof opts === "string" ? {
+            name: opts,
+        } : {
             name: opts.name,
-            flags: opts.flags ?? deps.O_RDONLY,
-            perm: opts.perm ?? 0,
-        }
-        try {
-            return new File(deps.open(o))
-        } catch (e) {
-            throw new PathError({
-                op: 'openFileSync',
-                path: o.name,
-                err: e,
-            })
-        }
-    }
-    /**
-     * Similar to openFileSync but called asynchronously, notifying the result in cb
-     */
-    static openFile(a: any, b: any) {
-        const [opts, cb] = parseAB<OpenFileOptions, (f?: File, e?: any) => void>(a, b)
-        const o: deps.OpenOptions = {
-            name: opts.name,
-            flags: opts.flags ?? deps.O_RDONLY,
-            perm: opts.perm ?? 0,
-            post: opts.post,
-        }
-        const ce = (e: any) => new PathError({
-            op: 'openFile',
-            path: o.name,
-            err: e,
-        })
-        return cb ? cbReturn(cb, File._openFile, o, undefined, ce) : coReturn(a, File._openFile, o, undefined, ce)
-    }
-    static _openFile(opts: deps.OpenOptions, cb: (f?: File, e?: any) => void): void {
-        deps.open({
-            name: opts.name,
-            flags: opts.flags ?? deps.O_RDONLY,
-            perm: opts.perm ?? 0,
-            post: opts.post,
-        }, (f, e) => {
-            if (f) {
-                let file: File
-                try {
-                    file = new File(f!)
-                } catch (e) {
-                    cb(undefined, e)
-                    return
-                }
-                cb(file)
-            } else {
-                cb(undefined, e)
-            }
-        })
-    }
-    /**
-     * Open the file as read-only (O_RDONLY)
-     * @throws PathError
-     */
-    static openSync(name: string): File {
-        const o: deps.OpenOptions = {
-            name: name,
-            flags: deps.O_RDONLY,
-            perm: 0,
+            flags: opts.flags,
+            perm: opts.perm,
         }
         try {
             return new File(deps.open(o))
@@ -698,34 +675,41 @@ export class File {
         }
     }
     /**
-     * Similar to openSync but called asynchronously, notifying the result in cb
+     * Similar to openFileSync but called asynchronously, notifying the result in cb
      */
     static open(a: any, b: any) {
-        const [name, cb] = parseAB<string, (f?: File, e?: any) => void>(a, b)
-        const o: deps.OpenOptions = {
-            name: name,
-            flags: deps.O_RDONLY,
-            perm: 0,
+        const args = parseArgs<OpenFileOptions | string, (f?: File, e?: any) => void>('open', a, b)
+        const opts = args.opts!
+        const o: deps.OpenOptions = typeof opts === "string" ? {
+            name: opts,
+        } : {
+            name: opts.name,
+            flags: opts.flags,
+            perm: opts.perm,
+            post: opts.post,
         }
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: 'open',
             path: o.name,
             err: e,
         })
-        return cb ? cbReturn(cb, File._openFile, o, undefined, ce) : coReturn(a, File._openFile, o, undefined, ce)
+        return callReturn(deps.open, args as any, File.attachFile, ce)
     }
     /**
-     * Create a new profile
+     * Open files in customized mode
      * @throws PathError
      */
-    static createSync(name: string): File {
-        const o: deps.OpenOptions = {
-            name: name,
-            flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
-            perm: 0o666,
+    static createSync(opts: CreateFileSyncOptions | string): File {
+        const o: deps.CreateOptions = typeof opts === "string" ? {
+            name: opts,
+        } : {
+            name: opts.name,
+            flags: opts.flags,
+            perm: opts.perm,
         }
         try {
-            return new File(deps.open(o))
+            return new File(deps.create(o))
         } catch (e) {
             throw new PathError({
                 op: 'createSync',
@@ -733,25 +717,30 @@ export class File {
                 err: e,
             })
         }
-
     }
     /**
      * Similar to createSync but called asynchronously, notifying the result in cb
      */
     static create(a: any, b: any) {
-        const [name, cb] = parseAB<string, (f?: File, e?: any) => void>(a, b)
-        const o: deps.OpenOptions = {
-            name: name,
-            flags: deps.O_RDWR | deps.O_CREATE | deps.O_TRUNC,
-            perm: 0o666,
+        const args = parseArgs<CreateFileOptions | string, (f?: File, e?: any) => void>('create', a, b)
+        const opts = args.opts!
+        const o: deps.OpenOptions = typeof opts === "string" ? {
+            name: opts,
+        } : {
+            name: opts.name,
+            flags: opts.flags,
+            perm: opts.perm,
+            post: opts.post,
         }
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: 'create',
             path: o.name,
             err: e,
         })
-        return cb ? cbReturn(cb, File._openFile, o, undefined, ce) : coReturn(a, File._openFile, o, undefined, ce)
+        return callReturn(deps.create, args as any, File.attachFile, ce)
     }
+
 
     isClosed(): boolean {
         return this.file_ ? true : false
