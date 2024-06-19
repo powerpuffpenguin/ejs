@@ -95,14 +95,15 @@ async function fibonacciAsync(n: number): Promise<number> {
 }
 function fibonacciPromise(n: number): Promise<number> {
     if (n < 2) {
-        return Promise.resolve(2)
+        return Promise.resolve(n)
     }
     return new Promise((resolve) => {
         let sum = 0
         let count = 0
         const cb = (v: number) => {
             sum += v
-            if (++count == 2) {
+            ++count
+            if (count == 2) {
                 resolve(sum)
             }
         }

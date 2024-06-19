@@ -47,7 +47,7 @@ exports.command = new flags_1.Command({
             name: 'seed',
             short: 's',
             usage: 'fibonacci seed',
-            default: 25,
+            default: 24,
         });
         var mode = flags.string({
             name: 'mode',
@@ -59,7 +59,7 @@ exports.command = new flags_1.Command({
                 'im',
                 'coim',
                 'pro',
-                'async', // 13.65s
+                'async', // 8.313s
             ],
             default: 'sync',
         });
@@ -146,14 +146,15 @@ function fibonacciAsync(n) {
 }
 function fibonacciPromise(n) {
     if (n < 2) {
-        return Promise.resolve(2);
+        return Promise.resolve(n);
     }
     return new Promise(function (resolve) {
         var sum = 0;
         var count = 0;
         var cb = function (v) {
             sum += v;
-            if (++count == 2) {
+            ++count;
+            if (count == 2) {
                 resolve(sum);
             }
         };
