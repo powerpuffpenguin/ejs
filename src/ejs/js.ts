@@ -43,6 +43,13 @@ export type CallbackReturn<T> = (value?: T, e?: any) => void
 export type InterfaceVoid<Options> = (opts: Options, cb: CallbackVoid) => void
 export type InterfaceReturn<Options, Result> = (opts: Options, cb: CallbackReturn<Result>) => void
 export type CallbackMap<Input, Output> = (v: Input) => Output
+/**
+ * Using a coroutine to call an asynchronous interface with no return value
+ * @param co Coroutine context
+ * @param f Asynchronous interface to be called
+ * @param opts Interface parameters
+ * @param ce If an error occurs, an error callback is used to wrap the error information for the caller
+ */
 export function coVoid<Options>(co: YieldContext,
     f: InterfaceVoid<Options>, opts: Options,
     ce?: CallbackMap<any, any>,
@@ -219,3 +226,100 @@ export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, C
     throw new TypeError("cb must be a function")
 }
 
+export interface Args<Options, CB> {
+    co?: YieldContext
+    cb?: CB
+    opts?: Options
+}
+/**
+ * <Options, CB> -> [YieldContext | undefined , Options, CB | undefined]
+ */
+export function parseABC<Options, CB>(tag: string, a: any, b: any): Args<Options, CB> {
+    if (isYieldContext(a)) {
+        return {
+            co: a,
+            opts: b,
+        }
+    } else if (b === null || b === undefined) {
+        return {
+            opts: a,
+        }
+    } else if (typeof b === "function") {
+        return {
+            opts: a,
+            cb: b,
+        }
+    }
+    throw new TypeError(`parse function arguments fail: ${tag}`)
+}
+/**
+ * <Options, CB> | < CB> -> [YieldContext | undefined, Options, CB | undefined]
+ */
+export function parseBorABC<Options, CB>(tag: string, a: any, b: any): Args<Options, CB> {
+    if (isYieldContext(a)) {
+        return {
+            co: a,
+            opts: b,
+        }
+    } else if (b === null || b === undefined) {
+        if (a === null || a == undefined) {
+            return {}
+        } else if (typeof a === "function") {
+            return {
+                cb: a,
+            }
+        }
+    } else if (typeof a === "function") {
+        return {
+            cb: a,
+        }
+    } else if (typeof b === "function") {
+        return {
+            opts: a,
+            cb: b,
+        }
+    }
+    throw new TypeError(`parse function arguments fail: ${tag}`)
+}
+export function callVoid<Options, Result, Map>(
+    f: InterfaceReturn<Options, Result>,
+    args: Args<Options, CallbackReturn<Map>>,
+    cv?: CallbackMap<Result, Map>, ce?: CallbackMap<any, any>,
+) {
+    if (args.co) {
+        return coReturn(args.co, f, args.opts!, cv, ce)
+    } else if (args.cb) {
+        cbReturn(args.cb, f, args.opts!, cv, ce)
+    } else {
+        return new Promise((resolve, reject) => {
+            cbReturn((v, e) => {
+                if (e === undefined) {
+                    reject(e)
+                } else {
+                    resolve(v)
+                }
+            }, f, args.opts!, cv, ce)
+        })
+    }
+}
+export function callReturn<Options, Result, Map>(
+    f: InterfaceReturn<Options, Result>,
+    args: Args<Options, CallbackReturn<Map>>,
+    cv?: CallbackMap<Result, Map>, ce?: CallbackMap<any, any>,
+) {
+    if (args.co) {
+        return coReturn(args.co, f, args.opts!, cv, ce)
+    } else if (args.cb) {
+        cbReturn(args.cb, f, args.opts!, cv, ce)
+    } else {
+        return new Promise((resolve, reject) => {
+            cbReturn((v, e) => {
+                if (e === undefined) {
+                    reject(e)
+                } else {
+                    resolve(v)
+                }
+            }, f, args.opts!, cv, ce)
+        })
+    }
+}

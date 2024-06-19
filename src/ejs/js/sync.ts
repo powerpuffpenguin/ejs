@@ -178,3 +178,287 @@ export class Coroutine implements YieldContext {
 export function go(f: (co: YieldContext) => void): void {
     new Coroutine(f).run()
 }
+
+export function isYieldContext(co: any): co is YieldContext {
+    return typeof co === "object" && typeof co.yield === "function"
+}
+export type CallbackVoid = (e?: any) => void
+export type CallbackReturn<T> = (value?: T, e?: any) => void
+export type InterfaceVoid<Options> = (opts: Options, cb: CallbackVoid) => void
+export type InterfaceReturn<Options, Result> = (opts: Options, cb: CallbackReturn<Result>) => void
+export type CallbackMap<Input, Output> = (v: Input) => Output
+
+export interface Args<Options, CB> {
+    co?: YieldContext
+    cb?: CB
+    opts?: Options
+}
+/**
+ * Used to parse function parameters with the following signatures
+ * (co: YieldContext, opts: Options) => any
+ * (opts: Options) => Promise<any>
+ * (opts: Options, cb: (...) => void) => Promise<any>
+ * @param tag The function name to display when parsing fails
+ */
+export function parseArgs<Options, CB>(tag: string, a: any, b: any): Args<Options, CB> {
+    if (isYieldContext(a)) {
+        return {
+            co: a,
+            opts: b,
+        }
+    } else if (b === null || b === undefined) {
+        return {
+            opts: a,
+        }
+    } else if (typeof b === "function") {
+        return {
+            opts: a,
+            cb: b,
+        }
+    }
+    throw new TypeError(`parse function arguments fail: ${tag}`)
+}
+/**
+ * Used to parse function parameters with the following signatures
+ * (co: YieldContext, opts?: Options) => any
+ * (opts?: Options) => Promise<any>
+ * (opts: Options, cb: (...) => void) => Promise<any>
+ * (cb: (...) => void) => Promise<any>
+ * @param tag The function name to display when parsing fails
+ */
+export function parseOptionalArgs<Options, CB>(tag: string, a: any, b: any): Args<Options, CB> {
+    if (isYieldContext(a)) {
+        return {
+            co: a,
+            opts: b,
+        }
+    } else if (b === null || b === undefined) {
+        if (a === null || a == undefined) {
+            return {}
+        } else if (typeof a === "function") {
+            return {
+                cb: a,
+            }
+        }
+    } else if (typeof a === "function") {
+        return {
+            cb: a,
+        }
+    } else if (typeof b === "function") {
+        return {
+            opts: a,
+            cb: b,
+        }
+    }
+    throw new TypeError(`parse function arguments fail: ${tag}`)
+}
+
+/**
+ * Using a coroutine to call an asynchronous interface with no return value
+ * @param co Coroutine context
+ * @param f Asynchronous interface to be called
+ * @param opts Interface parameters
+ * @param ce If an error occurs, an error callback is used to wrap the error information for the caller
+ */
+export function coVoid<Options>(co: YieldContext,
+    f: InterfaceVoid<Options>, opts: Options,
+    ce?: CallbackMap<any, any>,
+): void {
+    return co.yield<void>((notify) => {
+        f(opts, (e) => {
+            if (e === undefined) {
+                notify.value()
+            } else {
+                if (ce) {
+                    e = ce(e)
+                }
+                notify.error(e)
+            }
+        })
+    })
+}
+/**
+ * Calling asynchronous interface
+ * 
+ * @param cb Callback notification
+ * @param f Asynchronous interface to be called
+ * @param opts Interface parameters
+ * @param ce If an error occurs, an error callback is used to wrap the error information for the caller
+ */
+export function cbVoid<Options>(cb: CallbackVoid,
+    f: InterfaceVoid<Options>, opts: Options,
+    ce?: CallbackMap<any, any>,
+): void {
+    if (ce) {
+        f(opts, (e) => {
+            if (e === undefined) {
+                cb()
+            } else {
+                cb(ce(e))
+            }
+        })
+    } else {
+        f(opts, cb)
+    }
+}
+/**
+ * Convert asynchronous functions to Promise calling mode.  
+ * Abbreviation for: new Promise((resolve,reject)=> cbVoid(...))
+ * 
+ * @param f Asynchronous interface to be called
+ * @param opts Interface parameters
+ * @param ce If an error occurs, an error callback is used to wrap the error information for the caller
+ */
+export function asyncVoid<Options>(f: InterfaceVoid<Options>, opts: Options,
+    ce?: CallbackMap<any, any>,
+): Promise<void> {
+    return new Promise((resolve, reject) => {
+        f(opts, (e) => {
+            if (e === undefined) {
+                resolve()
+            } else {
+                if (ce) {
+                    e = ce(e)
+                }
+                reject(e)
+            }
+        })
+    })
+}
+/**
+ * Automatically adapt the asynchronous function to call based on Args
+ */
+export function callVoid<Options>(
+    f: InterfaceVoid<Options>,
+    args: Args<Options, CallbackVoid>,
+    ce?: CallbackMap<any, any>,
+): void | Promise<void> {
+    if (args.co) {
+        return coVoid(args.co, f, args.opts!, ce)
+    } else if (args.cb) {
+        cbVoid(args.cb, f, args.opts!, ce)
+    } else {
+        return asyncVoid(f, args.opts!, ce)
+    }
+}
+
+/**
+ * Use coroutines to call asynchronous interfaces with return values
+ * @param co Coroutine context
+ * @param f Asynchronous interface to be called
+ * @param opts Interface parameters
+ * @param cv When the asynchronous function succeeds, this function is called to wrap the return value
+ * @param ce If an error occurs, an error callback is used to wrap the error information for the caller
+ */
+export function coReturn<Options, Result>(co: YieldContext,
+    f: InterfaceReturn<Options, any>, opts: Options,
+    cv?: CallbackMap<any, Result>, ce?: CallbackMap<any, any>,
+): Result {
+    return co.yield((notify) => {
+        f(opts, (v, e) => {
+            if (e === undefined) {
+                if (cv) {
+                    try {
+                        v = cv(v)
+                    } catch (e) {
+                        notify.error(e)
+                        return
+                    }
+                }
+                notify.value(v)
+            } else {
+                if (ce) {
+                    e = ce(e)
+                }
+                notify.error(e)
+            }
+        })
+    })
+}
+/**
+ * Calling asynchronous interface
+ * 
+ * @param cb Callback notification
+ * @param f Asynchronous interface to be called
+ * @param opts Interface parameters
+ * @param cv When the asynchronous function succeeds, this function is called to wrap the return value
+ * @param ce If an error occurs, an error callback is used to wrap the error information for the caller
+ */
+export function cbReturn<Options, Result>(cb: CallbackReturn<any>,
+    f: InterfaceReturn<Options, any>, opts: Options,
+    cv?: CallbackMap<any, Result>, ce?: CallbackMap<any, any>,
+): void {
+    if (cv || ce) {
+        f(opts, (v, e) => {
+            if (e === undefined) {
+                if (cv) {
+                    try {
+                        v = cv(v)
+                    } catch (e) {
+                        cb(undefined, e)
+                        return
+                    }
+                }
+                cb(v)
+            } else {
+                if (ce) {
+                    e = ce(e)
+                }
+                cb(undefined, e)
+            }
+        })
+    } else {
+        f(opts, cb)
+    }
+}
+
+/**
+     * Convert asynchronous functions to Promise calling mode.  
+     * Abbreviation for: new Promise((resolve,reject)=> coReturn(...))
+ * 
+ * @param f Asynchronous interface to be called
+ * @param opts Interface parameters
+ * @param cv When the asynchronous function succeeds, this function is called to wrap the return value
+ * @param ce If an error occurs, an error callback is used to wrap the error information for the caller
+ */
+export function asyncReturn<Options, Result>(f: InterfaceReturn<Options, any>, opts: Options,
+    cv?: CallbackMap<any, Result>, ce?: CallbackMap<any, any>,
+): Promise<Result> {
+    return new Promise((resolve, reject) => {
+        f(opts, (v, e) => {
+            if (e === undefined) {
+                if (cv) {
+                    try {
+                        v = cv(v)
+                    } catch (e) {
+                        reject(e)
+                        return
+                    }
+                }
+                resolve(v)
+            } else {
+                if (ce) {
+                    e = ce(e)
+                }
+                reject(e)
+            }
+        })
+    })
+}
+
+/**
+ * Automatically adapt the asynchronous function to call based on Args
+ */
+export function callReturn<Options, Result>(
+    f: InterfaceReturn<Options, any>,
+    args: Args<Options, CallbackVoid>,
+    cv?: CallbackMap<any, Result>, ce?: CallbackMap<any, any>,
+): Result | Promise<Result> | void {
+    if (args.co) {
+        return coReturn(args.co, f, args.opts!, cv, ce)
+    } else if (args.cb) {
+        cbReturn(args.cb, f, args.opts!, cv, ce)
+    } else {
+        return asyncReturn(f, args.opts!, cv, ce)
+    }
+}

@@ -71,6 +71,15 @@ declare namespace __duk {
          * <Options, CB> | < CB> -> [Options, CB | undefined]
          */
         export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, CB | undefined]
+        /**
+         * <Options, CB> -> [YieldContext | undefined , Options, CB | undefined]
+         */
+        export function parseABC<Options, CB>(a: any, b: any): [YieldContext | undefined, Options, CB | undefined]
+        /**
+         * <Options, CB> | < CB> -> [YieldContext | undefined, Options, CB | undefined]
+         */
+        export function parseBorABC<Options, CB>(a: any, b: any): [YieldContext | undefined, Options | undefined, CB | undefined]
+
     }
 }
 declare namespace deps {
@@ -362,7 +371,7 @@ const cbVoid = __duk.js.cbVoid
 const cbReturn = __duk.js.cbReturn
 const parseAB = __duk.js.parseAB
 const parseBorAB = __duk.js.parseBorAB
-
+import { parseArgs, parseOptionalArgs, callReturn, callVoid } from "ejs/sync";
 
 export type OsError = __duk.OsError
 export const OsError = __duk.OsError
@@ -1984,19 +1993,21 @@ export function renameSync(opts: RenameSyncOptions): void {
  *  Similar to renameSync but called asynchronously, notifying the result in cb
  */
 export function rename(a: any, b: any) {
-    const [opts, cb] = parseAB<RenameOptions, (e?: any) => void>(a, b)
+    const args = parseArgs<RenameOptions, (e?: any) => void>('rename', a, b)
+    const opts = args.opts!
     const o: deps.RenameOptions = {
         from: opts.from,
         to: opts.to,
         post: opts.post,
     }
+    args.opts = o
     const ce = (e: any) => new LinkError({
         op: 'rename',
         from: o.from,
         to: o.to,
         err: e,
     })
-    return cb ? cbVoid(cb, deps.rename, o, ce) : coVoid(a, deps.rename, o, ce)
+    return callVoid(deps.rename, args as any, ce)
 }
 
 export interface RemoveSyncOptions {
@@ -2027,7 +2038,8 @@ export function removeSync(opts: RemoveSyncOptions | string): void {
     }
 }
 export function remove(a: any, b: any) {
-    const [opts, cb] = parseAB<RemoveOptions | string, (e?: any) => void>(a, b)
+    const args = parseArgs<RemoveOptions | string, (e?: any) => void>('remove', a, b)
+    const opts = args.opts!
     const o: deps.RemoveOptions = typeof opts === "string" ? {
         name: opts,
     } : {
@@ -2035,12 +2047,13 @@ export function remove(a: any, b: any) {
         all: opts.all,
         post: opts.post,
     }
+    args.opts = o
     const ce = (e: any) => new PathError({
         op: o.all ? 'removeAll' : 'remove',
         path: o.name,
         err: e,
     })
-    return cb ? cbVoid(cb, deps.remove, o, ce) : coVoid(a, deps.remove, o, ce)
+    return callVoid(deps.remove, args as any, ce)
 }
 export interface LinkSyncOptions {
     from: string
@@ -2075,20 +2088,22 @@ export function linkSync(opts: LinkSyncOptions) {
  *  Similar to linkSync but called asynchronously, notifying the result in cb
  */
 export function link(a: any, b: any) {
-    const [opts, cb] = parseAB<LinkOptions, (e?: any) => void>(a, b)
+    const args = parseArgs<LinkOptions, (e?: any) => void>('link', a, b)
+    const opts = args.opts!
     const o: deps.LinkOptions = {
         from: opts.from,
         to: opts.to,
         hard: opts.hard,
         post: opts.post,
     }
+    args.opts = o
     const ce = (e: any) => new LinkError({
         op: o.hard ? 'link' : 'symlink',
         from: o.from,
         to: o.to,
         err: e,
     })
-    return cb ? cbVoid(cb, deps.link, o, ce) : coVoid(a, deps.link, o, ce)
+    return callVoid(deps.link, args as any, ce)
 }
 
 /**
@@ -2115,8 +2130,9 @@ export function rmdirSync(opts: string | RemoveSyncOptions): void {
 /**
  *  Similar to rmdirSync but called asynchronously, notifying the result in cb
  */
-export function rmdir(a: any, b: any): void {
-    const [opts, cb] = parseAB<string | RemoveOptions, (e?: any) => void>(a, b)
+export function rmdir(a: any, b: any) {
+    const args = parseArgs<string | RemoveOptions, (e?: any) => void>('rmdir', a, b)
+    const opts = args.opts!
     const o: deps.RemoveOptions = typeof opts === "string" ? {
         name: opts,
     } : {
@@ -2124,16 +2140,23 @@ export function rmdir(a: any, b: any): void {
         all: opts.all,
         post: opts.post,
     }
+    args.opts = o
     const ce = (e: any) => new PathError({
         op: o.all ? 'rmdirAll' : 'rmdir',
         path: o.name,
         err: e,
     })
-    return cb ? cbVoid(cb, deps.rmdir, o, ce) : coVoid(a, deps.rmdir, o, ce)
+    return callVoid(deps.rmdir, args as any, ce)
 }
 export interface MkdirSyncOptions {
     name: string
+    /**
+     * @default 0o775
+     */
     perm?: number
+    /**
+     * @default false
+     */
     all?: boolean
 }
 export interface MkdirOptions extends MkdirSyncOptions, AsyncOptions { }
@@ -2141,8 +2164,10 @@ export interface MkdirOptions extends MkdirSyncOptions, AsyncOptions { }
  * creates a directory named opts.name
  * @throws PathError
  */
-export function mkdirSync(opts: MkdirSyncOptions): void {
-    const o: deps.MkdirOptions = {
+export function mkdirSync(opts: MkdirSyncOptions | string): void {
+    const o: deps.MkdirOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
         name: opts.name,
         perm: opts.perm,
         all: opts.all,
@@ -2160,20 +2185,24 @@ export function mkdirSync(opts: MkdirSyncOptions): void {
 /**
  *  Similar to mkdirSync but called asynchronously, notifying the result in cb
  */
-export function mkdir(a: any, b: any): void {
-    const [opts, cb] = parseAB<MkdirOptions, (e?: any) => void>(a, b)
-    const o: deps.MkdirOptions = {
+export function mkdir(a: any, b: any) {
+    const args = parseArgs<MkdirOptions | string, (e?: any) => void>('mkdir', a, b)
+    const opts = args.opts!
+    const o: deps.MkdirOptions = typeof opts === "string" ? {
+        name: opts,
+    } : {
         name: opts.name,
         perm: opts.perm,
         post: opts.post,
         all: opts.all,
     }
+    args.opts = o
     const ce = (e: any) => new PathError({
         op: o.all ? 'mkdirAll' : 'mkdir',
         path: o.name,
         err: e,
     })
-    return cb ? cbVoid(cb, deps.mkdir, o, ce) : coVoid(a, deps.mkdir, o, ce)
+    return callVoid(deps.mkdir, args as any, ce)
 }
 
 export interface MkdirTempSyncOptions {
@@ -2213,7 +2242,8 @@ export function mkdirTempSync(opts: string | MkdirTempSyncOptions): string {
     }
 }
 export function mkdirTemp(a: any, b: any) {
-    const [opts, cb] = parseAB<string | MkdirTempOptions, (dir?: string, e?: any) => void>(a, b)
+    const args = parseArgs<string | MkdirTempOptions, (dir?: string, e?: any) => void>('mkdirTemp', a, b)
+    const opts = args.opts!
     const o: deps.MkdirTempOptions = typeof opts === "string" ? {
         pattern: opts,
     } : {
@@ -2222,10 +2252,11 @@ export function mkdirTemp(a: any, b: any) {
         perm: opts.perm,
         post: opts.post,
     }
+    args.opts = o
     const ce = (e: any) => new PathError({
         op: 'mkdirTemp',
         path: o.pattern,
         err: e,
     })
-    return cb ? cbReturn(cb, deps.mkdirTemp, o, undefined, ce) : coReturn(a, deps.mkdirTemp, o, undefined, ce)
+    return callReturn(deps.mkdirTemp, args as any, undefined, ce)
 }
