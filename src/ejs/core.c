@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <event2/event.h>
 #include "../duk/duk_module_node.h"
-#include "js.h"
+
 DUK_EXTERNAL const char *ejs_version()
 {
     return "v0.0.1";
@@ -232,13 +232,6 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "threadsStat", 11);
         duk_push_c_lightfunc(ctx, native_threads_set, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "threadsSet", 10);
-
-        // js
-        duk_push_lstring(ctx, "js", 2);
-        duk_eval_lstring(ctx, js_ejs_js_min_js, js_ejs_js_min_js_len);
-        duk_push_object(ctx);
-        duk_call(ctx, 1);
-        duk_def_prop(ctx, -3, DUK_DEFPROP_HAVE_VALUE);
     }
     duk_dup_top(ctx);
     duk_put_prop_lstring(ctx, -3, EJS_STASH_EJS);
