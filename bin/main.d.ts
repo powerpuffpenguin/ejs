@@ -1697,6 +1697,16 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function stat(co: YieldContext, opts: StatOptions): FileInfo
+    /**
+     * returns the FileInfo describing file.
+     * @throws PathError
+     */
+    export function stat(name: string): Promise<FileInfo>
+    /**
+     * returns the FileInfo describing file.
+     * @throws PathError
+     */
+    export function stat(opts: StatOptions): Promise<FileInfo>
 
     /**
      * Return to working directory
@@ -1727,6 +1737,11 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function chmod(co: YieldContext, opts: ChmodSyncOptions): void
+    /**
+     * changes the mode of the file to mode
+     * @throws PathError
+     */
+    export function chmod(opts: ChmodSyncOptions): Promise<void>
 
     export interface ChownSyncOptions {
         name: string
@@ -1748,6 +1763,11 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function chown(co: YieldContext, opts: ChownOptions): void
+    /**
+     * changes the uid and gid of the file
+     * @throws PathError
+     */
+    export function chown(opts: ChownOptions): Promise<void>
     export interface TruncateSyncOptions {
         name: string
         size: number
@@ -1767,6 +1787,11 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function truncate(co: YieldContext, opts: TruncateOptions): void
+    /**
+     * changes the size of the file
+     * @throws PathError
+     */
+    export function truncate(opts: TruncateOptions): Promise<void>
 
     export interface ReadFileOptions extends AsyncOptions {
         name: string
@@ -1794,6 +1819,16 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function readFile(co: YieldContext, name: string): Uint8Array
+    /**
+     * Read file contents
+     * @throws PathError
+     */
+    export function readFile(opts: ReadFileOptions): Promise<Uint8Array>
+    /**
+     * Read file contents
+     * @throws PathError
+     */
+    export function readFile(name: string): Promise<Uint8Array>
 
     /**
      * abbreviation for new TextDecoder().decode(readFileSync(name))
@@ -1818,6 +1853,16 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function readTextFile(co: YieldContext, name: string): string
+    /**
+     * abbreviation for new TextDecoder().decode(readFile(name))
+     * @throws PathError
+     */
+    export function readTextFile(opts: ReadFileOptions): Promise<string>
+    /**
+     * abbreviation for new TextDecoder().decode(readFile(name))
+     * @throws PathError
+     */
+    export function readTextFile(name: string): Promise<string>
 
     export interface WriteFileSyncOptions {
         name: string
@@ -1841,6 +1886,11 @@ declare module "ejs/os" {
      */
     export function writeFile(co: YieldContext, opts: WriteFileOptions): void
     /**
+     * Create archive and write data
+     * @throws PathError
+     */
+    export function writeFile(opts: WriteFileOptions): Promise<void>
+    /**
      * @throws PathError
      * abbreviation for writeFileSync(opts..data=new TextEncoder().encode(opts.data))
      */
@@ -1854,6 +1904,11 @@ declare module "ejs/os" {
      * abbreviation for writeFile(co, opts..data=new TextEncoder().encode(opts.data))
      */
     export function writeTextFile(co: YieldContext, opts: WriteTextFileOptions): void
+    /**
+     * @throws PathError
+     * abbreviation for writeFile(opts..data=new TextEncoder().encode(opts.data))
+     */
+    export function writeTextFile(opts: WriteTextFileOptions): Promise<void>
 
     export interface ReadDirSyncOptions {
         name: string
@@ -1869,14 +1924,38 @@ declare module "ejs/os" {
      */
     export function readDirNamesSync(opts: ReadDirSyncOptions): Array<string>
     /**
+     * Read the file name in the folder
+     * @throws PathError
+     */
+    export function readDirNamesSync(name: string): Array<string>
+    /**
      * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
      */
     export function readDirNames(opts: ReadDirOptions, cb: (dirs?: Array<string>, e?: PathError) => void): void
+    /**
+     * Similar to readDirNamesSync but called asynchronously, notifying the result in cb
+     */
+    export function readDirNames(name: string, cb: (dirs?: Array<string>, e?: PathError) => void): void
     /**
      * Read the file name in the folder
      * @throws PathError
      */
     export function readDirNames(co: YieldContext, opts: ReadDirOptions): Array<string>
+    /**
+     * Read the file name in the folder
+     * @throws PathError
+     */
+    export function readDirNames(co: YieldContext, name: string): Array<string>
+    /**
+     * Read the file name in the folder
+     * @throws PathError
+     */
+    export function readDirNames(opts: ReadDirOptions): Promise<Array<string>>
+    /**
+     * Read the file name in the folder
+     * @throws PathError
+     */
+    export function readDirNames(name: string): Promise<Array<string>>
 
     /**
      * Read the file info in the folder
@@ -1884,15 +1963,38 @@ declare module "ejs/os" {
      */
     export function readDirSync(opts: ReadDirSyncOptions): Array<FileInfo>
     /**
+     * Read the file info in the folder
+     * @throws PathError
+     */
+    export function readDirSync(name: string): Array<FileInfo>
+    /**
      * Similar to readDirSync but called asynchronously, notifying the result in cb
      */
     export function readDirSync(opts: ReadDirOptions, cb: (dirs?: Array<FileInfo>, e?: PathError) => void): void
+    /**
+     * Similar to readDirSync but called asynchronously, notifying the result in cb
+     */
+    export function readDirSync(name: string, cb: (dirs?: Array<FileInfo>, e?: PathError) => void): void
     /**
      * Read the file info in the folder
      * @throws PathError
      */
     export function readDirSync(co: YieldContext, opts: ReadDirOptions): Array<FileInfo>
-
+    /**
+     * Read the file info in the folder
+     * @throws PathError
+     */
+    export function readDirSync(co: YieldContext, name: string): Array<FileInfo>
+    /**
+     * Read the file info in the folder
+     * @throws PathError
+     */
+    export function readDirSync(opts: ReadDirOptions): Promise<Array<FileInfo>>
+    /**
+     * Read the file info in the folder
+     * @throws PathError
+     */
+    export function readDirSync(name: string): Promise<Array<FileInfo>>
 
 
     export interface ReadLinkOptions extends AsyncOptions {
@@ -1900,25 +2002,38 @@ declare module "ejs/os" {
     }
     /**
      * returns the destination of the named symbolic link
+     * @throws PathError
      */
     export function readLinkSync(name: string): string
 
     /**
      * Similar to readLinkSync but called asynchronously, notifying the result in cb
      */
-    export function readLink(opts: ReadLinkOptions, cb: (path?: string, e?: any) => void): void
+    export function readLink(opts: ReadLinkOptions, cb: (path?: string, e?: PathError) => void): void
     /**
      * Similar to readLinkSync but called asynchronously, notifying the result in cb
      */
-    export function readLink(name: string, cb: (path?: string, e?: any) => void): void
+    export function readLink(name: string, cb: (path?: string, e?: PathError) => void): void
     /**
      * returns the destination of the named symbolic link
+     * @throws PathError
      */
     export function readLink(co: YieldContext, opts: ReadLinkOptions): string
     /**
      * returns the destination of the named symbolic link
+     * @throws PathError
      */
     export function readLink(co: YieldContext, name: string): string
+    /**
+     * returns the destination of the named symbolic link
+     * @throws PathError
+     */
+    export function readLink(opts: ReadLinkOptions): Promise<string>
+    /**
+     * returns the destination of the named symbolic link
+     * @throws PathError
+     */
+    export function readLink(name: string): Promise<string>
 
 
     export interface RenameSyncOptions {
