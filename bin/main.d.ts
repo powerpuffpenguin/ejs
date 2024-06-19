@@ -1516,6 +1516,11 @@ declare module "ejs/os" {
          */
         stat(co: YieldContext, opts?: AsyncOptions): FileInfo
         /**
+         * returns the FileInfo describing file.
+         * @throws PathError
+         */
+        stat(opts?: AsyncOptions): Promise<FileInfo>
+        /**
          * Sets the offset for the next Read or Write on file to offset
          * @throws PathError
          */
@@ -1529,6 +1534,11 @@ declare module "ejs/os" {
          * @throws PathError
          */
         seek(co: YieldContext, opts: SeekOptions): number
+        /**
+         * Sets the offset for the next Read or Write on file to offset
+         * @throws PathError
+         */
+        seek(opts: SeekOptions): Promise<number>
         /**
          * Read data to dst
          * @throws PathError
@@ -1546,6 +1556,12 @@ declare module "ejs/os" {
          */
         read(co: YieldContext, opts: ReadOptions | Uint8Array): number
         /**
+         * Read data to dst
+         * @throws PathError
+         * @returns the actual length of bytes read, or 0 if eof is read
+         */
+        read(opts: ReadOptions | Uint8Array): Promise<number>
+        /**
          * Read the data at the specified offset
          * @throws PathError
          * @returns the actual length of bytes read, or 0 if eof is read
@@ -1561,6 +1577,13 @@ declare module "ejs/os" {
          * @returns the actual length of bytes read, or 0 if eof is read
          */
         readAt(co: YieldContext, opts: ReadAtOptions): number
+        /**
+         * Read the data at the specified offset
+         * @throws PathError
+         * @returns the actual length of bytes read, or 0 if eof is read
+         */
+        readAt(opts: ReadAtOptions): Promise<number>
+
         /**
          * Write data
          * @throws PathError
@@ -1578,6 +1601,12 @@ declare module "ejs/os" {
          */
         write(co: YieldContext, opts: WriteOptions | Uint8Array | string): number
         /**
+         * Write data
+         * @throws PathError
+         * @returns the actual length of bytes write
+         */
+        write(opts: WriteOptions | Uint8Array | string): Promise<number>
+        /**
          * Write the data at the specified offset
          * @throws PathError
          * @returns the actual length of bytes write
@@ -1593,6 +1622,12 @@ declare module "ejs/os" {
          * @returns the actual length of bytes write
          */
         writeAt(co: YieldContext, opts: WriteAtOptions): number
+        /**
+         * Write the data at the specified offset
+         * @throws PathError
+         * @returns the actual length of bytes write
+         */
+        writeAt(opts: WriteAtOptions): Promise<number>
         /**
          * Commits the current contents of the file to stable storage.
          * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
@@ -1613,6 +1648,12 @@ declare module "ejs/os" {
          * @throws PathError
          */
         sync(co: YieldContext, opts?: AsyncOptions): void
+        /**
+         * Commits the current contents of the file to stable storage.
+         * Typically, this means flushing the file system's in-memory copyof recently written data to disk.
+         * @throws PathError
+         */
+        sync(opts?: AsyncOptions): Promise<void>
 
         /**
          * changes the current working directory to the file, which must be a directory.
@@ -1634,6 +1675,11 @@ declare module "ejs/os" {
          */
         chmod(co: YieldContext, opts: FileChmodAsyncOptions): void
         /**
+         * changes the mode of the file to mode
+         * @throws PathError
+         */
+        chmod(opts: FileChmodAsyncOptions): Promise<void>
+        /**
          * changes the uid and gid of the file
          * @throws PathError
          */
@@ -1648,10 +1694,19 @@ declare module "ejs/os" {
          */
         chown(co: YieldContext, opts: FileChownOptions): void
         /**
+         * changes the uid and gid of the file
+         * @throws PathError
+         */
+        chown(opts: FileChownOptions): Promise<void>
+        /**
          * changes the size of the file. It does not change the I/O offset.
          * @throws PathError
          */
         truncateSync(size: number): void
+        /**
+         * Similar to truncateSync but called asynchronously, notifying the result in cb
+         */
+        truncate(size: number, cb: (PathError?: any) => void): void
         /**
          * Similar to truncateSync but called asynchronously, notifying the result in cb
          */
@@ -1660,7 +1715,22 @@ declare module "ejs/os" {
          * changes the size of the file. It does not change the I/O offset.
          * @throws PathError
          */
+        truncate(co: YieldContext, size: number): void
+        /**
+         * changes the size of the file. It does not change the I/O offset.
+         * @throws PathError
+         */
         truncate(co: YieldContext, opts: FileTruncateOptions): void
+        /**
+         * changes the size of the file. It does not change the I/O offset.
+         * @throws PathError
+         */
+        truncate(size: number): Promise<void>
+        /**
+         * changes the size of the file. It does not change the I/O offset.
+         * @throws PathError
+         */
+        truncate(opts: FileTruncateOptions): Promise<void>
 
         /**
          * Read the file name in the folder
@@ -1696,6 +1766,22 @@ declare module "ejs/os" {
          * @throws PathError
         */
         readDirNames(co: YieldContext, opts: FileReadDirOptions): Array<string>
+        /**
+         * Read the file name in the folder
+         * @throws PathError
+        */
+        readDirNames(): Promise<Array<string>>
+        /**
+         * Read the file name in the folder
+         * @throws PathError
+         * @param n If greater than 0, the maximum length of the returned array is n
+         */
+        readDirNames(n: number): Promise<Array<string>>
+        /**
+         * Read the file name in the folder
+         * @throws PathError
+        */
+        readDirNames(opts: FileReadDirOptions): Promise<Array<string>>
 
         /**
          * Read the file info in the folder
@@ -1731,6 +1817,22 @@ declare module "ejs/os" {
          * @param n If greater than 0, the maximum length of the returned array is n
          */
         readDir(co: YieldContext, n: number): Array<FileInfo>
+        /**
+         * Read the file info in the folder
+         * @throws PathError
+         */
+        readDir(): Promise<Array<FileInfo>>
+        /**
+         * Read the file info in the folder
+         * @throws PathError
+         */
+        readDir(opts: FileReadDirOptions): Promise<Array<FileInfo>>
+        /**
+         * Read the file info in the folder
+         * @throws PathError
+         * @param n If greater than 0, the maximum length of the returned array is n
+         */
+        readDir(n: number): Promise<Array<FileInfo>>
     }
 
     export interface Reader {

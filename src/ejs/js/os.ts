@@ -6,81 +6,6 @@ declare namespace __duk {
         constructor(errno: number, message?: string)
         get errnoString(): string
     }
-    namespace js {
-        /**
-         * Context used for the coroutine to give up the CPU
-         */
-        export interface YieldContext {
-            /**
-             * After calling function f, release the cpu so that other coroutines can run
-             * @remarks
-             * Usually f should be an asynchronous function, you can use coroutines to wait for the asynchronous function to complete
-             */
-            yield<T>(f: (notify: ResumeContext<T>) => void): T
-        }
-        /**
-         * The context used to wake up the coroutine
-         * @remarks
-         * You can only call the member function once to wake up the waiting coroutine. Multiple calls will throw an exception.
-         */
-        export interface ResumeContext<T> {
-            /**
-             * Wake up the coroutine and return the value v for it
-             */
-            value(v: T): void
-            /**
-             * Wake up the coroutine and throw an exception.  
-             * The exception can be caught by try catch in the coroutine
-             */
-            error(e?: any): void
-            /**
-             * After calling the function resume, wake up the coroutine. 
-             * The return value of resume is used as the return value of the coroutine.  
-             * Exceptions thrown by resume can be caught by the coroutine
-             */
-            next(resume: () => T): void
-        }
-        export function isYieldContext(v: any): v is YieldContext
-        export type CallbackVoid = (e?: any) => void
-        export type CallbackReturn<T> = (value?: T, e?: any) => void
-        export type InterfaceVoid<Options> = (opts: Options, cb: CallbackVoid) => void
-        export type InterfaceReturn<Options, Result> = (opts: Options, cb: CallbackReturn<Result>) => void
-        export type CallbackMap<Input, Output> = (v: Input) => Output
-        export function coVoid<Options>(co: YieldContext,
-            f: InterfaceVoid<Options>, opts: Options,
-            ce?: CallbackMap<any, any>,
-        ): void
-        export function cbVoid<Options>(cb: CallbackVoid,
-            f: InterfaceVoid<Options>, opts: Options,
-            ce?: CallbackMap<any, any>,
-        ): void
-
-        export function coReturn<Options, Result, Map>(co: YieldContext,
-            f: InterfaceReturn<Options, Result>, opts: Options,
-            cv?: CallbackMap<Result, Map>, ce?: CallbackMap<any, any>,
-        ): Map
-        export function cbReturn<Options, Result, Map>(cb: CallbackReturn<Map>,
-            f: InterfaceReturn<Options, Result>, opts: Options,
-            cv?: CallbackMap<Result, Map>, ce?: CallbackMap<any, any>): void
-
-        /**
-         * <Options, CB> -> [Options, CB | undefined]
-         */
-        export function parseAB<Options, CB>(a: any, b: any): [Options, CB | undefined]
-        /**
-         * <Options, CB> | < CB> -> [Options, CB | undefined]
-         */
-        export function parseBorAB<Options, CB>(a: any, b: any): [Options | undefined, CB | undefined]
-        /**
-         * <Options, CB> -> [YieldContext | undefined , Options, CB | undefined]
-         */
-        export function parseABC<Options, CB>(a: any, b: any): [YieldContext | undefined, Options, CB | undefined]
-        /**
-         * <Options, CB> | < CB> -> [YieldContext | undefined, Options, CB | undefined]
-         */
-        export function parseBorABC<Options, CB>(a: any, b: any): [YieldContext | undefined, Options | undefined, CB | undefined]
-
-    }
 }
 declare namespace deps {
     // Exactly one of O_RDONLY, O_WRONLY, or O_RDWR must be specified.
@@ -372,12 +297,6 @@ declare namespace deps {
     export function mkdirTemp(opts: MkdirTempOptions): string
     export function mkdirTemp(opts: MkdirTempOptions, cb: (dir?: string, e?: any) => void): void
 }
-const coVoid = __duk.js.coVoid
-const coReturn = __duk.js.coReturn
-const cbVoid = __duk.js.cbVoid
-const cbReturn = __duk.js.cbReturn
-const parseAB = __duk.js.parseAB
-const parseBorAB = __duk.js.parseBorAB
 import { parseArgs, parseOptionalArgs, callReturn, callVoid } from "ejs/sync";
 
 export type OsError = __duk.OsError
@@ -764,7 +683,7 @@ export class File {
             deps.close(f)
         }
     }
-    private _pathFile(op: string): deps.File {
+    private _file(op: string): deps.File {
         const f = this.file_
         if (!f) {
             throw new PathError({
@@ -783,7 +702,7 @@ export class File {
     }
     statSync(): FileInfo {
         const op = 'statSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return new fileInfo(deps.fstat({
                 file: f,
@@ -798,18 +717,20 @@ export class File {
     }
     stat(a: any, b: any) {
         const op = 'stat'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseBorAB<AsyncOptions, (info?: FileInfo, e?: any) => void>(a, b)
+        const f = this._file(op)
+        const args = parseOptionalArgs<AsyncOptions, (info?: FileInfo, e?: any) => void>(op, a, b)
+        const opts = args.opts
         const o: deps.FileStatOptions = {
             file: f,
             post: opts?.post,
         }
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbReturn(cb, deps.fstat, o, fileInfo.map, ce) : coReturn(a, deps.fstat, o, fileInfo.map, ce)
+        return callReturn(deps.fstat, args as any, fileInfo.map, ce)
     }
     /**
      * Sets the offset for the next Read or Write on file to offset
@@ -817,7 +738,7 @@ export class File {
      */
     seekSync(opts: SeekSyncOptions): number {
         const op = 'seekSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return deps.seek({
                 fd: f.fd,
@@ -837,20 +758,22 @@ export class File {
      */
     seek(a: any, b: any) {
         const op = 'seek'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<SeekOptions, (n?: number, e?: any) => void>(a, b)
+        const f = this._file(op)
+        const args = parseArgs<SeekOptions, (n?: number, e?: any) => void>(op, a, b)
+        const opts = args.opts!
         const o: deps.SeekOptions = {
             fd: f.fd,
             offset: opts.offset,
             whence: opts.whence,
             post: opts.post,
         }
+        args.opts = o as any
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbReturn(cb, deps.seek, o, undefined, ce) : coReturn(a, deps.seek, o, undefined, ce)
+        return callReturn(deps.seek, args as any, undefined, ce)
     }
     /**
      * Read data to dst
@@ -859,7 +782,7 @@ export class File {
      */
     readSync(dst: Uint8Array): number {
         const op = 'readSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return deps.read({
                 fd: f.fd,
@@ -879,14 +802,15 @@ export class File {
      */
     read(a: any, b: any) {
         const op = 'read'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<ReadOptions, (n?: number, e?: any) => void>(a, b)
-        let args = this.read_
-        if (args) {
+        const f = this._file(op)
+        const args = parseArgs<ReadOptions, (n?: number, e?: any) => void>(op, a, b)
+        const opts = args.opts!
+        let buf = this.read_
+        if (buf) {
             this.read_ = undefined
         } else {
             try {
-                args = deps.read_args()
+                buf = deps.read_args()
             } catch (e) {
                 throw new PathError({
                     op: op,
@@ -898,22 +822,23 @@ export class File {
         const o: deps.ReadOptions = deps.isBufferData(opts) ? {
             fd: f.fd,
             dst: opts,
-            args: args,
+            args: buf,
         } : {
             fd: f.fd,
             dst: opts.dst,
-            args: args,
+            args: buf,
             post: opts.post,
         }
+        args.opts = o
         const cv = (v: any) => {
             if (this.file_) {
-                this.read_ = args
+                this.read_ = buf
             }
             return v
         }
         const ce = (e: any) => {
             if (this.file_) {
-                this.read_ = args
+                this.read_ = buf
             }
             return new PathError({
                 op: op,
@@ -921,7 +846,7 @@ export class File {
                 err: e,
             })
         }
-        return cb ? cbReturn(cb, deps.read, o, cv, ce) : coReturn(a, deps.read, o, cv, ce)
+        return callReturn(deps.read, args as any, cv, ce)
     }
     /**
      * Read the data at the specified offset
@@ -930,7 +855,7 @@ export class File {
      */
     readAtSync(opts: ReadAtSyncOptions): number {
         const op = 'readAtSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return deps.readAt({
                 fd: f.fd,
@@ -951,14 +876,15 @@ export class File {
      */
     readAt(a: any, b: any) {
         const op = 'readAt'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<ReadAtOptions, (n?: number, e?: any) => void>(a, b)
-        let args = this.readAt_
-        if (args) {
+        const f = this._file(op)
+        const args = parseArgs<ReadAtOptions, (n?: number, e?: any) => void>(op, a, b)
+        const opts = args.opts!
+        let buf = this.readAt_
+        if (buf) {
             this.readAt_ = undefined
         } else {
             try {
-                args = deps.readAt_args()
+                buf = deps.readAt_args()
             } catch (e) {
                 throw new PathError({
                     op: op,
@@ -971,19 +897,19 @@ export class File {
             fd: f.fd,
             dst: opts.dst,
             offset: opts.offset,
-            args: args,
+            args: buf,
             post: opts.post,
         }
-
+        args.opts = o
         const cv = (v: any) => {
             if (this.file_) {
-                this.readAt_ = args
+                this.readAt_ = buf
             }
             return v
         }
         const ce = (e: any) => {
             if (this.file_) {
-                this.readAt_ = args
+                this.readAt_ = buf
             }
             return new PathError({
                 op: op,
@@ -991,7 +917,7 @@ export class File {
                 err: e,
             })
         }
-        return cb ? cbReturn(cb, deps.readAt, o, cv, ce) : coReturn(a, deps.readAt, o, cv, ce)
+        return callReturn(deps.readAt, args as any, cv, ce)
     }
     /**
      * Write data
@@ -1000,7 +926,7 @@ export class File {
      */
     writeSync(data: Uint8Array | string): number {
         const op = 'writeSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return deps.write({
                 fd: f.fd,
@@ -1020,14 +946,15 @@ export class File {
      */
     write(a: any, b: any) {
         const op = 'write'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<WriteOptions | Uint8Array | string, (n?: number, e?: any) => void>(a, b)
-        let args = this.write_
-        if (args) {
+        const f = this._file(op)
+        const args = parseArgs<WriteOptions | Uint8Array | string, (n?: number, e?: any) => void>(op, a, b)
+        const opts = args.opts!
+        let buf = this.write_
+        if (buf) {
             this.write_ = undefined
         } else {
             try {
-                args = deps.write_args()
+                buf = deps.write_args()
             } catch (e) {
                 throw new PathError({
                     op: op,
@@ -1039,23 +966,23 @@ export class File {
         const o: deps.WriteOptions = deps.isBufferData(opts) || typeof opts === "string" ? {
             fd: f.fd,
             src: opts,
-            args: args,
+            args: buf,
         } : {
             fd: f.fd,
             src: opts.src,
-            args: args,
+            args: buf,
             post: opts.post,
         }
-
+        args.opts = o
         const cv = (v: any) => {
             if (this.file_) {
-                this.write_ = args
+                this.write_ = buf
             }
             return v
         }
         const ce = (e: any) => {
             if (this.file_) {
-                this.write_ = args
+                this.write_ = buf
             }
             return new PathError({
                 op: op,
@@ -1063,7 +990,7 @@ export class File {
                 err: e,
             })
         }
-        return cb ? cbReturn(cb, deps.write, o, cv, ce) : coReturn(a, deps.write, o, cv, ce)
+        return callReturn(deps.write, args as any, cv, ce)
     }
     /**
      * Write the data at the specified offset
@@ -1072,7 +999,7 @@ export class File {
      */
     writeAtSync(opts: WriteAtSyncOptions): number {
         const op = 'writeAtSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return deps.writeAt({
                 fd: f.fd,
@@ -1093,14 +1020,15 @@ export class File {
      */
     writeAt(a: any, b: any) {
         const op = 'writeAt'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<WriteAtOptions, (n?: number, e?: any) => void>(a, b)
-        let args = this.writeAt_
-        if (args) {
+        const f = this._file(op)
+        const args = parseArgs<WriteAtOptions, (n?: number, e?: any) => void>(op, a, b)
+        const opts = args.opts!
+        let buf = this.writeAt_
+        if (buf) {
             this.writeAt_ = undefined
         } else {
             try {
-                args = deps.writeAt_args()
+                buf = deps.writeAt_args()
             } catch (e) {
                 throw new PathError({
                     op: op,
@@ -1113,18 +1041,19 @@ export class File {
             fd: f.fd,
             src: opts.src,
             offset: opts.offset,
-            args: args,
+            args: buf,
             post: opts.post,
         }
+        args.opts = o
         const cv = (v: any) => {
             if (this.file_) {
-                this.writeAt_ = args
+                this.writeAt_ = buf
             }
             return v
         }
         const ce = (e: any) => {
             if (this.file_) {
-                this.writeAt_ = args
+                this.writeAt_ = buf
             }
             return new PathError({
                 op: op,
@@ -1132,7 +1061,7 @@ export class File {
                 err: e,
             })
         }
-        return cb ? cbReturn(cb, deps.writeAt, o, cv, ce) : coReturn(a, deps.writeAt, o, cv, ce)
+        return callReturn(deps.writeAt, args as any, cv, ce)
     }
 
     /**
@@ -1142,7 +1071,7 @@ export class File {
      */
     syncSync(): void {
         const op = 'syncSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             deps.fsync({
                 fd: f.fd,
@@ -1158,20 +1087,22 @@ export class File {
     /**
      * Similar to syncSync but called asynchronously, notifying the result in cb
      */
-    sync(a: any, b: any): void {
+    sync(a: any, b: any) {
         const op = 'sync'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseBorAB<AsyncOptions, (e?: any) => void>(a, b);
+        const f = this._file(op)
+        const args = parseOptionalArgs<AsyncOptions, (e?: any) => void>(op, a, b);
+        const opts = args.opts
         const o: deps.FSyncOptions = {
             fd: f.fd,
             post: opts?.post,
         }
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbVoid(cb, deps.fsync, o, ce) : coVoid(a, deps.fsync, o, ce)
+        return callVoid(deps.fsync, args as any, ce)
     }
     /**
      * changes the current working directory to the file, which must be a directory.
@@ -1179,7 +1110,7 @@ export class File {
      */
     chdir(): void {
         const op = 'chdir'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return deps.fchdir(f.fd)
         } catch (e) {
@@ -1196,7 +1127,7 @@ export class File {
      */
     chmodSync(perm: number): void {
         const op = 'chmodSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         const o: deps.FChmodOptions = {
             fd: f.fd,
             perm: perm,
@@ -1214,21 +1145,23 @@ export class File {
     /**
      * Similar to chmodSync but called asynchronously, notifying the result in cb
      */
-    chmod(a: any, b: any): void {
+    chmod(a: any, b: any) {
         const op = 'chmod'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<FileChmodAsyncOptions, (e?: any) => void>(a, b);
+        const f = this._file(op)
+        const args = parseArgs<FileChmodAsyncOptions, (e?: any) => void>(op, a, b);
+        const opts = args.opts!
         const o: deps.FChmodOptions = {
             fd: f.fd,
             perm: opts.perm,
             post: opts.post,
         }
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbVoid(cb, deps.fchmod, o, ce) : coVoid(a, deps.fchmod, o, ce)
+        return callVoid(deps.fchmod, args as any, ce)
     }
     /**
      * changes the uid and gid of the file
@@ -1236,7 +1169,7 @@ export class File {
      */
     chownSync(opts: FileChownSyncOptions): void {
         const op = 'chownSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         const o: deps.FChownOptions = {
             fd: f.fd,
             uid: opts.uid,
@@ -1255,22 +1188,24 @@ export class File {
     /**
      * Similar to chownSync but called asynchronously, notifying the result in cb
      */
-    chown(a: any, b: any): void {
+    chown(a: any, b: any) {
         const op = 'chown'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<FileChownOptions, (e?: any) => void>(a, b);
+        const f = this._file(op)
+        const args = parseArgs<FileChownOptions, (e?: any) => void>(op, a, b);
+        const opts = args.opts!
         const o: deps.FChownOptions = {
             fd: f.fd,
             uid: opts.uid,
             gid: opts.gid,
             post: opts.post,
         }
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbVoid(cb, deps.fchown, o, ce) : coVoid(a, deps.fchown, o, ce)
+        return callVoid(deps.fchown, args as any, ce)
     }
     /**
      * changes the size of the file. It does not change the I/O offset.
@@ -1278,7 +1213,7 @@ export class File {
      */
     truncateSync(size: number): void {
         const op = 'truncateSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         const o: deps.FTruncateOptions = {
             fd: f.fd,
             size: size,
@@ -1296,21 +1231,26 @@ export class File {
     /**
      * Similar to truncateSync but called asynchronously, notifying the result in cb
      */
-    truncate(a: any, b: any): void {
+    truncate(a: any, b: any) {
         const op = 'truncate'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseAB<FileTruncateOptions, (e?: any) => void>(a, b);
-        const o: deps.FTruncateOptions = {
+        const f = this._file(op)
+        const args = parseArgs<FileTruncateOptions | number, (e?: any) => void>(op, a, b);
+        const opts = args.opts!
+        const o: deps.FTruncateOptions = typeof opts === "number" ? {
+            fd: f.fd,
+            size: opts,
+        } : {
             fd: f.fd,
             size: opts.size,
             post: opts.post,
         }
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbVoid(cb, deps.ftruncate, o, ce) : coVoid(a, deps.ftruncate, o, ce)
+        return callVoid(deps.ftruncate, args as any, ce)
     }
 
     /**
@@ -1320,7 +1260,7 @@ export class File {
      */
     readDirNamesSync(n?: number): Array<string> {
         const op = 'readDirNamesSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             return deps.fread_dir_names({
                 fd: f.fd,
@@ -1339,8 +1279,9 @@ export class File {
      */
     readDirNames(a: any, b: any) {
         const op = 'readDirNames'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseBorAB<number | FileReadDirOptions, (dirs?: Array<string>, e?: any) => void>(a, b)
+        const f = this._file(op)
+        const args = parseOptionalArgs<number | FileReadDirOptions, (dirs?: Array<string>, e?: any) => void>(op, a, b)
+        const opts = args.opts
         const o: deps.FReadDirOptions = typeof opts === "number" ? {
             fd: f.fd,
             n: opts,
@@ -1353,12 +1294,13 @@ export class File {
                 post: opts.post,
             }
         )
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbReturn(cb, deps.fread_dir_names, o, undefined, ce) : coReturn(a, deps.fread_dir_names, o, undefined, ce)
+        return callReturn(deps.fread_dir_names, args as any, undefined, ce)
     }
 
     /**
@@ -1368,7 +1310,7 @@ export class File {
      */
     readDirSync(n?: number): Array<FileInfo> {
         const op = 'readDirSync'
-        const f = this._pathFile(op)
+        const f = this._file(op)
         try {
             const items = deps.fread_dir({
                 fd: f.fd,
@@ -1388,8 +1330,9 @@ export class File {
      */
     readDir(a: any, b: any) {
         const op = 'readDir'
-        const f = this._pathFile(op)
-        const [opts, cb] = parseBorAB<number | FileReadDirOptions, (dirs?: Array<FileInfo>, e?: any) => void>(a, b)
+        const f = this._file(op)
+        const args = parseOptionalArgs<number | FileReadDirOptions, (dirs?: Array<FileInfo>, e?: any) => void>(op, a, b)
+        const opts = args.opts
         const o: deps.FReadDirOptions = typeof opts === "number" ? {
             fd: f.fd,
             n: opts,
@@ -1402,12 +1345,13 @@ export class File {
                 post: opts.post,
             }
         )
+        args.opts = o
         const ce = (e: any) => new PathError({
             op: op,
             path: this.name_,
             err: e,
         })
-        return cb ? cbReturn(cb, deps.fread_dir, o, fileInfo.mapArray, ce) : coReturn(a, deps.fread_dir, o, fileInfo.mapArray, ce)
+        return callReturn(deps.fread_dir, args as any, fileInfo.mapArray, ce)
     }
 }
 
