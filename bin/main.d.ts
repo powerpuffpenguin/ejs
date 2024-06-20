@@ -427,6 +427,10 @@ declare module "ejs/net" {
          */
         v6?: boolean
     }
+    export interface ResolveResult {
+        ip?: Array<string>
+        v6?: boolean
+    }
     /**
      * Used to resolve domain names supporting A or AAAA
      */
@@ -443,7 +447,7 @@ declare module "ejs/net" {
          * @param opts Query options
          * @param cb Query result callback
          */
-        resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any, ipv6?: boolean) => void): void
+        resolve(opts: ResolveOptions, cb: (result?: ResolveResult, e?: any) => void): void
     }
 
     /**

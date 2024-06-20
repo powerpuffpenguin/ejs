@@ -2217,29 +2217,41 @@ static duk_ret_t resolver_ip_cb_impl(duk_context *ctx)
     }
     else
     {
-        duk_push_array(ctx);
+        duk_push_object(ctx);
         if (args->type == DNS_IPv4_A)
         {
-            char *p = args->addresses;
-            for (int i = 0; i < args->count; i++)
+            if (args->count)
             {
+                duk_push_array(ctx);
+                char *p = args->addresses;
                 char ip[16];
-                evutil_inet_ntop(AF_INET, p, ip, 16);
-                p += 4;
-                duk_push_string(ctx, ip);
-                duk_put_prop_index(ctx, -2, i);
+                for (int i = 0; i < args->count; i++)
+                {
+                    evutil_inet_ntop(AF_INET, p, ip, 16);
+                    p += 4;
+                    duk_push_string(ctx, ip);
+                    duk_put_prop_index(ctx, -2, i);
+                }
+                duk_put_prop_lstring(ctx, -2, "ip", 2);
             }
         }
         else
         {
-            char *p = args->addresses;
-            for (int i = 0; i < args->count; i++)
+            duk_push_true(ctx);
+            duk_put_prop_lstring(ctx, -2, "v6", 2);
+            if (args->count)
             {
+                duk_push_array(ctx);
+                char *p = args->addresses;
                 char ip[40] = {0};
-                evutil_inet_ntop(AF_INET6, p, ip, 40);
-                p += 16;
-                duk_push_string(ctx, ip);
-                duk_put_prop_index(ctx, -2, i);
+                for (int i = 0; i < args->count; i++)
+                {
+                    evutil_inet_ntop(AF_INET6, p, ip, 40);
+                    p += 16;
+                    duk_push_string(ctx, ip);
+                    duk_put_prop_index(ctx, -2, i);
+                }
+                duk_put_prop_lstring(ctx, -2, "ip", 2);
             }
         }
         duk_call(ctx, 1);
@@ -3462,6 +3474,9 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "eq", 2);
         duk_push_c_lightfunc(ctx, _ejs_helper_hex_string, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "hex_string", 10);
+
+        duk_push_number(ctx, ETIMEDOUT);
+        duk_put_prop_lstring(ctx, -2, "ETIMEDOUT", 9);
 
         // evbuffer_len
         duk_push_c_lightfunc(ctx, _ejs_evbuffer_len, 1, 1, 0);

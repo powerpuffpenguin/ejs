@@ -1,13 +1,13 @@
+
+
 declare namespace __duk {
     class Error {
         constructor(message?: string)
     }
     class OsError extends Error { }
-    namespace Os {
-        const ETIMEDOUT: number
-    }
 }
 declare namespace deps {
+    const ETIMEDOUT: number
     export function eq(a: Uint8Array, b: Uint8Array): boolean
     export function hex_string(b: Uint8Array): string
     export function ip_string(ip: Uint8Array): string
@@ -124,11 +124,15 @@ declare namespace deps {
     }
     export function resolver_new(opts: ResolverOptions): Resolver
     export function resolver_free(r: Resolver): void
+    export interface ResolverResult {
+        ip?: Array<string>
+        v6?: boolean
+    }
     export interface ResolverIPOptions {
         r: Resolver
         name: string
         v6: boolean
-        cb: (ip: Array<string>, result: number, msg: string) => void
+        cb: (v?: ResolverResult, result?: number, msg?: string) => void
     }
     export function resolver_ip(opts: ResolverIPOptions): Resolve
     export function resolver_ip_cancel(r: Resolve): void
@@ -686,6 +690,10 @@ export interface ResolveOptions {
      */
     v6?: boolean
 }
+export interface ResolveResult {
+    ip?: Array<string>
+    v6?: boolean
+}
 
 export type AbortListener = (this: AbortSignal, reason: any) => any
 /** 
@@ -793,13 +801,13 @@ export class ResolverError extends NetError {
 }
 
 class Resolve4or6 {
-    cb?: (ip?: Array<string>, e?: any, ipv6?: boolean) => void
+    cb?: (v?: ResolveResult, e?: any) => void
 
     v4?: deps.Resolve
     v6?: deps.Resolve
     err?: ResolverError
-    ip?: Array<string>
-    constructor(readonly r: deps.Resolver, readonly opts: ResolveOptions, cb?: (ip?: Array<string>, e?: any, ipv6?: boolean) => void) {
+    v?: deps.ResolverResult
+    constructor(readonly r: deps.Resolver, readonly opts: ResolveOptions, cb?: (v?: ResolveResult, e?: any) => void) {
         this.cb = cb
     }
     private _cancel() {
@@ -834,12 +842,12 @@ class Resolve4or6 {
 
         try {
             const r = this.r
-            const onip = (ipv6: boolean, ip: Array<string>, result: number, msg: string) => {
+            const onip = (v6: boolean, v?: deps.ResolverResult, result?: number, msg?: string) => {
                 const cb = this.cb
                 if (!cb) {
                     return
                 }
-                if (ipv6) {
+                if (v6) {
                     this.v6 = undefined
                 } else {
                     this.v4 = undefined
@@ -856,14 +864,14 @@ class Resolve4or6 {
                         return
                     }
 
-                    err = new ResolverError(msg)
+                    err = new ResolverError(msg!)
                     this.err = err
                     if (result == 69) {
                         err.cancel = true
                     }
                     err.result = result
 
-                    if (this.ip) { // 2 request end
+                    if (this.v) { // 2 request end
                         this.cb = undefined
                         this._cancel()
                         if (onAbort) {
@@ -872,7 +880,7 @@ class Resolve4or6 {
                         cb(undefined, err)
                     }
                     return
-                } else if (ip.length == 0) {
+                } else if (!v!.ip) {
                     const err = this.err
                     if (err) { // 2 request end
                         this.cb = undefined
@@ -883,7 +891,7 @@ class Resolve4or6 {
                         cb(undefined, err)
                         return
                     }
-                    this.ip = ip
+                    this.v = v
                     return
                 }
 
@@ -892,14 +900,14 @@ class Resolve4or6 {
                 if (onAbort) {
                     signal!.removeEventListener(onAbort)
                 }
-                cb(ip, undefined, ipv6)
+                cb(v, undefined)
             }
             this.v4 = deps.resolver_ip({
                 r: r,
                 name: opts.name,
                 v6: false,
-                cb: (ip, result, msg) => {
-                    onip(false, ip, result, msg)
+                cb: (v, result, msg) => {
+                    onip(false, v, result, msg)
                 },
             })
             this.v6 = deps.resolver_ip({
@@ -921,6 +929,7 @@ class Resolve4or6 {
         }
     }
 }
+
 export class Resolver {
     private r_?: deps.Resolver
     constructor(opts: deps.ResolverOptions = { system: true }) {
@@ -938,24 +947,24 @@ export class Resolver {
         }
     }
 
-    resolve(opts: ResolveOptions, cb: (this: Resolver, ip?: Array<string>, e?: any, ipv6?: boolean) => void): void {
+    resolve(opts: ResolveOptions, cb: (v?: ResolveResult, e?: any) => void): void {
         const r = this.r_
         if (!r) {
             throw new ResolverError("Resolver already closed")
         }
         if (typeof cb !== "function") {
-            throw new ResolverError("cb must be an function")
+            throw new ResolverError("cb must be a function")
         }
         if (typeof opts.name !== "string" || opts.name == "") {
             throw new ResolverError("resolve name invalid")
         }
         if (opts.v6 === undefined || opts.v6 === null) {
-            new Resolve4or6(r, opts, cb.bind(this)).resolve()
+            new Resolve4or6(r, opts, cb).resolve()
         } else {
-            this._resolve(r, opts.v6 ? true : false, opts, cb.bind(this))
+            this._resolve(r, opts.v6 ? true : false, opts, cb)
         }
     }
-    private _resolve(r: deps.Resolver, v6: boolean, opts: ResolveOptions, cb?: (ip?: Array<string>, e?: any, ipv6?: boolean) => void): void {
+    private _resolve(r: deps.Resolver, v6: boolean, opts: ResolveOptions, cb?: (v?: ResolveResult, e?: any) => void): void {
         let req: deps.Resolve | undefined
         let onAbort: AbortListener | undefined
         const signal = opts.signal
@@ -979,7 +988,7 @@ export class Resolver {
                 r: r,
                 name: opts.name,
                 v6: v6,
-                cb: (ip, result, msg) => {
+                cb: (v, result, msg) => {
                     const f = cb
                     if (!f) {
                         return
@@ -990,14 +999,14 @@ export class Resolver {
                     }
 
                     if (result) {
-                        const e = new ResolverError(msg)
+                        const e = new ResolverError(msg!)
                         if (result == 69) {
                             e.cancel = true
                         }
                         e.result = result
                         f(undefined, e)
                     } else {
-                        f(ip, undefined, v6)
+                        f(v, undefined)
                     }
                 },
             })
@@ -1243,7 +1252,7 @@ export class BaseTcpConn implements Conn {
                     }
                 } else if (what & deps.BEV_EVENT_ERROR) {
                     if (f) {
-                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                        if (deps.socket_error() === deps.ETIMEDOUT) {
                             e = new bridge.Error("write timeout")
                         } else {
                             e = new bridge.Error(deps.socket_error_str())
@@ -1268,7 +1277,7 @@ export class BaseTcpConn implements Conn {
                     }
                 } else if (what & deps.BEV_EVENT_ERROR) {
                     if (f) {
-                        if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                        if (deps.socket_error() === deps.ETIMEDOUT) {
                             e = new bridge.Error("read timeout")
                         } else {
                             e = new bridge.Error(deps.socket_error_str())
@@ -1760,7 +1769,7 @@ function tcp_dial_ip(opts: {
             } else if (what & deps.BEV_EVENT_ERROR) {
                 deps.tcp_conn_close(c)
 
-                if (deps.socket_error() === __duk.Os.ETIMEDOUT) {
+                if (deps.socket_error() === deps.ETIMEDOUT) {
                     const e = new opts.Error("connect timeout")
                     e.connect = true
                     e.timeout = true
@@ -1861,14 +1870,14 @@ function tcp_dial_host(opts: {
             if (!ip) {
                 cb(undefined, e)
                 return
-            } else if (ip.length === 0) {
+            } else if (!ip.ip) {
                 cb(undefined, new TcpError(`unknow host: ${opts.name}`))
                 return
             }
             tcp_dial_ip({
                 sync: false,
                 Error: TcpError,
-                ip: ip[0],
+                ip: ip.ip[0],
                 port: opts.port,
                 v6: opts.v6,
                 cb: cb,
@@ -2386,10 +2395,10 @@ function udp_dial_ip(opts: {
         return
     }
     if (opts.sync) {
-        setTimeout(() => {
+        setImmediate(() => {
             const cb = opts.cb
             cb(conn)
-        }, 0)
+        })
     } else {
         const cb = opts.cb
         cb(conn)
@@ -2433,14 +2442,14 @@ function udp_dial_host(opts: {
             if (!ip) {
                 cb(undefined, e)
                 return
-            } else if (ip.length === 0) {
+            } else if (!ip.ip) {
                 cb(undefined, new UdpError(`unknow host: ${opts.name}`))
                 return
             }
 
             udp_dial_ip({
                 sync: false,
-                ip: ip[0],
+                ip: ip.ip[0],
                 port: opts.port,
                 v6: opts.v6,
                 cb: cb,
@@ -2644,10 +2653,10 @@ export class UdpConn {
             case 'udp':
                 break;
             case 'udp4':
-                v6 = true
+                v6 = false
                 break;
             case 'udp6':
-                v6 = false
+                v6 = true
                 break;
             default:
                 throw new UdpError(`unknow network: ${opts.network}`)
