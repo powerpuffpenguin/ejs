@@ -1,5 +1,6 @@
 import { Command } from "../flags";
 import * as net from "ejs/net";
+import { go, YieldContext, ResumeContext } from "ejs/sync";
 export const command = new Command({
     use: 'udp-client',
     short: 'udp echo client example',
@@ -40,26 +41,29 @@ export const command = new Command({
                 }, v)
             }
 
-            net.UdpConn.dialHost({
-                network: network.value as any,
-                address: address.value,
-                signal: abort?.signal,
-            }, (c, e) => {
-                if (timer) {
-                    clearTimeout(timer)
-                }
-                if (!c) {
+            go((co) => {
+                let c: net.UdpConn
+
+                try {
+                    c = net.UdpConn.dialHost(co, {
+                        network: network.value as any,
+                        address: address.value,
+                        signal: abort?.signal,
+                    })
+                } catch (e) {
                     console.log("connect error:", e)
                     return
+                } finally {
+                    clearTimeout(timer)
                 }
 
                 console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)
+
                 new State(c, count.value).next()
             })
         }
     },
 })
-
 
 class State {
     constructor(readonly c: net.UdpConn, readonly count: number) {

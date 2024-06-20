@@ -3,6 +3,7 @@
 #include "filepath_test.h"
 #include "list_test.h"
 #include "queue_test.h"
+#include "loop_buffer_test.h"
 #include "thread_pool_test.h"
 
 CuSuite *ejs_unit_tests(void)
@@ -13,6 +14,7 @@ CuSuite *ejs_unit_tests(void)
     EJS_TESTS_ADD_GROUP(suite, filepath);
     EJS_TESTS_ADD_GROUP(suite, list);
     EJS_TESTS_ADD_GROUP(suite, queue);
+    EJS_TESTS_ADD_GROUP(suite, loop_buffer);
 
     return suite;
 }

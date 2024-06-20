@@ -26,6 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
+var sync = __importStar(require("ejs/sync"));
 exports.command = new flags_1.Command({
     use: 'udp-client',
     short: 'udp echo client example',
@@ -65,17 +66,21 @@ exports.command = new flags_1.Command({
                     abort.abort('dial timeout');
                 }, v);
             }
-            net.UdpConn.dialHost({
-                network: network.value,
-                address: address.value,
-                signal: abort === null || abort === void 0 ? void 0 : abort.signal,
-            }, function (c, e) {
-                if (timer) {
-                    clearTimeout(timer);
+            sync.go(function (co) {
+                var c;
+                try {
+                    c = net.UdpConn.dialHost(co, {
+                        network: network.value,
+                        address: address.value,
+                        signal: abort === null || abort === void 0 ? void 0 : abort.signal,
+                    });
                 }
-                if (!c) {
+                catch (e) {
                     console.log("connect error:", e);
                     return;
+                }
+                finally {
+                    clearTimeout(timer);
                 }
                 console.log("connect success: ".concat(c.localAddr, " -> ").concat(c.remoteAddr));
                 new State(c, count.value).next();

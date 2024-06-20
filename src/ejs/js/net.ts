@@ -182,7 +182,7 @@ declare namespace deps {
     export let _ipv4: undefined | boolean
     export function support_ipv4(): boolean
 }
-
+import { parseArgs, parseOptionalArgs, callReturn, callVoid, coReturn } from "ejs/sync";
 export class AddrError extends __duk.Error {
     constructor(readonly addr: string, message: string) {
         super(message);
@@ -2394,15 +2394,17 @@ function udp_dial_ip(opts: {
         }
         return
     }
-    if (opts.sync) {
-        setImmediate(() => {
-            const cb = opts.cb
-            cb(conn)
-        })
-    } else {
-        const cb = opts.cb
-        cb(conn)
-    }
+    // if (opts.sync) {
+    //     setImmediate(() => {
+    //         const cb = opts.cb
+    //         cb(conn)
+    //     })
+    // } else {
+    //     const cb = opts.cb
+    //     cb(conn)
+    // }
+    const cb = opts.cb
+    cb(conn)
 }
 function udp_dial_host(opts: {
     sync: boolean
@@ -2569,6 +2571,7 @@ function udp_dial(opts: {
         cb: opts.cb,
     })
 }
+
 export class UdpConn {
     /**
      * Create a udp socket
@@ -2643,7 +2646,35 @@ export class UdpConn {
      * 
      * similar to abc but supports using domain names as addresses
      */
-    static dialHost(opts: UdpDialHostOptions, cb?: (c?: UdpConn, e?: any) => void): void {
+    static dialHost(a: any, b: any) {
+        const args = parseArgs<UdpDialHostOptions, (c?: UdpConn, e?: any) => void>('dialHost', a, b)
+        if (args.co) {
+            return coReturn(args.co, UdpConn._dialHost, args.opts!)
+        } else if (args.cb) {
+            let sync = true
+            UdpConn._dialHost(args.opts!, (c, e) => {
+                if (sync) {
+                    setImmediate(() => {
+                        args.cb!(c, e)
+                    })
+                } else {
+                    args.cb!(c, e)
+                }
+            })
+            sync = false
+        } else {
+            return new Promise((resolve, reject) => {
+                UdpConn._dialHost(args.opts!, (c, e) => {
+                    if (c) {
+                        resolve(c)
+                    } else {
+                        reject(e)
+                    }
+                })
+            })
+        }
+    }
+    private static _dialHost(opts: UdpDialHostOptions, cb?: (c?: UdpConn, e?: any) => void): void {
         if (typeof cb !== "function") {
             throw new UdpError("cb must be a function")
         }
@@ -2958,6 +2989,8 @@ export class UdpConn {
         }
     }
 }
+
+
 export function isSupportV6(): boolean {
     let ok = deps._ipv6
     if (ok === undefined) {

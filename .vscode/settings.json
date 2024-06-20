@@ -86,6 +86,7 @@
         "_duk_os.h": "c",
         "time.h": "c",
         "_duk_async.h": "c",
-        "condition_variable": "c"
+        "condition_variable": "c",
+        "sync.h": "c"
     }
 }

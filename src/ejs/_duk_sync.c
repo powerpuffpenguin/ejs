@@ -3,18 +3,11 @@
 #include "stash.h"
 static duk_ret_t in_thread(duk_context *ctx)
 {
-    duk_push_current_thread(ctx);
-    duk_bool_t ok = duk_is_undefined(ctx, -1);
-    duk_pop(ctx);
-    if (ok)
-    {
-        duk_push_false(ctx);
-    }
-    else
-    {
-        duk_push_true(ctx);
-    }
-    return 1;
+    duk_size_t len;
+    void *p = duk_require_buffer_data(ctx, 0, &len);
+    printf("%x %ld\n", p, len);
+    printf("%x %ld\n", p, len);
+    return 0;
 }
 duk_ret_t _ejs_native_sync_init(duk_context *ctx)
 {
@@ -38,7 +31,7 @@ duk_ret_t _ejs_native_sync_init(duk_context *ctx)
 
     duk_call(ctx, 3);
 
-    duk_push_c_lightfunc(ctx, in_thread, 0, 0, 0);
+    duk_push_c_lightfunc(ctx, in_thread, 1, 1, 0);
     duk_put_prop_lstring(ctx, -2, "in_thread", 9);
     return 0;
 }

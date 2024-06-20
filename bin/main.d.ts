@@ -111,6 +111,7 @@ namespace ejs {
 }
 
 declare module "ejs/net" {
+    import { YieldContext } from "ejs/sync"
     export const IPv4len = 4;
     export const IPv6len = 16;
     export class AddrError extends ejs.Error {
@@ -729,9 +730,23 @@ declare module "ejs/net" {
          * Connect to udp server
          * @remarks
          * 
-         * similar to abc but supports using domain names as addresses
+         * similar to dial but supports using domain names as addresses
          */
         static dialHost(opts: UdpDialHostOptions, cb: (c?: UdpConn, e?: any) => void): void
+        /**
+        * Connect to udp server
+        * @remarks
+        * 
+        * similar to dial but supports using domain names as addresses
+        */
+        static dialHost(opts: UdpDialHostOptions): Promise<UdpConn>
+        /**
+        * Connect to udp server
+        * @remarks
+        * 
+        * similar to dial but supports using domain names as addresses
+        */
+        static dialHost(co: YieldContext, opts: UdpDialHostOptions): UdpConn
         /**
          * 
          * Used to lock and only communicate with this address. You can think of it as a udp connection, but it will not actually create a connection, just lock the communication address.

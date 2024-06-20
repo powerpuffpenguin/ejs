@@ -1,6 +1,11 @@
 var sync = require("ejs/sync")
 var os = require("ejs/os")
 var File = os.File
+var a = new Uint8Array(128)
+
+sync.in_thread(a)
+a = a.subarray(4)
+sync.in_thread(a)
 
 sync.go(function (co) {
 

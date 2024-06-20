@@ -43,4 +43,5 @@ void ppp_buffer_init(ppp_buffer_t *buf);
 void ppp_buffer_destroy(ppp_buffer_t *buf);
 int ppp_buffer_write(ppp_buffer_t *buf, const void *src, size_t n, size_t alloc);
 int ppp_buffer_read(ppp_buffer_t *buf, void *dst, size_t n);
+
 #endif
