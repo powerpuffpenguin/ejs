@@ -1,6 +1,6 @@
 import { Command } from "../flags";
 import * as net from "ejs/net";
-import { go, YieldContext, ResumeContext } from "ejs/sync";
+import { go } from "ejs/sync";
 export const command = new Command({
     use: 'udp-client',
     short: 'udp echo client example',
@@ -58,8 +58,25 @@ export const command = new Command({
                 }
 
                 console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)
+                const r = new net.UdpConnReader(c)
+                try {
+                    for (let i = 0; count.value < 1 || i < count.value; i++) {
+                        const msg = new TextEncoder().encode(`這個第 ${i + 1} 個 message`)
+                        r.write(msg)
 
-                new State(c, count.value).next()
+                        const data = r.read(co)
+                        if (!data) {
+                            console.log("read eof")
+                            break
+                        }
+                        console.log("recv:", new TextDecoder().decode(data), data)
+                    }
+                    r.close()
+                    console.log("completed")
+                } catch (e) {
+                    r.close()
+                    console.log(`udp error: ${e}`)
+                }
             })
         }
     },

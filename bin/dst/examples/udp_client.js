@@ -26,7 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
-var sync = __importStar(require("ejs/sync"));
+var sync_1 = require("ejs/sync");
 exports.command = new flags_1.Command({
     use: 'udp-client',
     short: 'udp echo client example',
@@ -66,7 +66,7 @@ exports.command = new flags_1.Command({
                     abort.abort('dial timeout');
                 }, v);
             }
-            sync.go(function (co) {
+            (0, sync_1.go)(function (co) {
                 var c;
                 try {
                     c = net.UdpConn.dialHost(co, {
@@ -83,7 +83,25 @@ exports.command = new flags_1.Command({
                     clearTimeout(timer);
                 }
                 console.log("connect success: ".concat(c.localAddr, " -> ").concat(c.remoteAddr));
-                new State(c, count.value).next();
+                var r = new net.UdpConnReader(c);
+                try {
+                    for (var i = 0; count.value < 1 || i < count.value; i++) {
+                        var msg = new TextEncoder().encode("\u9019\u500B\u7B2C ".concat(i + 1, " \u500B message"));
+                        r.write(msg);
+                        var data = r.read(co);
+                        if (!data) {
+                            console.log("read eof");
+                            break;
+                        }
+                        console.log("recv:", new TextDecoder().decode(data), data);
+                    }
+                    r.close();
+                    console.log("completed");
+                }
+                catch (e) {
+                    r.close();
+                    console.log("udp error: ".concat(e));
+                }
             });
         };
     },

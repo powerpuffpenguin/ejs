@@ -803,6 +803,51 @@ declare module "ejs/net" {
         onReadable?: (this: UdpConn, r: UdpReadable) => void
     }
     /**
+     * Wraps the original udp conn with a more user-friendly read function
+     */
+    class UdpConnReader {
+        /**
+         * 
+         * @param conn 
+         * @param bufferFrames How many frames can be cached
+         */
+        constructor(readonly conn: UdpConn, bufferFrames = 32)
+
+        /**
+         * Do not call conn.close. You need to call reader's close, otherwise the executing read will not be notified of the connection closing.
+         */
+        close(): void
+        /**
+         * Read a frame of data.
+         * If undefined is returned, it means that eof is read.
+         */
+        read(co: YieldContext): Uint8Array | undefined
+        /**
+         * Read a frame of data.
+         * If undefined is returned, it means that eof is read.
+         */
+        read(): Promise<Uint8Array | undefined>
+        /**
+         * Read a frame of data.
+         * If undefined is returned, it means that eof is read.
+         */
+        read(cb: (msg?: Uint8Array, e?: any) => void): void
+
+        /**
+         * After calling connect, you can only use write to write data
+         * 
+         * @param data data to write
+         */
+        write(data: string | Uint8Array | ArrayBuffer): number
+        /**
+         * Before calling connect, you can only use writeTo to write data
+         * 
+         * @param data data to write
+         * @param remoteAddr write target address
+         */
+        writeTo(data: string | Uint8Array | ArrayBuffer, remoteAddr: UdpAddr): number
+    }
+    /**
      * Returns whether ipv6 is supported
      */
     export function isSupportV6(): boolean

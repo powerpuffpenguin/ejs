@@ -22,6 +22,21 @@ duk_ret_t _ejs_helper_bytes_equal(duk_context *ctx)
     duk_push_false(ctx);
     return 1;
 }
+duk_ret_t _ejs_helper_bytes_copy(duk_context *ctx)
+{
+    duk_size_t l0;
+    const char *s0 = duk_require_buffer_data(ctx, 0, &l0);
+    duk_size_t l1;
+    const char *s1 = duk_require_buffer_data(ctx, 1, &l1);
+    duk_size_t n = l0 < l1 ? l0 : l1;
+    if (n)
+    {
+        memcpy(s0, s1, n);
+    }
+    duk_pop_2(ctx);
+    duk_push_number(ctx, n);
+    return 1;
+}
 void _ejs_helper_c_hex_string(duk_context *ctx, const uint8_t *b, const duk_size_t length)
 {
     if (length)

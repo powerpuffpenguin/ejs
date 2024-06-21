@@ -7,6 +7,7 @@ sync.in_thread(a)
 a = a.subarray(4)
 sync.in_thread(a)
 
+
 sync.go(function (co) {
 
     var f

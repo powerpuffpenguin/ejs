@@ -1,14 +1,14 @@
 #include "_duk_sync.h"
 #include "js/sync.h"
 #include "stash.h"
-static duk_ret_t in_thread(duk_context *ctx)
-{
-    duk_size_t len;
-    void *p = duk_require_buffer_data(ctx, 0, &len);
-    printf("%x %ld\n", p, len);
-    printf("%x %ld\n", p, len);
-    return 0;
-}
+// static duk_ret_t in_thread(duk_context *ctx)
+// {
+//     duk_size_t len;
+//     void *p = duk_require_buffer_data(ctx, 0, &len);
+//     printf("%x %ld\n", p, len);
+//     printf("%x %ld\n", p, len);
+//     return 0;
+// }
 duk_ret_t _ejs_native_sync_init(duk_context *ctx)
 {
     /*
@@ -31,7 +31,7 @@ duk_ret_t _ejs_native_sync_init(duk_context *ctx)
 
     duk_call(ctx, 3);
 
-    duk_push_c_lightfunc(ctx, in_thread, 1, 1, 0);
-    duk_put_prop_lstring(ctx, -2, "in_thread", 9);
+    // duk_push_c_lightfunc(ctx, in_thread, 1, 1, 0);
+    // duk_put_prop_lstring(ctx, -2, "in_thread", 9);
     return 0;
 }

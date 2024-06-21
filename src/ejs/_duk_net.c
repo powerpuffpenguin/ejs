@@ -3470,6 +3470,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
     duk_push_object(ctx);
     {
+        duk_push_c_lightfunc(ctx, _ejs_helper_bytes_copy, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "copy", 4);
         duk_push_c_lightfunc(ctx, _ejs_helper_bytes_equal, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "eq", 2);
         duk_push_c_lightfunc(ctx, _ejs_helper_hex_string, 1, 1, 0);
