@@ -1,6 +1,7 @@
 
 import { Command } from "../flags";
 import * as net from "ejs/net";
+import { go } from "ejs/sync";
 export const command = new Command({
     use: 'udp-server',
     short: 'udp echo server example',
@@ -33,24 +34,21 @@ export const command = new Command({
             })
             console.log(`listen: ${c.localAddr}`)
             const max = count.value
-            let i = 0
-            const buf = new Uint8Array(1024 * 32)
             const addr = new net.UdpAddr()
-            // recv
-            c.onReadable = (r) => {
-                const n = r.read(buf, addr)
-                const data = buf.subarray(0, n)
-                console.log(`recv ${addr}:`, data)
-                c.writeTo(data, addr)
-
-                // Shut down the service after processing max requests
-                if (max > 0) {
-                    i++
-                    if (i >= max) {
-                        c.close()
+            const r = new net.UdpConnReader(c, undefined, true)
+            go((co) => {
+                try {
+                    for (let i = 0; max < 1 || i < max; i++) {
+                        const data = r.read(co, addr)!
+                        console.log(`recv ${addr}:`, data)
+                        c.writeTo(data, addr)
                     }
+                } catch (e) {
+                    console.log(`error: ${e}`)
+                } finally {
+                    c.close()
                 }
-            }
+            })
         }
     },
 })

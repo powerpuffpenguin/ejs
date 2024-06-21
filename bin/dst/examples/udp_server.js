@@ -26,6 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
+var sync_1 = require("ejs/sync");
 exports.command = new flags_1.Command({
     use: 'udp-server',
     short: 'udp echo server example',
@@ -61,20 +62,36 @@ exports.command = new flags_1.Command({
             var i = 0;
             var buf = new Uint8Array(1024 * 32);
             var addr = new net.UdpAddr();
-            // recv
-            c.onReadable = function (r) {
-                var n = r.read(buf, addr);
-                var data = buf.subarray(0, n);
-                console.log("recv ".concat(addr, ":"), data);
-                c.writeTo(data, addr);
-                // Shut down the service after processing max requests
-                if (max > 0) {
-                    i++;
-                    if (i >= max) {
-                        c.close();
+            var r = new net.UdpConnReader(c, undefined, true);
+            (0, sync_1.go)(function (co) {
+                try {
+                    for (var i_1 = 0; max < 1 || i_1 < max; i_1++) {
+                        var data = r.read(co, addr);
+                        console.log("recv ".concat(addr, ":"), data);
+                        c.writeTo(data, addr);
                     }
                 }
-            };
+                catch (e) {
+                    console.log("error: ".concat(e));
+                }
+                finally {
+                    c.close();
+                }
+            });
+            // // recv
+            // c.onReadable = (r) => {
+            //     const n = r.read(buf, addr)
+            //     const data = buf.subarray(0, n)
+            //     console.log(`recv ${addr}:`, data)
+            //     c.writeTo(data, addr)
+            //     // Shut down the service after processing max requests
+            //     if (max > 0) {
+            //         i++
+            //         if (i >= max) {
+            //             c.close()
+            //         }
+            //     }
+            // }
         };
     },
 });
