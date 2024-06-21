@@ -143,6 +143,7 @@ declare namespace deps {
         s?: string
     }
     export function udp_addr(ip: string, port: number): UdpAddr
+    export function udp_addr_copy(dst: UdpAddr, src: UdpAddr): void
     export function udp_addr_s(addr: UdpAddr): string
     export class UdpConn {
         readonly __id = "UdpConn"
@@ -2165,6 +2166,19 @@ export class UdpAddr implements Addr {
             this.addr_ = addr
         }
     }
+    copyFrom(o: UdpAddr) {
+        if (o.addr_) {
+            if (this.addr_) {
+                deps.udp_addr_copy(this.addr_, o.addr_)
+            } else {
+                const addr = isSupportV6() ? deps.udp_addr('0.0.0.0', 80) : deps.udp_addr('::', 80)
+                deps.udp_addr_copy(addr, o.addr_)
+                this.addr_ = addr
+            }
+        } else {
+            this.addr_ = undefined
+        }
+    }
 }
 
 class BaseUdpConn {
@@ -2911,10 +2925,16 @@ export class UdpConn {
         const onMessage = this.onMessageBind_
         if (onMessage) {
             const r = new udpReadable(this.c_)
-            const b = this._buffer()
-            const n = r.read(b)
+            let b: Uint8Array
+            let n: number
+            try {
+                b = this._buffer()
+                n = r.read(b)
+            } catch (e) {
+                console.log(`udp read: ${e}`)
+                return
+            }
             switch (n) {
-                case -1:
                 case 0:
                     break
                 case b.length:
@@ -3032,9 +3052,14 @@ class FixedBuffer<T> {
         }
     }
 }
+interface UdpRead {
+    data: Uint8Array
+    addr?: UdpAddr
+}
 export class UdpConnReader {
-    private buf_: FixedBuffer<Uint8Array>
-    constructor(readonly conn: UdpConn, n?: number) {
+    private buf_: FixedBuffer<UdpRead>
+    private addr_?: FixedBuffer<UdpAddr>
+    constructor(readonly conn: UdpConn, n?: number, addr?: boolean) {
         if (!(conn instanceof UdpConn)) {
             throw new Error("conn must be a UdpConn")
         } else if (Number.isSafeInteger(n)) {
@@ -3046,91 +3071,202 @@ export class UdpConnReader {
         } else {
             n = 32
         }
-        this.buf_ = new FixedBuffer(new Array<Uint8Array>(n!))
+        this.buf_ = new FixedBuffer(new Array<UdpRead>(n!))
+        if (addr) {
+            this.addr_ = new FixedBuffer(new Array<UdpAddr>(n!))
+        }
         this._read()
     }
     private _read() {
         const conn = this.conn
-        conn.onReadable = undefined
-        const buf = this.buf_
-        conn.onMessage = (msg) => {
-            let v: Uint8Array
+        conn.onMessage = undefined
+        const addr = this.addr_
+        conn.onReadable = (r) => {
+            let b: Uint8Array | undefined
+            let remote: UdpAddr | undefined
             try {
-                if (msg.length) {
-                    v = new Uint8Array(msg.length)
-                    deps.copy(v, msg)
-                } else {
-                    v = msg
+                b = this.conn.buffer
+                if (!b || b.length < 1) {
+                    b = new Uint8Array(1024 * 32)
+                    this.conn.buffer = b
+                }
+                if (addr) {
+                    remote = addr.pop()
+                    if (!remote) {
+                        remote = new UdpAddr()
+                    }
                 }
             } catch (e) {
+                if (remote) {
+                    addr!.push(remote)
+                }
+                const cb = this.cb_
+                if (cb) {
+                    this.cb_ = undefined
+                    cb(undefined, e)
+                    return
+                } else {
+                    console.log(`UdpConnReader: ${e}`)
+                    return
+                }
+            }
+            let n: number
+            try {
+                n = r.read(b, remote)
+            } catch (e) {
+                if (remote) {
+                    addr!.push(remote)
+                }
                 console.log(`UdpConnReader: ${e}`)
                 return
             }
-            const cb = this.cb_
-            if (cb) {
-                this.cb_ = undefined
-                cb(v)
-                return
-            }
-
-            buf.push(v)
-            if (buf.full()) {
-                conn.onMessage = undefined
+            switch (n) {
+                case 0:
+                    {
+                        if (remote) {
+                            addr!.push(remote)
+                        }
+                        const cb = this.cb_
+                        if (cb) {
+                            this.cb_ = undefined
+                            cb()
+                        }
+                    }
+                    break
+                case b.length:
+                    this._onMessage(b, remote)
+                    break
+                default:
+                    this._onMessage(b.length == n ? b : b.subarray(0, n), remote)
+                    break
             }
         }
     }
-    private cb_?: (msg?: Uint8Array, e?: any) => void
-    read(a: any) {
+    private _onMessage(msg: Uint8Array, addr?: UdpAddr) {
+        let v: Uint8Array
+        try {
+            if (msg.length) {
+                v = new Uint8Array(msg.length)
+                deps.copy(v, msg)
+            } else {
+                v = msg
+            }
+        } catch (e) {
+            console.log(`UdpConnReader: ${e}`)
+            return
+        }
+        const cb = this.cb_
+        if (cb) {
+            this.cb_ = undefined
+            cb({
+                data: v,
+                addr: addr,
+            })
+            return
+        }
+        const buf = this.buf_
+        buf.push({
+            data: v,
+            addr: addr,
+        })
+        if (buf.full()) {
+            this.conn.onReadable = undefined
+        }
+    }
+    private cb_?: (data?: UdpRead, e?: any) => void
+    read(a: any, b: any) {
         if (this.conn.isClosed) {
             throw new UdpError("conn already closed")
         }
-        if (a === undefined || a === null) {
+        const args = parseOptionalArgs<UdpAddr, (msg?: Uint8Array, e?: any) => void>('read', a, b)
+        const addr = args.opts
+        if (args.co) {
+            const v = this.buf_.pop()
+            if (v) {
+                if (!this.conn.onReadable) {
+                    this._read()
+                }
+                if (addr && v.addr) {
+                    addr.copyFrom(v.addr)
+                    this.addr_!.push(v.addr)
+                }
+                return v.data
+            }
+            const v1 = args.co.yield<UdpRead>((notify) => {
+                this.cb_ = (v, e) => {
+                    if (e === undefined) {
+                        notify.value(v!)
+                    } else {
+                        notify.error(e)
+                    }
+                }
+            })
+            if (addr && v1.addr) {
+                addr.copyFrom(v1.addr)
+                this.addr_!.push(v1.addr)
+            }
+            return v1.data
+        } else if (args.cb) {
+            const cb = args.cb
+            const v = this.buf_.pop()
+            if (v) {
+                if (!this.conn.onReadable) {
+                    this._read()
+                }
+                if (addr && v.addr) {
+                    addr.copyFrom(v.addr)
+                    this.addr_!.push(v.addr)
+                }
+                cb(v.data)
+                return
+            }
+            this.cb_ = (v, e) => {
+                if (e === undefined) {
+                    if (addr && v?.addr) {
+                        try {
+                            addr.copyFrom(v!.addr)
+                            this.addr_!.push(v.addr)
+                        } catch (e) {
+                            cb(undefined, e)
+                            return
+                        }
+                    }
+                    cb(v!.data)
+                } else {
+                    cb(undefined, e)
+                }
+            }
+        } else {
             return new Promise<Uint8Array | undefined>((resolve, reject) => {
                 const v = this.buf_.pop()
                 if (v) {
                     if (!this.conn.onMessage) {
                         this._read()
                     }
-                    resolve(v)
+                    if (addr && v.addr) {
+                        addr.copyFrom(v.addr)
+                        this.addr_!.push(v.addr)
+                    }
+                    resolve(v.data)
                     return
                 }
                 this.cb_ = (v, e) => {
                     if (e === undefined) {
-                        resolve(v)
+                        if (addr && v?.addr) {
+                            try {
+                                addr.copyFrom(v.addr)
+                                this.addr_!.push(v.addr)
+                            } catch (e) {
+                                reject(e)
+                                return
+                            }
+                        }
+                        resolve(v!.data)
                     } else {
                         reject(e)
                     }
                 }
             })
-        } else if (isYieldContext(a)) {
-            const v = this.buf_.pop()
-            if (v) {
-                if (!this.conn.onMessage) {
-                    this._read()
-                }
-                return v
-            }
-            return a.yield((notify) => {
-                this.cb_ = (v, e) => {
-                    if (e === undefined) {
-                        notify.value(v)
-                    } else {
-                        notify.error(e)
-                    }
-                }
-            })
-        } else if (typeof a === "function") {
-            const v = this.buf_.pop()
-            if (v) {
-                if (!this.conn.onMessage) {
-                    this._read()
-                }
-                a(v)
-                return
-            }
-            this.cb_ = a
-        } else {
-            throw new Error("cb must be a function");
         }
     }
     close() {

@@ -810,8 +810,9 @@ declare module "ejs/net" {
          * 
          * @param conn 
          * @param bufferFrames How many frames can be cached
+         * @param addr read remote addr
          */
-        constructor(readonly conn: UdpConn, bufferFrames = 32)
+        constructor(readonly conn: UdpConn, bufferFrames = 32, addr = false)
 
         /**
          * Do not call conn.close. You need to call reader's close, otherwise the executing read will not be notified of the connection closing.
@@ -821,17 +822,22 @@ declare module "ejs/net" {
          * Read a frame of data.
          * If undefined is returned, it means that eof is read.
          */
-        read(co: YieldContext): Uint8Array | undefined
+        read(co: YieldContext, addr?: UdpAddr): Uint8Array | undefined
         /**
          * Read a frame of data.
          * If undefined is returned, it means that eof is read.
          */
-        read(): Promise<Uint8Array | undefined>
+        read(addr?: UdpAddr): Promise<Uint8Array | undefined>
         /**
          * Read a frame of data.
          * If undefined is returned, it means that eof is read.
          */
         read(cb: (msg?: Uint8Array, e?: any) => void): void
+        /**
+         * Read a frame of data.
+         * If undefined is returned, it means that eof is read.
+         */
+        read(addr: UdpAddr, cb: (msg?: Uint8Array, e?: any) => void): void
 
         /**
          * After calling connect, you can only use write to write data

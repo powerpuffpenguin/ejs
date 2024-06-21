@@ -264,16 +264,12 @@ void _ejs_init_timer(duk_context *ctx)
 void _ejs_destroy_timer(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, -1, EJS_STASH_IMMEDIATE);
-    if (duk_is_undefined(ctx, -1))
-    {
-        duk_pop(ctx);
-    }
-    else
+    if (!duk_is_undefined(ctx, -1))
     {
         duk_get_prop_lstring(ctx, -1, "p", 1);
         ejs_timer_t *timer = duk_require_pointer(ctx, -1);
         duk_set_finalizer(ctx, -2);
         timer_destroy(timer);
-        duk_pop_2(ctx);
     }
+    duk_pop(ctx);
 }

@@ -25,7 +25,7 @@ duk_ret_t _ejs_helper_bytes_equal(duk_context *ctx)
 duk_ret_t _ejs_helper_bytes_copy(duk_context *ctx)
 {
     duk_size_t l0;
-    const char *s0 = duk_require_buffer_data(ctx, 0, &l0);
+    char *s0 = duk_require_buffer_data(ctx, 0, &l0);
     duk_size_t l1;
     const char *s1 = duk_require_buffer_data(ctx, 1, &l1);
     duk_size_t n = l0 < l1 ? l0 : l1;

@@ -2473,6 +2473,74 @@ static duk_ret_t udp_addr(duk_context *ctx)
     }
     return 1;
 }
+typedef struct
+{
+    void *dst;
+    struct sockaddr_in *src;
+} udp_addr_copy_args_t;
+static duk_ret_t udp_addr_copy_impl(duk_context *ctx)
+{
+    udp_addr_copy_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    struct sockaddr_in *dst = duk_require_pointer(ctx, -1);
+    if (dst == args->src)
+    {
+        return 0;
+    }
+    duk_pop(ctx);
+
+    if (args->src->sin_family == AF_INET6)
+    {
+        if (dst->sin_family == AF_INET)
+        {
+            args->dst = malloc(sizeof(struct sockaddr_in6));
+            memcpy(args->dst, args->src, sizeof(struct sockaddr_in6));
+            duk_push_pointer(ctx, args->dst);
+            duk_put_prop_lstring(ctx, 0, "p", 1);
+            free(dst);
+            args->dst = 0;
+        }
+        else
+        {
+            memcpy(dst, args->src, sizeof(struct sockaddr_in6));
+        }
+    }
+    else
+    {
+        if (dst->sin_family == AF_INET)
+        {
+            memcpy(dst, args->src, sizeof(struct sockaddr_in));
+        }
+        else
+        {
+            memcpy(dst, args->src, sizeof(struct sockaddr_in));
+            dst->sin_family = 0;
+        }
+    }
+    return 0;
+}
+static duk_ret_t udp_addr_copy(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    void *src = duk_require_pointer(ctx, -1);
+    duk_pop_2(ctx);
+
+    udp_addr_copy_args_t args = {
+        .dst = 0,
+        .src = src,
+    };
+    if (ejs_pcall_function_n(ctx, udp_addr_copy_impl, &args, 2))
+    {
+        if (args.dst)
+        {
+            free(args.dst);
+        }
+        duk_throw(ctx);
+    }
+    return 0;
+}
 static duk_ret_t udp_addr_s(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "p", 1);
@@ -3305,7 +3373,10 @@ static duk_ret_t udp_read_impl(duk_context *ctx)
     }
 
     int n = recvfrom(args->conn->s, args->dst, args->len, 0, args->sin, &socklen);
-
+    if (n == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
     push_udp_addr(ctx, args->sin);
     args->sin = 0;
 
@@ -3359,7 +3430,12 @@ static duk_ret_t udp_read_addr_impl(duk_context *ctx)
             sin->sin_family = 0;
         }
     }
+    int err = errno;
     duk_del_prop_lstring(ctx, -1, "s", 1);
+    if (n == -1)
+    {
+        ejs_throw_os(ctx, err, 0);
+    }
     duk_push_uint(ctx, n);
     return 1;
 }
@@ -3585,6 +3661,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         // udp
         duk_push_c_lightfunc(ctx, udp_addr, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "udp_addr", 8);
+        duk_push_c_lightfunc(ctx, udp_addr_copy, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "udp_addr_copy", 13);
         duk_push_c_lightfunc(ctx, udp_addr_s, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "udp_addr_s", 10);
         duk_push_c_lightfunc(ctx, udp_create, 1, 1, 0);
