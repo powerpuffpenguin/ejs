@@ -5,7 +5,7 @@ int ppp_loop_buffer_write(ppp_loop_buffer_t *buf, const void *data, const size_t
 {
     if (data_len && PPP_LOOP_BUFFER_AVAILABLE(buf) >= data_len)
     {
-        if (buf->offset || buf->len)
+        if (buf->len)
         {
             size_t i = (buf->offset + buf->len) % buf->cap;
             size_t max = buf->cap - i;
@@ -21,6 +21,7 @@ int ppp_loop_buffer_write(ppp_loop_buffer_t *buf, const void *data, const size_t
         }
         else
         {
+            buf->offset = 0;
             memcpy(buf->buf, data, data_len);
         }
         buf->len += data_len;

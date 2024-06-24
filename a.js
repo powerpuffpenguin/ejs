@@ -2,17 +2,6 @@ var sync = require("ejs/sync")
 var net = require("ejs/net")
 var os = require("ejs/os")
 
-
-const resolver = net.Resolver.getDefault()
-resolver.resolve({
-    name: "www.baidu.com",
-    v6: false,
-}, function (v, e) {
-    console.log(v, e)
-
-    // resolver.close()
-})
-
 // var File = os.File
 
 // var a = new net.UdpAddr('1.2.3.4', 90)
@@ -26,37 +15,53 @@ resolver.resolve({
 // console.log(a, a.toString())
 
 
-// sync.go(function (co) {
+sync.go(function (co) {
+    var f
+    var c
+    try {
+        c = net.UdpConn.listen({
+            network: "udp",
+            address: ":9000",
+        })
+        const addr = new net.UdpAddr()
+        const r = new net.UdpConnReader(c, undefined, true)
+        setTimeout(function () {
+            r.close()
+        }, 1000)
+        const data = r.read(co, addr)
+        console.log("recv :", addr.toString(), data)
 
-//     var f
-//     try {
-//         f = File.create(co, {
-//             name: 'a.txt',
-//             // flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,
-//             perm: 0o664,
-//         })
-//         f.writeAt(co, {
-//             src: "ok",
-//             offset: 2,
-//         })
+        //         f = File.create(co, {
+        //             name: 'a.txt',
+        //             // flags: os.O_RDWR | os.O_CREATE | os.O_EXCL,
+        //             perm: 0o664,
+        //         })
+        //         f.writeAt(co, {
+        //             src: "ok",
+        //             offset: 2,
+        //         })
 
-//         f.writeAt(co, {
-//             src: "12",
-//             offset: 8,
-//         }, function (v, e) {
-//             console.log(v, e, f.name())
-//         })
-//         console.log(f.stat(co))
-//         console.log(f instanceof os.File)
-//         var buf = new Uint8Array(128)
-//         var n = f.read(co, buf)
-//         console.log(n, buf.subarray(0, n))
-//     } catch (e) {
-//         console.log(e)
-//         console.log(e.message)
-//         console.log(e.toString())
-//         if (f) {
-//             f.close()
-//         }
-//     }
-// })
+        //         f.writeAt(co, {
+        //             src: "12",
+        //             offset: 8,
+        //         }, function (v, e) {
+        //             console.log(v, e, f.name())
+        //         })
+        //         console.log(f.stat(co))
+        //         console.log(f instanceof os.File)
+        //         var buf = new Uint8Array(128)
+        //         var n = f.read(co, buf)
+        //         console.log(n, buf.subarray(0, n))
+    } catch (e) {
+        console.log(e)
+        console.log(e.message)
+        console.log(e.toString())
+    } finally {
+        if (c) {
+            c.close()
+        }
+        if (f) {
+            f.close()
+        }
+    }
+})

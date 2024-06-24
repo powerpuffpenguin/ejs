@@ -1452,6 +1452,7 @@ export class BaseTcpConn implements Conn {
         }
     }
 }
+
 export type OnAcceptCallback = (this: Listener, c: Conn) => void
 export type onErrorCallback<T> = (this: T, e: any) => void
 export interface Listener {
@@ -2100,13 +2101,24 @@ export interface DialOptions {
 /**
  * Dial a listener to create a connection for bidirectional communication
  */
-export function dial(opts: DialOptions, cb: DialCallback) {
-    if (typeof cb !== "function") {
-        throw new Error(`cb must be a function`)
-    }
+export function dial(a: any, b: any) {
+    const args = parseArgs<DialOptions, DialCallback>('dial', a, b)
+    const opts = args.opts!
     if (opts.signal) {
         opts.signal.throwIfAborted()
     }
+    switch (opts.network) {
+        case 'tcp':
+        case 'tcp4':
+        case 'tcp6':
+        case 'unix':
+            break
+        default:
+            throw new NetError(`unknow network: ${opts.network}`);
+    }
+    return callReturn(_dial, args)
+}
+export function _dial(opts: DialOptions, cb: DialCallback) {
     switch (opts.network) {
         case 'tcp':
             tcp_dial(opts, cb)
@@ -3117,7 +3129,13 @@ export class UdpConnReader {
                 if (remote) {
                     addr!.push(remote)
                 }
-                console.log(`UdpConnReader: ${e}`)
+                const cb = this.cb_
+                if (cb) {
+                    this.cb_ = undefined
+                    cb()
+                } else {
+                    console.log(`UdpConnReader: ${e}`)
+                }
                 return
             }
             switch (n) {
@@ -3177,8 +3195,10 @@ export class UdpConnReader {
     read(a: any, b: any) {
         if (this.conn.isClosed) {
             throw new UdpError("conn already closed")
+        } else if (this.cb_) {
+            throw new UdpError("read busy")
         }
-        const args = parseOptionalArgs<UdpAddr, (msg?: Uint8Array, e?: any) => void>('read', a, b)
+        const args = parseOptionalArgs<UdpAddr, (msg?: Uint8Array, e?: any) => void>('UdpConnReader', a, b)
         const addr = args.opts
         if (args.co) {
             const v = this.buf_.pop()
@@ -3273,6 +3293,7 @@ export class UdpConnReader {
         this.conn.close()
         const cb = this.cb_
         if (cb) {
+            this.cb_ = undefined
             const e = new UdpError("conn already closed")
             cb(undefined, e)
         }
@@ -3285,6 +3306,270 @@ export class UdpConnReader {
     }
 }
 
+class LoopBuffer {
+    len = 0
+    offset = 0
+    constructor(readonly buf: Uint8Array) { }
+    avaliable() {
+        return this.buf.length - this.len
+    }
+    write(): number {
+        return (this.offset + this.len) % this.buf.length
+    }
+
+    read(dst: Uint8Array): number {
+        let data_len = dst.length
+        if (data_len) {
+            const buf = this.buf
+            const cap = buf.length
+            const len = this.len
+
+            data_len = len < data_len ? len : data_len
+            const i = this.offset
+            const max = cap - i
+            if (max < data_len) {
+                deps.copy(dst, buf.subarray(i, i + max))
+                deps.copy(dst.subarray(max), buf.subarray(0, data_len - max))
+            }
+            else {
+                deps.copy(dst, buf.subarray(i, i + data_len))
+            }
+            if (data_len == len) {
+                this.len = 0
+                this.offset = 0
+            }
+            else {
+                this.len -= data_len
+                this.offset += data_len
+                this.offset %= cap
+            }
+            return data_len
+        }
+        return 0;
+    }
+}
+interface ReadBytes {
+    cb: (n?: number, e?: any) => void
+    dst: Uint8Array
+}
+interface WriteBytes {
+    cb: (n?: number, e?: any) => void
+    data: string | Uint8Array | ArrayBuffer
+}
+export class TcpConnReaderWriter {
+    private buf_: LoopBuffer
+    constructor(readonly conn: BaseTcpConn, buf?: Uint8Array) {
+        if (!(conn instanceof BaseTcpConn)) {
+            throw new Error("conn must be a BaseTcpConn")
+        }
+        if (buf === null || buf === undefined) {
+            buf = new Uint8Array(1024 * 32)
+        } else if (buf instanceof Uint8Array) {
+            if (buf.length < 128) {
+                throw new Error("buf.length < 128")
+            }
+        } else {
+            throw new Error("buf must be a Uint8Array")
+        }
+        this.buf_ = new LoopBuffer(buf)
+        conn.onWritable = undefined
+        this._read()
+    }
+    close() {
+        this.conn.close()
+        const r = this.read_
+        const w = this.write_
+        if (r || w) {
+            this.read_ = undefined
+            this.write_ = undefined
+            const e = new TcpError("conn already closed")
+            if (r) {
+                const cb = r.cb
+                cb(undefined, e)
+            }
+            if (w) {
+                const cb = w.cb
+                cb(undefined, e)
+            }
+        }
+    }
+    private _write(w: WriteBytes) {
+        const conn = this.conn
+        conn.onWritable = () => {
+            const w = this.write_
+            if (w) {
+                this.write_ = undefined
+                let n: number
+                const cb = w.cb
+                try {
+                    n = conn.write(w.data)!
+                } catch (e) {
+                    cb(undefined, e)
+                    return
+                }
+                cb(n)
+            }
+            conn.onWritable = undefined
+        }
+        this.write_ = w
+    }
+    private read_?: ReadBytes
+    private _read() {
+        const conn = this.conn
+        const buf = this.buf_
+        const b = buf.buf
+        const cap = b.length
+        conn.onMessage = undefined
+        conn.onReadable = (r) => {
+            if (buf.len) {
+                buf.offset = 0
+                buf.len = r.read(b)
+            } else {
+                let begin: number
+                let end: number
+                while (r.length) {
+                    begin = (buf.offset + buf.len) % cap
+                    end = begin + cap - buf.len
+                    if (end > cap) {
+                        end = cap
+                    }
+                    buf.len += r.read(b.subarray(begin, end))
+                }
+            }
+            const read = this.read_
+            if (read) {
+                this.read_ = undefined
+                const n = buf.read(read.dst)
+                const cb = read.cb
+                cb(n)
+            }
+            if (buf.len == cap) {
+                conn.onReadable = undefined
+            }
+        }
+    }
+    read(a: any, b: any) {
+        if (this.conn.isClosed) {
+            throw new TcpError("conn already closed")
+        } else if (this.read_) {
+            throw new TcpError("read busy")
+        }
+        const args = parseArgs<Uint8Array, (n?: number, e?: any) => void>('TcpConnReaderWriter.read', a, b)
+        const dst = args.opts!
+        const buf = this.buf_
+        if (args.co) {
+            if (buf.len) {
+                const n = buf.read(dst)
+                if (n) {
+                    this._read()
+                }
+                return n
+            }
+            return args.co.yield((notify) => {
+                this.read_ = {
+                    dst: dst,
+                    cb: (n, e) => {
+                        if (e === undefined) {
+                            notify.value(n)
+                        } else {
+                            notify.error(e)
+                        }
+                    },
+                }
+            })
+        } else if (args.cb) {
+            const cb = args.cb
+            if (buf.len) {
+                const n = buf.read(dst)
+                if (n) {
+                    this._read()
+                }
+                cb(n)
+                return
+            }
+            this.read_ = {
+                dst: dst,
+                cb: cb,
+            }
+        } else {
+            return new Promise((resolve, reject) => {
+                if (buf.len) {
+                    const n = buf.read(dst)
+                    if (n) {
+                        this._read()
+                    }
+                    resolve(n)
+                    return
+                }
+                this.read_ = {
+                    dst: dst,
+                    cb: (n, e) => {
+                        if (e === undefined) {
+                            resolve(n)
+                        } else {
+                            reject(e)
+                        }
+                    },
+                }
+            })
+        }
+    }
+    private write_?: WriteBytes
+    write(a: any, b: any) {
+        const args = parseArgs<string | Uint8Array | ArrayBuffer, (n?: number, e?: any) => void>('TcpConnReaderWriter.write', a, b)
+        const conn = this.conn
+        if (conn.isClosed) {
+            throw new TcpError("conn already closed")
+        } else if (this.write_) {
+            throw new TcpError("write busy")
+        }
+        const data = args.opts!
+        const n = conn.write(data)
+        if (args.co) {
+            if (n === undefined) {
+                return args.co.yield((notify) => {
+                    this._write({
+                        data: data,
+                        cb: (n, e) => {
+                            if (e === undefined) {
+                                notify.value(n)
+                            } else {
+                                notify.error(e)
+                            }
+                        },
+                    })
+                })
+            }
+            return n
+        } else if (args.cb) {
+            const cb = args.cb
+            if (n === undefined) {
+                this._write({
+                    data: data,
+                    cb: cb,
+                })
+            } else {
+                cb(n)
+            }
+        } else {
+            if (n === undefined) {
+                return new Promise((resolve, reject) => {
+                    this._write({
+                        data: data,
+                        cb: (n, e) => {
+                            if (e === undefined) {
+                                resolve(n)
+                            } else {
+                                reject(e)
+                            }
+                        },
+                    })
+                })
+            }
+            return Promise.resolve(n)
+        }
+    }
+}
 export function isSupportV6(): boolean {
     let ok = deps._ipv6
     if (ok === undefined) {
