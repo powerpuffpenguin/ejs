@@ -26,6 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
+var sync_1 = require("ejs/sync");
 exports.command = new flags_1.Command({
     use: 'net-client',
     short: 'net echo client example',
@@ -65,88 +66,47 @@ exports.command = new flags_1.Command({
                     abort.abort('dial timeout');
                 }, v);
             }
-            net.dial({
-                network: network.value,
-                address: address.value,
-                signal: abort === null || abort === void 0 ? void 0 : abort.signal,
-            }, function (c, e) {
-                if (timer) {
-                    clearTimeout(timer);
+            (0, sync_1.go)(function (co) {
+                var c;
+                try {
+                    c = net.dial(co, {
+                        network: network.value,
+                        address: address.value,
+                        signal: abort === null || abort === void 0 ? void 0 : abort.signal,
+                    });
                 }
-                if (!c) {
+                catch (e) {
                     console.log("connect error:", e);
                     return;
                 }
+                finally {
+                    if (timer) {
+                        clearTimeout(timer);
+                    }
+                }
                 console.log("connect success: ".concat(c.localAddr, " -> ").concat(c.remoteAddr));
-                c.onError = function (e) {
-                    console.log("err:", e);
-                };
-                new State(c, count.value).next();
+                var r = new net.TcpConnReaderWriter(c);
+                try {
+                    var buf = new Uint8Array(128);
+                    for (var i = 0; count.value < 1 || i < count.value; i++) {
+                        var msg = new TextEncoder().encode("\u9019\u500B\u7B2C ".concat(i + 1, " \u500B message"));
+                        r.write(co, msg);
+                        var n = r.read(co, buf);
+                        if (!n) {
+                            console.log("read eof");
+                            break;
+                        }
+                        var data = buf.subarray(0, n);
+                        console.log("recv:", new TextDecoder().decode(data), data);
+                    }
+                    r.close();
+                    console.log("completed");
+                }
+                catch (e) {
+                    r.close();
+                    console.log("udp error: ".concat(e));
+                }
             });
         };
     },
 });
-var State = /** @class */ (function () {
-    function State(c, count) {
-        var _this = this;
-        this.c = c;
-        this.count = count;
-        this.step_ = 0;
-        this.serve();
-        c.onWritable = function () {
-            var data = _this.data_;
-            if (data) {
-                // Continue writing unsent data
-                try {
-                    c.write(data);
-                }
-                catch (e) {
-                    console.log("write error", e);
-                    c.close();
-                }
-            }
-            // Resume data reading
-            _this.serve();
-        };
-    }
-    State.prototype.serve = function () {
-        var _this = this;
-        var c = this.c;
-        c.onMessage = function (data) {
-            var pre = _this.data_;
-            if (!pre) {
-                console.log("unexpected message:", data);
-                c.close();
-                return;
-            }
-            else if (!ejs.equal(data, pre)) {
-                console.log("not matched message:", pre, data);
-                c.close();
-                return;
-            }
-            console.log("recv:", new TextDecoder().decode(data), data);
-            _this.data_ = undefined;
-            _this.next();
-        };
-    };
-    State.prototype.next = function () {
-        if (this.step_ >= this.count) {
-            this.c.close();
-            console.log("completed");
-            return;
-        }
-        try {
-            this.step_++;
-            this.data_ = new TextEncoder().encode("\u9019\u500B\u7B2C ".concat(this.step_, " \u500B message"));
-            if (this.c.write(this.data_) === undefined) {
-                // write full，pause read
-                this.c.onMessage = undefined;
-            }
-        }
-        catch (e) {
-            console.log('write error', e);
-            this.c.close();
-        }
-    };
-    return State;
-}());

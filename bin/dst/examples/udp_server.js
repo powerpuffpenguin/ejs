@@ -59,13 +59,11 @@ exports.command = new flags_1.Command({
             });
             console.log("listen: ".concat(c.localAddr));
             var max = count.value;
-            var i = 0;
-            var buf = new Uint8Array(1024 * 32);
             var addr = new net.UdpAddr();
             var r = new net.UdpConnReader(c, undefined, true);
             (0, sync_1.go)(function (co) {
                 try {
-                    for (var i_1 = 0; max < 1 || i_1 < max; i_1++) {
+                    for (var i = 0; max < 1 || i < max; i++) {
                         var data = r.read(co, addr);
                         console.log("recv ".concat(addr, ":"), data);
                         c.writeTo(data, addr);
@@ -78,20 +76,6 @@ exports.command = new flags_1.Command({
                     c.close();
                 }
             });
-            // // recv
-            // c.onReadable = (r) => {
-            //     const n = r.read(buf, addr)
-            //     const data = buf.subarray(0, n)
-            //     console.log(`recv ${addr}:`, data)
-            //     c.writeTo(data, addr)
-            //     // Shut down the service after processing max requests
-            //     if (max > 0) {
-            //         i++
-            //         if (i >= max) {
-            //             c.close()
-            //         }
-            //     }
-            // }
         };
     },
 });

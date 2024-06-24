@@ -1,5 +1,6 @@
 import { Command } from "../flags";
 import * as net from "ejs/net";
+import { go } from "ejs/sync";
 export const command = new Command({
     use: 'net-client',
     short: 'net echo client example',
@@ -39,87 +40,46 @@ export const command = new Command({
                     abort!.abort('dial timeout')
                 }, v)
             }
-            net.dial({
-                network: network.value,
-                address: address.value,
-                signal: abort?.signal,
-            }, (c, e) => {
-                if (timer) {
-                    clearTimeout(timer)
-                }
-                if (!c) {
+            go((co) => {
+                let c: net.BaseTcpConn
+                try {
+                    c = net.dial(co, {
+                        network: network.value,
+                        address: address.value,
+                        signal: abort?.signal,
+                    })
+                } catch (e) {
                     console.log("connect error:", e)
                     return
+                } finally {
+                    if (timer) {
+                        clearTimeout(timer)
+                    }
                 }
 
                 console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)
-                c.onError = (e) => {
-                    console.log("err:", e)
+                const r = new net.TcpConnReaderWriter(c)
+                try {
+                    const buf = new Uint8Array(128)
+                    for (let i = 0; count.value < 1 || i < count.value; i++) {
+                        const msg = new TextEncoder().encode(`這個第 ${i + 1} 個 message`)
+                        r.write(co, msg)
+                        const n = r.read(co, buf)
+                        if (!n) {
+                            console.log("read eof")
+                            break
+                        }
+                        const data = buf.subarray(0, n)
+                        console.log("recv:", new TextDecoder().decode(data), data)
+                    }
+                    r.close()
+                    console.log("completed")
+                } catch (e) {
+                    r.close()
+                    console.log(`udp error: ${e}`)
                 }
-                new State(c, count.value).next()
             })
+
         }
     },
 })
-
-
-class State {
-    constructor(readonly c: net.Conn, readonly count: number) {
-        this.serve()
-        c.onWritable = () => {
-            const data = this.data_
-            if (data) {
-                // Continue writing unsent data
-                try {
-                    c.write(data)
-                } catch (e) {
-                    console.log("write error", e)
-                    c.close()
-                }
-            }
-            // Resume data reading
-            this.serve()
-        }
-    }
-    private step_ = 0
-    private data_?: Uint8Array
-    serve() {
-        const c = this.c
-        c.onMessage = (data) => {
-            const pre = this.data_
-            if (!pre) {
-                console.log("unexpected message:", data)
-                c.close()
-                return
-            } else if (!ejs.equal(data, pre)) {
-                console.log("not matched message:", pre, data)
-                c.close()
-                return
-            }
-
-            console.log("recv:", new TextDecoder().decode(data), data)
-
-            this.data_ = undefined
-            this.next()
-        }
-    }
-    next() {
-        if (this.step_ >= this.count) {
-            this.c.close()
-            console.log("completed")
-            return
-        }
-        try {
-            this.step_++
-            this.data_ = new TextEncoder().encode(`這個第 ${this.step_} 個 message`)
-
-            if (this.c.write(this.data_) === undefined) {
-                // write full，pause read
-                this.c.onMessage = undefined
-            }
-        } catch (e) {
-            console.log('write error', e)
-            this.c.close()
-        }
-    }
-}

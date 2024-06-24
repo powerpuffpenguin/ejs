@@ -53,7 +53,9 @@ export const command = new Command({
                     console.log("connect error:", e)
                     return
                 } finally {
-                    clearTimeout(timer)
+                    if (timer) {
+                        clearTimeout(timer)
+                    }
                 }
 
                 console.log(`connect success: ${c.localAddr} -> ${c.remoteAddr}`)

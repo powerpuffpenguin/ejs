@@ -697,6 +697,7 @@ export interface ResolveResult {
     v6?: boolean
 }
 
+
 export type AbortListener = (this: AbortSignal, reason: any) => any
 /** 
  * A signal object that allows you to communicate with a request and abort it if required via an AbortController object.
@@ -3374,7 +3375,37 @@ export class TcpConnReaderWriter {
         this.buf_ = new LoopBuffer(buf)
         conn.onWritable = undefined
         this._read()
+
+        this.onError_ = conn.onError
+        conn.onError = (e) => {
+            const onError: any = this.onError_
+            if (onError) {
+                onError(e)
+            }
+            if (e instanceof TcpError) {
+                if (e.write) {
+                    const w = this.write_
+                    if (w) {
+                        this.write_ = undefined
+                        const cb = w.cb
+                        cb(undefined, e)
+                    }
+                } else if (e.read) {
+                    const r = this.read_
+                    if (r) {
+                        this.read_ = undefined
+                        const cb = r.cb
+                        if (e.eof) {
+                            cb(0)
+                        } else {
+                            cb(undefined, e)
+                        }
+                    }
+                }
+            }
+        }
     }
+    private onError_?: (this: Conn, e: any) => void
     close() {
         this.conn.close()
         const r = this.read_
@@ -3391,6 +3422,10 @@ export class TcpConnReaderWriter {
                 const cb = w.cb
                 cb(undefined, e)
             }
+        }
+        const onError = this.onError_
+        if (onError) {
+            this.onError_ = onError
         }
     }
     private _write(w: WriteBytes) {

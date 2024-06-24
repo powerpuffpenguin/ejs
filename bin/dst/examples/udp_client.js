@@ -80,11 +80,11 @@ exports.command = new flags_1.Command({
                     return;
                 }
                 finally {
-                    clearTimeout(timer);
+                    if (timer) {
+                        clearTimeout(timer);
+                    }
                 }
                 console.log("connect success: ".concat(c.localAddr, " -> ").concat(c.remoteAddr));
-                // new State(c, count.value).next()
-                // return
                 var r = new net.UdpConnReader(c);
                 try {
                     for (var i = 0; count.value < 1 || i < count.value; i++) {
@@ -108,48 +108,3 @@ exports.command = new flags_1.Command({
         };
     },
 });
-var State = /** @class */ (function () {
-    function State(c, count) {
-        this.c = c;
-        this.count = count;
-        this.step_ = 0;
-        this.serve();
-    }
-    State.prototype.serve = function () {
-        var _this = this;
-        var c = this.c;
-        c.onMessage = function (data) {
-            var pre = _this.data_;
-            if (!pre) {
-                console.log("unexpected message:", data);
-                c.close();
-                return;
-            }
-            else if (!ejs.equal(data, pre)) {
-                console.log("not matched message:", pre, data);
-                c.close();
-                return;
-            }
-            console.log("recv:", new TextDecoder().decode(data), data);
-            _this.data_ = undefined;
-            _this.next();
-        };
-    };
-    State.prototype.next = function () {
-        if (this.step_ >= this.count) {
-            this.c.close();
-            console.log("completed");
-            return;
-        }
-        try {
-            this.step_++;
-            this.data_ = new TextEncoder().encode("\u9019\u500B\u7B2C ".concat(this.step_, " \u500B message"));
-            this.c.write(this.data_);
-        }
-        catch (e) {
-            console.log('write error', e);
-            this.c.close();
-        }
-    };
-    return State;
-}());

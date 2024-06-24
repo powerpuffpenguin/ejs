@@ -1,6 +1,7 @@
 
 import { Command } from "../flags";
 import * as net from "ejs/net";
+import { YieldContext, go } from "ejs/sync";
 export const command = new Command({
     use: 'net-server',
     short: 'net echo server example',
@@ -55,7 +56,9 @@ export const command = new Command({
             let i = 0
             // accept connection
             l.onAccept = (c) => {
-                onAccept(c)
+                go((co) => {
+                    onAccept(co, c)
+                })
                 // Shut down the service after processing max requests
                 if (max > 0) {
                     i++
@@ -68,58 +71,25 @@ export const command = new Command({
     },
 })
 
-
-class EchoService {
-    private data_?: Uint8Array
-    private length_ = 0
-    constructor(readonly c: net.Conn) {
-        c.onWritable = () => {
-            const data = this.data_
-            const len = this.length_
-            if (data && len) {
-                // Continue writing unsent data
-                try {
-                    c.write(data.subarray(0, len))
-                } catch (e) {
-                    console.log("write error", e)
-                    c.close()
-                }
-            }
-            // Resume data reading
-            this.serve()
-        }
-    }
-    serve() {
-        // onMessage for read
-        const c = this.c
-        c.onMessage = (data) => {
-            try {
-                console.log(`recv ${c.remoteAddr}:`, data)
-                if (c.write(data) === undefined) {
-                    // write full，pause read
-                    c.onMessage = undefined
-
-                    // clone data
-                    let buf = this.data_
-                    if (!buf || buf.length < data.length) {
-                        buf = new Uint8Array(data.length)
-                        this.data_ = buf
-                    }
-                    buf.set(data)
-                    this.length_ = data.length
-                }
-            } catch (e) {
-                console.log("write error", e)
-                c.close()
-            }
-        }
-    }
-}
-function onAccept(c: net.Conn) {
+function onAccept(co: YieldContext, c: net.Conn) {
     console.log(`one in: ${c.remoteAddr}`)
-    c.onError = (e) => {
-        console.log("one out", e)
+    const rw = new net.TcpConnReaderWriter(c)
+    const buf = new Uint8Array(1024 * 32)
+    try {
+        while (true) {
+            let n = rw.read(co, buf)
+            if (!n) {
+                break
+            }
+            let data = buf.subarray(0, n)
+            console.log(`recv ${c.remoteAddr}:`, data)
+            while (data.length) {
+                n = rw.write(co, data)
+                data = data.subarray(n)
+            }
+        }
+    } catch (e) {
+        console.log("error", e)
+        rw.close()
     }
-    // read and write net data
-    new EchoService(c).serve()
 }

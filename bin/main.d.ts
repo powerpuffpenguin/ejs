@@ -621,6 +621,44 @@ declare module "ejs/net" {
      * Create a listening service
      */
     export function listen(opts: ListenOptions): Listener
+    /**
+     * Wraps the original tcp conn with a more user-friendly read/write function
+     */
+    export class TcpConnReaderWriter {
+        constructor(readonly conn: BaseTcpConn, buf?: Uint8Array)
+        /**
+         * Do not call conn.close. You need to call this close, otherwise the executing read/write will not be notified of the connection closing.
+         */
+        close(): void
+        /**
+         * Read data to dst
+         * If 0 is returned, it means that eof is read.
+         */
+        read(co: YieldContext, dst: Uint8Array): number
+        /**
+         * Read data to dst
+         * If 0 is returned, it means that eof is read.
+         */
+        read(dst: Uint8Array): Promise<number>
+        /**
+         * Read data to dst
+         * If 0 is returned, it means that eof is read.
+         */
+        read(dst: Uint8Array, cb: (n?: number, e?: any) => void): void
+        /**
+         * Write data
+         */
+        write(co: YieldContext, data: string | Uint8Array | ArrayBuffer): number
+        /**
+         * Write data
+         */
+        write(data: string | Uint8Array | ArrayBuffer): Promise<number>
+        /**
+         * Write data
+         */
+        write(data: string | Uint8Array | ArrayBuffer, cb: (n?: number, e?: any) => void): void
+    }
+
     export interface DialOptions {
         /**
          * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
@@ -639,7 +677,15 @@ declare module "ejs/net" {
     /**
      * Dial a listener to create a connection for bidirectional communication
      */
-    export function dial(opts: DialOptions, cb: (conn?: Conn, e?: any) => void): void
+    export function dial(opts: DialOptions, cb: (conn?: BaseTcpConn, e?: any) => void): void
+    /**
+     * Dial a listener to create a connection for bidirectional communication
+     */
+    export function dial(co: YieldContext, opts: DialOptions): BaseTcpConn
+    /**
+     * Dial a listener to create a connection for bidirectional communication
+     */
+    export function dial(opts: DialOptions): Promise<BaseTcpConn>
 
     export class UdpError extends NetError { }
     class UdpAddr implements Addr {

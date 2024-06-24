@@ -26,6 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
+var sync_1 = require("ejs/sync");
 exports.command = new flags_1.Command({
     use: 'net-server',
     short: 'net echo server example',
@@ -81,7 +82,9 @@ exports.command = new flags_1.Command({
             var i = 0;
             // accept connection
             l.onAccept = function (c) {
-                onAccept(c);
+                (0, sync_1.go)(function (co) {
+                    onAccept(co, c);
+                });
                 // Shut down the service after processing max requests
                 if (max > 0) {
                     i++;
@@ -143,11 +146,31 @@ var EchoService = /** @class */ (function () {
     };
     return EchoService;
 }());
-function onAccept(c) {
+function onAccept(co, c) {
     console.log("one in: ".concat(c.remoteAddr));
-    c.onError = function (e) {
-        console.log("one out", e);
-    };
-    // read and write net data
-    new EchoService(c).serve();
+    var rw = new net.TcpConnReaderWriter(c);
+    var buf = new Uint8Array(1024 * 32);
+    try {
+        while (true) {
+            var n = rw.read(co, buf);
+            if (!n) {
+                break;
+            }
+            var data = buf.subarray(0, n);
+            console.log("recv ".concat(c.remoteAddr, ":"), data);
+            while (data.length) {
+                n = rw.write(co, data);
+                data = data.subarray(n);
+            }
+        }
+    }
+    catch (e) {
+        console.log("error", e);
+        rw.close();
+    }
+    // c.onError = (e) => {
+    //     console.log("one out", e)
+    // }
+    // // read and write net data
+    // new EchoService(c).serve()
 }
