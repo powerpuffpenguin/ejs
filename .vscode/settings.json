@@ -87,6 +87,10 @@
         "time.h": "c",
         "_duk_async.h": "c",
         "condition_variable": "c",
-        "sync.h": "c"
+        "sync.h": "c",
+        "_duk_test.h": "c",
+        "ssl.h": "c",
+        "timing.h": "c",
+        "ctr_drbg.h": "c"
     }
 }

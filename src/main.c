@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <event2/thread.h>
+#include <event2/event.h>
 #include "ejs/core.h"
+#include <mbedtls/psa_util.h>
+
 static duk_ret_t native_debug_init(duk_context *ctx)
 {
     /*
@@ -43,7 +46,7 @@ int main(int argc, const char **argv)
     }
 
     // set options
-    EJS_VAR_TYPE(ejs_core_options_t, opts);
+    ejs_core_options_t opts = {0};
     // process startup parameters
     opts.argc = argc;
     opts.argv = argv;
@@ -64,7 +67,10 @@ int main(int argc, const char **argv)
     }
     ejs_core_t *core = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
+
     int ret = 0;
+    // Initialize mbedtls
+    psa_crypto_init();
 
     // run main.js
     // err = ejs_core_run_source(core, "console.log('this is a.js');"
@@ -96,5 +102,9 @@ int main(int argc, const char **argv)
 END:
     // delete resources
     ejs_core_delete(core);
+    // There is no need to call it, but calling it can clear some global variables to prevent resource leaks that the tool cannot detect.
+    libevent_global_shutdown();
+    // Clean up tls resources
+    mbedtls_psa_crypto_free();
     return ret;
 }

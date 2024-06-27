@@ -183,6 +183,35 @@ declare namespace deps {
     export function support_ipv6(): boolean
     export let _ipv4: undefined | boolean
     export function support_ipv4(): boolean
+
+    export interface TlsConfig {
+        /**
+         * @default Tls12
+         */
+        minVersion?: number
+        /**
+         * @default Tls13
+         */
+        maxVersion?: number
+
+        certificate?: Array<string>
+
+        insecure?: boolean
+        debug?: boolean
+    }
+    export class Tls {
+        readonly __id = "Tls"
+        p: unknown
+    }
+    export function create_tls(config: TlsConfig): Tls
+    export interface ConnectTlsOptions {
+        bev: unknown
+        host?: string
+        tls: unknown
+        insecure?: boolean
+        debug?: boolean
+    }
+    export function connect_tls(opts: ConnectTlsOptions): deps.TcpConn
 }
 import { parseArgs, parseOptionalArgs, callReturn, callVoid, coReturn, isYieldContext } from "ejs/sync";
 export class AddrError extends __duk.Error {
@@ -1219,11 +1248,12 @@ interface tcpConnBridge {
     throwError(e: any): never
 }
 export class BaseTcpConn implements Conn {
-    private c_?: deps.TcpConn
+    c_?: deps.TcpConn
+    parent_?: BaseTcpConn
     private md_: deps.ConnMetadata
     constructor(readonly remoteAddr: Addr, readonly localAddr: Addr,
         conn: deps.TcpConn,
-        private readonly bridge_: tcpConnBridge,
+        readonly bridge_: tcpConnBridge,
     ) {
         this.c_ = conn
         this.md_ = conn.md
@@ -1309,6 +1339,11 @@ export class BaseTcpConn implements Conn {
         if (c) {
             this.c_ = undefined
             deps.tcp_conn_close(c)
+        }
+        const p = this.parent_
+        if (p) {
+            this.parent_ = undefined
+            p.close()
         }
     }
     private _get(): deps.TcpConn {
@@ -1702,7 +1737,7 @@ function listenUnix(opts: ListenOptions): UnixListener {
         throwUnixError(e)
     }
 }
-type DialCallback = (c?: Conn, e?: any) => void
+type DialCallback = (c?: BaseTcpConn, e?: any) => void
 
 function tcp_dial_ip(opts: {
     sync: boolean
@@ -1713,7 +1748,6 @@ function tcp_dial_ip(opts: {
     v6: boolean
     signal?: AbortSignal
     cb?: DialCallback
-
 
     c?: deps.TcpConn
 }) {
@@ -1926,7 +1960,7 @@ function tcp_dial_name(opts: {
                     }
                     let first = true
                     let err: any
-                    const oncb: (c?: Conn, e?: any) => void = (c, e) => {
+                    const oncb: DialCallback = (c, e) => {
                         const cb = opts.cb
                         if (!cb) {
                             if (c) {
@@ -2001,12 +2035,132 @@ function tcp_dial_name(opts: {
         cb: opts.cb,
     })
 }
+function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, tls: deps.Tls, conn: BaseTcpConn, cb?: DialCallback) {
+    let onabort: ((reason: any) => void) | undefined
+    try {
+        if (signal) {
+            onabort = (reason) => {
+                if (cb) {
+                    const f = cb
+                    cb = undefined
+
+                    conn.close()
+                    deps.tcp_conn_close(c)
+
+                    f(undefined, reason)
+                }
+            }
+            signal.addEventListener(onabort)
+        }
+        c.cbe = (what) => {
+            if (!cb) {
+                return
+            }
+            const f = cb
+            cb = undefined
+            if (onabort) {
+                signal!.removeEventListener(onabort)
+            }
+            if (what & deps.BEV_EVENT_TIMEOUT) {
+                deps.tcp_conn_close(c)
+                conn.close()
+
+                const e = new conn.bridge_.Error("connect timeout")
+                e.connect = true
+                e.timeout = true
+
+                f(undefined, e)
+            } else if (what & deps.BEV_EVENT_ERROR) {
+                deps.tcp_conn_close(c)
+                conn.close()
+
+                if (deps.socket_error() === deps.ETIMEDOUT) {
+                    const e = new conn.bridge_.Error("tls handshake timeout")
+                    e.connect = true
+                    e.timeout = true
+
+                    f(undefined, e)
+                } else {
+                    const e = new conn.bridge_.Error("tls handshake fail")
+                    e.connect = true
+                    f(undefined, e)
+                }
+            } else {
+                let tls: undefined | TcpConn
+                try {
+                    deps.tcp_conn_cb(c, false)
+                    tls = new TcpConn(conn.remoteAddr,
+                        conn.localAddr,
+                        c,
+                    )
+                } catch (e) {
+                    deps.tcp_conn_close(c)
+                    conn.close()
+                    f(undefined, e)
+                    return
+                }
+                tls.parent_ = conn
+                f(tls)
+            }
+        }
+    } catch (e) {
+        if (cb) {
+            const f = cb
+            cb = undefined
+            if (onabort) {
+                signal!.removeEventListener(onabort)
+            }
+            conn.close()
+            deps.tcp_conn_close(c)
+
+            f(undefined, e)
+        }
+    }
+}
 function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
     const [host, sport] = splitHostPort(opts.address)
     const port = parseInt(sport)
     if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
         throw new TcpError(`dial port invalid: ${opts.address}`)
     }
+    let ip: IP | undefined
+    let hostname: string | undefined
+    if (host != "") {
+        ip = IP.parse(host)
+        if (!ip) {
+            hostname = host
+        }
+    }
+    if (opts.tls) {
+        const tlsConfig = opts.tls
+        const serverName = tlsConfig.serverName ?? hostname
+        const signal = opts.signal
+        _tcp_dial(opts, host, ip, port, (c, e) => {
+            if (!c) {
+                cb(undefined, e)
+                return
+            }
+            let tlsConn: deps.TcpConn
+            let tls: deps.Tls
+            try {
+                tls = deps.create_tls(tlsConfig)
+                tlsConn = deps.connect_tls({
+                    bev: c.c_!.p,
+                    host: serverName,
+                    tls: tls.p,
+                })
+            } catch (e) {
+                c.close()
+                cb(undefined, e)
+                return
+            }
+            connect_tls(signal, tlsConn, tls, c!, cb)
+        }, v6)
+    } else {
+        _tcp_dial(opts, host, ip, port, cb, v6)
+    }
+}
+function _tcp_dial(opts: DialOptions, host: string, ipv: IP | undefined, port: number, cb: DialCallback, v6?: boolean) {
     let ip: string | undefined
     if (host == "") {
         if (v6 === undefined) {
@@ -2025,7 +2179,7 @@ function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
             ip = '127.0.0.1'
         }
     } else {
-        const v = IP.parse(host)
+        const v = ipv
         if (!v) {
             tcp_dial_name({
                 v6: v6,
@@ -2098,6 +2252,19 @@ export interface DialOptions {
      * A signal that can be used to cancel dialing
      */
     signal?: AbortSignal
+
+    /**
+     * If set will use tls connection
+     */
+    tls?: TlsConfig
+}
+/**
+ * tls 1.2
+ */
+export const Tls12 = 303
+export const Tls13 = 304
+export interface TlsConfig extends deps.TlsConfig {
+    serverName?: string
 }
 /**
  * Dial a listener to create a connection for bidirectional communication
