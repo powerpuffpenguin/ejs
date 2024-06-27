@@ -7,12 +7,15 @@ sync.go(function (co) {
     var c
     var rw
     try {
-        net.mbedtls_debug(4)
+        // net.mbedtls_debug(4)
 
         c = net.dial(co, {
-            network: "tcp",
-            address: "127.0.0.1:2443",
-            // address: "www.baidu.com:443",
+            // network: "tcp",
+            // address: "127.0.0.1:2443",
+            // address: "xsd-webpc.cdnewstar.cn:3443",
+
+            network: "unix",
+            address: "@abc",
             tls: {
                 insecure: true,
                 // debug: true,
@@ -23,7 +26,7 @@ sync.go(function (co) {
         rw = new net.TcpConnReaderWriter(c)
         c = undefined
 
-        rw.write(co, "GET / HTTP/1.0\nHost: www.baidu.com\nUser-Agent: curl/7.58.0\nAccept: */*\n\n")
+        rw.write(co, "GET / HTTP/1.0\nHost: xsd-webpc.cdnewstar.cn\nUser-Agent: curl/7.58.0\nAccept: */*\n\n")
 
         var b = new Uint8Array(1024)
         var n

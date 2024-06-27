@@ -1738,8 +1738,7 @@ function listenUnix(opts: ListenOptions): UnixListener {
     }
 }
 type DialCallback = (c?: BaseTcpConn, e?: any) => void
-
-function tcp_dial_ip(opts: {
+interface TcpDialIPOptions {
     sync: boolean
     Error: typeof NetError
 
@@ -1750,7 +1749,8 @@ function tcp_dial_ip(opts: {
     cb?: DialCallback
 
     c?: deps.TcpConn
-}) {
+}
+function tcp_dial_ip(opts: TcpDialIPOptions) {
     let onabort: ((reason: any) => void) | undefined
     const signal = opts.signal
     try {
@@ -2117,49 +2117,6 @@ function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, tls: deps
         }
     }
 }
-function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
-    const [host, sport] = splitHostPort(opts.address)
-    const port = parseInt(sport)
-    if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-        throw new TcpError(`dial port invalid: ${opts.address}`)
-    }
-    let ip: IP | undefined
-    let hostname: string | undefined
-    if (host != "") {
-        ip = IP.parse(host)
-        if (!ip) {
-            hostname = host
-        }
-    }
-    if (opts.tls) {
-        const tlsConfig = opts.tls
-        const serverName = tlsConfig.serverName ?? hostname
-        const signal = opts.signal
-        _tcp_dial(opts, host, ip, port, (c, e) => {
-            if (!c) {
-                cb(undefined, e)
-                return
-            }
-            let tlsConn: deps.TcpConn
-            let tls: deps.Tls
-            try {
-                tls = deps.create_tls(tlsConfig)
-                tlsConn = deps.connect_tls({
-                    bev: c.c_!.p,
-                    host: serverName,
-                    tls: tls.p,
-                })
-            } catch (e) {
-                c.close()
-                cb(undefined, e)
-                return
-            }
-            connect_tls(signal, tlsConn, tls, c!, cb)
-        }, v6)
-    } else {
-        _tcp_dial(opts, host, ip, port, cb, v6)
-    }
-}
 function _tcp_dial(opts: DialOptions, host: string, ipv: IP | undefined, port: number, cb: DialCallback, v6?: boolean) {
     let ip: string | undefined
     if (host == "") {
@@ -2218,7 +2175,82 @@ function _tcp_dial(opts: DialOptions, host: string, ipv: IP | undefined, port: n
         cb: cb,
     })
 }
+function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
+    const [host, sport] = splitHostPort(opts.address)
+    const port = parseInt(sport)
+    if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+        throw new TcpError(`dial port invalid: ${opts.address}`)
+    }
+    let ip: IP | undefined
+    let hostname: string | undefined
+    if (host != "") {
+        ip = IP.parse(host)
+        if (!ip) {
+            hostname = host
+        }
+    }
+    if (opts.tls) {
+        const tlsConfig = opts.tls
+        const serverName = tlsConfig.serverName ?? hostname
+        const signal = opts.signal
+        _tcp_dial(opts, host, ip, port, (c, e) => {
+            if (!c) {
+                cb(undefined, e)
+                return
+            }
+            let tlsConn: deps.TcpConn
+            let tls: deps.Tls
+            try {
+                tls = deps.create_tls(tlsConfig)
+                tlsConn = deps.connect_tls({
+                    bev: c.c_!.p,
+                    host: serverName,
+                    tls: tls.p,
+                })
+            } catch (e) {
+                c.close()
+                cb(undefined, e)
+                return
+            }
+            connect_tls(signal, tlsConn, tls, c!, cb)
+        }, v6)
+    } else {
+        _tcp_dial(opts, host, ip, port, cb, v6)
+    }
+}
 
+function unix_dial(opts: DialOptions, o: TcpDialIPOptions) {
+    if (opts.tls) {
+        const tlsConfig = opts.tls
+        const serverName = tlsConfig.serverName ?? o.ip
+        const signal = opts.signal
+        const cb = o.cb!
+        o.cb = (c, e) => {
+            if (!c) {
+                cb(undefined, e)
+                return
+            }
+            let tlsConn: deps.TcpConn
+            let tls: deps.Tls
+            try {
+                tls = deps.create_tls(tlsConfig)
+                tlsConn = deps.connect_tls({
+                    bev: c.c_!.p,
+                    host: serverName,
+                    tls: tls.p,
+                })
+            } catch (e) {
+                c.close()
+                cb(undefined, e)
+                return
+            }
+            connect_tls(signal, tlsConn, tls, c!, cb)
+        }
+        tcp_dial_ip(o)
+    } else {
+        tcp_dial_ip(o)
+    }
+}
 
 
 /**
@@ -2298,7 +2330,7 @@ export function _dial(opts: DialOptions, cb: DialCallback) {
             tcp_dial(opts, cb, true)
             break
         case 'unix':
-            tcp_dial_ip({
+            unix_dial(opts, {
                 sync: true,
                 Error: UnixError,
                 ip: opts.address,
