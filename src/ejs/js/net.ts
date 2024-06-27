@@ -184,6 +184,8 @@ declare namespace deps {
     export let _ipv4: undefined | boolean
     export function support_ipv4(): boolean
 
+    export function mbedtls_debug(v: number): void
+
     export interface TlsConfig {
         /**
          * @default Tls12
@@ -212,6 +214,9 @@ declare namespace deps {
         debug?: boolean
     }
     export function connect_tls(opts: ConnectTlsOptions): deps.TcpConn
+
+    export function load_certificate(): string
+    export function load_certificate(cb: (s?: string, e?: any) => void): void
 }
 import { parseArgs, parseOptionalArgs, callReturn, callVoid, coReturn, isYieldContext } from "ejs/sync";
 export class AddrError extends __duk.Error {
@@ -2117,6 +2122,77 @@ function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, tls: deps
         }
     }
 }
+function connect_tls_cb_raw(signal: undefined | AbortSignal,
+    c: BaseTcpConn,
+    tlsConfig: TlsConfig,
+    serverName: string | undefined,
+    cb: DialCallback,
+) {
+    let tlsConn: deps.TcpConn
+    let tls: deps.Tls
+    try {
+        tls = deps.create_tls(tlsConfig)
+        tlsConn = deps.connect_tls({
+            bev: c.c_!.p,
+            host: serverName,
+            tls: tls.p,
+        })
+    } catch (e) {
+        c.close()
+        cb(undefined, e)
+        return
+    }
+    connect_tls(signal, tlsConn, tls, c!, cb)
+}
+function connect_tls_cb(signal: undefined | AbortSignal,
+    c: BaseTcpConn,
+    tlsConfig: TlsConfig,
+    serverName: string | undefined,
+    cb: DialCallback | undefined,
+) {
+    if (Array.isArray(tlsConfig.certificate)) {
+        connect_tls_cb_raw(signal, c, tlsConfig, serverName, cb!)
+        return
+    }
+    let onabort: ((reason: any) => void) | undefined
+    try {
+        RootCertificate.get((s?: string, e?: any) => {
+            if (!cb) {
+                return
+            }
+            const f = cb
+            cb = undefined
+            if (onabort) {
+                signal!.removeEventListener(onabort)
+            }
+            if (e === undefined) {
+                try {
+                    if (s === undefined || s.length === 0) {
+                        tlsConfig.certificate = undefined
+                    } else {
+                        tlsConfig.certificate = [s!]
+                    }
+                } catch (e) {
+                    f(undefined, e)
+                    return
+                }
+                connect_tls_cb_raw(signal, c, tlsConfig, serverName, f)
+            } else {
+                f(undefined, e)
+            }
+        })
+    } catch (e) {
+        if (cb) {
+            const f = cb
+            cb = undefined
+            if (onabort) {
+                signal!.removeEventListener(onabort)
+            }
+
+            f(undefined, e)
+        }
+    }
+}
 function _tcp_dial(opts: DialOptions, host: string, ipv: IP | undefined, port: number, cb: DialCallback, v6?: boolean) {
     let ip: string | undefined
     if (host == "") {
@@ -2194,25 +2270,11 @@ function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
         const serverName = tlsConfig.serverName ?? hostname
         const signal = opts.signal
         _tcp_dial(opts, host, ip, port, (c, e) => {
-            if (!c) {
+            if (c) {
+                connect_tls_cb(signal, c, tlsConfig, serverName, cb)
+            } else {
                 cb(undefined, e)
-                return
             }
-            let tlsConn: deps.TcpConn
-            let tls: deps.Tls
-            try {
-                tls = deps.create_tls(tlsConfig)
-                tlsConn = deps.connect_tls({
-                    bev: c.c_!.p,
-                    host: serverName,
-                    tls: tls.p,
-                })
-            } catch (e) {
-                c.close()
-                cb(undefined, e)
-                return
-            }
-            connect_tls(signal, tlsConn, tls, c!, cb)
         }, v6)
     } else {
         _tcp_dial(opts, host, ip, port, cb, v6)
@@ -2226,25 +2288,11 @@ function unix_dial(opts: DialOptions, o: TcpDialIPOptions) {
         const signal = opts.signal
         const cb = o.cb!
         o.cb = (c, e) => {
-            if (!c) {
+            if (c) {
+                connect_tls_cb(signal, c, tlsConfig, serverName, cb)
+            } else {
                 cb(undefined, e)
-                return
             }
-            let tlsConn: deps.TcpConn
-            let tls: deps.Tls
-            try {
-                tls = deps.create_tls(tlsConfig)
-                tlsConn = deps.connect_tls({
-                    bev: c.c_!.p,
-                    host: serverName,
-                    tls: tls.p,
-                })
-            } catch (e) {
-                c.close()
-                cb(undefined, e)
-                return
-            }
-            connect_tls(signal, tlsConn, tls, c!, cb)
         }
         tcp_dial_ip(o)
     } else {
@@ -2294,6 +2342,9 @@ export interface DialOptions {
  * tls 1.2
  */
 export const Tls12 = 303
+/**
+ * tls 1.3
+ */
 export const Tls13 = 304
 export interface TlsConfig extends deps.TlsConfig {
     serverName?: string
@@ -3820,6 +3871,103 @@ export function isSupportV4(): boolean {
     }
     return ok
 }
+let _threshold = 0
+export function mbedtlsDebug(level?: number) {
+    if (level === undefined || level === null) {
+        return _threshold
+    }
+
+    if (Number.isSafeInteger(level) && level < 5 && level > 0) {
+        if (_threshold != level) {
+            deps.mbedtls_debug(level)
+            _threshold = level
+        }
+    } else {
+        throw new Error("threshold must be an integer from 0 to 4")
+    }
+}
+
+let rootCertificate: undefined | string
+let certificates: undefined | Array<(s?: string, e?: any) => void>
+function loadCertificate(cb: (s?: string, e?: any) => void) {
+    if (certificates) {
+        certificates.push(cb)
+    } else {
+        const arrs = [cb]
+        deps.load_certificate((s, e) => {
+            if (arrs === certificates) {
+                if (e === undefined) {
+                    rootCertificate = s
+                }
+            }
+            for (let i = 0; i < arrs.length; i++) {
+                arrs[i](s, e)
+            }
+        })
+        certificates = arrs
+    }
+}
+function getCertificate(a: any) {
+    if (isYieldContext(a)) {
+        if (rootCertificate === undefined || rootCertificate === null) {
+            return rootCertificate
+        }
+        const s = a.yield((notify) => {
+            loadCertificate((s, e) => {
+                if (e === undefined) {
+                    notify.value(s)
+                } else {
+                    notify.error(e)
+                }
+            })
+        })
+        return s
+    } else if (a === undefined || a === null) {
+        if (rootCertificate === undefined || rootCertificate === null) {
+            return Promise.resolve(rootCertificate)
+        }
+        return new Promise((resolve, reject) => {
+            loadCertificate((s, e) => {
+                if (e === undefined) {
+                    resolve(s)
+                } else {
+                    reject(e)
+                }
+            })
+        })
+    } else if (typeof a === "function") {
+        loadCertificate(a)
+    } else {
+        throw new Error("cb must be a function");
+    }
+}
+/**
+ * The root certificate used by the script
+ */
+export class RootCertificate {
+    private constructor() { }
+    /**
+     * Replace the root certificate used by the script
+     * @param v 
+     */
+    static set(v: string | undefined): void {
+        if (typeof v === "string") {
+            rootCertificate = v
+        } else {
+            rootCertificate = undefined
+        }
+    }
+    static getSync(): string {
+        if (rootCertificate === undefined || rootCertificate === null) {
+            rootCertificate = deps.load_certificate()
+        }
+        return rootCertificate
+    }
+    static get(a: any) {
+        return getCertificate(a)
+    }
+}
+
 export function module_destroy() {
     if (Resolver.hasDefault()) {
         Resolver.getDefault().close()

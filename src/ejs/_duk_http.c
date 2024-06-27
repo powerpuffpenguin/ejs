@@ -159,18 +159,8 @@ const size_t mbedtls_test_cas_pem_len = sizeof(mbedtls_test_cas_pem);
 
 static duk_ret_t http_dial(duk_context *ctx)
 {
+    const char *s = duk_require_string(ctx, 0);
     mbedtls_debug_set_threshold(4);
-
-    ejs_core_t *core = ejs_require_core(ctx);
-    ejs_dump_context_stdout(ctx);
-    duk_get_prop_lstring(ctx, 0, "p", 1);
-    struct bufferevent *bev = duk_get_pointer_default(ctx, -1, 0);
-    if (!bev)
-    {
-        puts("bev null");
-        return 0;
-    }
-    duk_pop(ctx);
 
     const char *pers = "ssl_client1";
 
@@ -196,49 +186,33 @@ static duk_ret_t http_dial(duk_context *ctx)
         return 0;
     }
     psa_crypto_init();
+    puts(mbedtls_test_cas_pem);
+
+    printf("s %d %d:\n%s\n",
+           mbedtls_test_cas_pem_len, strlen(s),
+           "");
+    // for (size_t i = 0; i < mbedtls_test_cas_pem_len; i++)
+    // {
+    //     int ok = s[i] == mbedtls_test_cas_pem[i];
+    //     printf("%03d. %d %d %d\n", i, s[i], mbedtls_test_cas_pem[i], ok);
+    //     if (!ok)
+    //     {
+    //         printf("%03d. %d %d %d\n", i, s[i + 1], mbedtls_test_cas_pem[i + 1], ok);
+    //         printf("%03d. %d %d %d\n", i, s[i + 2], mbedtls_test_cas_pem[i + 2], ok);
+    //         break;
+    //     }
+    // }
+
+    // ret = mbedtls_x509_crt_parse(&cacert,
+    //                              (const unsigned char *)mbedtls_test_cas_pem, mbedtls_test_cas_pem_len);
     ret = mbedtls_x509_crt_parse(&cacert,
-                                 (const unsigned char *)mbedtls_test_cas_pem, mbedtls_test_cas_pem_len);
+                                 (const unsigned char *)s, strlen(s) + 1);
     if (ret < 0)
     {
         printf(
             " failed\n  !  mbedtls_x509_crt_parse returned -0x%x\n\n", -ret);
         return 0;
     }
-    if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT,
-                                           MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0)
-    {
-        printf(
-            " failed\n  ! mbedtls_ssl_config_defaults returned %d\n\n", ret);
-        return 0;
-    }
-    mbedtls_ssl_conf_max_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
-    // mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MAJOR_VERSION_3);
-    // mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_NONE);
-
-    mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-    mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-    mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
-
-    ssl = bufferevent_mbedtls_dyncontext_new(&conf);
-    if ((ret = mbedtls_ssl_set_hostname(ssl, "www.baidu.com")) != 0)
-    {
-        printf(
-            " failed\n  ! mbedtls_ssl_set_hostname returned %d\n\n", ret);
-        return 0;
-    }
-    mbedtls_ssl_set_verify(ssl, cert_verify_callback, NULL);
-    struct bufferevent *b = bev;
-    bev = bufferevent_mbedtls_filter_new(
-        core->base, bev,
-        ssl,
-        BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE);
-    if (!bev)
-    {
-        puts("bufferevent_mbedtls_filter_new fail");
-        return 0;
-    }
-    bufferevent_setcb(bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, b);
-    bufferevent_enable(bev, EV_READ);
 
     return 0;
 }

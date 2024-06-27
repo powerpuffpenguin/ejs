@@ -3564,6 +3564,7 @@ typedef struct
 {
     tcp_tls_t *tls;
 } create_tls_args_t;
+
 static void my_tls_debug(void *ctx, int level, const char *file, int line, const char *str)
 {
     ((void)level);
@@ -3609,7 +3610,7 @@ static duk_ret_t create_tls_impl(duk_context *ctx)
             {
                 ret = mbedtls_x509_crt_parse(
                     &args->tls->cacert,
-                    cas_pem, cas_pem_len);
+                    cas_pem, cas_pem_len + 1);
                 if (ret < 0)
                 {
                     duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_x509_crt_parse returned -0x%x", -ret);
@@ -3721,6 +3722,17 @@ static duk_ret_t connect_tls_impl(duk_context *ctx)
         duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_mbedtls_filter_new fail");
         duk_throw(ctx);
     }
+
+    if (host_len)
+    {
+        int ret;
+        if ((ret = mbedtls_ssl_set_hostname(ssl, host)) != 0)
+        {
+            bufferevent_mbedtls_dyncontext_free(ssl);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_ssl_set_hostname returned %d", ret);
+            duk_throw(ctx);
+        }
+    }
     args->bev = bufferevent_mbedtls_filter_new(
         core->base, bev,
         ssl,
@@ -3757,6 +3769,11 @@ static duk_ret_t mbedtls_debug(duk_context *ctx)
 {
     int threshold = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 0, 0);
     mbedtls_debug_set_threshold(threshold);
+    return 0;
+}
+static duk_ret_t load_certificate(duk_context *ctx)
+{
+    ejs_dump_context_stdout(ctx);
     return 0;
 }
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
@@ -3924,14 +3941,17 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "create_tls", 10);
         duk_push_c_lightfunc(ctx, connect_tls, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "connect_tls", 11);
+
+        duk_push_c_lightfunc(ctx, mbedtls_debug, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "mbedtls_debug", 13);
+
+        duk_push_c_lightfunc(ctx, load_certificate, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "load_certificate", 16);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
      */
     duk_call(ctx, 3);
-
-    duk_push_c_lightfunc(ctx, mbedtls_debug, 1, 1, 0);
-    duk_put_prop_lstring(ctx, -2, "mbedtls_debug", 13);
 
     ejs_stash_set_module_destroy(ctx);
     return 0;

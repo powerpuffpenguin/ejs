@@ -452,6 +452,68 @@ declare module "ejs/net" {
     }
 
     /**
+     * Set tls debugging level
+     * 
+     * - 0 No debug (default level)
+     * - 1 Error 
+     * - 2 State change 
+     * - 3 Informational 
+     * - 4 Verbose
+     */
+    export function mbedtlsDebug(level?: number): void
+    /**
+     * Get tls debugging level
+     * 
+     * - 0 No debug (default level)
+     * - 1 Error 
+     * - 2 State change 
+     * - 3 Informational 
+     * - 4 Verbose
+     */
+    export function mbedtlsDebug(): number
+    /**
+     * tls 1.2
+     *  - RFC 5246: ProtocolVersion version = { 3, 3 };     // TLS v1.2
+     *  - major = Math.floor(v/100)
+     *  - minor= v%100
+     */
+    export const Tls12 = 303
+    /**
+     * tls 1.3
+     *  - RFC 8446: see section 4.2.1     // TLS v1.2
+     *  - major = Math.floor(v/100)
+     *  - minor= v%100
+     */
+    export const Tls13 = 304
+
+    export interface TlsConfig {
+        /**
+         * @default Tls12
+         */
+        minVersion?: number
+        /**
+         * @default Tls13
+         */
+        maxVersion?: number
+
+        /**
+         * root ca(x509)
+         * 
+         * System ca is loaded by default(linux: /etc/ssl/certs/ca-certificates.crt). If set, system ca will not be loaded.
+         */
+        certificate?: Array<string>
+
+        /**
+         * If true do not verify the certificate
+         */
+        insecure?: boolean
+        /**
+         * Print debugging information to stdout
+         */
+        debug?: boolean
+    }
+
+    /**
      * Conn is a generic stream-oriented network connection.
      */
     export interface Conn {
@@ -673,6 +735,11 @@ declare module "ejs/net" {
          * A signal that can be used to cancel dialing
          */
         signal?: AbortSignal
+
+        /**
+         * If set will use tls connection
+         */
+        tls?: TlsConfig
     }
     /**
      * Dial a listener to create a connection for bidirectional communication
