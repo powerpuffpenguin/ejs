@@ -112,6 +112,15 @@ namespace ejs {
 
 declare module "ejs/net" {
     import { YieldContext } from "ejs/sync"
+    export interface AsyncOptions {
+        /**
+         * If true, execute asynchronous tasks in post mode, otherwise execute in send mode.
+         * 
+         * @remarks
+         * When there are no idle threads and the number of threads reaches the upper limit, the post mode will return an error and the send mode will wait for the thread to be idle or the system to exit.
+         */
+        post?: boolean
+    }
     export const IPv4len = 4;
     export const IPv6len = 16;
     export class AddrError extends ejs.Error {
@@ -533,11 +542,15 @@ declare module "ejs/net" {
         /**
          * Returns the root certificate, which will be automatically loaded if it has not been loaded yet.
          */
-        static get(co: YieldContext): string
+        static get(opts: AsyncOptions, cb: (ca?: string, e?: any) => void): void
         /**
          * Returns the root certificate, which will be automatically loaded if it has not been loaded yet.
          */
-        static get(): Promise<string>
+        static get(co: YieldContext, opts?: AsyncOptions): string
+        /**
+         * Returns the root certificate, which will be automatically loaded if it has not been loaded yet.
+         */
+        static get(opts?: AsyncOptions): Promise<string>
     }
     /**
      * Conn is a generic stream-oriented network connection.

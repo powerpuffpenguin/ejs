@@ -16,24 +16,22 @@ function main() {
 
             c = net.dial(co, {
                 network: "tcp",
-                // address: "127.0.0.1:2443",
-                address: "webpc.cdnewstar.cn:443",
+                address: "127.0.0.1:2443",
                 // address: "www.baidu.com:443",
 
                 // network: "unix",
                 // address: "@abc",
                 tls: {
-                    // insecure: true,
+                    insecure: true,
                     // debug: true,
                     maxVersion: net.Tls12,
                     // certificate: [],
                 },
             })
-
             rw = new net.TcpConnReaderWriter(c)
             c = undefined
 
-            rw.write(co, "GET / HTTP/1.0\nHost: webpc.cdnewstar.cn\nUser-Agent: curl/7.58.0\nAccept: */*\n\n")
+            rw.write(co, "GET / HTTP/1.0\nHost: www.baidu.com\nUser-Agent: curl/7.58.0\nAccept: */*\n\n")
 
             var b = new Uint8Array(1024)
             var n
@@ -42,6 +40,7 @@ function main() {
                 if (!n) {
                     break
                 }
+                console.log(n)
                 console.log(new TextDecoder().decode(b.subarray(0, n)))
             }
         } catch (e) {

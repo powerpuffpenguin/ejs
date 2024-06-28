@@ -1328,10 +1328,13 @@ export class BaseTcpConn implements Conn {
                 } else {
                     return
                 }
+            } else if (what & deps.BEV_EVENT_ERROR) {
+                if (f) {
+                    e = new bridge.Error(deps.socket_error_str())
+                }
             } else {
                 return
             }
-
             if (f) {
                 f.bind(this)(e!)
             }
@@ -2153,7 +2156,7 @@ function connect_tls_cb(signal: undefined | AbortSignal,
     serverName: string | undefined,
     cb: DialCallback | undefined,
 ) {
-    if (Array.isArray(tlsConfig.certificate)) {
+    if (tlsConfig.insecure || Array.isArray(tlsConfig.certificate)) {
         connect_tls_cb_raw(signal, c, tlsConfig, serverName, cb!)
         return
     }
@@ -3635,26 +3638,21 @@ export class TcpConnReaderWriter {
             if (onError) {
                 onError(e)
             }
-            if (e instanceof TcpError) {
-                if (e.write) {
-                    const w = this.write_
-                    if (w) {
-                        this.write_ = undefined
-                        const cb = w.cb
-                        cb(undefined, e)
-                    }
-                } else if (e.read) {
-                    const r = this.read_
-                    if (r) {
-                        this.read_ = undefined
-                        const cb = r.cb
-                        if (e.eof) {
-                            cb(0)
-                        } else {
-                            cb(undefined, e)
-                        }
-                    }
+            const r = this.read_
+            if (r) {
+                this.read_ = undefined
+                const cb = r.cb
+                if (typeof e === "object" && e.eof && e.read) {
+                    cb(0)
+                    return
                 }
+                cb(undefined, e)
+            }
+            const w = this.write_
+            if (w) {
+                this.write_ = undefined
+                const cb = w.cb
+                cb(undefined, e)
             }
         }
     }
