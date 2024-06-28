@@ -39,7 +39,7 @@ duk_ret_t _ejs_helper_bytes_copy(duk_context *ctx)
     duk_size_t n = l0 < l1 ? l0 : l1;
     if (n)
     {
-        memcpy(s0, s1, n);
+        memmove(s0, s1, n);
     }
     duk_pop_2(ctx);
     duk_push_number(ctx, n);
