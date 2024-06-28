@@ -1,16 +1,11 @@
 var sync = require("ejs/sync")
 var net = require("ejs/net")
+var RootCertificate = net.RootCertificate
 var http = require("ejs/http")
 var os = require("ejs/os")
 
 function main() {
     sync.go(function (co) {
-        // var text = os.readTextFile(co, "/home/king/a.txt")
-        // text = os.readTextFile(co, "/etc/ssl/certs/ca-certificates.crt")
-        // // text = text.split("\n").join("\r\n")
-        // http.dial(text)
-        // // console.log("ok")
-        // return
         var c
         var rw
         try {

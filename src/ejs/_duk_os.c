@@ -2,6 +2,7 @@
 #include "js/os.h"
 #include "stash.h"
 #include "duk.h"
+#include "_duk_helper.h"
 #include "defines.h"
 #include "config.h"
 #include "_duk_async.h"
@@ -77,7 +78,7 @@ static void f_open_async_impl(void *userdata)
 {
     f_open_async_args_t *args = userdata;
     args->fd = open(args->name, args->flags, args->perm);
-    args->err = EJS_INVALID_FD(args->fd) ? errno : 0;
+    args->err = EJS_IS_INVALID_FD(args->fd) ? errno : 0;
 }
 static void f_push_file_object(duk_context *ctx, int fd, const char *name, duk_size_t len)
 {
@@ -120,7 +121,7 @@ static duk_ret_t f_open_impl(duk_context *ctx)
     duk_pop(ctx);
 
     args->fd = open(args->name, args->flags, args->perm);
-    if (EJS_INVALID_FD(args->fd))
+    if (EJS_IS_INVALID_FD(args->fd))
     {
         ejs_throw_os_errno(ctx);
     }
@@ -131,7 +132,7 @@ static duk_ret_t f_open_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "name", 4);
     duk_push_c_lightfunc(ctx, ejs_fd_finalizer, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
-    args->fd = -1;
+    args->fd = EJS_INVALID_FD;
     return 1;
 }
 static duk_ret_t f_open_file(duk_context *ctx, int flags_def, int perm_def)
@@ -160,15 +161,12 @@ static duk_ret_t f_open_file(duk_context *ctx, int flags_def, int perm_def)
             .len = len,
             .flags = flags,
             .perm = perm,
-            .fd = -1,
+            .fd = EJS_INVALID_FD,
         };
         duk_pop(ctx);
         if (ejs_pcall_function(ctx, f_open_impl, &args))
         {
-            if (EJS_VALID_FD(args.fd))
-            {
-                close(args.fd);
-            }
+            EJS_CLOSE_FD(args.fd);
             duk_throw(ctx);
         }
         return 1;
@@ -310,7 +308,7 @@ static duk_ret_t f_stat(duk_context *ctx)
 
     f_fstat_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_fstat_async_args_t), ejs_default_finalizer);
     p->name = name;
-    p->fd = -1;
+    p->fd = EJS_INVALID_FD;
 
     _ejs_async_post_or_send(ctx, f_fstat_async_impl, f_fstat_async_return);
     return 0;
@@ -928,30 +926,7 @@ static duk_ret_t f_truncate(duk_context *ctx)
     return 0;
 }
 
-typedef struct
-{
-    EJS_ASYNC_DEFINE_RETURN_NUMBER
-
-    const char *name;
-} f_file_len_async_args_t;
-static void f_file_len_async_impl(void *userdata)
-{
-    f_file_len_async_args_t *args = userdata;
-    struct stat info;
-    if (stat(args->name, &info))
-    {
-        args->result.err = errno;
-        return;
-    }
-    else if (S_ISDIR(info.st_mode))
-    {
-        args->result.err = EISDIR;
-        return;
-    }
-    args->result.err = 0;
-    args->result.n = info.st_size;
-}
-static duk_ret_t f_file_len(duk_context *ctx)
+static duk_ret_t read_file(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "name", 4);
     const char *name = duk_require_string(ctx, -1);
@@ -959,96 +934,22 @@ static duk_ret_t f_file_len(duk_context *ctx)
 
     if (duk_is_undefined(ctx, 1))
     {
-        f_file_len_async_args_t opts = {.name = name};
-        f_file_len_async_impl(&opts);
-        if (opts.result.err)
-        {
-            ejs_throw_os(ctx, opts.result.err, 0);
-        }
-        duk_push_number(ctx, opts.result.n);
-        return 1;
+        return _ejs_read_file(ctx, name);
     }
-
-    f_file_len_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_file_len_async_args_t), ejs_default_finalizer);
-    p->name = name;
-
-    EJS_ASYNC_POST_OR_SEND_NUMBER(ctx, f_file_len_async_impl);
-    return 0;
+    return _ejs_async_read_file(ctx, name);
 }
-
-typedef struct
+static duk_ret_t read_text_file(duk_context *ctx)
 {
-    EJS_ASYNC_DEFINE_RETURN_NUMBER
-
-    uint8_t *buf;
-    duk_size_t size;
-    const char *name;
-} f_readFile_async_args_t;
-
-static void f_readFile_async_impl(void *userdata)
-{
-    f_readFile_async_args_t *opts = userdata;
-    int f = open(opts->name, O_RDONLY, 0);
-    if (EJS_INVALID_FD(f))
-    {
-        opts->result.err = errno;
-        return;
-    }
-
-    uint8_t *p = opts->buf;
-    off_t size = opts->size;
-    ssize_t n;
-    while (size)
-    {
-        n = read(f, p, size);
-        if (n == 0)
-        {
-            close(f);
-            break;
-        }
-        else if (EJS_SYSTEM_ERROR(n))
-        {
-            opts->result.err = errno;
-            close(f);
-            return;
-        }
-        p += n;
-        size -= n;
-
-        opts->result.n += n;
-    }
-    opts->result.err = 0;
-}
-
-static duk_ret_t f_readFile(duk_context *ctx)
-{
-    f_readFile_async_args_t opts;
     duk_get_prop_lstring(ctx, 0, "name", 4);
-    opts.name = duk_require_string(ctx, -1);
-    duk_pop(ctx);
-
-    duk_get_prop_lstring(ctx, 0, "buf", 3);
-    opts.buf = duk_require_buffer_data(ctx, -1, &opts.size);
+    const char *name = duk_require_string(ctx, -1);
     duk_pop(ctx);
 
     if (duk_is_undefined(ctx, 1))
     {
-        f_readFile_async_impl(&opts);
-        if (opts.result.err)
-        {
-            ejs_throw_os(ctx, opts.result.err, 0);
-        }
-        duk_push_number(ctx, opts.result.n);
-        return 1;
+        return _ejs_read_text_file(ctx, name);
     }
-
-    f_readFile_async_args_t *p = ejs_push_finalizer_object(ctx, sizeof(f_readFile_async_args_t), ejs_default_finalizer);
-    *p = opts;
-
-    EJS_ASYNC_POST_OR_SEND_NUMBER(ctx, f_readFile_async_impl);
-    return 0;
+    return _ejs_async_read_text_file(ctx, name);
 }
-
 typedef struct
 {
     EJS_ASYNC_DEFINE_RETURN_VOID
@@ -1064,7 +965,7 @@ static void f_writeFile_async_impl(void *userdata)
 {
     f_writeFile_async_args_t *opts = userdata;
     int f = open(opts->name, O_RDWR | O_CREAT | O_TRUNC, opts->perm);
-    if (EJS_INVALID_FD(f))
+    if (EJS_IS_INVALID_FD(f))
     {
         opts->result.err = errno;
         return;
@@ -1598,7 +1499,7 @@ static duk_ret_t f_read_dir_impl(duk_context *ctx)
         ejs_throw_os_errno(ctx);
     }
     int fd = dirfd(args->dir);
-    if (EJS_INVALID_FD(fd))
+    if (EJS_IS_INVALID_FD(fd))
     {
         ejs_throw_os_errno(ctx);
     }
@@ -1618,7 +1519,7 @@ static void f_read_dir_async_impl(void *userdata)
         return;
     }
     int fd = dirfd(dir);
-    if (EJS_INVALID_FD(fd))
+    if (EJS_IS_INVALID_FD(fd))
     {
         args->result.err = errno;
         closedir(dir);
@@ -2169,12 +2070,12 @@ static duk_ret_t f_createTemp(duk_context *ctx)
     {
         f_createTemp_args_t args = {
             .opts = &opts,
-            .fd = -1,
+            .fd = EJS_INVALID_FD,
             .name = 0,
         };
         if (ejs_pcall_function(ctx, f_createTemp_impl, &args))
         {
-            if (EJS_VALID_FD(args.fd))
+            if (EJS_IS_VALID_FD(args.fd))
             {
                 close(args.fd);
                 if (args.name)
@@ -2874,11 +2775,10 @@ duk_ret_t _ejs_native_os_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, f_truncate, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "truncate", 8);
 
-        duk_push_c_lightfunc(ctx, f_file_len, 2, 2, 0);
-        duk_put_prop_lstring(ctx, -2, "file_len", 8);
-
-        duk_push_c_lightfunc(ctx, f_readFile, 2, 2, 0);
-        duk_put_prop_lstring(ctx, -2, "readFile", 8);
+        duk_push_c_lightfunc(ctx, read_file, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "read_file", 9);
+        duk_push_c_lightfunc(ctx, read_text_file, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "read_text_file", 14);
 
         duk_push_c_lightfunc(ctx, f_writeFile, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "writeFile", 9);

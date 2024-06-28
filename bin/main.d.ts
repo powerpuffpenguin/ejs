@@ -512,7 +512,33 @@ declare module "ejs/net" {
          */
         debug?: boolean
     }
-
+    /**
+     * The root certificate used by the script
+     */
+    export class RootCertificate {
+        private constructor() { }
+        /**
+         * Replace the root certificate used by the script
+         * @param v 
+         */
+        static set(v: string | undefined): void
+        /**
+         * Returns the root certificate, which will be automatically loaded if it has not been loaded yet.
+         */
+        static getSync(): string
+        /**
+         * Returns the root certificate, which will be automatically loaded if it has not been loaded yet.
+         */
+        static get(cb: (ca?: string, e?: any) => void): void
+        /**
+         * Returns the root certificate, which will be automatically loaded if it has not been loaded yet.
+         */
+        static get(co: YieldContext): string
+        /**
+         * Returns the root certificate, which will be automatically loaded if it has not been loaded yet.
+         */
+        static get(): Promise<string>
+    }
     /**
      * Conn is a generic stream-oriented network connection.
      */

@@ -215,8 +215,11 @@ declare namespace deps {
     }
     export function connect_tls(opts: ConnectTlsOptions): deps.TcpConn
 
+    interface AsyncOptions {
+        post?: boolean
+    }
     export function load_certificate(): string
-    export function load_certificate(cb: (s?: string, e?: any) => void): void
+    export function load_certificate(opts: AsyncOptions, cb: (s?: string, e?: any) => void): void
 }
 import { parseArgs, parseOptionalArgs, callReturn, callVoid, coReturn, isYieldContext } from "ejs/sync";
 export class AddrError extends __duk.Error {
@@ -2156,7 +2159,7 @@ function connect_tls_cb(signal: undefined | AbortSignal,
     }
     let onabort: ((reason: any) => void) | undefined
     try {
-        RootCertificate.get((s?: string, e?: any) => {
+        RootCertificate.get(undefined, (s?: string, e?: any) => {
             if (!cb) {
                 return
             }
@@ -3886,15 +3889,16 @@ export function mbedtlsDebug(level?: number) {
         throw new Error("threshold must be an integer from 0 to 4")
     }
 }
-
+const asyncOptions: deps.AsyncOptions = {}
+const asyncPostOptions: deps.AsyncOptions = { post: true }
 let rootCertificate: undefined | string
 let certificates: undefined | Array<(s?: string, e?: any) => void>
-function loadCertificate(cb: (s?: string, e?: any) => void) {
+function loadCertificate(opts: deps.AsyncOptions, cb: (s?: string, e?: any) => void) {
     if (certificates) {
         certificates.push(cb)
     } else {
         const arrs = [cb]
-        deps.load_certificate((s, e) => {
+        deps.load_certificate(opts, (s, e) => {
             if (arrs === certificates) {
                 if (e === undefined) {
                     rootCertificate = s
@@ -3907,38 +3911,43 @@ function loadCertificate(cb: (s?: string, e?: any) => void) {
         certificates = arrs
     }
 }
-function getCertificate(a: any) {
-    if (isYieldContext(a)) {
+function getCertificate(a: any, b: any) {
+    const args = parseOptionalArgs<deps.AsyncOptions, (s?: string, e?: any) => void>('getCertificate', a, b)
+    const opts = args.opts?.post ? asyncPostOptions : asyncOptions
+    if (args.co) {
         if (rootCertificate === undefined || rootCertificate === null) {
-            return rootCertificate
-        }
-        const s = a.yield((notify) => {
-            loadCertificate((s, e) => {
-                if (e === undefined) {
-                    notify.value(s)
-                } else {
-                    notify.error(e)
-                }
+            const s = args.co.yield((notify) => {
+                loadCertificate(opts, (s, e) => {
+                    if (e === undefined) {
+                        notify.value(s)
+                    } else {
+                        notify.error(e)
+                    }
+                })
             })
-        })
-        return s
+            return s
+        }
+        return rootCertificate
+    } else if (args.cb) {
+        if (rootCertificate === undefined || rootCertificate === null) {
+            loadCertificate(opts, args.cb)
+        } else {
+            const cb = args.cb
+            cb(rootCertificate)
+        }
     } else if (a === undefined || a === null) {
         if (rootCertificate === undefined || rootCertificate === null) {
-            return Promise.resolve(rootCertificate)
-        }
-        return new Promise((resolve, reject) => {
-            loadCertificate((s, e) => {
-                if (e === undefined) {
-                    resolve(s)
-                } else {
-                    reject(e)
-                }
+            return new Promise((resolve, reject) => {
+                loadCertificate(opts, (s, e) => {
+                    if (e === undefined) {
+                        resolve(s)
+                    } else {
+                        reject(e)
+                    }
+                })
             })
-        })
-    } else if (typeof a === "function") {
-        loadCertificate(a)
-    } else {
-        throw new Error("cb must be a function");
+        }
+        return Promise.resolve(rootCertificate)
     }
 }
 /**
@@ -3963,8 +3972,8 @@ export class RootCertificate {
         }
         return rootCertificate
     }
-    static get(a: any) {
-        return getCertificate(a)
+    static get(a: any, b: any) {
+        return getCertificate(a, b)
     }
 }
 

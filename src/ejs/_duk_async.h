@@ -38,6 +38,19 @@ duk_ret_t _ejs_async_return_number_impl(duk_context *ctx);
 typedef struct
 {
     int err;
+    uint8_t *buffer;
+    duk_size_t buffer_len;
+} _ejs_async_return_uint8array_t;
+#define EJS_ASYNC_DEFINE_RETURN_UINT8ARRAY _ejs_async_return_uint8array_t result;
+duk_ret_t _ejs_async_return_uint8array_finalizer(duk_context *ctx);
+duk_ret_t _ejs_async_return_uint8array_impl(duk_context *ctx);
+#define EJS_ASYNC_POST_OR_SEND_UINT8ARRAY(ctx, cb) _ejs_async_post_or_send(ctx, cb, _ejs_async_return_uint8array_impl)
+duk_ret_t _ejs_async_return_uint8array_text_impl(duk_context *ctx);
+#define EJS_ASYNC_POST_OR_SEND_UINT8ARRAY_TEXT(ctx, cb) _ejs_async_post_or_send(ctx, cb, _ejs_async_return_uint8array_text_impl)
+
+typedef struct
+{
+    int err;
     ppp_buffer_t buffer;
 } _ejs_async_return_buffer_t;
 #define EJS_ASYNC_DEFINE_RETURN_BUFFER _ejs_async_return_buffer_t result;

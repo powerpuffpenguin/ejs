@@ -62,6 +62,23 @@ DUK_EXTERNAL void ejs_new_os_error(duk_context *ctx, int err, const char *messag
     }
     duk_new(ctx, 2);
 }
+DUK_EXTERNAL void ejs_new_os_format(duk_context *ctx, int err, const char *fmt, ...)
+{
+    va_list ap;
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS_OS_ERROR);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    duk_push_int(ctx, err);
+
+    va_start(ap, fmt);
+    duk_push_vsprintf(ctx, fmt, ap);
+    va_end(ap);
+
+    duk_new(ctx, 2);
+}
 DUK_EXTERNAL void ejs_throw_os(duk_context *ctx, int err, const char *message)
 {
     duk_push_heap_stash(ctx);
@@ -437,7 +454,7 @@ DUK_EXTERNAL duk_ret_t ejs_fd_finalizer(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, -1, "fd", 2);
     int fd = duk_get_number_default(ctx, -1, -1);
-    if (!EJS_INVALID_FD(fd))
+    if (!EJS_IS_INVALID_FD(fd))
     {
         close(fd);
     }

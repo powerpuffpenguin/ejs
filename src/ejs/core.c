@@ -558,14 +558,14 @@ static duk_ret_t ejs_core_run_impl(duk_context *ctx)
     else if (!S_ISREG(info.st_mode) || !info.st_size)
     {
         close(fd);
-        ejs_throw_os_format(ctx, EJS_ERROR_INVALID_MODULE_FILE, "invalid source file: %s", args->name);
+        ejs_throw_cause_format(ctx, EJS_ERROR_INVALID_MODULE_FILE, "invalid source file: %s", args->name);
     }
     else
     {
         if (info.st_size > 1024 * 1024 * EJS_CONFIG_MAX_JS_SIZE)
         {
             close(fd);
-            ejs_throw_cause_format(ctx, EJS_ERROR_LARGE_MODULE, "source size exceeds  limit(%dmb): %s", EJS_CONFIG_MAX_JS_SIZE, args->name);
+            ejs_throw_os_format(ctx, EFBIG, "source size exceeds  limit(%dmb): %s", EJS_CONFIG_MAX_JS_SIZE, args->name);
         }
         args->source.source = malloc(info.st_size);
         if (!args->source.source)

@@ -186,18 +186,14 @@ declare namespace deps {
     export function truncate(opts: TruncateOptions): void
     export function truncate(opts: TruncateOptions, cb: (e?: any) => void): void
 
-    export interface FileLenOptions extends AsyncOptions {
-        name: string
-    }
-    export function file_len(opts: FileLenOptions): number
-    export function file_len(opts: FileLenOptions, cb: (v?: number, e?: any) => void): void
-
     export interface ReadFileOptions extends AsyncOptions {
         name: string
-        buf: Uint8Array
+        buf?: Uint8Array
     }
-    export function readFile(opts: ReadFileOptions): number
-    export function readFile(opts: ReadFileOptions, cb: (n?: number, e?: any) => void): void
+    export function read_file(opts: ReadFileOptions): Uint8Array
+    export function read_file(opts: ReadFileOptions, cb: (data?: Uint8Array, e?: any) => void): void
+    export function read_text_file(opts: ReadFileOptions): string
+    export function read_text_file(opts: ReadFileOptions, cb: (s?: string, e?: any) => void): void
     export interface WriteFileOptions extends AsyncOptions {
         name: string
         data?: Uint8Array
@@ -1576,18 +1572,7 @@ export interface ReadFileOptions extends AsyncOptions {
  */
 export function readFileSync(name: string): Uint8Array {
     try {
-        const len = deps.file_len({
-            name: name,
-        })
-        if (!len) {
-            return new Uint8Array()
-        }
-        const buf = new Uint8Array(len)
-        const n = deps.readFile({
-            name: name,
-            buf: buf,
-        })
-        return buf.subarray(0, n)
+        return deps.read_file({ name: name })
     } catch (e) {
         throw new PathError({
             op: 'readFileSync',
@@ -1602,18 +1587,7 @@ export function readFileSync(name: string): Uint8Array {
  */
 export function readTextFileSync(name: string): string {
     try {
-        const len = deps.file_len({
-            name: name,
-        })
-        if (!len) {
-            return ""
-        }
-        const buf = new Uint8Array(len)
-        const n = deps.readFile({
-            name: name,
-            buf: buf,
-        })
-        return new TextDecoder().decode(buf.subarray(0, n))
+        return deps.read_text_file({ name: name })
     } catch (e) {
         throw new PathError({
             op: 'readTextFileSync',
@@ -1622,66 +1596,10 @@ export function readTextFileSync(name: string): string {
         })
     }
 }
-export interface _ReadFileOptions extends AsyncOptions {
-    name: string
-    s?: boolean
-}
-function _readFile<T>(opts: _ReadFileOptions, cb: (data?: T, e?: any) => void) {
-    const post = opts.post ? true : false
-    deps.file_len({
-        name: opts.name,
-        post: post,
-    }, (len, e) => {
-        if (e) {
-            cb(undefined, e)
-        }
-        if (!len) {
-            let data: any
-            try {
-                if (opts.s) {
-                    data = ""
-                } else {
-                    data = new Uint8Array()
-                }
-            } catch (e) {
-                cb(undefined, e)
-                return
-            }
-            cb(data)
-            return
-        }
-        try {
-            const buf = new Uint8Array(len)
-            deps.readFile({
-                name: opts.name,
-                buf: buf,
-                post: post,
-            }, (n, e) => {
-                if (n === undefined) {
-                    cb(undefined, e)
-                    return
-                }
-                let data: any
-                try {
-                    data = buf.subarray(0, n)
-                    if (opts.s) {
-                        data = new TextDecoder().decode(data)
-                    }
-                } catch (e) {
-                    cb(undefined, e)
-                    return
-                }
-                cb(data)
-            })
-        } catch (e) {
-            cb(undefined, e)
-        }
-    })
-}
 export function readFile(a: any, b: any) {
     const args = parseArgs<string | ReadFileOptions, (data?: Uint8Array, e?: any) => void>('readFile', a, b)
     const opts = args.opts!
-    const o: _ReadFileOptions = typeof opts === "string" ? {
+    const o: deps.ReadFileOptions = typeof opts === "string" ? {
         name: opts,
     } : {
         name: opts.name,
@@ -1693,18 +1611,16 @@ export function readFile(a: any, b: any) {
         path: o.name,
         err: e,
     })
-    return callReturn(_readFile<any>, args as any, undefined, ce)
+    return callReturn(deps.read_file, args as any, undefined, ce)
 }
 export function readTextFile(a: any, b: any) {
     const args = parseArgs<string | ReadFileOptions, (s?: string, e?: any) => void>('readTextFile', a, b)
     const opts = args.opts!
-    const o: _ReadFileOptions = typeof opts === "string" ? {
+    const o: deps.ReadFileOptions = typeof opts === "string" ? {
         name: opts,
-        s: true,
     } : {
         name: opts.name,
         post: opts.post,
-        s: true,
     }
     args.opts = o
     const ce = (e: any) => new PathError({
@@ -1712,7 +1628,7 @@ export function readTextFile(a: any, b: any) {
         path: o.name,
         err: e,
     })
-    return callReturn(_readFile<any>, args as any, undefined, ce)
+    return callReturn(deps.read_text_file, args as any, undefined, ce)
 }
 
 export interface WriteFileSyncOptions {

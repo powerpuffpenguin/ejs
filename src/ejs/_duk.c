@@ -4,7 +4,6 @@
 #include "../duk/duk_console.h"
 #include "../duk/duk_module_node.h"
 #include <stdio.h>
-#include <sys/stat.h>
 #include "config.h"
 #include "duk.h"
 #include "stash.h"

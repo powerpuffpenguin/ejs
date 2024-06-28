@@ -20,6 +20,7 @@ extern "C"
     DUK_EXTERNAL void ejs_throw_cause_format(duk_context *ctx, EJS_ERROR_RET cause, const char *fmt, ...);
 
     DUK_EXTERNAL void ejs_new_os_error(duk_context *ctx, int err, const char *message);
+    DUK_EXTERNAL void ejs_new_os_format(duk_context *ctx, int err, const char *fmt, ...);
     DUK_EXTERNAL void ejs_throw_os(duk_context *ctx, int err, const char *message);
     DUK_EXTERNAL void ejs_throw_os_format(duk_context *ctx, int err, const char *fmt, ...);
     DUK_EXTERNAL void ejs_throw_os_errno(duk_context *ctx);
@@ -151,6 +152,7 @@ extern "C"
      * err ...
      */
     DUK_EXTERNAL void *ejs_push_finalizer_object(duk_context *ctx, duk_size_t sz, duk_c_function finalizer);
+
 #if defined(__cplusplus)
 }
 #endif

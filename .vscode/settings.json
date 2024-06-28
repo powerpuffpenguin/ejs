@@ -91,6 +91,8 @@
         "_duk_test.h": "c",
         "ssl.h": "c",
         "timing.h": "c",
-        "ctr_drbg.h": "c"
+        "ctr_drbg.h": "c",
+        "bufferevent_ssl.h": "c",
+        "_duk_helper.h": "c"
     }
 }

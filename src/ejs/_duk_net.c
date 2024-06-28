@@ -4,6 +4,7 @@
 #include "duk.h"
 #include "js/net.h"
 #include "_duk_helper.h"
+
 #include "core.h"
 #include <event2/listener.h>
 #include <event2/bufferevent.h>
@@ -26,6 +27,15 @@
 #include <mbedtls/timing.h>
 
 #define EJS_NET_THROW_SOCKET_ERROR(ctx) ejs_throw_os(ctx, EVUTIL_SOCKET_ERROR(), evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()))
+
+inline static const char *_ejs_os_get_define(const char *s, size_t n, size_t *p)
+{
+    if (p)
+    {
+        *p = n;
+    }
+    return s;
+}
 
 static uint8_t v4InV6Prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
 
@@ -3771,9 +3781,35 @@ static duk_ret_t mbedtls_debug(duk_context *ctx)
     mbedtls_debug_set_threshold(threshold);
     return 0;
 }
+
 static duk_ret_t load_certificate(duk_context *ctx)
 {
-    ejs_dump_context_stdout(ctx);
+    size_t os_len;
+    const char *os = _ejs_os_get_define(EJS_CONFIG_OS, &os_len);
+    switch (os_len)
+    {
+    case 5:
+        if (!memcmp(os, "linux", os_len))
+        {
+            if (duk_is_undefined(ctx, 1))
+            {
+                return _ejs_read_text_file(ctx, "/etc/ssl/certs/ca-certificates.crt");
+            }
+            return _ejs_async_read_text_file(ctx, "/etc/ssl/certs/ca-certificates.crt");
+        }
+        break;
+    }
+
+    if (duk_is_undefined(ctx, 1))
+    {
+        duk_pop_2(ctx);
+        duk_push_lstring(ctx, "", 0);
+        return 1;
+    }
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+    duk_push_lstring(ctx, "", 0);
+    duk_call(ctx, 1);
     return 0;
 }
 duk_ret_t _ejs_native_net_init(duk_context *ctx)
@@ -3945,7 +3981,7 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, mbedtls_debug, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "mbedtls_debug", 13);
 
-        duk_push_c_lightfunc(ctx, load_certificate, 1, 1, 0);
+        duk_push_c_lightfunc(ctx, load_certificate, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "load_certificate", 16);
     }
     /*
