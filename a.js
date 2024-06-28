@@ -15,13 +15,13 @@ function main() {
 
             c = net.dial(co, {
                 network: "tcp",
-                address: "127.0.0.1:2443",
-                // address: "www.baidu.com:443",
+                // address: "127.0.0.1:2443",
+                address: "www.baidu.com:443",
 
                 // network: "unix",
                 // address: "@abc",
                 tls: {
-                    insecure: true,
+                    // insecure: true,
                     // debug: true,
                     maxVersion: net.Tls12,
                     // certificate: [],
