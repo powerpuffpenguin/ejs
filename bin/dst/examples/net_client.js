@@ -26,6 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
+var os = __importStar(require("ejs/os"));
 var sync_1 = require("ejs/sync");
 exports.command = new flags_1.Command({
     use: 'net-client',
@@ -56,6 +57,21 @@ exports.command = new flags_1.Command({
             usage: "connect timeout",
             default: 1000,
         });
+        var tls = flags.bool({
+            name: "tls",
+            usage: "connect by tls",
+            default: false,
+        });
+        var insecure = flags.bool({
+            name: "insecure",
+            short: "k",
+            usage: "allow insecure server connections when using SSL",
+            default: false,
+        });
+        var ca = flags.string({
+            name: "ca",
+            usage: "root certificate path",
+        });
         return function () {
             var v = timeout.value;
             var abort;
@@ -69,10 +85,19 @@ exports.command = new flags_1.Command({
             (0, sync_1.go)(function (co) {
                 var c;
                 try {
+                    var tlsConfig = void 0;
+                    if (tls.value) {
+                        tlsConfig = {
+                            insecure: insecure.value,
+                            certificate: ca.value ? [os.readTextFileSync(ca.value)] : undefined
+                        };
+                    }
+                    console.log(tlsConfig);
                     c = net.dial(co, {
                         network: network.value,
                         address: address.value,
                         signal: abort === null || abort === void 0 ? void 0 : abort.signal,
+                        tls: tlsConfig,
                     });
                 }
                 catch (e) {

@@ -501,7 +501,7 @@ declare module "ejs/net" {
          */
         minVersion?: number
         /**
-         * @default Tls13
+         * @default Tls12
          */
         maxVersion?: number
 
@@ -692,7 +692,35 @@ declare module "ejs/net" {
     export class UnixError extends NetError { }
     export class UnixConn extends BaseTcpConn { }
     export class UnixListener extends BaseTcpListener { }
+    /**
+     * x509 certificate
+     */
+    export interface Certificate {
+        cert: string
+        key: string
+        password?: string
+    }
+    export interface ServerTlsConfig {
+        /**
+         * @default Tls12
+         */
+        minVersion?: number
+        /**
+         * @default Tls12
+         */
+        maxVersion?: number
 
+        certificate?: Array<Certificate>
+        /**
+        * tls certificate
+        * 
+        */
+        certificate: Array<Certificate>
+        /**
+         * Print debugging information to stdout
+         */
+        debug?: boolean
+    }
     export interface ListenOptions {
         /**
          * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
@@ -717,6 +745,11 @@ declare module "ejs/net" {
          * @default false
          */
         sync?: boolean
+
+        /**
+         * If set will use tls connection
+         */
+        tls?: ServerTlsConfig
     }
     /**
      * Create a listening service

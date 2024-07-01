@@ -26,6 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.command = void 0;
 var flags_1 = require("../flags");
 var net = __importStar(require("ejs/net"));
+var os = __importStar(require("ejs/os"));
 var sync_1 = require("ejs/sync");
 exports.command = new flags_1.Command({
     use: 'net-server',
@@ -61,19 +62,49 @@ exports.command = new flags_1.Command({
             usage: 'accept backlog',
             default: 5,
         });
+        var certFile = flags.string({
+            name: 'certFile',
+            usage: 'x509 cert file path',
+        });
+        var keyFile = flags.string({
+            name: 'keyFile',
+            usage: 'x509 key file path',
+        });
         return function () {
             // create a listener
+            var tls;
+            if (certFile.value != '' && keyFile.value != '') {
+                tls = {
+                    certificate: [
+                        {
+                            cert: os.readTextFileSync(certFile.value),
+                            key: os.readTextFileSync(keyFile.value),
+                        }
+                    ]
+                };
+            }
             var l = net.listen({
                 network: network.value,
                 address: address.value,
                 sync: sync.value,
                 backlog: backlog.value,
+                tls: tls
             });
             if (sync.value) {
-                console.log("sync listen: ".concat(l.addr));
+                if (tls) {
+                    console.log("tls sync listen: ".concat(l.addr));
+                }
+                else {
+                    console.log("sync listen: ".concat(l.addr));
+                }
             }
             else {
-                console.log("listen: ".concat(l.addr));
+                if (tls) {
+                    console.log("tls listen: ".concat(l.addr));
+                }
+                else {
+                    console.log("listen: ".concat(l.addr));
+                }
             }
             l.onError = function (e) {
                 console.log("accept err:", e);
@@ -96,56 +127,6 @@ exports.command = new flags_1.Command({
         };
     },
 });
-var EchoService = /** @class */ (function () {
-    function EchoService(c) {
-        var _this = this;
-        this.c = c;
-        this.length_ = 0;
-        c.onWritable = function () {
-            var data = _this.data_;
-            var len = _this.length_;
-            if (data && len) {
-                // Continue writing unsent data
-                try {
-                    c.write(data.subarray(0, len));
-                }
-                catch (e) {
-                    console.log("write error", e);
-                    c.close();
-                }
-            }
-            // Resume data reading
-            _this.serve();
-        };
-    }
-    EchoService.prototype.serve = function () {
-        var _this = this;
-        // onMessage for read
-        var c = this.c;
-        c.onMessage = function (data) {
-            try {
-                console.log("recv ".concat(c.remoteAddr, ":"), data);
-                if (c.write(data) === undefined) {
-                    // write full，pause read
-                    c.onMessage = undefined;
-                    // clone data
-                    var buf = _this.data_;
-                    if (!buf || buf.length < data.length) {
-                        buf = new Uint8Array(data.length);
-                        _this.data_ = buf;
-                    }
-                    buf.set(data);
-                    _this.length_ = data.length;
-                }
-            }
-            catch (e) {
-                console.log("write error", e);
-                c.close();
-            }
-        };
-    };
-    return EchoService;
-}());
 function onAccept(co, c) {
     console.log("one in: ".concat(c.remoteAddr));
     var rw = new net.TcpConnReaderWriter(c);
@@ -168,9 +149,4 @@ function onAccept(co, c) {
         console.log("error", e);
         rw.close();
     }
-    // c.onError = (e) => {
-    //     console.log("one out", e)
-    // }
-    // // read and write net data
-    // new EchoService(c).serve()
 }

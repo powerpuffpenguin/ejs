@@ -23,34 +23,23 @@ function serve(c) {
 
 function main() {
     sync.go(function (co) {
+        var c
         try {
-            var cert = os.readTextFile(co, "/home/king/project/docker/development-images/httptest/test.crt")
-            var key = os.readTextFile(co, "/home/king/project/docker/development-images/httptest/test.key")
-            var l = net.listen({
+            c = net.dial(co, {
                 network: 'tcp',
-                address: ':9000',
+                // address: '127.0.0.1:9000',
+                address: 'www.baidu.com:443',
                 tls: {
-                    certificate: [
-                        {
-                            cert: cert,
-                            key: key,
-                        },
-                    ],
+                    // insecure: true,
                 },
             })
-            console.log("listen on", l.addr)
-            var i = 0
-            l.onAccept = function (c) {
-                serve(c)
-                if (++i == 3) {
-                    l.close()
-                }
-            }
-            l.onError = function (e) {
-                console.log(e)
-            }
+            console.log("ok")
         } catch (e) {
-            console.log('listener error:', e.toString())
+            console.log("err:", e.toString())
+        } finally {
+            if (c) {
+                c.close()
+            }
         }
     })
 }

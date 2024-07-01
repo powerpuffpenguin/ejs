@@ -1,5 +1,6 @@
 import { Command } from "../flags";
 import * as net from "ejs/net";
+import * as os from "ejs/os";
 import { go } from "ejs/sync";
 export const command = new Command({
     use: 'net-client',
@@ -30,6 +31,21 @@ export const command = new Command({
             usage: "connect timeout",
             default: 1000,
         })
+        const tls = flags.bool({
+            name: "tls",
+            usage: "connect by tls",
+            default: false,
+        })
+        const insecure = flags.bool({
+            name: "insecure",
+            short: "k",
+            usage: "allow insecure server connections when using SSL",
+            default: false,
+        })
+        const ca = flags.string({
+            name: "ca",
+            usage: "root certificate path",
+        })
         return () => {
             const v = timeout.value
             let abort: undefined | net.AbortController
@@ -43,10 +59,19 @@ export const command = new Command({
             go((co) => {
                 let c: net.BaseTcpConn
                 try {
+                    let tlsConfig: net.TlsConfig | undefined
+                    if (tls.value) {
+                        tlsConfig = {
+                            insecure: insecure.value,
+                            certificate: ca.value ? [os.readTextFileSync(ca.value)] : undefined
+                        }
+                    }
+                    console.log(tlsConfig)
                     c = net.dial(co, {
                         network: network.value,
                         address: address.value,
                         signal: abort?.signal,
+                        tls: tlsConfig,
                     })
                 } catch (e) {
                     console.log("connect error:", e)

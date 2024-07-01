@@ -1297,7 +1297,7 @@ export class BaseTcpConn implements Conn {
     parent_?: BaseTcpConn
     raw_?: deps.TcpConn
     private md_: deps.ConnMetadata
-    tls_?: deps.ServerTls
+    tls_?: deps.ServerTls | deps.Tls
     constructor(readonly remoteAddr: Addr, readonly localAddr: Addr,
         conn: deps.TcpConn,
         readonly bridge_: tcpConnBridge,
@@ -2158,7 +2158,7 @@ function tcp_dial_name(opts: {
         cb: opts.cb,
     })
 }
-function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, conn: BaseTcpConn, cb?: DialCallback) {
+function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, conn: BaseTcpConn, tls: deps.Tls, cb?: DialCallback) {
     let onabort: ((reason: any) => void) | undefined
     try {
         if (signal) {
@@ -2209,9 +2209,9 @@ function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, conn: Bas
                     f(undefined, e)
                 }
             } else {
-                let tls: undefined | TcpConn
+                let tlsConn: undefined | TcpConn
                 try {
-                    tls = new TcpConn(conn.remoteAddr,
+                    tlsConn = new TcpConn(conn.remoteAddr,
                         conn.localAddr,
                         c,
                     )
@@ -2221,8 +2221,9 @@ function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, conn: Bas
                     f(undefined, e)
                     return
                 }
-                tls.parent_ = conn
-                f(tls)
+                tlsConn.parent_ = conn
+                tlsConn.tls_ = tls
+                f(tlsConn)
             }
         }
     } catch (e) {
@@ -2259,7 +2260,7 @@ function connect_tls_cb_raw(signal: undefined | AbortSignal,
         cb(undefined, e)
         return
     }
-    connect_tls(signal, tlsConn, c!, cb)
+    connect_tls(signal, tlsConn, c!, tls, cb)
 }
 function connect_tls_cb(signal: undefined | AbortSignal,
     c: BaseTcpConn,
