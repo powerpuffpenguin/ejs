@@ -1782,6 +1782,7 @@ static duk_ret_t tcp_conn_close(duk_context *ctx)
     }
     return 0;
 }
+
 static duk_ret_t tcp_conn_write(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "p", 1);
@@ -1842,7 +1843,6 @@ static duk_ret_t tcp_conn_write(duk_context *ctx)
 static duk_ret_t tcp_conn_cb(duk_context *ctx)
 {
     duk_bool_t enable = duk_require_boolean(ctx, 1);
-
     duk_get_prop_lstring(ctx, 0, "p", 1);
     struct bufferevent *bev = duk_get_pointer_default(ctx, -1, 0);
     if (!bev)
@@ -3556,6 +3556,14 @@ typedef struct
     mbedtls_ssl_config conf;
     mbedtls_x509_crt cacert;
 } tcp_tls_t;
+typedef struct
+{
+    mbedtls_entropy_context entropy;
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_ssl_config conf;
+    mbedtls_x509_crt srvcert;
+    mbedtls_pk_context pkey;
+} tcp_server_tls_t;
 static duk_ret_t tcp_tls_finalizer(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "p", 1);
@@ -3570,10 +3578,29 @@ static duk_ret_t tcp_tls_finalizer(duk_context *ctx)
     }
     return 0;
 }
+static duk_ret_t tcp_server_tls_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    tcp_server_tls_t *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        mbedtls_x509_crt_free(&p->srvcert);
+        mbedtls_pk_free(&p->pkey);
+        mbedtls_ssl_config_free(&p->conf);
+        mbedtls_ctr_drbg_free(&p->ctr_drbg);
+        mbedtls_entropy_free(&p->entropy);
+        free(p);
+    }
+    return 0;
+}
 typedef struct
 {
     tcp_tls_t *tls;
 } create_tls_args_t;
+typedef struct
+{
+    tcp_server_tls_t *tls;
+} create_server_tls_args_t;
 
 static void my_tls_debug(void *ctx, int level, const char *file, int line, const char *str)
 {
@@ -3621,7 +3648,7 @@ static duk_ret_t create_tls_impl(duk_context *ctx)
                 ret = mbedtls_x509_crt_parse(
                     &args->tls->cacert,
                     cas_pem, cas_pem_len + 1);
-                if (ret < 0)
+                if (ret)
                 {
                     duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_x509_crt_parse returned -0x%x", -ret);
                     duk_throw(ctx);
@@ -3647,6 +3674,10 @@ static duk_ret_t create_tls_impl(duk_context *ctx)
     {
         int v = duk_require_number(ctx, -1);
         mbedtls_ssl_conf_max_version(&args->tls->conf, v / 100, v % 100);
+    }
+    else
+    {
+        mbedtls_ssl_conf_max_version(&args->tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
     }
     duk_pop(ctx);
 
@@ -3692,6 +3723,162 @@ static duk_ret_t create_tls(duk_context *ctx)
         if (args.tls)
         {
             mbedtls_x509_crt_free(&args.tls->cacert);
+            mbedtls_ssl_config_free(&args.tls->conf);
+            mbedtls_ctr_drbg_free(&args.tls->ctr_drbg);
+            mbedtls_entropy_free(&args.tls->entropy);
+
+            free(args.tls);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t create_server_tls_impl(duk_context *ctx)
+{
+    create_server_tls_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    args->tls = malloc(sizeof(tcp_server_tls_t));
+    if (!args->tls)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    mbedtls_ssl_config_init(&args->tls->conf);
+    mbedtls_x509_crt_init(&args->tls->srvcert);
+    mbedtls_pk_init(&args->tls->pkey);
+    mbedtls_ctr_drbg_init(&args->tls->ctr_drbg);
+    mbedtls_entropy_init(&args->tls->entropy);
+
+    const char *pers = "ssl_server";
+    int ret;
+    if ((ret = mbedtls_ctr_drbg_seed(
+             &args->tls->ctr_drbg,
+             mbedtls_entropy_func, &args->tls->entropy,
+             "ssl_server", 10)) != 0)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_ctr_drbg_seed returned %d", ret);
+        duk_throw(ctx);
+    }
+
+    duk_get_prop_lstring(ctx, 0, "certificate", 11);
+    if (duk_is_array(ctx, -1))
+    {
+        duk_size_t count = duk_get_length(ctx, -1);
+        const char *s;
+        duk_size_t len;
+        const char *p;
+        duk_size_t p_len;
+        for (duk_size_t i = 0; i < count; i++)
+        {
+            duk_get_prop_index(ctx, -1, i);
+
+            duk_get_prop_lstring(ctx, -1, "cert", 4);
+            s = duk_require_lstring(ctx, -1, &len);
+            duk_pop(ctx);
+            ret = mbedtls_x509_crt_parse(
+                &args->tls->srvcert,
+                s, len + 1);
+            if (ret)
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_x509_crt_parse returned -0x%x", -ret);
+                duk_throw(ctx);
+            }
+
+            duk_get_prop_lstring(ctx, -1, "key", 3);
+            s = duk_require_lstring(ctx, -1, &len);
+            duk_pop(ctx);
+
+            duk_get_prop_lstring(ctx, -1, "password", 8);
+            if (duk_is_string(ctx, -1))
+            {
+                p = duk_require_lstring(ctx, -1, &p_len);
+            }
+            else
+            {
+                p = 0;
+                p_len = 0;
+            }
+            duk_pop_2(ctx);
+
+            ret = mbedtls_pk_parse_key(&args->tls->pkey,
+                                       s, len + 1,
+                                       p, p_len + 1,
+                                       mbedtls_ctr_drbg_random, &args->tls->ctr_drbg);
+            if (ret)
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_pk_parse_key returned -0x%x", -ret);
+                duk_throw(ctx);
+            }
+        }
+    }
+    duk_pop(ctx);
+
+    if ((ret = mbedtls_ssl_config_defaults(
+             &args->tls->conf,
+             MBEDTLS_SSL_IS_SERVER,
+             MBEDTLS_SSL_TRANSPORT_STREAM,
+             MBEDTLS_SSL_PRESET_DEFAULT)) != 0)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_ssl_config_defaults returned %d", ret);
+        duk_throw(ctx);
+    }
+
+    duk_get_prop_lstring(ctx, 0, "maxVersion", 10);
+    if (duk_is_number(ctx, -1))
+    {
+        int v = duk_require_number(ctx, -1);
+        mbedtls_ssl_conf_max_version(&args->tls->conf, v / 100, v % 100);
+    }
+    else
+    {
+        mbedtls_ssl_conf_max_version(&args->tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "minVersion", 10);
+    if (duk_is_number(ctx, -1))
+    {
+        int v = duk_require_number(ctx, -1);
+        mbedtls_ssl_conf_min_version(&args->tls->conf, v / 100, v % 100);
+    }
+    duk_pop(ctx);
+
+    mbedtls_ssl_conf_ca_chain(&args->tls->conf, &args->tls->srvcert, NULL);
+    mbedtls_ssl_conf_rng(&args->tls->conf, mbedtls_ctr_drbg_random, &args->tls->ctr_drbg);
+
+    mbedtls_ssl_conf_authmode(&args->tls->conf, MBEDTLS_SSL_VERIFY_NONE);
+
+    duk_get_prop_lstring(ctx, 0, "debug", 5);
+    if (EJS_BOOL_VALUE(ctx, -1))
+    {
+        mbedtls_ssl_conf_dbg(&args->tls->conf, my_tls_debug, stdout);
+    }
+    duk_pop(ctx);
+
+    if ((ret = mbedtls_ssl_conf_own_cert(&args->tls->conf, &args->tls->srvcert, &args->tls->pkey)) != 0)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_ssl_conf_own_cert returned %d", ret);
+        duk_throw(ctx);
+    }
+
+    duk_pop(ctx);
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, args->tls);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_c_lightfunc(ctx, tcp_server_tls_finalizer, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->tls = 0;
+    return 1;
+}
+static duk_ret_t create_server_tls(duk_context *ctx)
+{
+    create_server_tls_args_t args = {0};
+    if (ejs_pcall_function_n(ctx, create_server_tls_impl, &args, 2))
+    {
+        if (args.tls)
+        {
+            mbedtls_x509_crt_free(&args.tls->srvcert);
+            mbedtls_pk_free(&args.tls->pkey);
             mbedtls_ssl_config_free(&args.tls->conf);
             mbedtls_ctr_drbg_free(&args.tls->ctr_drbg);
             mbedtls_entropy_free(&args.tls->entropy);
@@ -3775,6 +3962,61 @@ static duk_ret_t connect_tls(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t connect_server_tls_impl(duk_context *ctx)
+{
+    tcp_conect_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "bev", 3);
+    struct bufferevent *bev = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    tcp_tls_t *tls = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    ejs_core_t *core = ejs_require_core(ctx);
+
+    mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(&tls->conf);
+    if (!ssl)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_mbedtls_filter_new fail");
+        duk_throw(ctx);
+    }
+
+    args->bev = bufferevent_mbedtls_filter_new(
+        core->base, bev,
+        ssl,
+        BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+    if (!args->bev)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_mbedtls_filter_new fail");
+        duk_throw(ctx);
+    }
+
+    bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
+    bufferevent_enable(args->bev, EV_READ | EV_WRITE);
+
+    push_tcp_connection(ctx, core, args->bev);
+    args->bev = NULL;
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_CONN);
+    return 1;
+}
+
+static duk_ret_t connect_sever_tls(duk_context *ctx)
+{
+    tcp_conect_args_t args = {0};
+    if (ejs_pcall_function_n(ctx, connect_server_tls_impl, &args, 2))
+    {
+        if (args.bev)
+        {
+            bufferevent_free(args.bev);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
+
 static duk_ret_t mbedtls_debug(duk_context *ctx)
 {
     int threshold = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 0, 0);
@@ -3983,6 +4225,11 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, load_certificate, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "load_certificate", 16);
+
+        duk_push_c_lightfunc(ctx, create_server_tls, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "create_server_tls", 17);
+        duk_push_c_lightfunc(ctx, connect_sever_tls, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "connect_sever_tls", 17);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

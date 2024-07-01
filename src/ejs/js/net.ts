@@ -215,6 +215,37 @@ declare namespace deps {
     }
     export function connect_tls(opts: ConnectTlsOptions): deps.TcpConn
 
+    export interface Certificate {
+        cert: string
+        key: string
+        password?: string
+    }
+    export interface ServerTlsConfig {
+        /**
+         * @default Tls12
+         */
+        minVersion?: number
+        /**
+         * @default Tls13
+         */
+        maxVersion?: number
+
+        certificate?: Array<Certificate>
+
+        debug?: boolean
+    }
+    export class ServerTls {
+        readonly __id = "ServerTls"
+        p: unknown
+    }
+    export function create_server_tls(config: ServerTlsConfig): ServerTls
+    export interface ConnectServerTlsOptions {
+        bev: unknown
+        tls: unknown
+        debug?: boolean
+    }
+    export function connect_sever_tls(opts: ConnectServerTlsOptions): deps.TcpConn
+
     interface AsyncOptions {
         post?: boolean
     }
@@ -1100,6 +1131,9 @@ export class NetAddr implements Addr {
         return this.address
     }
 }
+export interface ServerTlsConfig extends deps.ServerTlsConfig {
+
+}
 export interface ListenOptions {
     /**
      * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
@@ -1125,6 +1159,8 @@ export interface ListenOptions {
      * @default false
      */
     sync?: boolean
+
+    tls?: ServerTlsConfig
 }
 
 export class TcpError extends NetError {
@@ -1255,10 +1291,13 @@ interface tcpConnBridge {
     Error: typeof NetError
     throwError(e: any): never
 }
+
 export class BaseTcpConn implements Conn {
     c_?: deps.TcpConn
     parent_?: BaseTcpConn
+    raw_?: deps.TcpConn
     private md_: deps.ConnMetadata
+    tls_?: deps.ServerTls
     constructor(readonly remoteAddr: Addr, readonly localAddr: Addr,
         conn: deps.TcpConn,
         readonly bridge_: tcpConnBridge,
@@ -1355,6 +1394,14 @@ export class BaseTcpConn implements Conn {
         if (p) {
             this.parent_ = undefined
             p.close()
+        }
+        const raw = this.raw_
+        if (raw) {
+            this.raw_ = undefined
+            deps.tcp_conn_stash(raw, false)
+        }
+        if (this.tls_) {
+            this.tls_ = undefined
         }
     }
     private _get(): deps.TcpConn {
@@ -1511,34 +1558,86 @@ export interface Listener {
 interface tcpListenerBridge {
     Error: typeof NetError
     throwError(e: any): never
-    conn(c: deps.TcpConn, opts?: deps.TcpListenerOptions): Conn
+    conn(c: deps.TcpConn, opts?: deps.TcpListenerOptions): BaseTcpConn
 }
 export class BaseTcpListener implements Listener {
     private l_?: deps.TcpListener
     constructor(readonly addr: Addr,
         l: deps.TcpListener,
         readonly bridge: tcpListenerBridge,
+        tls?: deps.ServerTls,
     ) {
-        l.cb = (conn, opts) => {
-            const onAccept = this.onAccept_
-            if (!onAccept) {
-                deps.tcp_conn_stash(conn, false)
-                return
+        if (tls) {
+            l.cb = (conn, opts) => {
+                const onAccept = this.onAcceptBind_
+                if (!onAccept) {
+                    deps.tcp_conn_stash(conn, false)
+                    return
+                }
+
+                let c: deps.TcpConn
+                let tlsServer: deps.ServerTls
+                try {
+                    c = deps.connect_sever_tls({
+                        bev: conn.p,
+                        tls: tls.p,
+                    })
+                } catch (e) {
+                    deps.tcp_conn_stash(conn, false)
+                    return
+                }
+                c.cbe = (what) => {
+                    const onAccept = this.onAcceptBind_
+                    if (!onAccept) {
+                        deps.tcp_conn_stash(conn, false)
+                        deps.tcp_conn_stash(c, false)
+                        return
+                    }
+
+                    if (what & deps.BEV_EVENT_TIMEOUT) {
+                        deps.tcp_conn_stash(conn, false)
+                        deps.tcp_conn_stash(c, false)
+                    } else if (what & deps.BEV_EVENT_ERROR) {
+                        deps.tcp_conn_stash(conn, false)
+                        deps.tcp_conn_stash(c, false)
+                    } else {
+                        let tls: BaseTcpConn
+                        try {
+                            tls = this.bridge.conn(c, opts)
+                        } catch (e) {
+                            deps.tcp_conn_stash(conn, false)
+                            deps.tcp_conn_stash(c, false)
+                            return
+                        }
+                        deps.tcp_conn_stash(c, true)
+                        tls.raw_ = conn
+                        tls.tls_ = tlsServer
+                        onAccept(tls)
+                    }
+                }
             }
-            let c: Conn
-            try {
-                c = this.bridge.conn(conn, opts)
-            } catch (e) {
-                deps.tcp_conn_stash(conn, false)
-                throw e
+        } else {
+            l.cb = (conn, opts) => {
+                const onAccept = this.onAcceptBind_
+                if (!onAccept) {
+                    deps.tcp_conn_stash(conn, false)
+                    return
+                }
+                let c: Conn
+                try {
+                    c = this.bridge.conn(conn, opts)
+                } catch (e) {
+                    deps.tcp_conn_stash(conn, false)
+                    throw e
+                }
+                deps.tcp_conn_stash(conn, true)
+                onAccept(c)
             }
-            deps.tcp_conn_stash(conn, true)
-            onAccept.bind(this)(c)
         }
         l.err = (e) => {
-            const cb = this.onError_
+            const cb = this.onErrorBind_
             if (cb) {
-                cb.bind(this)(e)
+                cb(e)
             }
         }
         this.l_ = l
@@ -1554,7 +1653,9 @@ export class BaseTcpListener implements Listener {
         }
     }
     private onAccept_?: OnAcceptCallback
+    private onAcceptBind_?: (c: Conn) => void
     private onError_?: onErrorCallback<Listener>
+    private onErrorBind_?: (e: any) => void
     set onAccept(f: OnAcceptCallback | undefined) {
         if (f === undefined || f === null) {
             if (!this.onAccept_) {
@@ -1565,6 +1666,7 @@ export class BaseTcpListener implements Listener {
                 deps.tcp_listen_cb(l, false)
             }
             this.onAccept_ = undefined
+            this.onAcceptBind_ = undefined
         } else {
             if (f === this.onAccept_) {
                 return
@@ -1572,11 +1674,13 @@ export class BaseTcpListener implements Listener {
             if (typeof f !== "function") {
                 throw new this.bridge.Error("onAccept must be a function")
             }
+            const bind = f.bind(this)
             const l = this.l_
             if (l) {
                 deps.tcp_listen_cb(l, true)
             }
             this.onAccept_ = f
+            this.onAcceptBind_ = bind
         }
     }
     set onError(f: onErrorCallback<Listener> | undefined) {
@@ -1589,6 +1693,7 @@ export class BaseTcpListener implements Listener {
                 deps.tcp_listen_err(l, false)
             }
             this.onError_ = undefined
+            this.onErrorBind_ = undefined
         } else {
             if (f === this.onError_) {
                 return
@@ -1596,11 +1701,13 @@ export class BaseTcpListener implements Listener {
             if (typeof f !== "function") {
                 throw new this.bridge.Error("onError must be a function")
             }
+            const bind = f.bind(this)
             const l = this.l_
             if (l) {
                 deps.tcp_listen_err(l, true)
             }
             this.onError_ = f
+            this.onErrorBind_ = bind
         }
     }
     get onAccept(): OnAcceptCallback | undefined {
@@ -1611,7 +1718,7 @@ export class BaseTcpListener implements Listener {
     }
 }
 export class TcpListener extends BaseTcpListener {
-    constructor(readonly addr: Addr, l: deps.TcpListener) {
+    constructor(readonly addr: Addr, l: deps.TcpListener, tls?: deps.ServerTls) {
         super(addr, l, {
             Error: TcpError,
             throwError: throwTcpError,
@@ -1630,7 +1737,7 @@ export class TcpListener extends BaseTcpListener {
                     conn,
                 )
             }
-        })
+        }, tls)
     }
 }
 export class TcpConn extends BaseTcpConn {
@@ -1650,7 +1757,7 @@ export class UnixConn extends BaseTcpConn {
     }
 }
 export class UnixListener extends BaseTcpListener {
-    constructor(readonly addr: Addr, l: deps.TcpListener) {
+    constructor(readonly addr: Addr, l: deps.TcpListener, tls?: deps.ServerTls) {
         super(addr, l, {
             Error: UnixError,
             throwError: throwUnixError,
@@ -1661,11 +1768,14 @@ export class UnixListener extends BaseTcpListener {
                     conn,
                 )
             }
-        })
+        }, tls)
     }
 }
+
 function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
     try {
+        const tls = opts.tls ? deps.create_server_tls(opts.tls) : undefined
+
         const backlog = opts.backlog ?? 5
         if (!Number.isSafeInteger(backlog) || backlog < 1) {
             throw new TcpError(`listen backlog invalid: ${opts.backlog}`)
@@ -1721,7 +1831,7 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
             }
         }
         try {
-            return new TcpListener(new NetAddr('tcp', address), l)
+            return new TcpListener(new NetAddr('tcp', address), l, tls)
         } catch (e) {
             deps.tcp_listen_close(l)
             throw e
@@ -1732,6 +1842,8 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
 }
 function listenUnix(opts: ListenOptions): UnixListener {
     try {
+        const tls = opts.tls ? deps.create_server_tls(opts.tls) : undefined
+
         const address = opts.address
         const l = deps.unix_listen({
             address: address,
@@ -1739,7 +1851,7 @@ function listenUnix(opts: ListenOptions): UnixListener {
             sync: opts.sync ?? false,
         })
         try {
-            return new UnixListener(new NetAddr('unix', address), l)
+            return new UnixListener(new NetAddr('unix', address), l, tls)
         } catch (e) {
             deps.tcp_listen_close(l)
             throw e
@@ -2046,7 +2158,7 @@ function tcp_dial_name(opts: {
         cb: opts.cb,
     })
 }
-function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, tls: deps.Tls, conn: BaseTcpConn, cb?: DialCallback) {
+function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, conn: BaseTcpConn, cb?: DialCallback) {
     let onabort: ((reason: any) => void) | undefined
     try {
         if (signal) {
@@ -2099,7 +2211,6 @@ function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, tls: deps
             } else {
                 let tls: undefined | TcpConn
                 try {
-                    deps.tcp_conn_cb(c, false)
                     tls = new TcpConn(conn.remoteAddr,
                         conn.localAddr,
                         c,
@@ -2148,7 +2259,7 @@ function connect_tls_cb_raw(signal: undefined | AbortSignal,
         cb(undefined, e)
         return
     }
-    connect_tls(signal, tlsConn, tls, c!, cb)
+    connect_tls(signal, tlsConn, c!, cb)
 }
 function connect_tls_cb(signal: undefined | AbortSignal,
     c: BaseTcpConn,

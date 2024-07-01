@@ -4,53 +4,53 @@ var RootCertificate = net.RootCertificate
 var http = require("ejs/http")
 var os = require("ejs/os")
 
+function serve(c) {
+    console.log("serve:", c)
+    c.onMessage = function (msg) {
+        console.log(new TextDecoder().decode(msg))
+        try {
+            c.write(msg)
+        } catch (e) {
+            console.log("write err:", e.toString())
+            c.close()
+        }
+    }
+    c.onError = function (e) {
+        console.log('onError:', e.toString())
+        c.close()
+    }
+}
+
 function main() {
     sync.go(function (co) {
-        var c
-        var rw
         try {
-            // var text = os.readTextFileSync("/etc/ssl/certs/ca-certificates.crt")
-
-            // console.log(text)
-
-            c = net.dial(co, {
-                network: "tcp",
-                // address: "127.0.0.1:2443",
-                address: "www.baidu.com:443",
-
-                // network: "unix",
-                // address: "@abc",
+            var cert = os.readTextFile(co, "/home/king/project/docker/development-images/httptest/test.crt")
+            var key = os.readTextFile(co, "/home/king/project/docker/development-images/httptest/test.key")
+            var l = net.listen({
+                network: 'tcp',
+                address: ':9000',
                 tls: {
-                    // insecure: true,
-                    // debug: true,
-                    maxVersion: net.Tls12,
-                    // certificate: [],
+                    certificate: [
+                        {
+                            cert: cert,
+                            key: key,
+                        },
+                    ],
                 },
             })
-            rw = new net.TcpConnReaderWriter(c)
-            c = undefined
-
-            rw.write(co, "GET / HTTP/1.0\nHost: www.baidu.com\nUser-Agent: curl/7.58.0\nAccept: */*\n\n")
-
-            var b = new Uint8Array(1024)
-            var n
-            while (true) {
-                n = rw.read(co, b)
-                if (!n) {
-                    break
+            console.log("listen on", l.addr)
+            var i = 0
+            l.onAccept = function (c) {
+                serve(c)
+                if (++i == 3) {
+                    l.close()
                 }
-                console.log(n)
-                console.log(new TextDecoder().decode(b.subarray(0, n)))
+            }
+            l.onError = function (e) {
+                console.log(e)
             }
         } catch (e) {
-            console.log("error:", e.toString())
-        } finally {
-            if (c) {
-                c.close()
-            }
-            if (rw) {
-                rw.close()
-            }
+            console.log('listener error:', e.toString())
         }
     })
 }
