@@ -3669,25 +3669,18 @@ static duk_ret_t create_tls_impl(duk_context *ctx)
         duk_throw(ctx);
     }
 
-    duk_get_prop_lstring(ctx, 0, "maxVersion", 10);
-    if (duk_is_number(ctx, -1))
-    {
-        int v = duk_require_number(ctx, -1);
-        mbedtls_ssl_conf_max_version(&args->tls->conf, v / 100, v % 100);
-    }
-    else
-    {
-        mbedtls_ssl_conf_max_version(&args->tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
-    }
-    duk_pop(ctx);
-
     duk_get_prop_lstring(ctx, 0, "minVersion", 10);
-    if (duk_is_number(ctx, -1))
-    {
-        int v = duk_require_number(ctx, -1);
-        mbedtls_ssl_conf_min_version(&args->tls->conf, v / 100, v % 100);
-    }
+    int minVersion = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 303);
     duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "maxVersion", 10);
+    int maxVersion = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 303);
+    duk_pop(ctx);
+    if (maxVersion < minVersion)
+    {
+        maxVersion = minVersion;
+    }
+    mbedtls_ssl_conf_min_version(&args->tls->conf, minVersion / 100, minVersion % 100);
+    mbedtls_ssl_conf_max_version(&args->tls->conf, maxVersion / 100, maxVersion % 100);
 
     mbedtls_ssl_conf_ca_chain(&args->tls->conf, &args->tls->cacert, NULL);
     mbedtls_ssl_conf_rng(&args->tls->conf, mbedtls_ctr_drbg_random, &args->tls->ctr_drbg);
@@ -3823,25 +3816,18 @@ static duk_ret_t create_server_tls_impl(duk_context *ctx)
         duk_throw(ctx);
     }
 
-    duk_get_prop_lstring(ctx, 0, "maxVersion", 10);
-    if (duk_is_number(ctx, -1))
-    {
-        int v = duk_require_number(ctx, -1);
-        mbedtls_ssl_conf_max_version(&args->tls->conf, v / 100, v % 100);
-    }
-    else
-    {
-        mbedtls_ssl_conf_max_version(&args->tls->conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3);
-    }
-    duk_pop(ctx);
-
     duk_get_prop_lstring(ctx, 0, "minVersion", 10);
-    if (duk_is_number(ctx, -1))
-    {
-        int v = duk_require_number(ctx, -1);
-        mbedtls_ssl_conf_min_version(&args->tls->conf, v / 100, v % 100);
-    }
+    int minVersion = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 303);
     duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "maxVersion", 10);
+    int maxVersion = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 303);
+    duk_pop(ctx);
+    if (maxVersion < minVersion)
+    {
+        maxVersion = minVersion;
+    }
+    mbedtls_ssl_conf_min_version(&args->tls->conf, minVersion / 100, minVersion % 100);
+    mbedtls_ssl_conf_max_version(&args->tls->conf, maxVersion / 100, maxVersion % 100);
 
     mbedtls_ssl_conf_ca_chain(&args->tls->conf, &args->tls->srvcert, NULL);
     mbedtls_ssl_conf_rng(&args->tls->conf, mbedtls_ctr_drbg_random, &args->tls->ctr_drbg);
