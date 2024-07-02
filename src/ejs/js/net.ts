@@ -81,6 +81,7 @@ declare namespace deps {
     export function tcp_listen_cb(l: TcpListener, enable: boolean): void
     export function tcp_listen_err(l: TcpListener, enable: boolean): void
     export function tcp_conn_stash(c: TcpConn, put: boolean): void
+    export function tcp_conn_pop_stash(p: unknown): void
     export function tcp_conn_close(c: TcpConn): void
     export function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
     export function tcp_conn_cb(c: TcpConn, enable: boolean): void
@@ -1294,8 +1295,7 @@ interface tcpConnBridge {
 
 export class BaseTcpConn implements Conn {
     c_?: deps.TcpConn
-    parent_?: BaseTcpConn
-    raw_?: deps.TcpConn
+    parent_?: deps.TcpConn
     private md_: deps.ConnMetadata
     tls_?: deps.ServerTls | deps.Tls
     constructor(readonly remoteAddr: Addr, readonly localAddr: Addr,
@@ -1305,16 +1305,16 @@ export class BaseTcpConn implements Conn {
         this.c_ = conn
         this.md_ = conn.md
         conn.cbw = () => {
-            const f = this.onWritable
+            const f = this.onWritableBInd_
             if (f) {
-                f.bind(this)()
+                f()
             }
         }
         conn.cbr = (r) => {
             this._cbr(r)
         }
         conn.cbe = (what) => {
-            const f = this.onError
+            const f = this.onErrorBind_
             const bridge = this.bridge_
             let e: NetError
             if (what & deps.BEV_EVENT_WRITING) {
@@ -1375,12 +1375,32 @@ export class BaseTcpConn implements Conn {
                 return
             }
             if (f) {
-                f.bind(this)(e!)
+                f(e!)
             }
             this.close()
         }
     }
-    onError?: (this: Conn, e: any) => void
+    private onError_?: (this: Conn, e: any) => void
+    private onErrorBind_?: (e: any) => void
+    get onError(): ((this: Conn, e: any) => void) | undefined {
+        return this.onError_
+    }
+    set onError(f: ((e: any) => void) | undefined) {
+        if (f === undefined || f === null) {
+            this.onError_ = undefined
+            this.onErrorBind_ = undefined
+        } else {
+            if (f === this.onError_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new this.bridge_.Error("onError must be a function")
+            }
+            this.onErrorBind_ = f.bind(this)
+            this.onError = f
+        }
+    }
+
     get isClosed(): boolean {
         return this.c_ ? false : true
     }
@@ -1393,12 +1413,7 @@ export class BaseTcpConn implements Conn {
         const p = this.parent_
         if (p) {
             this.parent_ = undefined
-            p.close()
-        }
-        const raw = this.raw_
-        if (raw) {
-            this.raw_ = undefined
-            deps.tcp_conn_stash(raw, false)
+            deps.tcp_conn_stash(p, false)
         }
         if (this.tls_) {
             this.tls_ = undefined
@@ -1428,7 +1443,27 @@ export class BaseTcpConn implements Conn {
     /**
      * Callback whenever the write buffer changes from unwritable to writable
      */
-    onWritable?: (this: Conn) => void
+    private onWritable_?: (this: Conn) => void
+    private onWritableBInd_?: () => void
+    get onWritable() {
+        return this.onWritable_
+    }
+    set onWritable(f: any) {
+        if (f === undefined || f === null) {
+            this.onWritable_ = undefined
+            this.onWritableBInd_ = undefined
+        } else {
+            if (f === this.onWritable_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new this.bridge_.Error("onWritable must be a function")
+            }
+            this.onWritableBInd_ = f.bind(this)
+            this.onWritable_ = f
+        }
+    }
+
     /**
      * Write buffer size
      */
@@ -1456,17 +1491,17 @@ export class BaseTcpConn implements Conn {
     }
     buffer?: Uint8Array
     private _cbr(r: deps.evbuffer) {
-        const onReadable = this.onReadable
+        const onReadable = this.onReadableBind_
         if (onReadable) {
             const rb = new evbufferReadable(r, this.bridge_.Error)
-            onReadable.bind(this)(rb)
+            onReadable(rb)
             rb._close()
             if (this.isClosed) {
                 return
             }
         }
 
-        const onMessage = this.onMessage_
+        const onMessage = this.onMessageBind_
         if (onMessage) {
             const b = this._buffer()
             const n = deps.evbuffer_read(r, b)
@@ -1474,15 +1509,21 @@ export class BaseTcpConn implements Conn {
                 case 0:
                     break
                 case b.length:
-                    onMessage.bind(this)(b)
+                    onMessage(b)
                     break
                 default:
-                    onMessage.bind(this)(b.length == n ? b : b.subarray(0, n))
+                    onMessage(b.length == n ? b : b.subarray(0, n))
                     break
+            }
+        } else if (!onReadable) {
+            const c = this.c_
+            if (c) {
+                deps.tcp_conn_cb(c, false)
             }
         }
     }
     private onReadable_?: OnReadableCallback
+    private onReadableBind_?: (r: Readable) => void
     /**
      * Callback when a message is received. If set to undefined, it will stop receiving data. 
      */
@@ -1499,6 +1540,7 @@ export class BaseTcpConn implements Conn {
                 deps.tcp_conn_cb(c, false)
             }
             this.onReadable_ = undefined
+            this.onReadableBind_ = undefined
         } else {
             if (f === this.onReadable_) {
                 return
@@ -1510,11 +1552,14 @@ export class BaseTcpConn implements Conn {
             if (c && !this.onMessage_) {
                 deps.tcp_conn_cb(c, true)
             }
+            this.onReadableBind_ = f.bind(this)
             this.onReadable_ = f
+
         }
     }
 
     private onMessage_?: OnMessageCallback
+    private onMessageBind_?: (data: Uint8Array) => void
     /**
      * Callback when a message is received. If set to undefined, it will stop receiving data. 
      */
@@ -1531,6 +1576,7 @@ export class BaseTcpConn implements Conn {
                 deps.tcp_conn_cb(c, false)
             }
             this.onMessage_ = undefined
+            this.onMessageBind_ = undefined
         } else {
             if (f === this.onMessage_) {
                 return
@@ -1542,6 +1588,7 @@ export class BaseTcpConn implements Conn {
             if (c && !this.onReadable_) {
                 deps.tcp_conn_cb(c, true)
             }
+            this.onMessageBind_ = f.bind(this)
             this.onMessage_ = f
         }
     }
@@ -1628,7 +1675,7 @@ export class BaseTcpListener implements Listener {
                             return
                         }
                         deps.tcp_conn_stash(c, true)
-                        tls.raw_ = conn
+                        tls.parent_ = conn
                         tls.tls_ = tlsServer
                         deps.tcp_conn_cb(c, false)
                         onAccept(tls)
@@ -1895,6 +1942,7 @@ interface TcpDialIPOptions {
     cb?: DialCallback
 
     c?: deps.TcpConn
+    tls?: TlsConfig
 }
 function tcp_dial_ip(opts: TcpDialIPOptions) {
     let onabort: ((reason: any) => void) | undefined
@@ -1936,13 +1984,14 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                 }
                 return
             }
-            opts.cb = undefined
-            if (onabort) {
-                signal!.removeEventListener(onabort)
-            }
             const c = opts.c!
             opts.c = undefined
             if (what & deps.BEV_EVENT_TIMEOUT) {
+                opts.cb = undefined
+                if (onabort) {
+                    signal!.removeEventListener(onabort)
+                }
+
                 deps.tcp_conn_close(c)
 
                 const e = new opts.Error("connect timeout")
@@ -1950,7 +1999,13 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                 e.timeout = true
 
                 cb(undefined, e)
+                return
             } else if (what & deps.BEV_EVENT_ERROR) {
+                opts.cb = undefined
+                if (onabort) {
+                    signal!.removeEventListener(onabort)
+                }
+
                 deps.tcp_conn_close(c)
 
                 if (deps.socket_error() === deps.ETIMEDOUT) {
@@ -1964,7 +2019,13 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                     e.connect = true
                     cb(undefined, e)
                 }
-            } else {
+                return
+            } else if (!opts.tls) {
+                opts.cb = undefined
+                if (onabort) {
+                    signal!.removeEventListener(onabort)
+                }
+
                 let conn: undefined | TcpConn
                 try {
                     if (opts.port === undefined) {
@@ -1988,6 +2049,104 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                     return
                 }
                 cb(conn)
+                return
+            }
+            let tlsConn: deps.TcpConn
+            let tls: deps.Tls
+            try {
+                tls = deps.create_tls(opts.tls)
+                tlsConn = deps.connect_tls({
+                    bev: c.p,
+                    host: opts.tls.serverName,
+                    tls: tls.p,
+                })
+            } catch (e) {
+                opts.cb = undefined
+                if (onabort) {
+                    signal!.removeEventListener(onabort)
+                }
+                deps.tcp_conn_close(c)
+
+                cb(undefined, e)
+                return
+            }
+            tlsConn.cbe = (what) => {
+                const cb = opts.cb
+                if (!cb) {
+                    opts.cb = undefined
+                    if (onabort) {
+                        signal!.removeEventListener(onabort)
+                    }
+                    deps.tcp_conn_close(c)
+                    deps.tcp_conn_stash(tlsConn, false)
+                    return
+                }
+                if (what & deps.BEV_EVENT_TIMEOUT) {
+                    opts.cb = undefined
+                    if (onabort) {
+                        signal!.removeEventListener(onabort)
+                    }
+                    deps.tcp_conn_close(c)
+                    deps.tcp_conn_stash(tlsConn, false)
+
+                    const e = new opts.Error("tls handshake timeout")
+                    e.connect = true
+                    e.timeout = true
+                    cb(undefined, e)
+                }
+                else if (what & deps.BEV_EVENT_ERROR) {
+                    opts.cb = undefined
+                    if (onabort) {
+                        signal!.removeEventListener(onabort)
+                    }
+                    deps.tcp_conn_close(c)
+                    deps.tcp_conn_stash(tlsConn, false)
+
+                    if (deps.socket_error() === deps.ETIMEDOUT) {
+                        const e = new opts.Error("tls handshake timeout")
+                        e.connect = true
+                        e.timeout = true
+                        cb(undefined, e)
+                    } else {
+                        const e = new opts.Error(deps.socket_error_str())
+                        e.connect = true
+                        cb(undefined, e)
+                    }
+                } else {
+                    let tls: BaseTcpConn
+                    try {
+                        if (opts.port === undefined) {
+                            tls = new UnixConn(new NetAddr('unix', opts.ip),
+                                new NetAddr('unix', '@'),
+                                tlsConn,
+                            )
+                        } else {
+                            let [ip, port] = deps.tcp_conn_localAddr(c)
+                            if (ip.startsWith('::ffff:')) {
+                                ip = ip.substring(7)
+                            }
+                            tls = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
+                                new NetAddr('tcp', joinHostPort(ip, port)),
+                                tlsConn,
+                            )
+                        }
+                    } catch (e) {
+                        opts.cb = undefined
+                        if (onabort) {
+                            signal!.removeEventListener(onabort)
+                        }
+                        deps.tcp_conn_close(c)
+                        deps.tcp_conn_stash(tlsConn, false)
+
+                        cb(undefined, e)
+                        return
+                    }
+                    deps.tcp_conn_pop_stash(c.p)
+                    deps.tcp_conn_stash(c, true)
+                    tls.parent_ = c
+                    deps.tcp_conn_cb(c, false)
+                    cb(tls)
+                }
             }
         }
     } catch (e) {
@@ -2024,6 +2183,7 @@ function tcp_dial_host(opts: {
     port: number,
     signal?: AbortSignal,
     cb?: DialCallback,
+    tls?: TlsConfig,
 }) {
     try {
         const signal = opts.signal
@@ -2065,6 +2225,7 @@ function tcp_dial_host(opts: {
                 port: opts.port,
                 v6: opts.v6,
                 cb: cb,
+                tls: opts.tls,
             })
         })
     } catch (e) {
@@ -2083,6 +2244,7 @@ function tcp_dial_name(opts: {
     port: number,
     signal?: AbortSignal,
     cb?: DialCallback,
+    tls?: TlsConfig,
 }) {
     let v6 = opts.v6
     if (v6 === undefined) {
@@ -2146,6 +2308,7 @@ function tcp_dial_name(opts: {
                         port: opts.port,
                         signal: opts.signal,
                         cb: oncb,
+                        tls: opts.tls,
                     })
                     tcp_dial_host({
                         sync: false,
@@ -2155,6 +2318,7 @@ function tcp_dial_name(opts: {
                         port: opts.port,
                         signal: opts.signal,
                         cb: oncb,
+                        tls: opts.tls,
                     })
                 } catch (e) {
                     opts.cb = undefined
@@ -2179,160 +2343,8 @@ function tcp_dial_name(opts: {
         port: opts.port,
         signal: opts.signal,
         cb: opts.cb,
+        tls: opts.tls,
     })
-}
-function connect_tls(signal: undefined | AbortSignal, c: deps.TcpConn, conn: BaseTcpConn, tls: deps.Tls, cb?: DialCallback) {
-    let onabort: ((reason: any) => void) | undefined
-    try {
-        if (signal) {
-            onabort = (reason) => {
-                if (cb) {
-                    const f = cb
-                    cb = undefined
-
-                    conn.close()
-                    deps.tcp_conn_close(c)
-
-                    f(undefined, reason)
-                }
-            }
-            signal.addEventListener(onabort)
-        }
-        c.cbe = (what) => {
-            if (!cb) {
-                return
-            }
-            const f = cb
-            cb = undefined
-            if (onabort) {
-                signal!.removeEventListener(onabort)
-            }
-            if (what & deps.BEV_EVENT_TIMEOUT) {
-                deps.tcp_conn_close(c)
-                conn.close()
-
-                const e = new conn.bridge_.Error("connect timeout")
-                e.connect = true
-                e.timeout = true
-
-                f(undefined, e)
-            } else if (what & deps.BEV_EVENT_ERROR) {
-                deps.tcp_conn_close(c)
-                conn.close()
-
-                if (deps.socket_error() === deps.ETIMEDOUT) {
-                    const e = new conn.bridge_.Error("tls handshake timeout")
-                    e.connect = true
-                    e.timeout = true
-
-                    f(undefined, e)
-                } else {
-                    const e = new conn.bridge_.Error("tls handshake fail")
-                    e.connect = true
-                    f(undefined, e)
-                }
-            } else {
-                let tlsConn: undefined | TcpConn
-                try {
-                    tlsConn = new TcpConn(conn.remoteAddr,
-                        conn.localAddr,
-                        c,
-                    )
-                } catch (e) {
-                    deps.tcp_conn_close(c)
-                    conn.close()
-                    f(undefined, e)
-                    return
-                }
-                tlsConn.parent_ = conn
-                tlsConn.tls_ = tls
-                f(tlsConn)
-            }
-        }
-    } catch (e) {
-        if (cb) {
-            const f = cb
-            cb = undefined
-            if (onabort) {
-                signal!.removeEventListener(onabort)
-            }
-            conn.close()
-            deps.tcp_conn_close(c)
-
-            f(undefined, e)
-        }
-    }
-}
-function connect_tls_cb_raw(signal: undefined | AbortSignal,
-    c: BaseTcpConn,
-    tlsConfig: TlsConfig,
-    serverName: string | undefined,
-    cb: DialCallback,
-) {
-    let tlsConn: deps.TcpConn
-    let tls: deps.Tls
-    try {
-        tls = deps.create_tls(tlsConfig)
-        tlsConn = deps.connect_tls({
-            bev: c.c_!.p,
-            host: serverName,
-            tls: tls.p,
-        })
-    } catch (e) {
-        c.close()
-        cb(undefined, e)
-        return
-    }
-    connect_tls(signal, tlsConn, c!, tls, cb)
-}
-function connect_tls_cb(signal: undefined | AbortSignal,
-    c: BaseTcpConn,
-    tlsConfig: TlsConfig,
-    serverName: string | undefined,
-    cb: DialCallback | undefined,
-) {
-    if (tlsConfig.insecure || Array.isArray(tlsConfig.certificate)) {
-        connect_tls_cb_raw(signal, c, tlsConfig, serverName, cb!)
-        return
-    }
-    let onabort: ((reason: any) => void) | undefined
-    try {
-        RootCertificate.get(undefined, (s?: string, e?: any) => {
-            if (!cb) {
-                return
-            }
-            const f = cb
-            cb = undefined
-            if (onabort) {
-                signal!.removeEventListener(onabort)
-            }
-            if (e === undefined) {
-                try {
-                    if (s === undefined || s.length === 0) {
-                        tlsConfig.certificate = undefined
-                    } else {
-                        tlsConfig.certificate = [s!]
-                    }
-                } catch (e) {
-                    f(undefined, e)
-                    return
-                }
-                connect_tls_cb_raw(signal, c, tlsConfig, serverName, f)
-            } else {
-                f(undefined, e)
-            }
-        })
-    } catch (e) {
-        if (cb) {
-            const f = cb
-            cb = undefined
-            if (onabort) {
-                signal!.removeEventListener(onabort)
-            }
-
-            f(undefined, e)
-        }
-    }
 }
 function _tcp_dial(opts: DialOptions, host: string, ipv: IP | undefined, port: number, cb: DialCallback, v6?: boolean) {
     let ip: string | undefined
@@ -2361,6 +2373,7 @@ function _tcp_dial(opts: DialOptions, host: string, ipv: IP | undefined, port: n
                 port: port,
                 signal: opts.signal,
                 cb: cb,
+                tls: opts.tls,
             })
             return
         }
@@ -2390,6 +2403,7 @@ function _tcp_dial(opts: DialOptions, host: string, ipv: IP | undefined, port: n
         v6: v6,
         signal: opts.signal,
         cb: cb,
+        tls: opts.tls,
     })
 }
 function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
@@ -2408,37 +2422,23 @@ function tcp_dial(opts: DialOptions, cb: DialCallback, v6?: boolean) {
     }
     if (opts.tls) {
         const tlsConfig = opts.tls
-        const serverName = tlsConfig.serverName ?? hostname
-        const signal = opts.signal
-        _tcp_dial(opts, host, ip, port, (c, e) => {
-            if (c) {
-                connect_tls_cb(signal, c, tlsConfig, serverName, cb)
-            } else {
-                cb(undefined, e)
-            }
-        }, v6)
-    } else {
-        _tcp_dial(opts, host, ip, port, cb, v6)
+        if (typeof tlsConfig.serverName !== "string") {
+            tlsConfig.serverName = hostname
+        }
     }
+    _tcp_dial(opts, host, ip, port, cb, v6)
 }
 
 function unix_dial(opts: DialOptions, o: TcpDialIPOptions) {
     if (opts.tls) {
         const tlsConfig = opts.tls
-        const serverName = tlsConfig.serverName ?? o.ip
-        const signal = opts.signal
-        const cb = o.cb!
-        o.cb = (c, e) => {
-            if (c) {
-                connect_tls_cb(signal, c, tlsConfig, serverName, cb)
-            } else {
-                cb(undefined, e)
-            }
+        const serverName = tlsConfig.serverName
+        if (typeof tlsConfig.serverName !== "string") {
+            tlsConfig.serverName = o.ip
         }
-        tcp_dial_ip(o)
-    } else {
-        tcp_dial_ip(o)
+        o.tls = tlsConfig
     }
+    tcp_dial_ip(o)
 }
 
 

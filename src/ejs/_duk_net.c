@@ -1773,6 +1773,12 @@ static duk_ret_t tcp_conn_stash(duk_context *ctx)
     }
     return 0;
 }
+static duk_ret_t tcp_conn_pop_stash(duk_context *ctx)
+{
+    void *p = duk_require_pointer(ctx, 0);
+    ejs_stash_pop_pointer(ctx, p, EJS_STASH_NET_TCP_CONN);
+    return 0;
+}
 static duk_ret_t tcp_conn_close(duk_context *ctx)
 {
     struct bufferevent *bev = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_TCP_CONN);
@@ -4132,6 +4138,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, tcp_conn_stash, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_stash", 14);
+        duk_push_c_lightfunc(ctx, tcp_conn_pop_stash, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "tcp_conn_pop_stash", 18);
 
         duk_push_c_lightfunc(ctx, tcp_conn_close, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_close", 14);
