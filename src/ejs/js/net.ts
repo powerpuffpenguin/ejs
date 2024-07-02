@@ -1574,7 +1574,6 @@ export class BaseTcpListener implements Listener {
                     deps.tcp_conn_stash(conn, false)
                     return
                 }
-
                 let c: deps.TcpConn
                 let tlsServer: deps.ServerTls
                 try {
@@ -1584,6 +1583,10 @@ export class BaseTcpListener implements Listener {
                     })
                 } catch (e) {
                     deps.tcp_conn_stash(conn, false)
+                    const onError = this.onErrorBind_
+                    if (onError) {
+                        onError(e)
+                    }
                     return
                 }
                 c.cbe = (what) => {
@@ -1597,9 +1600,20 @@ export class BaseTcpListener implements Listener {
                     if (what & deps.BEV_EVENT_TIMEOUT) {
                         deps.tcp_conn_stash(conn, false)
                         deps.tcp_conn_stash(c, false)
+                        const onError = this.onErrorBind_
+                        if (onError) {
+                            const e = new this.bridge.Error("tls handshake timeout")
+                            e.timeout = true
+                            onError(e)
+                        }
                     } else if (what & deps.BEV_EVENT_ERROR) {
                         deps.tcp_conn_stash(conn, false)
                         deps.tcp_conn_stash(c, false)
+                        const onError = this.onErrorBind_
+                        if (onError) {
+                            const e = new this.bridge.Error("tls handshake fail")
+                            onError(e)
+                        }
                     } else {
                         let tls: BaseTcpConn
                         try {
@@ -1607,6 +1621,10 @@ export class BaseTcpListener implements Listener {
                         } catch (e) {
                             deps.tcp_conn_stash(conn, false)
                             deps.tcp_conn_stash(c, false)
+                            const onError = this.onErrorBind_
+                            if (onError) {
+                                onError(e)
+                            }
                             return
                         }
                         deps.tcp_conn_stash(c, true)
@@ -1629,7 +1647,11 @@ export class BaseTcpListener implements Listener {
                     c = this.bridge.conn(conn, opts)
                 } catch (e) {
                     deps.tcp_conn_stash(conn, false)
-                    throw e
+                    const onError = this.onErrorBind_
+                    if (onError) {
+                        onError(e)
+                    }
+                    return
                 }
                 deps.tcp_conn_stash(conn, true)
                 onAccept(c)
