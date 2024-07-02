@@ -1612,6 +1612,7 @@ export class BaseTcpListener implements Listener {
                         deps.tcp_conn_stash(c, true)
                         tls.raw_ = conn
                         tls.tls_ = tlsServer
+                        deps.tcp_conn_cb(c, false)
                         onAccept(tls)
                     }
                 }
