@@ -138,7 +138,7 @@ function onAccept(co, c) {
                 break;
             }
             var data = buf.subarray(0, n);
-            console.log("recv ".concat(c.remoteAddr, ":"), data);
+            console.log("recv ".concat(c.remoteAddr, ":"), new TextDecoder().decode(data));
             while (data.length) {
                 n = rw.write(co, data);
                 data = data.subarray(n);

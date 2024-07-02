@@ -38,9 +38,8 @@ declare namespace deps {
     export const BEV_EVENT_EOF: number
     export const BEV_EVENT_ERROR: number
 
-    export function socket_error_str(): string
-    export function socket_error(): number
-    export function connect_error_str(p: unknown): string
+    export function socket_error(err: number): string
+
     export interface ConnMetadata {
         /**
          * max write bytes
@@ -54,7 +53,7 @@ declare namespace deps {
         busy?: boolean
         cbw: () => void
         cbr: (b: evbuffer) => void
-        cbe?: (what: number) => void
+        cbe?: (what: number, err?: number) => void
         md: ConnMetadata
         p: unknown
     }
@@ -1313,7 +1312,7 @@ export class BaseTcpConn implements Conn {
         conn.cbr = (r) => {
             this._cbr(r)
         }
-        conn.cbe = (what) => {
+        conn.cbe = (what, err) => {
             const f = this.onErrorBind_
             const bridge = this.bridge_
             let e: NetError
@@ -1330,12 +1329,12 @@ export class BaseTcpConn implements Conn {
                         e.write = true
                         e.timeout = true
                     }
-                } else if (what & deps.BEV_EVENT_ERROR) {
+                } else if (err) {
                     if (f) {
-                        if (deps.socket_error() === deps.ETIMEDOUT) {
+                        if (err === deps.ETIMEDOUT) {
                             e = new bridge.Error("write timeout")
                         } else {
-                            e = new bridge.Error(deps.socket_error_str())
+                            e = new bridge.Error(deps.socket_error(err))
                         }
                         e.write = true
                     }
@@ -1355,21 +1354,22 @@ export class BaseTcpConn implements Conn {
                         e.read = true
                         e.timeout = true
                     }
-                } else if (what & deps.BEV_EVENT_ERROR) {
+                } else if (err) {
                     if (f) {
-                        if (deps.socket_error() === deps.ETIMEDOUT) {
+                        if (err === deps.ETIMEDOUT) {
                             e = new bridge.Error("read timeout")
+                            e.timeout = true
                         } else {
-                            e = new bridge.Error(deps.socket_error_str())
+                            e = new bridge.Error(deps.socket_error(err))
                         }
                         e.read = true
                     }
                 } else {
                     return
                 }
-            } else if (what & deps.BEV_EVENT_ERROR) {
+            } else if (err) {
                 if (f) {
-                    e = new bridge.Error(deps.socket_error_str())
+                    e = new bridge.Error(deps.socket_error(err))
                 }
             } else {
                 return
@@ -1974,7 +1974,7 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                 v6: opts.v6,
             })
         }
-        opts.c.cbe = (what) => {
+        opts.c.cbe = (what, err) => {
             const cb = opts.cb
             if (!cb) {
                 const c = opts.c
@@ -2000,7 +2000,7 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
 
                 cb(undefined, e)
                 return
-            } else if (what & deps.BEV_EVENT_ERROR) {
+            } else if (err) {
                 opts.cb = undefined
                 if (onabort) {
                     signal!.removeEventListener(onabort)
@@ -2008,14 +2008,14 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
 
                 deps.tcp_conn_close(c)
 
-                if (deps.socket_error() === deps.ETIMEDOUT) {
+                if (err === deps.ETIMEDOUT) {
                     const e = new opts.Error("connect timeout")
                     e.connect = true
                     e.timeout = true
 
                     cb(undefined, e)
                 } else {
-                    const e = new opts.Error(deps.socket_error_str())
+                    const e = new opts.Error(deps.socket_error(err))
                     e.connect = true
                     cb(undefined, e)
                 }
@@ -2070,7 +2070,7 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                 cb(undefined, e)
                 return
             }
-            tlsConn.cbe = (what) => {
+            tlsConn.cbe = (what, err) => {
                 const cb = opts.cb
                 if (!cb) {
                     opts.cb = undefined
@@ -2094,7 +2094,7 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                     e.timeout = true
                     cb(undefined, e)
                 }
-                else if (what & deps.BEV_EVENT_ERROR) {
+                else if (err) {
                     opts.cb = undefined
                     if (onabort) {
                         signal!.removeEventListener(onabort)
@@ -2102,13 +2102,13 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                     deps.tcp_conn_close(c)
                     deps.tcp_conn_stash(tlsConn, false)
 
-                    if (deps.socket_error() === deps.ETIMEDOUT) {
+                    if (err === deps.ETIMEDOUT) {
                         const e = new opts.Error("tls handshake timeout")
                         e.connect = true
                         e.timeout = true
                         cb(undefined, e)
                     } else {
-                        const e = new opts.Error(deps.socket_error_str())
+                        const e = new opts.Error(deps.socket_error(err))
                         e.connect = true
                         cb(undefined, e)
                     }
@@ -2142,9 +2142,9 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                         return
                     }
                     deps.tcp_conn_pop_stash(c.p)
-                    deps.tcp_conn_stash(c, true)
+                    deps.tcp_conn_stash(tlsConn, true)
                     tls.parent_ = c
-                    deps.tcp_conn_cb(c, false)
+                    deps.tcp_conn_cb(tlsConn, false)
                     cb(tls)
                 }
             }

@@ -111,7 +111,7 @@ function onAccept(co: YieldContext, c: net.Conn) {
                 break
             }
             let data = buf.subarray(0, n)
-            console.log(`recv ${c.remoteAddr}:`, data)
+            console.log(`recv ${c.remoteAddr}:`, new TextDecoder().decode(data))
             while (data.length) {
                 n = rw.write(co, data)
                 data = data.subarray(n)

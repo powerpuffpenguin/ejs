@@ -854,6 +854,7 @@ typedef struct
     ejs_core_t *core;
     struct bufferevent *bev;
     short what;
+    int err;
 } tcp_connection_event_cb_args;
 
 static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
@@ -871,15 +872,25 @@ static duk_ret_t tcp_connection_event_cb_impl(duk_context *ctx)
         return 0;
     }
     duk_push_uint(ctx, args->what);
-    duk_call(ctx, 1);
+    if (args->err)
+    {
+        duk_push_int(ctx, args->err);
+        duk_call(ctx, 2);
+    }
+    else
+    {
+        duk_call(ctx, 1);
+    }
     return 0;
 }
 static void tcp_connection_event_cb(struct bufferevent *bev, short what, void *ptr)
 {
+    int err = what & BEV_EVENT_ERROR ? EVUTIL_SOCKET_ERROR() : 0;
     tcp_connection_event_cb_args args = {
         .core = ptr,
         .bev = bev,
         .what = what,
+        .err = err,
     };
     ejs_call_callback_noresult(args.core->duk, tcp_connection_event_cb_impl, &args, NULL);
 }
@@ -1906,30 +1917,28 @@ static duk_ret_t tcp_conn_localAddr(duk_context *ctx)
     }
     return 1;
 }
-static duk_ret_t socket_error_str(duk_context *ctx)
-{
-    duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-    return 1;
-}
 static duk_ret_t socket_error(duk_context *ctx)
 {
-    duk_push_int(ctx, EVUTIL_SOCKET_ERROR());
+    int err = duk_require_int(ctx, 0);
+    duk_pop(ctx);
+    duk_push_string(ctx, evutil_socket_error_to_string(err));
     return 1;
 }
-static duk_ret_t connect_error_str(duk_context *ctx)
-{
-    struct bufferevent *bev = duk_require_pointer(ctx, -1);
-    int err = bufferevent_socket_get_dns_error(bev);
-    if (err)
-    {
-        duk_push_string(ctx, evutil_gai_strerror(err));
-    }
-    else
-    {
-        duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-    }
-    return 1;
-}
+
+// static duk_ret_t connect_error_str(duk_context *ctx)
+// {
+//     struct bufferevent *bev = duk_require_pointer(ctx, -1);
+//     int err = bufferevent_socket_get_dns_error(bev);
+//     if (err)
+//     {
+//         duk_push_string(ctx, evutil_gai_strerror(err));
+//     }
+//     else
+//     {
+//         duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+//     }
+//     return 1;
+// }
 
 typedef struct
 {
@@ -4150,12 +4159,8 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, tcp_conn_localAddr, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_localAddr", 18);
 
-        duk_push_c_lightfunc(ctx, socket_error_str, 0, 0, 0);
-        duk_put_prop_lstring(ctx, -2, "socket_error_str", 16);
-        duk_push_c_lightfunc(ctx, socket_error, 0, 0, 0);
+        duk_push_c_lightfunc(ctx, socket_error, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "socket_error", 12);
-        duk_push_c_lightfunc(ctx, connect_error_str, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "connect_error_str", 17);
 
         duk_push_c_lightfunc(ctx, tcp_conect, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conect", 10);
