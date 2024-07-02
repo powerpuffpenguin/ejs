@@ -1397,7 +1397,7 @@ export class BaseTcpConn implements Conn {
                 throw new this.bridge_.Error("onError must be a function")
             }
             this.onErrorBind_ = f.bind(this)
-            this.onError = f
+            this.onError_ = f
         }
     }
 
