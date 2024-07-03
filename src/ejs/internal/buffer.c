@@ -1,6 +1,7 @@
 #include "buffer.h"
 #include <string.h>
 #include <errno.h>
+#include "../internal/buffer.h"
 void ppp_buffer_init(ppp_buffer_t *buf)
 {
     memset(buf, 0, sizeof(ppp_buffer_t));

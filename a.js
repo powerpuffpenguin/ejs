@@ -18,28 +18,20 @@ function main() {
         },
     })
     console.log("https listen on:", l.addr)
+    new http.HttpServer(l, function (w, r) {
+        console.log("host:", r.host)
+        var uri = r.uri
+        console.log(r.methodString, r.uri.toString())
+        console.log("scheme:", uri.scheme)
+        console.log("userinfo:", uri.userinfo)
+        console.log("host:", uri.host)
+        console.log("port:", uri.port)
+        console.log("path:", uri.path)
+        console.log("query:", uri.query)
+        console.log("fragment:", uri.fragment)
 
-    l.onAccept = function (c) {
-        c.onMessage = function (data) {
-            console.log(new TextDecoder().decode(data))
-        }
-    }
-    l.onError = function (e) {
-        console.log("err:", e.toString())
-    }
-    // new http.HttpServer(l, function (w, r) {
-    //     console.log("host:", r.host)
-    //     var uri = r.uri
-    //     console.log("scheme:", uri.scheme)
-    //     console.log("userinfo:", uri.userinfo)
-    //     console.log("host:", uri.host)
-    //     console.log("port:", uri.port)
-    //     console.log("path:", uri.path)
-    //     console.log("query:", uri.query)
-    //     console.log("fragment:", uri.fragment)
-
-    //     w.text(200, "ok\n")
-    // })
+        w.text(200, "ok\n")
+    })
 
 }
 main()

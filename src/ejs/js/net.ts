@@ -1681,6 +1681,7 @@ export class BaseTcpListener implements Listener {
                     }
                     return
                 }
+                deps.tcp_conn_cb(conn, false)
                 onAccept(c)
             }
         } catch (e) {
