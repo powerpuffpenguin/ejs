@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <signal.h>
 #include <event2/thread.h>
 #include <event2/event.h>
 #include "ejs/core.h"
@@ -71,6 +72,9 @@ int main(int argc, const char **argv)
     int ret = 0;
     // Initialize mbedtls
     psa_crypto_init();
+    // When SIGPIPE is encountered during network communication,
+    // do not exit the process but return an error and set errno to EPIPE.
+    signal(SIGPIPE, SIG_IGN);
 
     // run main.js
     // err = ejs_core_run_source(core, "console.log('this is a.js');"

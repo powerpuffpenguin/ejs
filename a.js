@@ -24,6 +24,9 @@ function main() {
             console.log(new TextDecoder().decode(data))
         }
     }
+    l.onError = function (e) {
+        console.log("err:", e.toString())
+    }
     // new http.HttpServer(l, function (w, r) {
     //     console.log("host:", r.host)
     //     var uri = r.uri

@@ -65,7 +65,7 @@ declare namespace deps {
     }
     export class TcpListener {
         readonly __id = "TcpListener"
-        cb?: (c: TcpConn, opts?: TcpListenerOptions) => void
+        cb?: (c?: TcpConn, opts?: TcpListenerOptions, e?: string) => void
         err?: (e: any) => void
     }
     export interface TcpListenerOptions {
@@ -74,6 +74,7 @@ declare namespace deps {
         port: number
         backlog: number
         sync: boolean
+        tls?: deps.ServerTls
     }
     export function tcp_listen(opts: TcpListenerOptions): TcpListener
     export function tcp_listen_close(l: TcpListener): void
@@ -98,6 +99,7 @@ declare namespace deps {
         address: string
         backlog: number
         sync: boolean
+        tls?: ServerTls
     }
     export function unix_listen(opts: UnixListenerOptions): TcpListener
     export interface UnixConnectOptions {
@@ -1229,7 +1231,14 @@ export interface Conn {
      * @remarks
      * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
      */
-    onMessage?: OnMessageCallback
+    onMessage?: OnMessageCallback<Conn>
+
+    onReadable?: OnReadableCallback<Conn>
+
+    /**
+     * 
+     */
+    buffer?: Uint8Array
 }
 /**
  * Readable network device for reading ready data
@@ -1287,8 +1296,8 @@ class evbufferReadable implements Readable {
         this.closed_ = true
     }
 }
-export type OnReadableCallback = (this: Conn, r: Readable) => void
-export type OnMessageCallback = (this: Conn, data: Uint8Array) => void
+export type OnReadableCallback<Self> = (this: Self, r: Readable) => void
+export type OnMessageCallback<Self> = (this: Self, data: Uint8Array) => void
 interface tcpConnBridge {
     Error: typeof NetError
     throwError(e: any): never
@@ -1296,9 +1305,7 @@ interface tcpConnBridge {
 
 export class BaseTcpConn implements Conn {
     c_?: deps.TcpConn
-    parent_?: deps.TcpConn
     private md_: deps.ConnMetadata
-    tls_?: deps.ServerTls | deps.Tls
     constructor(readonly remoteAddr: Addr, readonly localAddr: Addr,
         conn: deps.TcpConn,
         readonly bridge_: tcpConnBridge,
@@ -1412,14 +1419,6 @@ export class BaseTcpConn implements Conn {
             this.c_ = undefined
             deps.tcp_conn_close(c)
         }
-        const p = this.parent_
-        if (p) {
-            this.parent_ = undefined
-            deps.tcp_conn_stash(p, false)
-        }
-        if (this.tls_) {
-            this.tls_ = undefined
-        }
     }
     private _get(): deps.TcpConn {
         const c = this.c_
@@ -1524,15 +1523,15 @@ export class BaseTcpConn implements Conn {
             }
         }
     }
-    private onReadable_?: OnReadableCallback
+    private onReadable_?: OnReadableCallback<Conn>
     private onReadableBind_?: (r: Readable) => void
     /**
      * Callback when a message is received. If set to undefined, it will stop receiving data. 
      */
-    get onReadable(): OnReadableCallback | undefined {
+    get onReadable(): OnReadableCallback<Conn> | undefined {
         return this.onReadable_
     }
-    set onReadable(f: OnReadableCallback | undefined) {
+    set onReadable(f: OnReadableCallback<Conn> | undefined) {
         if (f === undefined || f === null) {
             if (!this.onReadable_) {
                 return
@@ -1560,15 +1559,15 @@ export class BaseTcpConn implements Conn {
         }
     }
 
-    private onMessage_?: OnMessageCallback
+    private onMessage_?: OnMessageCallback<Conn>
     private onMessageBind_?: (data: Uint8Array) => void
     /**
      * Callback when a message is received. If set to undefined, it will stop receiving data. 
      */
-    get onMessage(): OnMessageCallback | undefined {
+    get onMessage(): OnMessageCallback<Conn> | undefined {
         return this.onMessage_
     }
-    set onMessage(f: OnMessageCallback | undefined) {
+    set onMessage(f: OnMessageCallback<Conn> | undefined) {
         if (f === undefined || f === null) {
             if (!this.onMessage_) {
                 return
@@ -1596,7 +1595,7 @@ export class BaseTcpConn implements Conn {
     }
 }
 
-export type OnAcceptCallback = (this: Listener, c: Conn) => void
+export type OnAcceptCallback = (this: Listener, c?: Conn) => void
 export type onErrorCallback<T> = (this: T, e: any) => void
 export interface Listener {
     readonly addr: Addr
@@ -1617,96 +1616,27 @@ export class BaseTcpListener implements Listener {
     constructor(readonly addr: Addr,
         l: deps.TcpListener,
         readonly bridge: tcpListenerBridge,
-        readonly tls?: deps.ServerTls,
+        tls?: boolean,
     ) {
-        if (tls) {
-            l.cb = (conn, opts) => {
-                const onAccept = this.onAcceptBind_
-                if (!onAccept) {
+        l.cb = (conn, opts, err) => {
+            const onAccept = this.onAcceptBind_
+            if (!onAccept) {
+                if (conn) {
                     deps.tcp_conn_stash(conn, false)
-                    return
                 }
-                let c: deps.TcpConn
-                let tlsServer: deps.ServerTls
-                try {
-                    c = deps.connect_sever_tls({
-                        bev: conn.p,
-                        tls: tls.p,
-                    })
-                } catch (e) {
-                    deps.tcp_conn_stash(conn, false)
-                    const onError = this.onErrorBind_
-                    if (onError) {
-                        onError(e)
-                    }
-                    return
+                return
+            } else if (!conn) {
+                const onError = this.onErrorBind_
+                if (onError) {
+                    const e = new this.bridge.Error(err!)
+                    e.connect = true
+                    onError(e)
                 }
-                c.cbe = (what) => {
-                    const onAccept = this.onAcceptBind_
-                    if (!onAccept) {
-                        deps.tcp_conn_stash(conn, false)
-                        deps.tcp_conn_stash(c, false)
-                        return
-                    }
-
-                    if (what & deps.BEV_EVENT_TIMEOUT) {
-                        deps.tcp_conn_stash(conn, false)
-                        deps.tcp_conn_stash(c, false)
-                        const onError = this.onErrorBind_
-                        if (onError) {
-                            const e = new this.bridge.Error("tls handshake timeout")
-                            e.timeout = true
-                            onError(e)
-                        }
-                    } else if (what & deps.BEV_EVENT_ERROR) {
-                        deps.tcp_conn_stash(conn, false)
-                        deps.tcp_conn_stash(c, false)
-                        const onError = this.onErrorBind_
-                        if (onError) {
-                            const e = new this.bridge.Error("tls handshake fail")
-                            onError(e)
-                        }
-                    } else {
-                        let tls: BaseTcpConn
-                        try {
-                            tls = this.bridge.conn(c, opts)
-                        } catch (e) {
-                            deps.tcp_conn_stash(conn, false)
-                            deps.tcp_conn_stash(c, false)
-                            const onError = this.onErrorBind_
-                            if (onError) {
-                                onError(e)
-                            }
-                            return
-                        }
-                        deps.tcp_conn_stash(c, true)
-                        tls.parent_ = conn
-                        tls.tls_ = tlsServer
-                        deps.tcp_conn_cb(c, false)
-                        onAccept(tls)
-                    }
-                }
-            }
-        } else {
-            l.cb = (conn, opts) => {
-                const onAccept = this.onAcceptBind_
-                if (!onAccept) {
-                    deps.tcp_conn_stash(conn, false)
-                    return
-                }
-                let c: Conn
-                try {
-                    c = this.bridge.conn(conn, opts)
-                } catch (e) {
-                    deps.tcp_conn_stash(conn, false)
-                    const onError = this.onErrorBind_
-                    if (onError) {
-                        onError(e)
-                    }
-                    return
-                }
-                deps.tcp_conn_stash(conn, true)
-                onAccept(c)
+                return
+            } else if (tls) {
+                this._acceptTLS(conn, opts)
+            } else {
+                this._accept(conn, opts, onAccept)
             }
         }
         l.err = (e) => {
@@ -1716,6 +1646,79 @@ export class BaseTcpListener implements Listener {
             }
         }
         this.l_ = l
+    }
+    private _acceptTLS(conn: deps.TcpConn, opts: deps.TcpListenerOptions | undefined) {
+        try {
+            deps.tcp_conn_stash(conn, true)
+        } catch (e) {
+            const onError = this.onErrorBind_
+            if (onError) {
+                onError(e)
+            }
+            return
+        }
+        try {
+            conn.cbe = (what) => {
+                const onAccept = this.onAcceptBind_
+                if (!onAccept) {
+                    deps.tcp_conn_close(conn)
+                    return
+                }
+
+                if (what & deps.BEV_EVENT_TIMEOUT) {
+                    deps.tcp_conn_close(conn)
+                    const onError = this.onErrorBind_
+                    if (onError) {
+                        const e = new this.bridge.Error("tls handshake timeout")
+                        e.timeout = true
+                        onError(e)
+                    }
+                    return
+                } else if (what & deps.BEV_EVENT_ERROR) {
+                    deps.tcp_conn_close(conn)
+                    const onError = this.onErrorBind_
+                    if (onError) {
+                        const e = new this.bridge.Error("tls handshake fail")
+                        onError(e)
+                    }
+                    return
+                }
+
+                let c: Conn
+                try {
+                    c = this.bridge.conn(conn, opts)
+                } catch (e) {
+                    deps.tcp_conn_close(conn)
+                    const onError = this.onErrorBind_
+                    if (onError) {
+                        onError(e)
+                    }
+                    return
+                }
+                onAccept(c)
+            }
+        } catch (e) {
+            deps.tcp_conn_close(conn)
+            const onError = this.onErrorBind_
+            if (onError) {
+                onError(e)
+            }
+        }
+    }
+    private _accept(conn: deps.TcpConn, opts: deps.TcpListenerOptions | undefined, cb: (c: Conn) => void) {
+        let c: Conn
+        try {
+            c = this.bridge.conn(conn, opts)
+        } catch (e) {
+            deps.tcp_conn_stash(conn, false)
+            const onError = this.onErrorBind_
+            if (onError) {
+                onError(e)
+            }
+            return
+        }
+        deps.tcp_conn_stash(conn, true)
+        cb(c)
     }
     get isClosed(): boolean {
         return this.l_ ? false : true
@@ -1793,7 +1796,7 @@ export class BaseTcpListener implements Listener {
     }
 }
 export class TcpListener extends BaseTcpListener {
-    constructor(readonly addr: Addr, l: deps.TcpListener, tls?: deps.ServerTls) {
+    constructor(readonly addr: Addr, l: deps.TcpListener, tls?: boolean) {
         super(addr, l, {
             Error: TcpError,
             throwError: throwTcpError,
@@ -1832,7 +1835,7 @@ export class UnixConn extends BaseTcpConn {
     }
 }
 export class UnixListener extends BaseTcpListener {
-    constructor(readonly addr: Addr, l: deps.TcpListener, tls?: deps.ServerTls) {
+    constructor(readonly addr: Addr, l: deps.TcpListener, tls?: boolean) {
         super(addr, l, {
             Error: UnixError,
             throwError: throwUnixError,
@@ -1895,6 +1898,7 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
             v6: v6,
             backlog: backlog,
             sync: opts.sync ? true : false,
+            tls: tls,
         })
         if (host == "") {
             if (v6 === undefined) {
@@ -1906,7 +1910,7 @@ function listenTCP(opts: ListenOptions, v6?: boolean): TcpListener {
             }
         }
         try {
-            return new TcpListener(new NetAddr('tcp', address), l, tls)
+            return new TcpListener(new NetAddr('tcp', address), l, tls ? true : false)
         } catch (e) {
             deps.tcp_listen_close(l)
             throw e
@@ -1924,9 +1928,10 @@ function listenUnix(opts: ListenOptions): UnixListener {
             address: address,
             backlog: opts.backlog ?? 5,
             sync: opts.sync ?? false,
+            tls: tls,
         })
         try {
-            return new UnixListener(new NetAddr('unix', address), l, tls)
+            return new UnixListener(new NetAddr('unix', address), l, tls ? true : false)
         } catch (e) {
             deps.tcp_listen_close(l)
             throw e
@@ -2058,9 +2063,6 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                     deps.tcp_conn_close(c)
                     cb(undefined, e)
                     return
-                }
-                if (tls) {
-                    conn.tls_ = tls
                 }
                 cb(conn)
                 return
@@ -2614,7 +2616,7 @@ class udpReadable implements UdpReadable {
         this.closed_ = true
     }
 }
-export type OnUdpReadableCallback = (this: Conn, r: UdpReadable) => void
+export type OnUdpReadableCallback = (this: UdpConn, r: UdpReadable) => void
 export interface UdpListenOptions {
     /**
      * @default 'udp'
@@ -3303,15 +3305,15 @@ export class UdpConn {
         }
     }
 
-    private onMessage_?: OnMessageCallback
+    private onMessage_?: OnMessageCallback<UdpConn>
     private onMessageBind_?: (data: Uint8Array) => void
     /**
      * Callback when a message is received. If set to undefined, it will stop receiving data. 
      */
-    get onMessage(): OnMessageCallback | undefined {
+    get onMessage(): OnMessageCallback<UdpConn> | undefined {
         return this.onMessage_
     }
-    set onMessage(f: OnMessageCallback | undefined) {
+    set onMessage(f: OnMessageCallback<UdpConn> | undefined) {
         if (f === undefined || f === null) {
             if (!this.onMessage_) {
                 return

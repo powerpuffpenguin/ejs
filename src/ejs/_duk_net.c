@@ -1048,21 +1048,7 @@ typedef struct
 
     BOOL free;
 } evconnlistener_tcp_cb_args_t;
-static void evconnlistener_tcp_cb_args_destroy(void *ptr)
-{
-    evconnlistener_tcp_cb_args_t *args = ptr;
-    if (!args->free)
-    {
-        if (args->bev)
-        {
-            bufferevent_free(args->bev);
-        }
-        else
-        {
-            evutil_closesocket(args->s);
-        }
-    }
-}
+
 static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
 {
     evconnlistener_tcp_cb_args_t *args = duk_require_pointer(ctx, 0);
@@ -1071,6 +1057,20 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
     {
         return 0;
     }
+    duk_get_prop_lstring(ctx, -1, "tls", 3);
+    tcp_server_tls_t *tls;
+    if (duk_is_undefined(ctx, -1))
+    {
+        duk_pop(ctx);
+        tls = 0;
+    }
+    else
+    {
+        duk_get_prop_lstring(ctx, -1, "p", 1);
+        tls = duk_get_pointer_default(ctx, -1, 0);
+        duk_pop_2(ctx);
+    }
+
 #ifdef DUK_F_LINUX
     duk_bool_t is_unix = 0;
     duk_get_prop_lstring(ctx, -1, "network", 7);
@@ -1089,13 +1089,54 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
     duk_swap_top(ctx, -2);
     duk_pop(ctx);
 
-    args->bev = bufferevent_socket_new(args->core->base, args->s, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
-    if (!args->bev)
+    if (tls)
     {
-        return 0;
+        mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(&tls->conf);
+        if (!ssl)
+        {
+            duk_push_undefined(ctx);
+            duk_push_undefined(ctx);
+            duk_push_lstring(ctx, "bufferevent_mbedtls_dyncontext_new fail", 39);
+            duk_call(ctx, 3);
+            return 0;
+        }
+        args->bev = bufferevent_mbedtls_socket_new(
+            args->core->base, args->s,
+            ssl, BUFFEREVENT_SSL_ACCEPTING,
+            BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        if (!args->bev)
+        {
+            duk_push_undefined(ctx);
+            duk_push_undefined(ctx);
+            duk_push_lstring(ctx, "bufferevent_mbedtls_socket_new fail", 35);
+            duk_call(ctx, 3);
+            return 0;
+        }
     }
+    else
+    {
+        args->bev = bufferevent_socket_new(
+            args->core->base, args->s,
+            BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        if (!args->bev)
+        {
+            duk_push_undefined(ctx);
+            duk_push_undefined(ctx);
+            duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
+            duk_call(ctx, 3);
+            return 0;
+        }
+    }
+
     bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, args->core);
-    bufferevent_enable(args->bev, EV_WRITE);
+    if (tls)
+    {
+        bufferevent_enable(args->bev, EV_WRITE | EV_READ);
+    }
+    else
+    {
+        bufferevent_enable(args->bev, EV_WRITE);
+    }
 
     push_tcp_connection(ctx, args->core, args->bev);
     args->free = TRUE;
@@ -1167,7 +1208,7 @@ static void evconnlistener_tcp_cb(struct evconnlistener *listener, evutil_socket
         .bev = NULL,
         .free = FALSE,
     };
-    ejs_call_callback_noresult(args.core->duk, evconnlistener_tcp_cb_impl, &args, evconnlistener_tcp_cb_args_destroy);
+    ejs_call_callback(args.core->duk, evconnlistener_tcp_cb_impl, &args, 0);
 }
 static duk_ret_t tcp_listen_impl(duk_context *ctx)
 {
@@ -1291,6 +1332,14 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_pointer(ctx, core);
     duk_put_prop_lstring(ctx, -2, "core", 4);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    if (duk_is_undefined(ctx, -1))
+    {
+        duk_pop(ctx);
+    }
+    duk_put_prop_lstring(ctx, -2, "tls", 3);
+
     duk_push_c_lightfunc(ctx, evconnlistener_tcp_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
     args->listener = NULL;
@@ -1345,7 +1394,6 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
         sin.sin6_family = AF_INET6;
         sin.sin6_port = htons(port);
         sin.sin6_addr = in6addr_any;
-        // puts("any v6");
         s = sync_evconn_create_listen(AF_INET6, SOCK_STREAM, IPPROTO_TCP,
                                       (struct sockaddr *)&sin, sizeof(sin),
                                       backlog);
@@ -1436,6 +1484,14 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "core", 4);
     duk_push_true(ctx);
     duk_put_prop_lstring(ctx, -2, "sync", 4);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    if (duk_is_undefined(ctx, -1))
+    {
+        duk_pop(ctx);
+    }
+    duk_put_prop_lstring(ctx, -2, "tls", 3);
+
     duk_push_c_lightfunc(ctx, sync_evconn_listener_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
     args->listener = NULL;
@@ -1563,6 +1619,14 @@ static duk_ret_t unix_listen_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_pointer(ctx, core);
     duk_put_prop_lstring(ctx, -2, "core", 4);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    if (duk_is_undefined(ctx, -1))
+    {
+        duk_pop(ctx);
+    }
+    duk_put_prop_lstring(ctx, -2, "tls", 3);
+
     duk_push_c_lightfunc(ctx, evconnlistener_tcp_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
     args->listener = NULL;
@@ -1633,6 +1697,14 @@ static duk_ret_t unix_listen_sync_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "core", 4);
     duk_push_true(ctx);
     duk_put_prop_lstring(ctx, -2, "sync", 4);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    if (duk_is_undefined(ctx, -1))
+    {
+        duk_pop(ctx);
+    }
+    duk_put_prop_lstring(ctx, -2, "tls", 3);
+
     duk_push_c_lightfunc(ctx, sync_evconn_listener_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
     args->listener = NULL;

@@ -593,6 +593,16 @@ declare module "ejs/net" {
          * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
          */
         onMessage?: (this: Conn, data: Uint8Array) => void
+        /**
+         * Callback when there is data to read
+         */
+        onReadable?: (this: Conn, r: Readable) => void
+        /**
+         * Read buffer
+         * @remarks
+         * If not set, a buffer of size 32k will be automatically created when reading.
+         */
+        buffer?: Uint8Array
     }
     export interface Listener {
         readonly addr: Addr
