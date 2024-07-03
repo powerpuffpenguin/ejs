@@ -210,14 +210,6 @@ declare namespace deps {
         p: unknown
     }
     export function create_tls(config: TlsConfig): Tls
-    export interface ConnectTlsOptions {
-        bev: unknown
-        host?: string
-        tls: unknown
-        insecure?: boolean
-        debug?: boolean
-    }
-    export function connect_tls(opts: ConnectTlsOptions): deps.TcpConn
 
     export interface Certificate {
         cert: string
@@ -243,12 +235,6 @@ declare namespace deps {
         p: unknown
     }
     export function create_server_tls(config: ServerTlsConfig): ServerTls
-    export interface ConnectServerTlsOptions {
-        bev: unknown
-        tls: unknown
-        debug?: boolean
-    }
-    export function connect_sever_tls(opts: ConnectServerTlsOptions): deps.TcpConn
 
     interface AsyncOptions {
         post?: boolean

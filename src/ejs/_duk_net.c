@@ -4008,133 +4008,6 @@ static duk_ret_t create_server_tls(duk_context *ctx)
     return 1;
 }
 
-static duk_ret_t connect_tls_impl(duk_context *ctx)
-{
-    tcp_conect_args_t *args = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-
-    duk_get_prop_lstring(ctx, 0, "bev", 3);
-    struct bufferevent *bev = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-
-    duk_size_t host_len = 0;
-    const char *host = 0;
-    duk_get_prop_lstring(ctx, 0, "host", 4);
-    if (duk_is_string(ctx, -1))
-    {
-        host = duk_require_lstring(ctx, -1, &host_len);
-    }
-    duk_pop(ctx);
-
-    duk_get_prop_lstring(ctx, 0, "tls", 3);
-    tcp_tls_t *tls = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-    ejs_core_t *core = ejs_require_core(ctx);
-
-    mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(&tls->conf);
-    if (!ssl)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_mbedtls_filter_new fail");
-        duk_throw(ctx);
-    }
-
-    if (host_len)
-    {
-        int ret;
-        if ((ret = mbedtls_ssl_set_hostname(ssl, host)) != 0)
-        {
-            bufferevent_mbedtls_dyncontext_free(ssl);
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "mbedtls_ssl_set_hostname returned %d", ret);
-            duk_throw(ctx);
-        }
-    }
-    args->bev = bufferevent_mbedtls_filter_new(
-        core->base, bev,
-        ssl,
-        BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE);
-    if (!args->bev)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_mbedtls_filter_new fail");
-        duk_throw(ctx);
-    }
-
-    bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
-    bufferevent_enable(args->bev, EV_READ | EV_WRITE);
-
-    push_tcp_connection(ctx, core, args->bev);
-    args->bev = NULL;
-
-    ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_CONN);
-    return 1;
-}
-static duk_ret_t connect_tls(duk_context *ctx)
-{
-    tcp_conect_args_t args = {0};
-    if (ejs_pcall_function_n(ctx, connect_tls_impl, &args, 2))
-    {
-        if (args.bev)
-        {
-            bufferevent_free(args.bev);
-        }
-        duk_throw(ctx);
-    }
-    return 1;
-}
-static duk_ret_t connect_server_tls_impl(duk_context *ctx)
-{
-    tcp_conect_args_t *args = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-
-    duk_get_prop_lstring(ctx, 0, "bev", 3);
-    struct bufferevent *bev = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-
-    duk_get_prop_lstring(ctx, 0, "tls", 3);
-    tcp_tls_t *tls = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-    ejs_core_t *core = ejs_require_core(ctx);
-
-    mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(&tls->conf);
-    if (!ssl)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_mbedtls_filter_new fail");
-        duk_throw(ctx);
-    }
-
-    args->bev = bufferevent_mbedtls_filter_new(
-        core->base, bev,
-        ssl,
-        BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
-    if (!args->bev)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_mbedtls_filter_new fail");
-        duk_throw(ctx);
-    }
-
-    bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
-    bufferevent_enable(args->bev, EV_READ | EV_WRITE);
-
-    push_tcp_connection(ctx, core, args->bev);
-    args->bev = NULL;
-
-    ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_CONN);
-    return 1;
-}
-
-static duk_ret_t connect_sever_tls(duk_context *ctx)
-{
-    tcp_conect_args_t args = {0};
-    if (ejs_pcall_function_n(ctx, connect_server_tls_impl, &args, 2))
-    {
-        if (args.bev)
-        {
-            bufferevent_free(args.bev);
-        }
-        duk_throw(ctx);
-    }
-    return 1;
-}
-
 static duk_ret_t mbedtls_debug(duk_context *ctx)
 {
     int threshold = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 0, 0);
@@ -4333,8 +4206,6 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, create_tls, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "create_tls", 10);
-        duk_push_c_lightfunc(ctx, connect_tls, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "connect_tls", 11);
 
         duk_push_c_lightfunc(ctx, mbedtls_debug, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "mbedtls_debug", 13);
@@ -4344,8 +4215,6 @@ duk_ret_t _ejs_native_net_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, create_server_tls, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "create_server_tls", 17);
-        duk_push_c_lightfunc(ctx, connect_sever_tls, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "connect_sever_tls", 17);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
