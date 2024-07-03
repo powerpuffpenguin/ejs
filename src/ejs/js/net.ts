@@ -89,6 +89,7 @@ declare namespace deps {
         ip: string
         v6: boolean
         port: number
+        tls: unknown
     }
     export function tcp_conect(opts: TcpConnectOptions): TcpConn
 
@@ -101,6 +102,7 @@ declare namespace deps {
     export function unix_listen(opts: UnixListenerOptions): TcpListener
     export interface UnixConnectOptions {
         name: string
+        tls: unknown
     }
     export function unix_conect(opts: UnixConnectOptions): TcpConn
 
@@ -1609,10 +1611,13 @@ interface tcpListenerBridge {
 }
 export class BaseTcpListener implements Listener {
     private l_?: deps.TcpListener
+    native() {
+        return this.l_
+    }
     constructor(readonly addr: Addr,
         l: deps.TcpListener,
         readonly bridge: tcpListenerBridge,
-        tls?: deps.ServerTls,
+        readonly tls?: deps.ServerTls,
     ) {
         if (tls) {
             l.cb = (conn, opts) => {
@@ -1963,15 +1968,21 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
             }
             signal.addEventListener(onabort)
         }
+        let tls: undefined | deps.Tls
+        if (opts.tls) {
+            tls = deps.create_tls(opts.tls)
+        }
         if (opts.port === undefined) {
             opts.c = deps.unix_conect({
                 name: opts.ip,
+                tls: tls?.p,
             })
         } else {
             opts.c = deps.tcp_conect({
                 ip: opts.ip,
                 port: opts.port,
                 v6: opts.v6,
+                tls: tls?.p,
             })
         }
         opts.c.cbe = (what, err) => {
@@ -2020,7 +2031,8 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                     cb(undefined, e)
                 }
                 return
-            } else if (!opts.tls) {
+                // } else if (!opts.tls) {
+            } else {
                 opts.cb = undefined
                 if (onabort) {
                     signal!.removeEventListener(onabort)
@@ -2048,106 +2060,109 @@ function tcp_dial_ip(opts: TcpDialIPOptions) {
                     cb(undefined, e)
                     return
                 }
+                if (tls) {
+                    conn.tls_ = tls
+                }
                 cb(conn)
                 return
             }
-            let tlsConn: deps.TcpConn
-            let tls: deps.Tls
-            try {
-                tls = deps.create_tls(opts.tls)
-                tlsConn = deps.connect_tls({
-                    bev: c.p,
-                    host: opts.tls.serverName,
-                    tls: tls.p,
-                })
-            } catch (e) {
-                opts.cb = undefined
-                if (onabort) {
-                    signal!.removeEventListener(onabort)
-                }
-                deps.tcp_conn_close(c)
+            // let tlsConn: deps.TcpConn
+            // let tls: deps.Tls
+            // try {
+            //     tls = deps.create_tls(opts.tls)
+            //     tlsConn = deps.connect_tls({
+            //         bev: c.p,
+            //         host: opts.tls.serverName,
+            //         tls: tls.p,
+            //     })
+            // } catch (e) {
+            //     opts.cb = undefined
+            //     if (onabort) {
+            //         signal!.removeEventListener(onabort)
+            //     }
+            //     deps.tcp_conn_close(c)
 
-                cb(undefined, e)
-                return
-            }
-            tlsConn.cbe = (what, err) => {
-                const cb = opts.cb
-                if (!cb) {
-                    opts.cb = undefined
-                    if (onabort) {
-                        signal!.removeEventListener(onabort)
-                    }
-                    deps.tcp_conn_close(c)
-                    deps.tcp_conn_stash(tlsConn, false)
-                    return
-                }
-                if (what & deps.BEV_EVENT_TIMEOUT) {
-                    opts.cb = undefined
-                    if (onabort) {
-                        signal!.removeEventListener(onabort)
-                    }
-                    deps.tcp_conn_close(c)
-                    deps.tcp_conn_stash(tlsConn, false)
+            //     cb(undefined, e)
+            //     return
+            // }
+            // tlsConn.cbe = (what, err) => {
+            //     const cb = opts.cb
+            //     if (!cb) {
+            //         opts.cb = undefined
+            //         if (onabort) {
+            //             signal!.removeEventListener(onabort)
+            //         }
+            //         deps.tcp_conn_close(c)
+            //         deps.tcp_conn_stash(tlsConn, false)
+            //         return
+            //     }
+            //     if (what & deps.BEV_EVENT_TIMEOUT) {
+            //         opts.cb = undefined
+            //         if (onabort) {
+            //             signal!.removeEventListener(onabort)
+            //         }
+            //         deps.tcp_conn_close(c)
+            //         deps.tcp_conn_stash(tlsConn, false)
 
-                    const e = new opts.Error("tls handshake timeout")
-                    e.connect = true
-                    e.timeout = true
-                    cb(undefined, e)
-                }
-                else if (err) {
-                    opts.cb = undefined
-                    if (onabort) {
-                        signal!.removeEventListener(onabort)
-                    }
-                    deps.tcp_conn_close(c)
-                    deps.tcp_conn_stash(tlsConn, false)
+            //         const e = new opts.Error("tls handshake timeout")
+            //         e.connect = true
+            //         e.timeout = true
+            //         cb(undefined, e)
+            //     }
+            //     else if (err) {
+            //         opts.cb = undefined
+            //         if (onabort) {
+            //             signal!.removeEventListener(onabort)
+            //         }
+            //         deps.tcp_conn_close(c)
+            //         deps.tcp_conn_stash(tlsConn, false)
 
-                    if (err === deps.ETIMEDOUT) {
-                        const e = new opts.Error("tls handshake timeout")
-                        e.connect = true
-                        e.timeout = true
-                        cb(undefined, e)
-                    } else {
-                        const e = new opts.Error(deps.socket_error(err))
-                        e.connect = true
-                        cb(undefined, e)
-                    }
-                } else {
-                    let tls: BaseTcpConn
-                    try {
-                        if (opts.port === undefined) {
-                            tls = new UnixConn(new NetAddr('unix', opts.ip),
-                                new NetAddr('unix', '@'),
-                                tlsConn,
-                            )
-                        } else {
-                            let [ip, port] = deps.tcp_conn_localAddr(c)
-                            if (ip.startsWith('::ffff:')) {
-                                ip = ip.substring(7)
-                            }
-                            tls = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
-                                new NetAddr('tcp', joinHostPort(ip, port)),
-                                tlsConn,
-                            )
-                        }
-                    } catch (e) {
-                        opts.cb = undefined
-                        if (onabort) {
-                            signal!.removeEventListener(onabort)
-                        }
-                        deps.tcp_conn_close(c)
-                        deps.tcp_conn_stash(tlsConn, false)
+            //         if (err === deps.ETIMEDOUT) {
+            //             const e = new opts.Error("tls handshake timeout")
+            //             e.connect = true
+            //             e.timeout = true
+            //             cb(undefined, e)
+            //         } else {
+            //             const e = new opts.Error(deps.socket_error(err))
+            //             e.connect = true
+            //             cb(undefined, e)
+            //         }
+            //     } else {
+            //         let tls: BaseTcpConn
+            //         try {
+            //             if (opts.port === undefined) {
+            //                 tls = new UnixConn(new NetAddr('unix', opts.ip),
+            //                     new NetAddr('unix', '@'),
+            //                     tlsConn,
+            //                 )
+            //             } else {
+            //                 let [ip, port] = deps.tcp_conn_localAddr(c)
+            //                 if (ip.startsWith('::ffff:')) {
+            //                     ip = ip.substring(7)
+            //                 }
+            //                 tls = new TcpConn(new NetAddr('tcp', joinHostPort(opts.ip, opts.port)),
+            //                     new NetAddr('tcp', joinHostPort(ip, port)),
+            //                     tlsConn,
+            //                 )
+            //             }
+            //         } catch (e) {
+            //             opts.cb = undefined
+            //             if (onabort) {
+            //                 signal!.removeEventListener(onabort)
+            //             }
+            //             deps.tcp_conn_close(c)
+            //             deps.tcp_conn_stash(tlsConn, false)
 
-                        cb(undefined, e)
-                        return
-                    }
-                    deps.tcp_conn_pop_stash(c.p)
-                    deps.tcp_conn_stash(tlsConn, true)
-                    tls.parent_ = c
-                    deps.tcp_conn_cb(tlsConn, false)
-                    cb(tls)
-                }
-            }
+            //             cb(undefined, e)
+            //             return
+            //         }
+            //         deps.tcp_conn_pop_stash(c.p)
+            //         deps.tcp_conn_stash(tlsConn, true)
+            //         tls.parent_ = c
+            //         deps.tcp_conn_cb(tlsConn, false)
+            //         cb(tls)
+            //     }
+            // }
         }
     } catch (e) {
         const cb = opts.cb

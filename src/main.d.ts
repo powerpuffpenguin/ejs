@@ -564,7 +564,7 @@ declare module "ejs/net" {
         readonly addr: Addr
         readonly isClosed: boolean
         close(): void
-        onAccept?: (this: Listener, c: Conn) => void
+        onAccept?: (this: Listener, c: BaseTcpConn) => void
         onError?: (this: Listener, e: any) => void
     }
     /**
@@ -650,6 +650,8 @@ declare module "ejs/net" {
         readonly isClosed: boolean
         onAccept?: (this: BaseTcpListener, c: TcpConn) => void
         onError?: (this: BaseTcpListener, e: any) => void
+        native(): any
+        tls?: any
     }
 
     export interface ListenOptions {

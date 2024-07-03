@@ -598,7 +598,7 @@ declare module "ejs/net" {
         readonly addr: Addr
         readonly isClosed: boolean
         close(): void
-        onAccept?: (this: Listener, c: Conn) => void
+        onAccept?: (this: Listener, c: BaseTcpConn) => void
         onError?: (this: Listener, e: any) => void
     }
     /**
@@ -710,7 +710,6 @@ declare module "ejs/net" {
          */
         maxVersion?: number
 
-        certificate?: Array<Certificate>
         /**
         * tls certificate
         * 

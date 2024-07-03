@@ -3,44 +3,40 @@ var net = require("ejs/net")
 var RootCertificate = net.RootCertificate
 var http = require("ejs/http")
 var os = require("ejs/os")
-
-function serve(c) {
-    console.log("serve:", c)
-    c.onMessage = function (msg) {
-        console.log(new TextDecoder().decode(msg))
-        try {
-            c.write(msg)
-        } catch (e) {
-            console.log("write err:", e.toString())
-            c.close()
-        }
-    }
-    c.onError = function (e) {
-        console.log('onError:', e.toString())
-        c.close()
-    }
-}
-
 function main() {
-    sync.go(function (co) {
-        var c
-        try {
-            c = net.dial(co, {
-                network: 'tcp',
-                // address: '127.0.0.1:9000',
-                address: 'www.baidu.com:443',
-                tls: {
-                    // insecure: true,
+    var l = net.listen({
+        network: 'tcp',
+        address: '127.0.0.1:9000',
+        // sync: true,
+        tls: {
+            certificate: [
+                {
+                    cert: os.readTextFileSync('/home/king/project/docker/development-images/httptest/test.crt'),
+                    key: os.readTextFileSync('/home/king/project/docker/development-images/httptest/test.key'),
                 },
-            })
-            console.log("ok")
-        } catch (e) {
-            console.log("err:", e.toString())
-        } finally {
-            if (c) {
-                c.close()
-            }
-        }
+            ],
+        },
     })
+    console.log("https listen on:", l.addr)
+
+    l.onAccept = function (c) {
+        c.onMessage = function (data) {
+            console.log(new TextDecoder().decode(data))
+        }
+    }
+    // new http.HttpServer(l, function (w, r) {
+    //     console.log("host:", r.host)
+    //     var uri = r.uri
+    //     console.log("scheme:", uri.scheme)
+    //     console.log("userinfo:", uri.userinfo)
+    //     console.log("host:", uri.host)
+    //     console.log("port:", uri.port)
+    //     console.log("path:", uri.path)
+    //     console.log("query:", uri.query)
+    //     console.log("fragment:", uri.fragment)
+
+    //     w.text(200, "ok\n")
+    // })
+
 }
 main()

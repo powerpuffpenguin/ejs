@@ -18,14 +18,6 @@
 #include <sys/un.h>
 #endif
 
-#include <mbedtls/net_sockets.h>
-#include <mbedtls/debug.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/error.h>
-#include <mbedtls/timing.h>
-
 #define EJS_NET_THROW_SOCKET_ERROR(ctx) ejs_throw_os(ctx, EVUTIL_SOCKET_ERROR(), evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()))
 
 inline static const char *_ejs_os_get_define(const char *s, size_t n, size_t *p)
@@ -1209,7 +1201,6 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
         sin.sin6_family = AF_INET6;
         sin.sin6_port = htons(port);
         sin.sin6_addr = in6addr_any;
-
         args->listener = evconnlistener_new_bind(
             core->base,
             evconnlistener_tcp_cb, core,
@@ -1354,6 +1345,7 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
         sin.sin6_family = AF_INET6;
         sin.sin6_port = htons(port);
         sin.sin6_addr = in6addr_any;
+        // puts("any v6");
         s = sync_evconn_create_listen(AF_INET6, SOCK_STREAM, IPPROTO_TCP,
                                       (struct sockaddr *)&sin, sizeof(sin),
                                       backlog);
@@ -1550,17 +1542,18 @@ static duk_ret_t unix_listen_impl(duk_context *ctx)
         socklen = sizeof(sin);
     }
     sin.sun_path[len] = 0;
-
     ejs_core_t *core = ejs_require_core(ctx);
 
     args->listener = evconnlistener_new_bind(
         core->base,
         evconnlistener_tcp_cb, core,
-        LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE | LEV_OPT_DISABLED, backlog,
+        LEV_OPT_CLOSE_ON_FREE | LEV_OPT_DISABLED, backlog,
         (struct sockaddr *)&sin, socklen);
+
     if (!args->listener)
     {
-        EJS_NET_THROW_SOCKET_ERROR(ctx);
+        int err = EVUTIL_SOCKET_ERROR();
+        ejs_throw_os(ctx, err, evutil_socket_error_to_string(err));
     }
 
     duk_push_object(ctx);
@@ -1943,6 +1936,7 @@ static duk_ret_t socket_error(duk_context *ctx)
 typedef struct
 {
     struct bufferevent *bev;
+    mbedtls_dyncontext *ssl;
 } tcp_conect_args_t;
 static duk_ret_t tcp_conect_impl(duk_context *ctx)
 {
@@ -1955,6 +1949,19 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
 
     duk_get_prop_lstring(ctx, 0, "port", 4);
     short port = duk_require_uint(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    tcp_tls_t *tls = duk_get_pointer_default(ctx, -1, 0);
+    if (tls)
+    {
+        args->ssl = bufferevent_mbedtls_dyncontext_new(&tls->conf);
+        if (!args->ssl)
+        {
+            duk_push_lstring(ctx, "bufferevent_mbedtls_dyncontext_new fail", 39);
+            duk_throw(ctx);
+        }
+    }
     duk_pop(ctx);
 
     ejs_core_t *core = ejs_require_core(ctx);
@@ -1971,8 +1978,19 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
             duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
             duk_throw(ctx);
         }
-
-        args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        if (args->ssl)
+        {
+            args->bev = bufferevent_mbedtls_socket_new(
+                core->base, -1,
+                args->ssl, BUFFEREVENT_SSL_CONNECTING,
+                BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        }
+        else
+        {
+            args->bev = bufferevent_socket_new(
+                core->base, -1,
+                BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        }
         if (!args->bev)
         {
             duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
@@ -1999,8 +2017,19 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
             duk_push_lstring(ctx, "evutil_inet_pton fail", 21);
             duk_throw(ctx);
         }
-
-        args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        if (args->ssl)
+        {
+            args->bev = bufferevent_mbedtls_socket_new(
+                core->base, -1,
+                args->ssl, BUFFEREVENT_SSL_CONNECTING,
+                BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        }
+        else
+        {
+            args->bev = bufferevent_socket_new(
+                core->base, -1,
+                BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        }
         if (!args->bev)
         {
             duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
@@ -2027,9 +2056,13 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
 }
 static duk_ret_t tcp_conect(duk_context *ctx)
 {
-    EJS_VAR_TYPE(tcp_conect_args_t, args);
+    tcp_conect_args_t args = {0};
     if (ejs_pcall_function_n(ctx, tcp_conect_impl, &args, 2))
     {
+        if (args.ssl)
+        {
+            bufferevent_mbedtls_dyncontext_free(args.ssl);
+        }
         if (args.bev)
         {
             bufferevent_free(args.bev);
@@ -2042,6 +2075,17 @@ static duk_ret_t unix_conect_impl(duk_context *ctx)
 {
     tcp_conect_args_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    tcp_tls_t *tls = duk_get_pointer_default(ctx, -1, 0);
+    if (tls)
+    {
+        args->ssl = bufferevent_mbedtls_dyncontext_new(&tls->conf);
+        if (!args->ssl)
+        {
+            duk_push_lstring(ctx, "bufferevent_mbedtls_dyncontext_new fail", 39);
+            duk_throw(ctx);
+        }
+    }
 
     duk_get_prop_lstring(ctx, 0, "name", 4);
     duk_size_t len;
@@ -2054,8 +2098,19 @@ static duk_ret_t unix_conect_impl(duk_context *ctx)
     duk_pop_2(ctx);
 
     ejs_core_t *core = ejs_require_core(ctx);
-
-    args->bev = bufferevent_socket_new(core->base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+    if (args->ssl)
+    {
+        args->bev = bufferevent_mbedtls_socket_new(
+            core->base, -1,
+            args->ssl, BUFFEREVENT_SSL_CONNECTING,
+            BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+    }
+    else
+    {
+        args->bev = bufferevent_socket_new(
+            core->base, -1,
+            BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+    }
     if (!args->bev)
     {
         duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
@@ -2083,9 +2138,13 @@ static duk_ret_t unix_conect(duk_context *ctx)
 #ifndef DUK_F_LINUX
     ejs_throw_cause(ctx, EJS_ERROR_NOT_SUPPORT, "unix is ​​only supported under linux");
 #else
-    EJS_VAR_TYPE(tcp_conect_args_t, args);
+    tcp_conect_args_t args = {0};
     if (ejs_pcall_function_n(ctx, unix_conect_impl, &args, 2))
     {
+        if (args.ssl)
+        {
+            bufferevent_mbedtls_dyncontext_free(args.ssl);
+        }
         if (args.bev)
         {
             bufferevent_free(args.bev);
@@ -3564,21 +3623,7 @@ static duk_ret_t support_ipv4(duk_context *ctx)
     }
     return 1;
 }
-typedef struct
-{
-    mbedtls_entropy_context entropy;
-    mbedtls_ctr_drbg_context ctr_drbg;
-    mbedtls_ssl_config conf;
-    mbedtls_x509_crt cacert;
-} tcp_tls_t;
-typedef struct
-{
-    mbedtls_entropy_context entropy;
-    mbedtls_ctr_drbg_context ctr_drbg;
-    mbedtls_ssl_config conf;
-    mbedtls_x509_crt srvcert;
-    mbedtls_pk_context pkey;
-} tcp_server_tls_t;
+
 static duk_ret_t tcp_tls_finalizer(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "p", 1);
