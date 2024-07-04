@@ -19,7 +19,21 @@ declare namespace deps {
     export function create_server(cb: (req: RawRequest) => void): Server
     export function close_server(s: Server): void
     export function serve(l: any, tls: any, server: any): void
+
     export function request_free_raw(req: RawRequest): void
+    export class RawHeader {
+        readonly __id = "RawHeader"
+    }
+    export function request_input_header(req: RawRequest): RawHeader
+    export function request_output_header(req: RawRequest): RawHeader
+
+    export function header_set(req: RawHeader, key: string, value: string): void
+    export function header_add(req: RawHeader, key: string, value: string): void
+    export function header_get(req: RawHeader, key: string): string
+    export function header_del(req: RawHeader, key: string): void
+    export function header_del_all(req: RawHeader, key: string): void
+    export function header_clear(req: RawHeader): void
+
 
     export function request_get_host(req: RawRequest): string
     export function request_get_method(req: RawRequest): number
@@ -142,6 +156,12 @@ export const ContentTypeJSONP = "application/javascript; charset=utf-8"
 export const ContentTypeXML = "application/xml; charset=utf-8"
 export const ContentTypeYAML = "application/yaml; charset=utf-8"
 
+interface RequestShared {
+    expired: Uint8Array
+    uri?: Uri
+    inputHeader?: Header
+    outputHeader?: Header
+}
 export class Server {
     private srv_?: deps.Server
     private tls_?: any
@@ -154,9 +174,25 @@ export class Server {
             throw new Error("listener already closed")
         }
         const srv = deps.create_server((req) => {
-            const w = new ResponseWriter(req)
-            cb(w, new Request(req))
-            w.close()
+            let w: ResponseWriter | undefined
+
+            try {
+                const flags = deps.create_flags()
+                flags[0] = 1
+                const shared: RequestShared = {
+                    expired: flags,
+                }
+                const r = new Request(req, shared)
+                w = new ResponseWriter(req, shared)
+                cb(w, r)
+            } catch (e) {
+                if (w) {
+                    w.close()
+                } else {
+                    deps.request_free_raw(req)
+                }
+                throw e
+            }
         })
         const tls = l.tls
         deps.serve(l, tls?.p, srv.p)
@@ -180,21 +216,79 @@ export class Server {
         }
     }
 }
+function getRequestUri(req: deps.RawRequest, shared: RequestShared): Uri {
+    let u = shared.uri
+    if (!u) {
+        const [s, raw] = deps.request_get_uri(req)
+        u = new Uri(raw, s)
+        shared.uri = u
+    }
+    return u
+}
+function getRequestInputHeader(req: deps.RawRequest, shared: RequestShared): Header {
+    const raw = deps.request_input_header(req)
+    let v = shared.inputHeader
+    if (v) {
+        if (v.raw_ !== raw) {
+            v.raw_ = raw
+        }
+    } else {
+        v = new Header(raw, shared)
+        shared.inputHeader = v
+    }
+    return v
+}
+function getRequestOutputHeader(req: deps.RawRequest, shared: RequestShared): Header {
+    const raw = deps.request_output_header(req)
+    let v = shared.outputHeader
+    if (v) {
+        if (v.raw_ !== raw) {
+            v.raw_ = raw
+        }
+    } else {
+        v = new Header(raw, shared)
+        shared.outputHeader = v
+    }
+    return v
+}
 export class Request {
-    constructor(readonly r: deps.RawRequest) { }
+    get isValid(): boolean {
+        const f = this.shared_.expired
+        return f[0] ? true : false
+    }
+    private _get(): deps.RawRequest {
+        const f = this.shared_.expired
+        if (f[0]) {
+            return this.r
+        }
+        throw new Error("ResponseWriter expired")
+    }
+    constructor(readonly r: deps.RawRequest, readonly shared_: RequestShared) { }
     get host(): string {
-        return deps.request_get_host(this.r)
+        const r = this._get()
+        return deps.request_get_host(r)
     }
     get uri(): Uri {
-        const [s, raw] = deps.request_get_uri(this.r)
-        return new Uri(raw, s)
+        const r = this._get()
+        return getRequestUri(r, this.shared_)
     }
     get method(): number {
-        return deps.request_get_method(this.r)
+        const r = this._get()
+        return deps.request_get_method(r)
     }
     get methodString(): string | undefined {
-        const v = deps.request_get_method(this.r)
+        const r = this._get()
+        const v = deps.request_get_method(r)
         return Method[v]
+    }
+
+    getInputHeader(): Header {
+        const r = this._get()
+        return getRequestInputHeader(r, this.shared_)
+    }
+    getOutputHeader(): Header {
+        const r = this._get()
+        return getRequestOutputHeader(r, this.shared_)
     }
 }
 export class Uri {
@@ -230,36 +324,46 @@ export class Uri {
         return s
     }
 }
+
 export class ResponseWriter {
     private req_?: deps.RawRequest
-    private flags_: Uint8Array
-    constructor(req: deps.RawRequest) {
+    constructor(req: deps.RawRequest, readonly shared_: RequestShared) {
         this.req_ = req
-        const f = deps.create_flags()
-        f[0] = 1
-        this.flags_ = f
+    }
+    private _get(): deps.RawRequest {
+        const f = this.shared_.expired
+        if (f[0]) {
+            const r = this.req_
+            if (r) {
+                return r
+            }
+        }
+        throw new Error("ResponseWriter expired")
     }
     private _req(): deps.RawRequest {
-        const r = this.req_
-        if (r) {
-            this.req_ = undefined
-            return r
+        const f = this.shared_.expired
+        if (f[0]) {
+            const r = this.req_
+            if (r) {
+                this.req_ = undefined
+                return r
+            }
         }
         throw new Error("ResponseWriter expired")
     }
     private _flags(): Uint8Array {
-        const f = this.flags_
+        const f = this.shared_.expired
         if (f[0]) {
             return f
         }
         throw new Error("ResponseWriter expired")
     }
     close() {
-        const r = this.req_
-        if (r) {
-            this.req_ = undefined
-            const f = this.flags_
-            if (f[0]) {
+        const f = this.shared_.expired!
+        if (f[0]) {
+            const r = this.req_
+            if (r) {
+                this.req_ = undefined
                 try {
                     deps.writer_response({
                         f: f,
@@ -270,6 +374,7 @@ export class ResponseWriter {
                     })
                 } catch (e) {
                     if (f[0]) {
+                        f[0] = 0
                         deps.request_free_raw(r)
                     }
                     throw e
@@ -288,6 +393,7 @@ export class ResponseWriter {
             })
         } catch (e) {
             if (f[0]) {
+                f[0] = 0
                 deps.request_free_raw(r)
             }
             throw e
@@ -306,6 +412,7 @@ export class ResponseWriter {
             })
         } catch (e) {
             if (f[0]) {
+                f[0] = 0
                 deps.request_free_raw(r)
             }
             throw e
@@ -324,6 +431,7 @@ export class ResponseWriter {
             })
         } catch (e) {
             if (f[0]) {
+                f[0] = 0
                 deps.request_free_raw(r)
             }
             throw e
@@ -352,13 +460,74 @@ export class ResponseWriter {
             }
         } catch (e) {
             if (f[0]) {
+                f[0] = 0
                 deps.request_free_raw(r)
             }
             throw e
         }
     }
+    header(key?: string, value?: any): Header | void {
+        const r = this._get()
+        if ((key === undefined || key === null)) {
+            return getRequestOutputHeader(r, this.shared_)
+        }
+        const raw = deps.request_output_header(r)
+        if (typeof value === "string") {
+            deps.header_set(raw, key, value)
+        } else {
+            deps.header_set(raw, key, `${value}`)
+        }
+    }
 }
 
+export class Header {
+    constructor(public raw_: deps.RawHeader, readonly shared_: RequestShared) { }
+    get isValid(): boolean {
+        const f = this.shared_.expired
+        return f[0] ? true : false
+    }
+    private _raw(): deps.RawHeader {
+        const f = this.shared_.expired
+        if (f[0]) {
+            return this.raw_
+        }
+        throw new Error("Header expired")
+    }
+    set(key: string, value?: any): void {
+        const raw = this._raw()
+        if (typeof value === "string") {
+            deps.header_set(raw, key, value)
+        } else {
+            deps.header_set(raw, key, `${value}`)
+        }
+    }
+    add(key: string, value?: any): void {
+        const raw = this._raw()
+        if (typeof value === "string") {
+            deps.header_add(raw, key, value)
+        } else {
+            deps.header_add(raw, key, `${value}`)
+        }
+    }
+    get(key: string): string {
+        const raw = this._raw()
+        return deps.header_get(raw, key)
+    }
+    remove(key: string): void {
+        const raw = this._raw()
+        deps.header_del(raw, key)
+    }
+    removeAll(key: string): void {
+        const raw = this._raw()
+        deps.header_del_all(raw, key)
+    }
+    clear() {
+        const f = this.shared_.expired
+        if (f[0]) {
+            deps.header_clear(this.raw_)
+        }
+    }
+}
 export interface Handler {
     serveHTTP(w: ResponseWriter, r: Request): void
 }

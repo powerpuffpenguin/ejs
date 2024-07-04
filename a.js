@@ -31,7 +31,18 @@ function main() {
         console.log("query:", uri.query)
         console.log("fragment:", uri.fragment)
 
-        // w.text(200, "ok\n")
+        var h = w.header()
+        h.add("y", 10)
+        h.add("y", 11)
+
+
+        h.add("x", 1)
+        h.add("x", 2)
+        h.add("x", 3)
+        h.removeAll("x")
+
+        h.set("y", 123)
+        w.text(200, "ok\n")
         // w.status(http.StatusNoContent)
     })
 

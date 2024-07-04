@@ -192,6 +192,22 @@ static duk_ret_t request_free_raw(duk_context *ctx)
     evhttp_request_free(req);
     return 0;
 }
+static duk_ret_t request_input_header(duk_context *ctx)
+{
+    struct evhttp_request *req = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    duk_push_pointer(ctx, evhttp_request_get_input_headers(req));
+    return 1;
+}
+static duk_ret_t request_output_header(duk_context *ctx)
+{
+    struct evhttp_request *req = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    duk_push_pointer(ctx, evhttp_request_get_output_headers(req));
+    return 1;
+}
 static duk_ret_t request_get_host(duk_context *ctx)
 {
     struct evhttp_request *req = duk_require_pointer(ctx, 0);
@@ -665,6 +681,60 @@ static duk_ret_t writer_response(duk_context *ctx)
     flags[0] = 0;
     return 0;
 }
+static duk_ret_t header_set(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    const char *key = duk_require_string(ctx, 1);
+    const char *value = duk_require_string(ctx, 2);
+    while (!evhttp_remove_header(headers, key))
+    {
+    }
+    evhttp_add_header(headers, key, value);
+    return 0;
+}
+static duk_ret_t header_add(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    const char *key = duk_require_string(ctx, 1);
+    const char *value = duk_require_string(ctx, 2);
+    evhttp_add_header(headers, key, value);
+    return 0;
+}
+static duk_ret_t header_get(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    const char *s = duk_require_string(ctx, 1);
+
+    s = evhttp_find_header(headers, s);
+
+    duk_pop_2(ctx);
+    duk_push_string(ctx, s);
+
+    return 1;
+}
+static duk_ret_t header_del(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    const char *key = duk_require_string(ctx, 1);
+    evhttp_remove_header(headers, key);
+    return 0;
+}
+static duk_ret_t header_del_all(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    const char *key = duk_require_string(ctx, 1);
+    while (!evhttp_remove_header(headers, key))
+    {
+    }
+    return 0;
+}
+static duk_ret_t header_clear(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    evhttp_clear_headers(headers);
+    return 0;
+}
+
 duk_ret_t _ejs_native_http_init(duk_context *ctx)
 {
     /*
@@ -711,6 +781,10 @@ duk_ret_t _ejs_native_http_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, request_free_raw, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "request_free_raw", 16);
+        duk_push_c_lightfunc(ctx, request_input_header, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "request_input_header", 20);
+        duk_push_c_lightfunc(ctx, request_output_header, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "request_output_header", 21);
 
         duk_push_c_lightfunc(ctx, request_get_host, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "request_get_host", 16);
@@ -746,6 +820,19 @@ duk_ret_t _ejs_native_http_init(duk_context *ctx)
 
         duk_push_c_lightfunc(ctx, writer_response, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "writer_response", 15);
+
+        duk_push_c_lightfunc(ctx, header_set, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "header_set", 10);
+        duk_push_c_lightfunc(ctx, header_add, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "header_add", 10);
+        duk_push_c_lightfunc(ctx, header_get, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "header_get", 10);
+        duk_push_c_lightfunc(ctx, header_del, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "header_del", 10);
+        duk_push_c_lightfunc(ctx, header_del_all, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "header_del_all", 14);
+        duk_push_c_lightfunc(ctx, header_clear, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "header_clear", 12);
     }
     duk_call(ctx, 3);
     return 0;
