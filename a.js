@@ -17,8 +17,9 @@ function main() {
             ],
         },
     })
+
     console.log("https listen on:", l.addr)
-    new http.HttpServer(l, function (w, r) {
+    new http.Server(l, function (w, r) {
         console.log("host:", r.host)
         var uri = r.uri
         console.log(r.methodString, r.uri.toString())
@@ -30,7 +31,8 @@ function main() {
         console.log("query:", uri.query)
         console.log("fragment:", uri.fragment)
 
-        w.text(200, "ok\n")
+        // w.text(200, "ok\n")
+        // w.status(http.StatusNoContent)
     })
 
 }

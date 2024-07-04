@@ -186,6 +186,12 @@ static duk_ret_t serve(duk_context *ctx)
     }
     return 0;
 }
+static duk_ret_t request_free_raw(duk_context *ctx)
+{
+    struct evhttp_request *req = duk_require_pointer(ctx, 0);
+    evhttp_request_free(req);
+    return 0;
+}
 static duk_ret_t request_get_host(duk_context *ctx)
 {
     struct evhttp_request *req = duk_require_pointer(ctx, 0);
@@ -211,6 +217,13 @@ static duk_ret_t request_get_uri(duk_context *ctx)
     duk_put_prop_index(ctx, -2, 0);
     duk_push_pointer(ctx, (void *)evhttp_request_get_evhttp_uri(req));
     duk_put_prop_index(ctx, -2, 1);
+    return 1;
+}
+static duk_ret_t request_get_uri_s(duk_context *ctx)
+{
+    struct evhttp_request *req = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+    duk_push_string(ctx, evhttp_request_get_uri(req));
     return 1;
 }
 
@@ -432,33 +445,224 @@ static duk_ret_t uri_get_userinfo(duk_context *ctx)
     return 1;
 }
 
-static duk_ret_t writer_response_text(duk_context *ctx)
+static const char *_status_text(int code)
 {
-    duk_get_prop_lstring(ctx, 0, "req", 3);
+    switch (code)
+    {
+    case StatusContinue:
+        return "Continue";
+    case StatusSwitchingProtocols:
+        return "Switching Protocols";
+    case StatusProcessing:
+        return "Processing";
+    case StatusEarlyHints:
+        return "Early Hints";
+    case StatusOK:
+        return "OK";
+    case StatusCreated:
+        return "Created";
+    case StatusAccepted:
+        return "Accepted";
+    case StatusNonAuthoritativeInfo:
+        return "Non-Authoritative Information";
+    case StatusNoContent:
+        return "No Content";
+    case StatusResetContent:
+        return "Reset Content";
+    case StatusPartialContent:
+        return "Partial Content";
+    case StatusMultiStatus:
+        return "Multi-Status";
+    case StatusAlreadyReported:
+        return "Already Reported";
+    case StatusIMUsed:
+        return "IM Used";
+    case StatusMultipleChoices:
+        return "Multiple Choices";
+    case StatusMovedPermanently:
+        return "Moved Permanently";
+    case StatusFound:
+        return "Found";
+    case StatusSeeOther:
+        return "See Other";
+    case StatusNotModified:
+        return "Not Modified";
+    case StatusUseProxy:
+        return "Use Proxy";
+    case StatusTemporaryRedirect:
+        return "Temporary Redirect";
+    case StatusPermanentRedirect:
+        return "Permanent Redirect";
+    case StatusBadRequest:
+        return "Bad Request";
+    case StatusUnauthorized:
+        return "Unauthorized";
+    case StatusPaymentRequired:
+        return "Payment Required";
+    case StatusForbidden:
+        return "Forbidden";
+    case StatusNotFound:
+        return "Not Found";
+    case StatusMethodNotAllowed:
+        return "Method Not Allowed";
+    case StatusNotAcceptable:
+        return "Not Acceptable";
+    case StatusProxyAuthRequired:
+        return "Proxy Authentication Required";
+    case StatusRequestTimeout:
+        return "Request Timeout";
+    case StatusConflict:
+        return "Conflict";
+    case StatusGone:
+        return "Gone";
+    case StatusLengthRequired:
+        return "Length Required";
+    case StatusPreconditionFailed:
+        return "Precondition Failed";
+    case StatusRequestEntityTooLarge:
+        return "Request Entity Too Large";
+    case StatusRequestURITooLong:
+        return "Request URI Too Long";
+    case StatusUnsupportedMediaType:
+        return "Unsupported Media Type";
+    case StatusRequestedRangeNotSatisfiable:
+        return "Requested Range Not Satisfiable";
+    case StatusExpectationFailed:
+        return "Expectation Failed";
+    case StatusTeapot:
+        return "I'm a teapot";
+    case StatusMisdirectedRequest:
+        return "Misdirected Request";
+    case StatusUnprocessableEntity:
+        return "Unprocessable Entity";
+    case StatusLocked:
+        return "Locked";
+    case StatusFailedDependency:
+        return "Failed Dependency";
+    case StatusTooEarly:
+        return "Too Early";
+    case StatusUpgradeRequired:
+        return "Upgrade Required";
+    case StatusPreconditionRequired:
+        return "Precondition Required";
+    case StatusTooManyRequests:
+        return "Too Many Requests";
+    case StatusRequestHeaderFieldsTooLarge:
+        return "Request Header Fields Too Large";
+    case StatusUnavailableForLegalReasons:
+        return "Unavailable For Legal Reasons";
+    case StatusInternalServerError:
+        return "Internal Server Error";
+    case StatusNotImplemented:
+        return "Not Implemented";
+    case StatusBadGateway:
+        return "Bad Gateway";
+    case StatusServiceUnavailable:
+        return "Service Unavailable";
+    case StatusGatewayTimeout:
+        return "Gateway Timeout";
+    case StatusHTTPVersionNotSupported:
+        return "HTTP Version Not Supported";
+    case StatusVariantAlsoNegotiates:
+        return "Variant Also Negotiates";
+    case StatusInsufficientStorage:
+        return "Insufficient Storage";
+    case StatusLoopDetected:
+        return "Loop Detected";
+    case StatusNotExtended:
+        return "Not Extended";
+    case StatusNetworkAuthenticationRequired:
+        return "Network Authentication Required";
+    default:
+        // return "";
+        return 0;
+    }
+}
+static duk_ret_t status_text(duk_context *ctx)
+{
+    const char *s = _status_text(duk_require_int(ctx, 0));
+    duk_pop(ctx);
+    if (s)
+    {
+        duk_push_string(ctx, s);
+    }
+    else
+    {
+        duk_push_lstring(ctx, "", 0);
+    }
+    return 1;
+}
+
+static duk_ret_t create_flags(duk_context *ctx)
+{
+    uint8_t *p = duk_push_fixed_buffer(ctx, 1);
+    p[0] = 0;
+    return 1;
+}
+static duk_ret_t writer_response(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "f", 1);
+    uint8_t *flags = duk_require_buffer_data(ctx, -1, 0);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "r", 1);
     struct evhttp_request *req = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "code", 4);
     int code = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 200);
     duk_pop(ctx);
-    duk_get_prop_lstring(ctx, 0, "text", 4);
-    if (!duk_is_string(ctx, -1))
-    {
-        duk_to_string(ctx, -1);
-    }
-    duk_size_t len;
-    const char *s = duk_require_lstring(ctx, -1, &len);
+
+    duk_get_prop_lstring(ctx, 0, "t", 1);
+    const char *content_type = EJS_REQUIRE_STRING_VALUE_DEFAULT(ctx, -1, 0);
     duk_pop(ctx);
 
-    struct evbuffer *reply = evbuffer_new();
-    if (!reply)
+    duk_get_prop_lstring(ctx, 0, "body", 4);
+    duk_size_t len;
+    const void *buf;
+    if (duk_is_null_or_undefined(ctx, -1))
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "evbuffer_new fail");
-        duk_throw(ctx);
+        len = 0;
     }
-    evbuffer_add(reply, s, len);
-    evhttp_send_reply(req, code, NULL, reply);
-    evbuffer_free(reply);
+    if (duk_is_buffer_data(ctx, -1))
+    {
+        buf = duk_require_buffer_data(ctx, -1, &len);
+    }
+    else
+    {
+        if (!duk_is_string(ctx, -1))
+        {
+            duk_to_string(ctx, -1);
+        }
+        buf = duk_require_lstring(ctx, -1, &len);
+    }
+    duk_pop(ctx);
+
+    if (content_type)
+    {
+        struct evkeyvalq *headers = evhttp_request_get_output_headers(req);
+        if (!evhttp_find_header(headers, "Content-Type"))
+        {
+            evhttp_add_header(headers, "Content-Type", content_type);
+        }
+    }
+    if (len)
+    {
+        struct evbuffer *reply = evbuffer_new();
+        if (!reply)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "evbuffer_new fail");
+            duk_throw(ctx);
+        }
+        evbuffer_add(reply, buf, len);
+        evhttp_send_reply(req, code, _status_text(code), reply);
+        evbuffer_free(reply);
+    }
+    else
+    {
+        evhttp_send_reply(req, code, _status_text(code), 0);
+    }
+    flags[0] = 0;
     return 0;
 }
 duk_ret_t _ejs_native_http_init(duk_context *ctx)
@@ -505,12 +709,17 @@ duk_ret_t _ejs_native_http_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, serve, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "serve", 5);
 
+        duk_push_c_lightfunc(ctx, request_free_raw, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "request_free_raw", 16);
+
         duk_push_c_lightfunc(ctx, request_get_host, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "request_get_host", 16);
         duk_push_c_lightfunc(ctx, request_get_method, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "request_get_method", 18);
         duk_push_c_lightfunc(ctx, request_get_uri, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "request_get_uri", 15);
+        duk_push_c_lightfunc(ctx, request_get_uri_s, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "request_get_uri_s", 17);
 
         duk_push_c_lightfunc(ctx, uri_join, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "uri_join", 8);
@@ -529,8 +738,14 @@ duk_ret_t _ejs_native_http_init(duk_context *ctx)
         duk_push_c_lightfunc(ctx, uri_get_userinfo, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "uri_get_userinfo", 16);
 
-        duk_push_c_lightfunc(ctx, writer_response_text, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "writer_response_text", 20);
+        duk_push_c_lightfunc(ctx, status_text, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "status_text", 11);
+
+        duk_push_c_lightfunc(ctx, create_flags, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "create_flags", 12);
+
+        duk_push_c_lightfunc(ctx, writer_response, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "writer_response", 15);
     }
     duk_call(ctx, 3);
     return 0;
