@@ -1108,7 +1108,37 @@ declare module "ejs/net/url" {
         constructor(readonly username: string, readonly password?: string | null)
         toString(): string
     }
-
+    /**
+     * Values maps a string key to a list of values.
+     * It is typically used for query parameters and form values.
+     * Unlike in the http.Header map, the keys in a Values map
+     * are case-sensitive.
+     */
+    export class Values {
+        readonly values: Record<string, Array<string> | undefined>
+        constructor(values?: Record<string, Array<string> | undefined>)
+        /**
+         * Gets the first value associated with the given key.
+         * If there are no values associated with the key, Get returns
+         * undefined. To access multiple values, use the record
+         * directly.
+         */
+        get(key: string): string | undefined
+        /**
+         * Sets the key to value. It replaces any existing values
+         */
+        set(key: string, value: any): void
+        /**
+         * Adds the value to key. It appends to any existing
+         * values associated with key.
+         */
+        add(key: string, value: any): void
+        /**
+         * Deletes the values associated with key.
+         * @param logic If true, just set the property to undefined; if false, delete is called.
+         */
+        remove(key: string, physical?: boolean): void
+    }
 
     /**
      * A URL represents a parsed URL (technically, a URI reference).

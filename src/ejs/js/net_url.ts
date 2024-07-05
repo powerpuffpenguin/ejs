@@ -104,6 +104,79 @@ export class Userinfo {
         return s + ":" + deps.escape(p, deps.encodeUserPassword)
     }
 }
+/**
+ * Values maps a string key to a list of values.
+ * It is typically used for query parameters and form values.
+ * Unlike in the http.Header map, the keys in a Values map
+ * are case-sensitive.
+ */
+export class Values {
+    readonly values: Record<string, Array<string> | undefined>
+    constructor(values?: Record<string, Array<string> | undefined>) {
+        if (values === undefined || values === null) {
+            this.values = {}
+        } else {
+            this.values = values
+        }
+    }
+    /**
+     * Gets the first value associated with the given key.
+     * If there are no values associated with the key, Get returns
+     * undefined. To access multiple values, use the record
+     * directly.
+     */
+    get(key: string): string | undefined {
+        const vs = this.values[key]
+        if (vs && vs.length) {
+            return vs[0]
+        }
+    }
+    /**
+     * Sets the key to value. It replaces any existing values
+     */
+    set(key: string, value: any) {
+        this.values[key] = [`${value}`]
+    }
+    /**
+     * Adds the value to key. It appends to any existing
+     * values associated with key.
+     */
+    add(key: string, value: any) {
+        const keys = this.values
+        const found = keys[key]
+        if (found) {
+            found.push(`${value}`)
+        } else {
+            keys[key] = [`${value}`]
+        }
+    }
+
+
+    /**
+     * Deletes the values associated with key.
+     * @param logic If true, just set the property to undefined; if false, delete is called.
+     */
+    remove(key: string, logic?: boolean) {
+        if (logic) {
+            const keys = this.values
+            if (keys[key]) {
+                keys[key] = undefined
+            }
+        } else {
+            delete this.values[key]
+        }
+    }
+
+    // // Has checks whether a given key is set.
+    // func (v Values) Has(key string) bool {
+    // 	_, ok := v[key]
+    // 	return ok
+    // }
+
+    // Encode encodes the values into “URL encoded” form
+    // ("bar=baz&foo=quux") sorted by key.
+    // func (v Values) Encode() string {
+}
 export class URL {
     scheme = ''
     /**
