@@ -1,8 +1,7 @@
-#include "_duk_net_url.h"
-#include "stash.h"
-#include "js/net_url.h"
-#include "duk.h"
-static char *upperhex = "0123456789ABCDEF";
+#include "net_url.h"
+#include "../js/net_url.h"
+
+static char *upperhex = EJS_SHARED_UPPER_HEX_DIGIT;
 static duk_bool_t ishex(char c)
 {
     if ('0' <= c && c <= '9')
@@ -46,7 +45,7 @@ static duk_bool_t _should_escape(const char c, duk_uint8_t mode)
         return 0;
     }
 
-    if (mode == EJS_NET_URL_EncodeHost || mode == EJS_NET_URL_EncodeZone)
+    if (mode == EJS_NET_URL_encodeHost || mode == EJS_NET_URL_encodeZone)
     {
         // §3.2.2 Host allows
         //	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
@@ -102,37 +101,37 @@ static duk_bool_t _should_escape(const char c, duk_uint8_t mode)
         // the reserved characters to appear unescaped.
         switch (mode)
         {
-        case EJS_NET_URL_EncodePath: // §3.3
+        case EJS_NET_URL_encodePath: // §3.3
             // The RFC allows : @ & = + $ but saves / ; , for assigning
             // meaning to individual path segments. This package
             // only manipulates the path as a whole, so we allow those
             // last three as well. That leaves only ? to escape.
             return c == '?' ? 1 : 0;
 
-        case EJS_NET_URL_EncodePathSegment: // §3.3
+        case EJS_NET_URL_encodePathSegment: // §3.3
             // The RFC allows : @ & = + $ but saves / ; , for assigning
             // meaning to individual path segments.
             return (c == '/' || c == ';' || c == ',' || c == '?') ? 1 : 0;
 
-        case EJS_NET_URL_EncodeUserPassword: // §3.2.1
+        case EJS_NET_URL_encodeUserPassword: // §3.2.1
             // The RFC allows ';', ':', '&', '=', '+', '$', and ',' in
             // userinfo, so we must escape only '@', '/', and '?'.
             // The parsing of userinfo treats ':' as special so we must escape
             // that too.
             return (c == '@' || c == '/' || c == '?' || c == ':') ? 1 : 0;
 
-        case EJS_NET_URL_EncodeQueryComponent: // §3.4
+        case EJS_NET_URL_encodeQueryComponent: // §3.4
             // The RFC reserves (so we must escape) everything.
             return 1;
 
-        case EJS_NET_URL_EncodeFragment: // §4.1
+        case EJS_NET_URL_encodeFragment: // §4.1
             // The RFC text is silent but the grammar allows
             // everything, so escape nothing.
             return 0;
         }
     }
 
-    if (mode == EJS_NET_URL_EncodeFragment)
+    if (mode == EJS_NET_URL_encodeFragment)
     {
         // RFC 3986 §2.2 allows not escaping sub-delims. A subset of sub-delims are
         // included in reserved from RFC 2396 §2.2. The remaining sub-delims do not
@@ -181,7 +180,7 @@ static void _escape_hex(duk_context *ctx, _escape_hex_args_t *args, uint8_t *t, 
         for (duk_size_t i = 0; i < args->s_len; i++)
         {
             c = args->s[i];
-            if (c == ' ' && args->mode == EJS_NET_URL_EncodeQueryComponent)
+            if (c == ' ' && args->mode == EJS_NET_URL_encodeQueryComponent)
             {
                 t[j] = '+';
                 j++;
@@ -236,7 +235,7 @@ static duk_ret_t _escape(duk_context *ctx)
         c = s[i];
         if (_should_escape(c, mode))
         {
-            if (c == ' ' && mode == EJS_NET_URL_EncodeQueryComponent)
+            if (c == ' ' && mode == EJS_NET_URL_encodeQueryComponent)
             {
                 spaceCount++;
             }
@@ -311,7 +310,7 @@ static duk_ret_t _unescape_impl(duk_context *ctx)
             i += 2;
             break;
         case '+':
-            if (args->mode == EJS_NET_URL_EncodeQueryComponent)
+            if (args->mode == EJS_NET_URL_encodeQueryComponent)
             {
                 args->t[t_len++] = ' ';
             }
@@ -367,7 +366,7 @@ static duk_ret_t _unescape(duk_context *ctx)
             // But https://tools.ietf.org/html/rfc6874#section-2
             // introduces %25 being allowed to escape a percent sign
             // in IPv6 scoped-address literals. Yay.
-            if (mode == EJS_NET_URL_EncodeHost &&
+            if (mode == EJS_NET_URL_encodeHost &&
                 unhex(s[i + 1]) < 8 &&
                 memcmp(s + i, "%25", 3))
             {
@@ -377,7 +376,7 @@ static duk_ret_t _unescape(duk_context *ctx)
                 duk_new(ctx, 1);
                 duk_throw(ctx);
             }
-            if (mode == EJS_NET_URL_EncodeZone)
+            if (mode == EJS_NET_URL_encodeZone)
             {
                 // RFC 6874 says basically "anything goes" for zone identifiers
                 // and that even non-ASCII can be redundantly escaped,
@@ -389,7 +388,7 @@ static duk_ret_t _unescape(duk_context *ctx)
                 uint8_t v = unhex(s[i + 1]) << 4 | unhex(s[i + 2]);
                 if (memcmp(s + i, "%25", 3) &&
                     v != ' ' &&
-                    _should_escape(v, EJS_NET_URL_EncodeHost))
+                    _should_escape(v, EJS_NET_URL_encodeHost))
                 {
                     duk_pop(ctx);
                     duk_get_prop_lstring(ctx, 0, "escape", 6);
@@ -401,11 +400,11 @@ static duk_ret_t _unescape(duk_context *ctx)
             i += 3;
             break;
         case '+':
-            hasPlus = mode == EJS_NET_URL_EncodeQueryComponent ? 1 : 0;
+            hasPlus = mode == EJS_NET_URL_encodeQueryComponent ? 1 : 0;
             i++;
             break;
         default:
-            if ((mode == EJS_NET_URL_EncodeHost || mode == EJS_NET_URL_EncodeZone) &&
+            if ((mode == EJS_NET_URL_encodeHost || mode == EJS_NET_URL_encodeZone) &&
                 s[i] < 0x80 &&
                 _should_escape(s[i], mode))
             {
@@ -443,7 +442,7 @@ static duk_ret_t _unescape(duk_context *ctx)
     }
     return 1;
 }
-duk_ret_t _ejs_native_net_url_init(duk_context *ctx)
+EJS_SHARED_MODULE__DECLARE(net_url)
 {
     duk_eval_lstring(ctx, js_ejs_js_net_url_min_js, js_ejs_js_net_url_min_js_len);
     duk_swap_top(ctx, -2);
@@ -455,19 +454,19 @@ duk_ret_t _ejs_native_net_url_init(duk_context *ctx)
 
     duk_push_object(ctx);
     {
-        duk_push_uint(ctx, EJS_NET_URL_EncodePath);
+        duk_push_uint(ctx, EJS_NET_URL_encodePath);
         duk_put_prop_lstring(ctx, -2, "encodePath", 10);
-        duk_push_uint(ctx, EJS_NET_URL_EncodePathSegment);
+        duk_push_uint(ctx, EJS_NET_URL_encodePathSegment);
         duk_put_prop_lstring(ctx, -2, "encodePathSegment", 17);
-        duk_push_uint(ctx, EJS_NET_URL_EncodeHost);
+        duk_push_uint(ctx, EJS_NET_URL_encodeHost);
         duk_put_prop_lstring(ctx, -2, "encodeHost", 10);
-        duk_push_uint(ctx, EJS_NET_URL_EncodeZone);
+        duk_push_uint(ctx, EJS_NET_URL_encodeZone);
         duk_put_prop_lstring(ctx, -2, "encodeZone", 10);
-        duk_push_uint(ctx, EJS_NET_URL_EncodeUserPassword);
+        duk_push_uint(ctx, EJS_NET_URL_encodeUserPassword);
         duk_put_prop_lstring(ctx, -2, "encodeUserPassword", 18);
-        duk_push_uint(ctx, EJS_NET_URL_EncodeQueryComponent);
+        duk_push_uint(ctx, EJS_NET_URL_encodeQueryComponent);
         duk_put_prop_lstring(ctx, -2, "encodeQueryComponent", 20);
-        duk_push_uint(ctx, EJS_NET_URL_EncodeFragment);
+        duk_push_uint(ctx, EJS_NET_URL_encodeFragment);
         duk_put_prop_lstring(ctx, -2, "encodeFragment", 14);
 
         duk_push_c_lightfunc(ctx, _escape, 2, 2, 0);

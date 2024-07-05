@@ -1,17 +1,14 @@
-#include "_duk_net.h"
-#include "defines.h"
-#include "stash.h"
-#include "duk.h"
-#include "js/net.h"
-#include "_duk_helper.h"
+#include "modules_shared.h"
+#include "../js/net.h"
+#include "net.h"
 
-#include "core.h"
+#include "../core.h"
 #include <event2/listener.h>
 #include <event2/bufferevent.h>
 #include <event2/bufferevent_ssl.h>
 #include <event2/buffer.h>
 #include <event2/dns.h>
-#include "internal/sync_evconn_listener.h"
+#include "../internal/sync_evconn_listener.h"
 #include <sys/socket.h>
 
 #ifdef DUK_F_LINUX
@@ -4045,7 +4042,7 @@ static duk_ret_t load_certificate(duk_context *ctx)
     duk_call(ctx, 1);
     return 0;
 }
-duk_ret_t _ejs_native_net_init(duk_context *ctx)
+EJS_SHARED_MODULE__DECLARE(net)
 {
     /*
      *  Entry stack: [ require exports ]

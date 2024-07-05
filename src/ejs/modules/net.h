@@ -1,7 +1,5 @@
-#ifndef _EMBEDDED_JS__DUK_NET_H_
-#define _EMBEDDED_JS__DUK_NET_H_
-#include "../duk/duktape.h"
-duk_ret_t _ejs_native_net_init(duk_context *ctx);
+#ifndef _EMBEDDED_JS__DUK_MODULES_NET_H_
+#define _EMBEDDED_JS__DUK_MODULES_NET_H_
 
 #ifndef IPv6len
 #define IPv6len 16

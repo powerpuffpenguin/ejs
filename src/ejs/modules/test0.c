@@ -1,6 +1,6 @@
-#include "_duk_test.h"
+#include "modules_shared.h"
 #include <stdio.h>
-#include "duk.h"
+
 typedef struct
 {
     int a, b;
@@ -40,7 +40,7 @@ static duk_ret_t async_test(duk_context *ctx)
     return 0;
 }
 
-duk_ret_t _ejs_native_test_init(duk_context *ctx)
+EJS_SHARED_MODULE__DECLARE(test0)
 {
     /*
      *  Entry stack: [ require exports ]

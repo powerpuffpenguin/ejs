@@ -1,18 +1,16 @@
-#include "_duk_http.h"
-#include "_duk_net.h"
-#include "core.h"
+#include "modules_shared.h"
+#include "net.h"
+#include "net_http.h"
+#include "../core.h"
 #include <stdio.h>
 #include <errno.h>
-#include "js/http.h"
-#include "internal/sync_evconn_listener.h"
-#include "internal/c_string.h"
+#include "../js/http.h"
+#include "../internal/sync_evconn_listener.h"
 
 #include <event2/buffer.h>
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/bufferevent_ssl.h>
-
-#include "stash.h"
 
 typedef struct
 {
@@ -465,129 +463,129 @@ static const char *_status_text(int code)
 {
     switch (code)
     {
-    case StatusContinue:
+    case EJS_HTTP_StatusContinue:
         return "Continue";
-    case StatusSwitchingProtocols:
+    case EJS_HTTP_StatusSwitchingProtocols:
         return "Switching Protocols";
-    case StatusProcessing:
+    case EJS_HTTP_StatusProcessing:
         return "Processing";
-    case StatusEarlyHints:
+    case EJS_HTTP_StatusEarlyHints:
         return "Early Hints";
-    case StatusOK:
+    case EJS_HTTP_StatusOK:
         return "OK";
-    case StatusCreated:
+    case EJS_HTTP_StatusCreated:
         return "Created";
-    case StatusAccepted:
+    case EJS_HTTP_StatusAccepted:
         return "Accepted";
-    case StatusNonAuthoritativeInfo:
+    case EJS_HTTP_StatusNonAuthoritativeInfo:
         return "Non-Authoritative Information";
-    case StatusNoContent:
+    case EJS_HTTP_StatusNoContent:
         return "No Content";
-    case StatusResetContent:
+    case EJS_HTTP_StatusResetContent:
         return "Reset Content";
-    case StatusPartialContent:
+    case EJS_HTTP_StatusPartialContent:
         return "Partial Content";
-    case StatusMultiStatus:
+    case EJS_HTTP_StatusMultiStatus:
         return "Multi-Status";
-    case StatusAlreadyReported:
+    case EJS_HTTP_StatusAlreadyReported:
         return "Already Reported";
-    case StatusIMUsed:
+    case EJS_HTTP_StatusIMUsed:
         return "IM Used";
-    case StatusMultipleChoices:
+    case EJS_HTTP_StatusMultipleChoices:
         return "Multiple Choices";
-    case StatusMovedPermanently:
+    case EJS_HTTP_StatusMovedPermanently:
         return "Moved Permanently";
-    case StatusFound:
+    case EJS_HTTP_StatusFound:
         return "Found";
-    case StatusSeeOther:
+    case EJS_HTTP_StatusSeeOther:
         return "See Other";
-    case StatusNotModified:
+    case EJS_HTTP_StatusNotModified:
         return "Not Modified";
-    case StatusUseProxy:
+    case EJS_HTTP_StatusUseProxy:
         return "Use Proxy";
-    case StatusTemporaryRedirect:
+    case EJS_HTTP_StatusTemporaryRedirect:
         return "Temporary Redirect";
-    case StatusPermanentRedirect:
+    case EJS_HTTP_StatusPermanentRedirect:
         return "Permanent Redirect";
-    case StatusBadRequest:
+    case EJS_HTTP_StatusBadRequest:
         return "Bad Request";
-    case StatusUnauthorized:
+    case EJS_HTTP_StatusUnauthorized:
         return "Unauthorized";
-    case StatusPaymentRequired:
+    case EJS_HTTP_StatusPaymentRequired:
         return "Payment Required";
-    case StatusForbidden:
+    case EJS_HTTP_StatusForbidden:
         return "Forbidden";
-    case StatusNotFound:
+    case EJS_HTTP_StatusNotFound:
         return "Not Found";
-    case StatusMethodNotAllowed:
+    case EJS_HTTP_StatusMethodNotAllowed:
         return "Method Not Allowed";
-    case StatusNotAcceptable:
+    case EJS_HTTP_StatusNotAcceptable:
         return "Not Acceptable";
-    case StatusProxyAuthRequired:
+    case EJS_HTTP_StatusProxyAuthRequired:
         return "Proxy Authentication Required";
-    case StatusRequestTimeout:
+    case EJS_HTTP_StatusRequestTimeout:
         return "Request Timeout";
-    case StatusConflict:
+    case EJS_HTTP_StatusConflict:
         return "Conflict";
-    case StatusGone:
+    case EJS_HTTP_StatusGone:
         return "Gone";
-    case StatusLengthRequired:
+    case EJS_HTTP_StatusLengthRequired:
         return "Length Required";
-    case StatusPreconditionFailed:
+    case EJS_HTTP_StatusPreconditionFailed:
         return "Precondition Failed";
-    case StatusRequestEntityTooLarge:
+    case EJS_HTTP_StatusRequestEntityTooLarge:
         return "Request Entity Too Large";
-    case StatusRequestURITooLong:
+    case EJS_HTTP_StatusRequestURITooLong:
         return "Request URI Too Long";
-    case StatusUnsupportedMediaType:
+    case EJS_HTTP_StatusUnsupportedMediaType:
         return "Unsupported Media Type";
-    case StatusRequestedRangeNotSatisfiable:
+    case EJS_HTTP_StatusRequestedRangeNotSatisfiable:
         return "Requested Range Not Satisfiable";
-    case StatusExpectationFailed:
+    case EJS_HTTP_StatusExpectationFailed:
         return "Expectation Failed";
-    case StatusTeapot:
+    case EJS_HTTP_StatusTeapot:
         return "I'm a teapot";
-    case StatusMisdirectedRequest:
+    case EJS_HTTP_StatusMisdirectedRequest:
         return "Misdirected Request";
-    case StatusUnprocessableEntity:
+    case EJS_HTTP_StatusUnprocessableEntity:
         return "Unprocessable Entity";
-    case StatusLocked:
+    case EJS_HTTP_StatusLocked:
         return "Locked";
-    case StatusFailedDependency:
+    case EJS_HTTP_StatusFailedDependency:
         return "Failed Dependency";
-    case StatusTooEarly:
+    case EJS_HTTP_StatusTooEarly:
         return "Too Early";
-    case StatusUpgradeRequired:
+    case EJS_HTTP_StatusUpgradeRequired:
         return "Upgrade Required";
-    case StatusPreconditionRequired:
+    case EJS_HTTP_StatusPreconditionRequired:
         return "Precondition Required";
-    case StatusTooManyRequests:
+    case EJS_HTTP_StatusTooManyRequests:
         return "Too Many Requests";
-    case StatusRequestHeaderFieldsTooLarge:
+    case EJS_HTTP_StatusRequestHeaderFieldsTooLarge:
         return "Request Header Fields Too Large";
-    case StatusUnavailableForLegalReasons:
+    case EJS_HTTP_StatusUnavailableForLegalReasons:
         return "Unavailable For Legal Reasons";
-    case StatusInternalServerError:
+    case EJS_HTTP_StatusInternalServerError:
         return "Internal Server Error";
-    case StatusNotImplemented:
+    case EJS_HTTP_StatusNotImplemented:
         return "Not Implemented";
-    case StatusBadGateway:
+    case EJS_HTTP_StatusBadGateway:
         return "Bad Gateway";
-    case StatusServiceUnavailable:
+    case EJS_HTTP_StatusServiceUnavailable:
         return "Service Unavailable";
-    case StatusGatewayTimeout:
+    case EJS_HTTP_StatusGatewayTimeout:
         return "Gateway Timeout";
-    case StatusHTTPVersionNotSupported:
+    case EJS_HTTP_StatusHTTPVersionNotSupported:
         return "HTTP Version Not Supported";
-    case StatusVariantAlsoNegotiates:
+    case EJS_HTTP_StatusVariantAlsoNegotiates:
         return "Variant Also Negotiates";
-    case StatusInsufficientStorage:
+    case EJS_HTTP_StatusInsufficientStorage:
         return "Insufficient Storage";
-    case StatusLoopDetected:
+    case EJS_HTTP_StatusLoopDetected:
         return "Loop Detected";
-    case StatusNotExtended:
+    case EJS_HTTP_StatusNotExtended:
         return "Not Extended";
-    case StatusNetworkAuthenticationRequired:
+    case EJS_HTTP_StatusNetworkAuthenticationRequired:
         return "Network Authentication Required";
     default:
         // return "";
@@ -735,7 +733,7 @@ static duk_ret_t header_clear(duk_context *ctx)
     return 0;
 }
 
-duk_ret_t _ejs_native_http_init(duk_context *ctx)
+EJS_SHARED_MODULE__DECLARE(net_http)
 {
     /*
      *  Entry stack: [ require exports ]

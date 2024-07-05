@@ -1,7 +1,7 @@
 var sync = require("ejs/sync")
 var net = require("ejs/net")
 var RootCertificate = net.RootCertificate
-var http = require("ejs/http")
+var http = require("ejs/net/http")
 var os = require("ejs/os")
 function main() {
     var l = net.listen({

@@ -1,14 +1,5 @@
-#include "_duk_os.h"
-#include "js/os.h"
-#include "stash.h"
-#include "duk.h"
-#include "_duk_helper.h"
-#include "defines.h"
-#include "config.h"
-#include "_duk_async.h"
-#include "internal/buffer.h"
-#include "internal/c_filepath.h"
-#include "_duk_rand.h"
+#include "modules_shared.h"
+#include "../js/os.h"
 
 #include <errno.h>
 #include <sys/types.h>
@@ -2678,7 +2669,7 @@ static duk_ret_t _getenv(duk_context *ctx)
     return 0;
 }
 
-duk_ret_t _ejs_native_os_init(duk_context *ctx)
+EJS_SHARED_MODULE__DECLARE(os)
 {
     /*
      *  Entry stack: [ require exports ]
