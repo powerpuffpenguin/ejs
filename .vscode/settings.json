@@ -93,6 +93,8 @@
         "timing.h": "c",
         "ctr_drbg.h": "c",
         "bufferevent_ssl.h": "c",
-        "_duk_helper.h": "c"
+        "_duk_helper.h": "c",
+        "_duk_net_url.h": "c",
+        "net_url.h": "c"
     }
 }

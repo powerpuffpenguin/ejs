@@ -182,7 +182,7 @@ export class Server {
                 const shared: RequestShared = {
                     expired: flags,
                 }
-                const r = new Request(req, shared)
+                const r = Request.__create(req, shared)
                 w = new ResponseWriter(req, shared)
                 cb(w, r)
             } catch (e) {
@@ -226,32 +226,49 @@ function getRequestUri(req: deps.RawRequest, shared: RequestShared): Uri {
     return u
 }
 function getRequestInputHeader(req: deps.RawRequest, shared: RequestShared): Header {
-    const raw = deps.request_input_header(req)
     let v = shared.inputHeader
-    if (v) {
-        if (v.raw_ !== raw) {
-            v.raw_ = raw
-        }
-    } else {
-        v = new Header(raw, shared)
+    if (!v) {
+        v = new Header(deps.request_input_header(req), shared)
         shared.inputHeader = v
     }
     return v
 }
 function getRequestOutputHeader(req: deps.RawRequest, shared: RequestShared): Header {
-    const raw = deps.request_output_header(req)
     let v = shared.outputHeader
-    if (v) {
-        if (v.raw_ !== raw) {
-            v.raw_ = raw
-        }
-    } else {
-        v = new Header(raw, shared)
+    if (!v) {
+        v = new Header(deps.request_output_header(req), shared)
         shared.outputHeader = v
     }
     return v
 }
+let internalcall = false
 export class Request {
+    static __create(r: deps.RawRequest, shared: RequestShared) {
+        try {
+            internalcall = true
+            return new Request(r, shared, getRequestInputHeader)
+        } finally {
+            internalcall = false
+        }
+    }
+    constructor(r: deps.RawRequest, shared: RequestShared, getHeader: (r: deps.RawRequest, shared: RequestShared) => Header) {
+        if (internalcall) {
+            internalcall = false
+            this.r_ = r
+            this.shared_ = shared
+            this._getHeader = getHeader
+
+        } else {
+            this.r_ = r
+            this.shared_ = {
+                expired: deps.create_flags(),
+            }
+            this._getHeader = getRequestOutputHeader
+        }
+    }
+    readonly r_: deps.RawRequest
+    private shared_: RequestShared
+    private readonly _getHeader: (r: deps.RawRequest, shared: RequestShared) => Header
     get isValid(): boolean {
         const f = this.shared_.expired
         return f[0] ? true : false
@@ -259,11 +276,10 @@ export class Request {
     private _get(): deps.RawRequest {
         const f = this.shared_.expired
         if (f[0]) {
-            return this.r
+            return this.r_
         }
         throw new Error("ResponseWriter expired")
     }
-    constructor(readonly r: deps.RawRequest, readonly shared_: RequestShared) { }
     get host(): string {
         const r = this._get()
         return deps.request_get_host(r)
@@ -282,14 +298,12 @@ export class Request {
         return Method[v]
     }
 
-    getInputHeader(): Header {
+    header(): Header {
         const r = this._get()
-        return getRequestInputHeader(r, this.shared_)
+        const get = this._getHeader
+        return get(r, this.shared_)
     }
-    getOutputHeader(): Header {
-        const r = this._get()
-        return getRequestOutputHeader(r, this.shared_)
-    }
+
 }
 export class Uri {
     constructor(readonly raw_: deps.RawUri, private uri_?: string) { }
@@ -547,21 +561,50 @@ export class ServeMux implements Handler {
      *  array of entries sorted from longest to shortest
      */
     private es_?: Array<muxEntry>
+    handler(r: Request): [Handler, string] {
+        // CONNECT requests are not canonicalized.
+        // if (r.method == Method.CONNECT) {
+        //     // If r.URL.Path is /tree and its handler is not registered,
+        //     // the /tree -> /tree/ redirect applies to CONNECT requests
+        //     // but the path canonicalization does not.
+        //     // if u, ok := mux.redirectToPathSlash(r.URL.Host, r.URL.Path, r.URL); ok {
+        //     //     return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
+        //     // }
+
+        //     // return mux.handler(r.Host, r.URL.Path)
+        // }
+
+        // // All other requests have any port stripped and path cleaned
+        // // before passing to mux.handler.
+        // host := stripHostPort(r.Host)
+        // path := cleanPath(r.URL.Path)
+
+        // // If the given path is /tree and its handler is not registered,
+        // // redirect for /tree/.
+        // if u, ok := mux.redirectToPathSlash(host, path, r.URL); ok {
+        //     return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
+        // }
+
+        // if path != r.URL.Path {
+        //     _, pattern = mux.handler(host, path)
+        //     u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
+        //     return RedirectHandler(u.String(), StatusMovedPermanently), pattern
+        // }
+
+        // return mux.handler(host, r.URL.Path)
+        throw new Error("not found");
+
+    }
     serveHTTP(w: ResponseWriter, r: Request): void {
-        if (deps.request_get_uri_s(r.r) == "*") {
-
-
+        if (!r.isValid) {
+            return
+        }
+        if (deps.request_get_uri_s(r.r_) == "*") {
+            w.status(StatusBadRequest)
             return
         }
 
-        // if r.RequestURI == "*" {
-        //     if r.ProtoAtLeast(1, 1) {
-        //         w.Header().Set("Connection", "close")
-        //     }
-        //     w.WriteHeader(StatusBadRequest)
-        //     return
-        // }
-        // h, _ := mux.Handler(r)
-        // h.ServeHTTP(w, r)
+        const found = this.handler(r)
+        found[0].serveHTTP(w, r)
     }
 }

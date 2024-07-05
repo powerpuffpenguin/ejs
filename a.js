@@ -23,15 +23,15 @@ function main() {
         console.log("host:", r.host)
         var uri = r.uri
         console.log(r.methodString, r.uri.toString())
-        console.log("scheme:", uri.scheme)
-        console.log("userinfo:", uri.userinfo)
-        console.log("host:", uri.host)
-        console.log("port:", uri.port)
-        console.log("path:", uri.path)
-        console.log("query:", uri.query)
-        console.log("fragment:", uri.fragment)
+        // console.log("scheme:", uri.scheme)
+        // console.log("userinfo:", uri.userinfo)
+        // console.log("host:", uri.host)
+        // console.log("port:", uri.port)
+        // console.log("path:", uri.path)
+        // console.log("query:", uri.query)
+        // console.log("fragment:", uri.fragment)
 
-        var h = w.header()
+        var h = r.header()
         h.add("y", 10)
         h.add("y", 11)
 
@@ -42,6 +42,10 @@ function main() {
         h.removeAll("x")
 
         h.set("y", 123)
+
+        console.log(h.get("x"))
+        console.log(h.get("user-agent"))
+
         w.text(200, "ok\n")
         // w.status(http.StatusNoContent)
     })
