@@ -2,41 +2,7 @@
 #include "../js/net_url.h"
 
 static char *upperhex = EJS_SHARED_UPPER_HEX_DIGIT;
-static duk_bool_t ishex(char c)
-{
-    if ('0' <= c && c <= '9')
-    {
-        return 1;
-    }
-    else if ('a' <= c && c <= 'f')
-    {
-        return 1;
-    }
-    else if ('A' <= c && c <= 'F')
-    {
-        return 1;
-    }
-    return 0;
-}
-static uint8_t unhex(uint8_t c)
-{
 
-    if ('0' <= c && c <= '9')
-    {
-        return c - '0';
-    }
-    else if (
-        'a' <= c && c <= 'f')
-    {
-        return c - 'a' + 10;
-    }
-    else if (
-        'A' <= c && c <= 'F')
-    {
-        return c - 'A' + 10;
-    }
-    return 0;
-}
 static duk_bool_t _should_escape(const char c, duk_uint8_t mode)
 {
     // §2.3 Unreserved characters (alphanum)
@@ -306,7 +272,7 @@ static duk_ret_t _unescape_impl(duk_context *ctx)
         switch (c)
         {
         case '%':
-            args->t[t_len++] = unhex(args->s[i + 1]) << 4 | unhex(args->s[i + 2]);
+            args->t[t_len++] = __ejs_modules_shared_unhex(args->s[i + 1]) << 4 | __ejs_modules_shared_unhex(args->s[i + 2]);
             i += 2;
             break;
         case '+':
@@ -346,7 +312,7 @@ static duk_ret_t _unescape(duk_context *ctx)
         {
         case '%':
             n++;
-            if (i + 2 >= s_len || !ishex(s[i + 1]) || !ishex(s[i + 2]))
+            if (i + 2 >= s_len || !__ejs_modules_shared_ishex(s[i + 1]) || !__ejs_modules_shared_ishex(s[i + 2]))
             {
                 s += i;
                 s_len -= i;
@@ -367,7 +333,7 @@ static duk_ret_t _unescape(duk_context *ctx)
             // introduces %25 being allowed to escape a percent sign
             // in IPv6 scoped-address literals. Yay.
             if (mode == EJS_NET_URL_encodeHost &&
-                unhex(s[i + 1]) < 8 &&
+                __ejs_modules_shared_unhex(s[i + 1]) < 8 &&
                 memcmp(s + i, "%25", 3))
             {
                 duk_pop(ctx);
@@ -385,7 +351,7 @@ static duk_ret_t _unescape(duk_context *ctx)
                 // That is, you can use escaping in the zone identifier but not
                 // to introduce bytes you couldn't just write directly.
                 // But Windows puts spaces here! Yay.
-                uint8_t v = unhex(s[i + 1]) << 4 | unhex(s[i + 2]);
+                uint8_t v = __ejs_modules_shared_unhex(s[i + 1]) << 4 | __ejs_modules_shared_unhex(s[i + 2]);
                 if (memcmp(s + i, "%25", 3) &&
                     v != ' ' &&
                     _should_escape(v, EJS_NET_URL_encodeHost))

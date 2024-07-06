@@ -19,5 +19,6 @@
 #define EJS_SHARED_LOWER_HEX_DIGIT "0123456789abcdef";
 
 duk_bool_t __ejs_modules_shared_ishex(char c);
+uint8_t __ejs_modules_shared_unhex(uint8_t c);
 
 #endif
