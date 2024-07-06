@@ -442,6 +442,71 @@ static duk_ret_t _unescape(duk_context *ctx)
     }
     return 1;
 }
+
+static duk_ret_t join_values_impl(duk_context *ctx)
+{
+    ppp_c_string_t *s = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    const char *key;
+    duk_size_t key_len;
+    const char *value;
+    duk_size_t value_len;
+
+    while (1)
+    {
+        duk_dup_top(ctx);
+        duk_call(ctx, 0);
+        if (duk_is_undefined(ctx, -1))
+        {
+            break;
+        }
+        duk_get_prop_index(ctx, -1, 0);
+        key = duk_require_lstring(ctx, -1, &key_len);
+        duk_pop(ctx);
+        duk_get_prop_index(ctx, -1, 1);
+        value = duk_require_lstring(ctx, -1, &value_len);
+        duk_pop_2(ctx);
+
+        if (s->len)
+        {
+            if (ppp_c_string_append_char(s, '&'))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+        }
+
+        if (ppp_c_string_grow(s, key_len + 1 + value_len))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+
+        ppp_c_string_append_raw(s, key, key_len);
+        ppp_c_string_append_char_raw(s, '=');
+        ppp_c_string_append_raw(s, value, value_len);
+    }
+
+    duk_push_lstring(ctx, s->str, s->len);
+    if (s->cap)
+    {
+        free(s->str);
+        s->cap = 0;
+    }
+    return 1;
+}
+static duk_ret_t join_values(duk_context *ctx)
+{
+    ppp_c_string_t s = {0};
+    if (ejs_pcall_function_n(ctx, join_values_impl, &s, 2))
+    {
+        if (s.cap)
+        {
+            free(s.str);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(net_url)
 {
     duk_eval_lstring(ctx, js_ejs_js_net_url_min_js, js_ejs_js_net_url_min_js_len);
@@ -473,6 +538,9 @@ EJS_SHARED_MODULE__DECLARE(net_url)
         duk_put_prop_lstring(ctx, -2, "escape", 6);
         duk_push_c_lightfunc(ctx, _unescape, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "unescape", 8);
+
+        duk_push_c_lightfunc(ctx, join_values, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "join_values", 11);
     }
     duk_call(ctx, 3);
     return 0;

@@ -1,3 +1,4 @@
+declare const Duktape: any
 declare namespace deps {
     export const encodePath: number
     export const encodePathSegment: number
@@ -12,6 +13,9 @@ declare namespace deps {
         host: any
     }
     export function unescape(opts: UnescapeOptions, s: string, mode: number): string
+
+
+    export function join_values(next: () => undefined | [string, string]): string;
 }
 export class EscapeError extends Error {
     constructor(message: string, opts?: any) {
@@ -167,15 +171,46 @@ export class Values {
         }
     }
 
-    // // Has checks whether a given key is set.
-    // func (v Values) Has(key string) bool {
-    // 	_, ok := v[key]
-    // 	return ok
-    // }
+    /**
+     * checks whether a given key is set
+     */
+    has(key: string): boolean {
+        const v = this.values[key]
+        return v === undefined || v === null ? false : true
+    }
 
-    // Encode encodes the values into “URL encoded” form
-    // ("bar=baz&foo=quux") sorted by key.
-    // func (v Values) Encode() string {
+    /**
+     * encodes the values into “URL encoded” form ("bar=baz&foo=quux") sorted by key.
+     */
+    encode(): string {
+        const values = this.values
+        const keys: Array<string> = []
+        for (const key in values) {
+            if (Object.prototype.hasOwnProperty.call(values, key)) {
+                const val = values[key]
+                if (val === null || val === undefined || val.length === 0) {
+                    continue
+                }
+                keys.push(key)
+            }
+        }
+        keys.sort()
+
+        const t = new Duktape.Thread(() => {
+            const cb = Duktape.Thread.yield;
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i]
+                const vs = values[k]!
+                const keyEscaped = queryEscape(k)
+                for (let j = 0; j < vs.length; j++) {
+                    cb([keyEscaped, queryEscape(vs[j])])
+                }
+            }
+        })
+        return deps.join_values(() => {
+            return Duktape.Thread.resume(t)
+        })
+    }
 }
 export class URL {
     scheme = ''

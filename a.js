@@ -2,8 +2,18 @@ var sync = require("ejs/sync")
 var net = require("ejs/net")
 var RootCertificate = net.RootCertificate
 var http = require("ejs/net/http")
+var url = require("ejs/net/url")
 var os = require("ejs/os")
 function main() {
+    {
+        var query = new url.Values()
+
+        query.add('name', 'kate')
+        query.add('id', 1)
+        query.add('id', 2)
+        console.log('encode:', query.encode())
+    }
+    return
     var l = net.listen({
         network: 'tcp',
         address: '127.0.0.1:9000',
