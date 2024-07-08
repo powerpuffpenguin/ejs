@@ -6,8 +6,8 @@
  * It is licensed under the MIT license.
  *
  * source:
- *  * queue.h
- *  * queue.c
+ *  - queue.h
+ *  - queue.c
  */
 
 #ifndef _PPP_CONTAINER_QUEUE_H_

@@ -7,10 +7,10 @@
  *   * windows
  *
  * source:
- *  * c_string.h
- *  * c_string.c
- *  * c_filepath.h
- *  * c_filepath.c
+ *  - c_string.h
+ *  - c_string.c
+ *  - c_filepath.h
+ *  - c_filepath.c
  */
 #ifndef _PPP_C_FILEPATH_H_
 #define _PPP_C_FILEPATH_H_

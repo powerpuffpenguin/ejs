@@ -110,6 +110,134 @@ namespace ejs {
     export function threadsSet(opts?: ThreadsSetOptions): void
 }
 
+/**
+ * UTF8 processing function ported from golang standard library
+ */
+declare module "ejs/unicode/utf8" {
+    /**
+     * int32 number used to store unicode characters
+     */
+    export type Rune = number
+
+    /**
+     * the "error" Rune or "Unicode replacement character"
+     */
+    export const RuneError: Rune = 65533
+    /**
+     * characters below RuneSelf are represented as themselves in a single byte.
+     */
+    export const RuneSelf: Rune = 0x80
+    /**
+     * Maximum valid Unicode code point.
+     */
+    export const MaxRune: Rune = 1114111
+    /**
+     * maximum number of bytes of a UTF-8 encoded Unicode character.
+     */
+    export const UTFMax = 4
+
+    /**
+     * Encode rune to Uint8Array
+     */
+    export class UTF8Builder {
+        /**
+         * 
+         * @param buf optional buffer
+         */
+        constructor(buf?: Uint8Array)
+
+        /**
+         * Returns the encoded string
+         */
+        toString(): string
+        /**
+         * Returns the encoded length in bytes
+         */
+        readonly length: number
+        /**
+         * Returns the encoded byte array
+         */
+        readonly buffer?: Uint8Array
+        /**
+         * reset buffer
+         */
+        reset(): void
+        /**
+         * Encode rune to end of buffer.
+         * If the rune is out of range, it appends the encoding of RuneError.
+         */
+        append(...r: Array<Rune>): void
+    }
+    /**
+     * Writes into p (which must be large enough) the UTF-8 encoding of the rune.
+     * If the rune is out of range, it writes the encoding of RuneError.
+     * It returns the number of bytes written.
+     */
+    export function encode(p: Uint8Array, r: Rune): number
+    /**
+     * Calculate how many bytes are needed to encode r, 
+     * and return the bytes needed to encode RuneError if r is invalid
+     */
+    export function encodeLen(r: Rune): number
+    /**
+     * Returns the number of bytes required to encode the rune.
+     * It returns -1 if the rune is not a valid value to encode in UTF-8.
+     */
+    export function len(r: Rune): number
+
+    /**
+     * Unpacks the last UTF-8 encoding in p and returns the rune and
+     * its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+     * the encoding is invalid, it returns (RuneError, 1). Both are impossible
+     * results for correct, non-empty UTF-8.
+     * 
+     * An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
+     * out of range, or is not the shortest possible UTF-8 encoding for the
+     * value. No other validation is performed.
+     */
+    export function decodeLast(p: Uint8Array | string): [/*r:*/Rune, /*size:*/ number]
+
+    /**
+     * Reports whether the byte could be the first byte of an encoded,
+     * possibly invalid rune. Second and subsequent bytes always have the top two
+     * bits set to 10.
+     */
+    export function isStart(b: Rune): boolean
+
+    /**
+     * Unpacks the first UTF-8 encoding in p and returns the rune and
+     * its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
+     * the encoding is invalid, it returns (RuneError, 1). Both are impossible
+     * results for correct, non-empty UTF-8.
+     * 
+     * An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
+     * out of range, or is not the shortest possible UTF-8 encoding for the
+     * value. No other validation is performed.
+     */
+    export function decode(p: Uint8Array | string): [/*r:*/Rune, /*size:*/ number]
+
+    /**
+     * Reports whether the bytes in p begin with a full UTF-8 encoding of a rune.
+     * An invalid encoding is considered a full Rune since it will convert as a width-1 error rune.
+     */
+    export function isFull(p: Uint8Array | string): boolean
+
+    /**
+     * Returns the number of runes in p. Erroneous and short
+     * encodings are treated as single runes of width 1 byte.
+     */
+    export function count(p: Uint8Array | string): number
+    /**
+     * Reports whether p consists entirely of valid UTF-8-encoded runes.
+     */
+    export function isValid(p: Uint8Array | string): boolean
+    /**
+     * Reports whether r can be legally encoded as UTF-8.
+     * Code points that are out of range or a surrogate half are illegal.
+     */
+    export function isRune(r: Rune): boolean
+
+}
 declare module "ejs/net" {
     import { YieldContext } from "ejs/sync"
     export interface AsyncOptions {
@@ -1115,6 +1243,16 @@ declare module "ejs/net/url" {
      * are case-sensitive.
      */
     export class Values {
+        /**
+         * Parses the URL-encoded query string and returns
+         * the values specified for each key.
+         * 
+         * Query is expected to be a list of key=value settings separated by ampersands.
+         * A setting without an equals sign is interpreted as a key set to an empty value.
+         * Settings containing a non-URL-encoded semicolon are considered invalid.
+         */
+        static parse(query: string): Values
+
         readonly values: Record<string, Array<string> | undefined>
         constructor(values?: Record<string, Array<string> | undefined>)
         /**
@@ -1137,7 +1275,15 @@ declare module "ejs/net/url" {
          * Deletes the values associated with key.
          * @param logic If true, just set the property to undefined; if false, delete is called.
          */
-        remove(key: string, physical?: boolean): void
+        remove(key: string, logic?: boolean): void
+        /**
+         * checks whether a given key is set
+         */
+        has(key: string): boolean
+        /**
+         * encodes the values into “URL encoded” form ("bar=baz&foo=quux") sorted by key.
+         */
+        encode(): string
     }
 
     /**
@@ -1164,11 +1310,12 @@ declare module "ejs/net/url" {
      * URL's String method uses the escapedPath method to obtain the path.
      */
     export class URL {
-        scheme = ''
+
+        scheme: string
         /**
          * encoded opaque data
          */
-        opaque = ''
+        opaque: string
         /**
          * username and password information
          */
@@ -1176,15 +1323,15 @@ declare module "ejs/net/url" {
         /**
          * host or host:port
          */
-        host = ''
+        host: string
         /**
          * path (relative paths may omit leading slash)
          */
-        path = ''
+        path: string
         /**
          * encoded path hint (see escapedPath method)
          */
-        rawPath = ''
+        rawPath: string
         /**
          * do not emit empty host (authority)
          */
@@ -1196,15 +1343,15 @@ declare module "ejs/net/url" {
         /**
          * encoded query values, without '?'
          */
-        rawQuery = ''
+        rawQuery: string
         /**
          * fragment for references, without '#'
          */
-        fragment = ''
+        fragment: string
         /**
          *  encoded fragment hint (see EscapedFragment method)
          */
-        rawFragment = ''
+        rawFragment: string
     }
 }
 /**

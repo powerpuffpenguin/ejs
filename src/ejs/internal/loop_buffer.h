@@ -3,8 +3,8 @@
  * It is licensed under the MIT license.
  *
  * source:
- *  * loop_buffer.h
- *  * loop_buffer.c
+ *  - loop_buffer.h
+ *  - loop_buffer.c
  */
 #ifndef _PPP_BYTES_LOOP_BUFFER_H_
 #define _PPP_BYTES_LOOP_BUFFER_H_

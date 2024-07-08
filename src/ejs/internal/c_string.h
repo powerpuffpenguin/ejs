@@ -2,8 +2,8 @@
  * It is licensed under the MIT license.
  *
  * source:
- *  * c_string.h
- *  * c_string.c
+ *  - c_string.h
+ *  - c_string.c
  */
 #ifndef _PPP_C_STRING_H_
 #define _PPP_C_STRING_H_
@@ -71,6 +71,11 @@ char *ppp_c_string_c_str(ppp_c_string_t *s);
  * free dynamically allocated memory
  */
 void ppp_c_string_destroy(ppp_c_string_t *s);
+/**
+ * calculate a suitable capacity for Grows n bytes
+ */
+size_t ppp_c_string_grow_calculate(size_t cap, size_t len, size_t n);
+
 /**
  * Grows strings to guarantee space for n more bytes.
  *

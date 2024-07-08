@@ -1,14 +1,14 @@
 /**
- * A doubly linked list implemented within the ejs project. 
- * It has no external dependencies and can work independently. 
+ * A doubly linked list implemented within the ejs project.
+ * It has no external dependencies and can work independently.
  * Just copy the source code to your project and use it.
- * 
- * Its implementation refers to List in golang standard library. 
+ *
+ * Its implementation refers to List in golang standard library.
  * It adopts the same MIT license as the golang standard library.
- * 
+ *
  * source:
- *  * list.h
- *  * list.c
+ *  - list.h
+ *  - list.c
  */
 #ifndef _PPP_CONTAINER_LIST_H_
 #define _PPP_CONTAINER_LIST_H_

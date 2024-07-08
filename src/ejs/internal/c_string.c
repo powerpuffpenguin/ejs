@@ -40,36 +40,36 @@ void ppp_c_string_destroy(ppp_c_string_t *s)
         s->str = 0;
     }
 }
-int ppp_c_string_grow(ppp_c_string_t *s, size_t n)
+size_t ppp_c_string_grow_calculate(size_t _cap, size_t _len, size_t n)
 {
     if (n)
     {
         size_t available;
         size_t cap;
-        if (s->cap)
+        if (_cap)
         {
-            available = s->cap - s->len;
-            cap = s->cap;
+            available = _cap - _len;
+            cap = _cap;
         }
         else
         {
             available = 0;
-            n += s->len;
+            n += _len;
             cap = 64;
         }
+
         if (available < n)
         {
             n -= available;
 
             // calculate capacity
-            size_t cap;
-            if (!s->cap && n < 64)
+            if (!_cap && n < 64)
             {
                 cap = 64;
             }
             else
             {
-                size_t c = s->len + n;
+                size_t c = _len + n;
                 cap *= 2;
                 if (c >= cap)
                 {
@@ -77,28 +77,38 @@ int ppp_c_string_grow(ppp_c_string_t *s, size_t n)
                 }
             }
             // malloc
-            if (s->cap)
-            {
-                void *p = realloc(s->str, cap + 1);
-                if (!p)
-                {
-                    return -1;
-                }
-                s->str = p;
-            }
-            else
-            {
-                void *p = malloc(cap + 1);
-                if (!p)
-                {
-                    return -1;
-                }
-                memcpy(p, s->str, s->len);
-                s->str = p;
-            }
-            s->cap = cap;
+            return cap;
         }
     }
+    return 0;
+}
+int ppp_c_string_grow(ppp_c_string_t *s, size_t n)
+{
+    size_t cap = ppp_c_string_grow_calculate(s->cap, s->len, n);
+    if (!cap)
+    {
+        return 0;
+    }
+    if (s->cap)
+    {
+        void *p = realloc(s->str, cap + 1);
+        if (!p)
+        {
+            return -1;
+        }
+        s->str = p;
+    }
+    else
+    {
+        void *p = malloc(cap + 1);
+        if (!p)
+        {
+            return -1;
+        }
+        memcpy(p, s->str, s->len);
+        s->str = p;
+    }
+    s->cap = cap;
     return 0;
 }
 int ppp_c_string_grow_to(ppp_c_string_t *s, size_t cap)

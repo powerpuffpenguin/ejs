@@ -3,8 +3,8 @@
  * It is licensed under the MIT license.
  *
  * source:
- *  * buffer.h
- *  * buffer.c
+ *  - buffer.h
+ *  - buffer.c
  */
 #ifndef _PPP_BYTES_BUFFER_H_
 #define _PPP_BYTES_BUFFER_H_

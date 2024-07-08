@@ -97,6 +97,8 @@
         "_duk_net_url.h": "c",
         "net_url.h": "c",
         "stat.h": "c",
-        "duk.h": "c"
+        "duk.h": "c",
+        "unicode_utf8.h": "c",
+        "utf8.h": "c"
     }
 }

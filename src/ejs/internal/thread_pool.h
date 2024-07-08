@@ -6,10 +6,10 @@
  * It is licensed under the MIT license.
  *
  * source:
- *  * list.h
- *  * list.c
- *  * thread_pool.h
- *  * thread_pool.c
+ *  - list.h
+ *  - list.c
+ *  - thread_pool.h
+ *  - thread_pool.c
  */
 
 #ifndef _PPP_THREAD_POOL_H_

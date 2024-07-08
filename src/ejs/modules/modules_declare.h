@@ -13,6 +13,9 @@
 #define EJS_SHARED_MODULE__TEST0 "ejs/test0", 9
 EJS_SHARED_MODULE__DECLARE(test0);
 
+#define EJS_SHARED_MODULE__UNICODE_UTF8 "ejs/unicode/utf8", 16
+EJS_SHARED_MODULE__DECLARE(unicode_utf8);
+
 #define EJS_SHARED_MODULE__SYNC "ejs/sync", 8
 EJS_SHARED_MODULE__DECLARE(sync);
 

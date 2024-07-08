@@ -473,6 +473,90 @@ static duk_ret_t join_values(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t _check(duk_context *ctx)
+{
+    duk_size_t len;
+    const uint8_t *s = duk_require_lstring(ctx, 0, &len);
+    if (__ejs_modules_shared_strings_contains_ctl(s, len))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "ejs/net/url: invalid control character in URL");
+        duk_throw(ctx);
+    }
+    if (!len && EJS_BOOL_VALUE(ctx, 1))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "empty url");
+        duk_throw(ctx);
+    }
+    return 0;
+}
+static duk_ret_t getScheme(duk_context *ctx)
+{
+    duk_size_t len;
+    const uint8_t *s = duk_require_lstring(ctx, 0, &len);
+
+    if (len)
+    {
+        uint8_t c;
+        for (size_t i = 0; i < len; i++)
+        {
+            c = s[i];
+            if ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z')
+            {
+            }
+            else if ('0' <= c && c <= '9' || c == '+' || c == '-' || c == '.')
+            {
+                if (i == 0)
+                {
+                    break;
+                }
+            }
+            else if (c == ':')
+            {
+                duk_pop(ctx);
+                if (i == 0)
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "missing protocol scheme");
+                    duk_throw(ctx);
+                }
+                duk_push_number(ctx, i);
+                return 1;
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    duk_pop(ctx);
+    duk_push_number(ctx, 0);
+    return 1;
+}
+static duk_ret_t validOptionalPort(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const char *s = duk_require_lstring(ctx, 0, &s_len);
+    duk_pop(ctx);
+    if (s_len == 0)
+    {
+        duk_push_true(ctx);
+        return 1;
+    }
+    if (s[0] != ':')
+    {
+        duk_push_false(ctx);
+        return 1;
+    }
+    for (size_t i = 0; i < s_len; i++)
+    {
+        if (s[i] < '0' || s[i] > '9')
+        {
+            duk_push_false(ctx);
+            return 1;
+        }
+    }
+    duk_push_true(ctx);
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(net_url)
 {
     duk_eval_lstring(ctx, js_ejs_js_net_url_min_js, js_ejs_js_net_url_min_js_len);
@@ -507,6 +591,13 @@ EJS_SHARED_MODULE__DECLARE(net_url)
 
         duk_push_c_lightfunc(ctx, join_values, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "join_values", 11);
+
+        duk_push_c_lightfunc(ctx, _check, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "check", 5);
+        duk_push_c_lightfunc(ctx, getScheme, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "getScheme", 9);
+        duk_push_c_lightfunc(ctx, validOptionalPort, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "validOptionalPort", 17);
     }
     duk_call(ctx, 3);
     return 0;

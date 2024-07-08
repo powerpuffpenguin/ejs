@@ -20,5 +20,9 @@
 
 duk_bool_t __ejs_modules_shared_ishex(char c);
 uint8_t __ejs_modules_shared_unhex(uint8_t c);
+/**
+ * reports whether s contains any ASCII control character
+ */
+duk_bool_t __ejs_modules_shared_strings_contains_ctl(const uint8_t *s, const size_t s_len);
 
 #endif
