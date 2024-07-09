@@ -74,6 +74,23 @@ export class Assert {
         }
         throw assertQuit
     }
+    false(expr: any, ...msg: Array<any>) {
+        if (!expr) {
+            return
+        }
+        console.log(`--- FAIL: ${this.name}`)
+        console.log(`  Error: not equal`)
+        console.log(`  Expect:`, false)
+        console.log(`  Actual:`, expr)
+        if (msg.length != 0) {
+            console.log(`  Message:`, ...msg)
+        }
+        const stack = new Error().stack
+        if (typeof stack === "string") {
+            console.log(`  Stack:`, stack)
+        }
+        throw assertQuit
+    }
 }
 
 export class Module {

@@ -124,6 +124,62 @@ static duk_ret_t native_equal(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t native_copy(duk_context *ctx)
+{
+    duk_size_t dst_len;
+    void *dst = duk_require_buffer_data(ctx, 0, &dst_len);
+
+    duk_size_t src_len;
+    const void *src;
+    if (duk_is_string(ctx, 1))
+    {
+        src = duk_require_lstring(ctx, 1, &src_len);
+    }
+    else
+    {
+        src = duk_require_buffer_data(ctx, 1, &src_len);
+    }
+    if (src_len > dst_len)
+    {
+        src_len = dst_len;
+    }
+    duk_pop_2(ctx);
+    duk_push_number(ctx, src_len);
+
+    memmove(dst, src, src_len);
+    return 1;
+}
+static duk_ret_t native_len(duk_context *ctx)
+{
+    duk_size_t len;
+    if (duk_is_string(ctx, 0))
+    {
+        duk_require_lstring(ctx, 0, &len);
+    }
+    else
+    {
+        duk_require_buffer_data(ctx, 1, &len);
+    }
+    duk_pop(ctx);
+
+    duk_push_number(ctx, len);
+    return 1;
+}
+static duk_ret_t native_is_buffer_data(duk_context *ctx)
+{
+    duk_bool_t ok = duk_is_buffer_data(ctx, 0);
+    duk_pop(ctx);
+    if (ok)
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
+
 static duk_ret_t native_threads_stat(duk_context *ctx)
 {
     ejs_core_t *core = ejs_require_core(ctx);
@@ -227,6 +283,12 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, "exit", 4);
         duk_push_c_lightfunc(ctx, native_equal, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "equal", 5);
+        duk_push_c_lightfunc(ctx, native_copy, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "copy", 4);
+        duk_push_c_lightfunc(ctx, native_len, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "len", 3);
+        duk_push_c_lightfunc(ctx, native_is_buffer_data, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "isBufferData", 12);
 
         duk_push_c_lightfunc(ctx, native_threads_stat, 0, 0, 0);
         duk_put_prop_lstring(ctx, -2, "threadsStat", 11);

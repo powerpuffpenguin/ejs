@@ -5,16 +5,29 @@ var http = require("ejs/net/http")
 var url = require("ejs/net/url")
 var os = require("ejs/os")
 var utf8 = require("ejs/unicode/utf8")
+var strconv = require("ejs/strconv")
+function utf8forEach(p, cb) {
+    var ret
+    var i = 0
+    while (p.length) {
+        ret = utf8.decode(p)
+        cb(i, ret[0])
+        i += ret[1]
+        p = p.subarray(ret[1])
+    }
+}
 function main() {
     {
-        var buf0 = new Uint8Array(32)
-        var b1 = buf0.subarray(16, 18)
-        console.log(buf0.subarray(16, 18).buffer === buf0.subarray(16, 18).buffer)
-        // b1 = utf8.test(b1)
-        // console.log(b1.byteOffset, b1.length)
+        var buf = new Uint8Array([194, 128, 97, 98, 194, 128, 99, 100])
+        var buf = new Uint8Array([194])
 
-        // utf8.appendRune(buf0.subarray(16, 16).subarray(0, 2), 65)
-        console.log(buf0)
+        utf8.forEach(buf, function (r, i) {
+            console.log(r, i)
+        })
+
+
+        // console.log(utf8.test("\xee\x80\x80"))
+        // console.log(parseInt("0xB", 16))
     }
     // {
     //     var query = new url.Values()

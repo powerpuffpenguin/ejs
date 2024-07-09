@@ -42,7 +42,7 @@ static duk_ret_t append_rune(duk_context *ctx)
         duk_swap_top(ctx, -2);
     }
     duk_put_prop_index(ctx, -2, 0);
-    duk_push_number(ctx, count);
+    duk_push_number(ctx, buf_len + count);
     duk_put_prop_index(ctx, -2, 1);
 
     if (buf_len)
@@ -217,6 +217,7 @@ static duk_ret_t is_rune(duk_context *ctx)
     }
     return 1;
 }
+
 EJS_SHARED_MODULE__DECLARE(unicode_utf8)
 {
     duk_eval_lstring(ctx, js_ejs_js_unicode_utf8_min_js, js_ejs_js_unicode_utf8_min_js_len);
@@ -246,14 +247,11 @@ EJS_SHARED_MODULE__DECLARE(unicode_utf8)
         duk_put_prop_lstring(ctx, -2, "full", 4);
         duk_push_c_lightfunc(ctx, rune_count, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "count", 5);
-        duk_push_c_lightfunc(ctx, rune_count, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "count", 5);
         duk_push_c_lightfunc(ctx, is_valid, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "is_valid", 8);
         duk_push_c_lightfunc(ctx, is_rune, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "is_rune", 7);
     }
     duk_call(ctx, 3);
-
     return 0;
 }

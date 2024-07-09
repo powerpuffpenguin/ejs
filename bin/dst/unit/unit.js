@@ -171,6 +171,27 @@ var Assert = /** @class */ (function () {
         }
         throw assertQuit;
     };
+    Assert.prototype.false = function (expr) {
+        var msg = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            msg[_i - 1] = arguments[_i];
+        }
+        if (!expr) {
+            return;
+        }
+        console.log("--- FAIL: ".concat(this.name));
+        console.log("  Error: not equal");
+        console.log("  Expect:", false);
+        console.log("  Actual:", expr);
+        if (msg.length != 0) {
+            console.log.apply(console, __spreadArray(["  Message:"], __read(msg), false));
+        }
+        var stack = new Error().stack;
+        if (typeof stack === "string") {
+            console.log("  Stack:", stack);
+        }
+        throw assertQuit;
+    };
     return Assert;
 }());
 exports.Assert = Assert;

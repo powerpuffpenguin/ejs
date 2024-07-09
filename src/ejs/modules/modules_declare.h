@@ -13,6 +13,9 @@
 #define EJS_SHARED_MODULE__TEST0 "ejs/test0", 9
 EJS_SHARED_MODULE__DECLARE(test0);
 
+#define EJS_SHARED_MODULE__STRCONC "ejs/strconv", 11
+EJS_SHARED_MODULE__DECLARE(strconv);
+
 #define EJS_SHARED_MODULE__UNICODE_UTF8 "ejs/unicode/utf8", 16
 EJS_SHARED_MODULE__DECLARE(unicode_utf8);
 

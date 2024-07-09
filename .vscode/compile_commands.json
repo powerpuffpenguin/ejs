@@ -86,6 +86,11 @@
 },
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/strconv.c.o", "src/ejs/modules/strconv.c"],
+  "file": "src/ejs/modules/strconv.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/unicode_utf8.c.o", "src/ejs/modules/unicode_utf8.c"],
   "file": "src/ejs/modules/unicode_utf8.c"
 },
@@ -157,11 +162,6 @@
 {
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
-  "file": "src/main.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
   "file": "src/main.c"
 },
 {
@@ -248,6 +248,11 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/modules/modules_init.c.o", "src/ejs/modules/modules_init.c"],
   "file": "src/ejs/modules/modules_init.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/ejs/modules/strconv.c.o", "src/ejs/modules/strconv.c"],
+  "file": "src/ejs/modules/strconv.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",
@@ -358,4 +363,9 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/main_test.c.o", "src/main_test.c"],
   "file": "src/main_test.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.2.6/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.0/3cd0043ba22948b0b4c12ce7d76572c3/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
 }]

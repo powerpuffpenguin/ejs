@@ -38,18 +38,23 @@ export const UTFMax = 4
  */
 export class UTF8Builder {
     private buf_?: Uint8Array
-    private len_ = 0
+    private len_: number
     /**
      * 
      * @param buf optional buffer
      */
-    constructor(buf?: Uint8Array) {
+    constructor(buf?: Uint8Array, len?: number) {
         if (buf === undefined || buf === null) {
         } else if (!(buf instanceof Uint8Array)) {
             throw new Error("buf must instanceof Uint8Array")
         } else if (buf.length > 0) {
             this.buf_ = buf
+            if (len && len <= buf.length) {
+                this.len_ = len
+                return
+            }
         }
+        this.len_ = 0
     }
 
     /**
@@ -72,12 +77,18 @@ export class UTF8Builder {
     /**
      * Returns the encoded byte array
      */
-    get buffer(): Uint8Array | undefined {
+    toBuffer(): Uint8Array | undefined {
         const len = this.len_
         if (len) {
             const buf = this.buf_!
             return buf.length == len ? buf : buf.subarray(0, len)
         }
+    }
+    /**
+     * Return buffer
+     */
+    get buffer(): Uint8Array | undefined {
+        return this.buf_
     }
     /**
      * reset buffer
@@ -183,4 +194,26 @@ export function isValid(p: Uint8Array | string): boolean {
  */
 export function isRune(r: Rune): boolean {
     return deps.is_rune(r)
+}
+/**
+ * callback function called for each utf8 rune
+ * @param cb If true is returned, stop continuing the callback
+ */
+export function forEach(p: Uint8Array, cb: (r: Rune, offset: number) => void | boolean) {
+    if (!(p instanceof Uint8Array)) {
+        throw new Error("p must instanceof Uint8Array")
+    } else if (typeof cb !== "function") {
+        throw new Error("cb must be a function")
+    }
+
+    let ret: [number, number]
+    let i = 0
+    while (p.length) {
+        ret = deps.decode(p)
+        if (cb(ret[0], i)) {
+            break
+        }
+        i += ret[1]
+        p = p.subarray(ret[1])
+    }
 }

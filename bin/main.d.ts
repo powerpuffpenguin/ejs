@@ -58,6 +58,19 @@ namespace ejs {
      * Compare bytes for equality
      */
     export function equal(a: string | ArrayBufferLike, b: string | ArrayBufferLike): boolean
+    /**
+     * bytes copy
+     */
+    export function copy(dst: Uint8Array, src: Uint8Array | string): number
+    /**
+     * 
+     * return bytes length of v
+     */
+    export function len(v: string | Uint8Array): number
+    /**
+     * if is duk buffer data return true else return false
+     */
+    export function isBufferData(): boolean
 
     export interface ThreadsStat {
         /**
@@ -111,6 +124,15 @@ namespace ejs {
 }
 
 /**
+ * String conversion functions, most of which are ported from golang
+ */
+declare module "ejs/strconv" {
+    /**
+     * Convert string to Uint8Array, useful for getting utf8 byte data of string
+     */
+    export function toBuffer(v: string): Uint8Array
+}
+/**
  * UTF8 processing function ported from golang standard library
  */
 declare module "ejs/unicode/utf8" {
@@ -121,18 +143,22 @@ declare module "ejs/unicode/utf8" {
 
     /**
      * the "error" Rune or "Unicode replacement character"
+     * 65533
      */
     export const RuneError: Rune = 65533
     /**
      * characters below RuneSelf are represented as themselves in a single byte.
+     * 0x80
      */
     export const RuneSelf: Rune = 0x80
     /**
      * Maximum valid Unicode code point.
+     * 1114111
      */
     export const MaxRune: Rune = 1114111
     /**
      * maximum number of bytes of a UTF-8 encoded Unicode character.
+     * 4
      */
     export const UTFMax = 4
 
@@ -144,18 +170,21 @@ declare module "ejs/unicode/utf8" {
          * 
          * @param buf optional buffer
          */
-        constructor(buf?: Uint8Array)
-
+        constructor(buf?: Uint8Array, len?: number)
         /**
          * Returns the encoded string
          */
         toString(): string
         /**
+         * Returns the encoded byte array
+         */
+        toBuffer(): Uint8Array | undefined
+        /**
          * Returns the encoded length in bytes
          */
         readonly length: number
         /**
-         * Returns the encoded byte array
+         * encoded buffer
          */
         readonly buffer?: Uint8Array
         /**
@@ -236,7 +265,11 @@ declare module "ejs/unicode/utf8" {
      * Code points that are out of range or a surrogate half are illegal.
      */
     export function isRune(r: Rune): boolean
-
+    /**
+     * callback function called for each utf8 rune
+     * @param cb If true is returned, stop continuing the callback
+     */
+    export function forEach(p: Uint8Array, cb: (r: Rune, offset: number) => void | boolean)
 }
 declare module "ejs/net" {
     import { YieldContext } from "ejs/sync"

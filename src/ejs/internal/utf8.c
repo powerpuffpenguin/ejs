@@ -90,7 +90,7 @@ int ppp_utf8_encode(uint8_t *p, const size_t p_len, ppp_utf8_rune_t r)
 {
     // Negative values are erroneous. Making it unsigned addresses the problem.
     uint32_t i = r;
-    if (i < ppp_utf8_rune1Max)
+    if (i <= ppp_utf8_rune1Max)
     {
         if (!p)
         {
@@ -125,7 +125,7 @@ int ppp_utf8_encode(uint8_t *p, const size_t p_len, ppp_utf8_rune_t r)
         }
         r = PPP_UTF8_RUNE_ERROR;
     }
-    else if (i < ppp_utf8_rune3Max)
+    else if (i <= ppp_utf8_rune3Max)
     {
         if (!p)
         {
@@ -357,7 +357,7 @@ BOOL ppp_utf8_full(const uint8_t *p, const size_t n)
 }
 size_t ppp_utf8_count(const uint8_t *p, const size_t np)
 {
-    size_t n;
+    size_t n = 0;
     uint8_t c;
     int size;
     acceptRange_t accept;
@@ -445,7 +445,7 @@ BOOL ppp_utf8_is_valid(const uint8_t *p, size_t p_len)
         // on many platforms. See test/codegen/memcombine.go.
         first32 = (uint32_t)(p[0]) | (uint32_t)(p[1]) << 8 | (uint32_t)(p[2]) << 16 | (uint32_t)(p[3]) << 24;
         second32 = (uint32_t)(p[4]) | (uint32_t)(p[5]) << 8 | (uint32_t)(p[6]) << 16 | (uint32_t)(p[7]) << 24;
-        if ((first32 | second32) & 0x80808080 != 0)
+        if (((first32 | second32) & 0x80808080) != 0)
         {
             // Found a non ASCII byte (>= RuneSelf).
             break;
