@@ -376,3 +376,29 @@ m.test('Valid', (assert) => {
         assert.equal(tt.out, utf8.isValid(tt.in), tt)
     }
 })
+
+interface ValidRuneTest {
+    r: utf8.Rune
+    ok: boolean
+}
+
+const validrunetests: Array<ValidRuneTest> = [
+    { r: 0, ok: true },
+    { r: 'e'.codePointAt(0)!, ok: true },
+    { r: 'é'.codePointAt(0)!, ok: true },
+    { r: '☺'.codePointAt(0)!, ok: true },
+    { r: utf8.RuneError, ok: true },
+    { r: utf8.MaxRune, ok: true },
+    { r: 0xD7FF, ok: true },
+    { r: 0xD800, ok: false },
+    { r: 0xDFFF, ok: false },
+    { r: 0xE000, ok: true },
+    { r: utf8.MaxRune + 1, ok: false },
+    { r: -1, ok: false },
+]
+
+m.test('ValidRune', (assert) => {
+    for (const tt of validrunetests) {
+        assert.equal(tt.ok, utf8.isRune(tt.r), tt)
+    }
+})

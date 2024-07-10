@@ -568,3 +568,33 @@ m.test('Valid', function (assert) {
         finally { if (e_16) throw e_16.error; }
     }
 });
+var validrunetests = [
+    { r: 0, ok: true },
+    { r: 'e'.codePointAt(0), ok: true },
+    { r: 'é'.codePointAt(0), ok: true },
+    { r: '☺'.codePointAt(0), ok: true },
+    { r: utf8.RuneError, ok: true },
+    { r: utf8.MaxRune, ok: true },
+    { r: 0xD7FF, ok: true },
+    { r: 0xD800, ok: false },
+    { r: 0xDFFF, ok: false },
+    { r: 0xE000, ok: true },
+    { r: utf8.MaxRune + 1, ok: false },
+    { r: -1, ok: false },
+];
+m.test('ValidRune', function (assert) {
+    var e_17, _a;
+    try {
+        for (var validrunetests_1 = __values(validrunetests), validrunetests_1_1 = validrunetests_1.next(); !validrunetests_1_1.done; validrunetests_1_1 = validrunetests_1.next()) {
+            var tt = validrunetests_1_1.value;
+            assert.equal(tt.ok, utf8.isRune(tt.r), tt);
+        }
+    }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    finally {
+        try {
+            if (validrunetests_1_1 && !validrunetests_1_1.done && (_a = validrunetests_1.return)) _a.call(validrunetests_1);
+        }
+        finally { if (e_17) throw e_17.error; }
+    }
+});
