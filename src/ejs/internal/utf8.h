@@ -48,7 +48,7 @@ typedef int32_t ppp_utf8_rune_t;
 /**
  * EncodeRune writes into p the UTF-8 encoding of the rune.
  * If the rune is out of range, it writes the encoding of RuneError.
- * It returns the number(-1 if p_len not enough) of bytes written.
+ * It returns the number(<0 if p_len not enough, The abs value is the missing capacity value) of bytes written.
  * If p is 0, only the length of bytes required for encoding is calculate
  */
 int ppp_utf8_encode(uint8_t *p, const size_t p_len, ppp_utf8_rune_t r);

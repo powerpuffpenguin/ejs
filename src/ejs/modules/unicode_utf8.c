@@ -4,59 +4,55 @@
 
 static duk_ret_t append_rune(duk_context *ctx)
 {
-    duk_size_t buf_len = duk_require_number(ctx, 2);
-    duk_pop(ctx);
-
     duk_size_t buf_cap;
     uint8_t *buf = duk_get_buffer_data_default(ctx, 1, &buf_cap, 0, 0);
+    duk_size_t buf_len;
 
-    duk_size_t count = 0;
-
-    duk_size_t i;
     duk_size_t length = duk_get_length(ctx, 0);
-    ppp_utf8_rune_t r;
-
-    for (i = 0; i < length; i++)
+    if (buf_cap)
     {
-        duk_get_prop_index(ctx, 0, i);
-        r = duk_require_number(ctx, -1);
+        buf_len = duk_require_number(ctx, 2);
         duk_pop(ctx);
-        count += ppp_utf8_encode(0, 0, r);
-    }
 
-    size_t cap = ppp_c_string_grow_calculate(buf_cap, buf_len, count);
-    if (cap)
-    {
-        duk_pop(ctx);
-        duk_push_array(ctx);
-        void *p = duk_push_fixed_buffer(ctx, cap);
-        if (buf_len)
-        {
-            memcpy(p, buf, buf_len);
-        }
-        buf = p;
-    }
-    else
-    {
         duk_push_array(ctx);
         duk_swap_top(ctx, -2);
     }
-    duk_put_prop_index(ctx, -2, 0);
-    duk_push_number(ctx, buf_len + count);
-    duk_put_prop_index(ctx, -2, 1);
-
-    if (buf_len)
+    else
     {
-        buf += buf_len;
-        cap -= buf_len;
+        buf_len = 0;
+        duk_pop_2(ctx);
+        duk_push_array(ctx);
+        buf_cap = ppp_c_string_grow_calculate(0, 0, length * 3 / 2);
+        buf = duk_push_fixed_buffer(ctx, buf_cap);
     }
-    for (i = 0; i < length; i++)
+
+    duk_size_t count = 0;
+    ppp_utf8_rune_t r;
+    int n;
+    uint8_t *p;
+    for (duk_size_t i = 0; i < length; i++)
     {
         duk_get_prop_index(ctx, 0, i);
         r = duk_require_number(ctx, -1);
         duk_pop(ctx);
-        count += ppp_utf8_encode(buf, cap, r);
+
+        n = ppp_utf8_encode(buf + buf_len, buf_cap - buf_len, r);
+        if (n >= 0)
+        {
+            buf_len += n;
+            continue;
+        }
+        buf_cap = ppp_c_string_grow_calculate(buf_cap, buf_len, length - i - 1 - n);
+        p = duk_push_fixed_buffer(ctx, buf_cap);
+        memcpy(p, buf, buf_len);
+        buf_len += ppp_utf8_encode(p + buf_len, buf_cap - buf_len, r);
+        buf = p;
+        duk_swap_top(ctx, -2);
+        duk_pop(ctx);
     }
+    duk_put_prop_index(ctx, -2, 0);
+    duk_push_number(ctx, buf_len);
+    duk_put_prop_index(ctx, -2, 1);
     return 1;
 }
 static duk_ret_t encode_rune(duk_context *ctx)
@@ -231,7 +227,7 @@ EJS_SHARED_MODULE__DECLARE(unicode_utf8)
     duk_push_object(ctx);
     {
         duk_push_c_lightfunc(ctx, append_rune, 3, 3, 0);
-        duk_put_prop_lstring(ctx, -2, "append_rune", 11);
+        duk_put_prop_lstring(ctx, -2, "append", 6);
 
         duk_push_c_lightfunc(ctx, encode_rune, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "encode", 6);

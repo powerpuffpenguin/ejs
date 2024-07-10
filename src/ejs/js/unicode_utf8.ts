@@ -1,5 +1,5 @@
 declare namespace deps {
-    function append_rune(r: Array<number>, buf: Uint8Array | undefined, len: number): [Uint8Array, number]
+    function append(r: Array<number>, buf: Uint8Array | undefined, len: number): [Uint8Array, number]
     function encode(p: Uint8Array, r: number): number
     function encode_len(r: number): number
     function len(r: number): number
@@ -93,8 +93,24 @@ export class UTF8Builder {
     /**
      * reset buffer
      */
-    reset(): void {
-        this.len_ = 0
+    reset(buffer?: Uint8Array, len?: number): void {
+        if (buffer === undefined || buffer === null) {
+            this.len_ = 0
+        } else if (buffer instanceof Uint8Array) {
+            if (typeof len === "number" && Number.isSafeInteger(len)) {
+                if (len > 0) {
+                    if (len <= buffer.length) {
+                        this.len_ = len
+                    } else {
+                        this.len_ = buffer.length
+                    }
+                } else {
+                    this.len_ = 0
+                }
+            }
+        } else {
+            throw new Error("buffer must instanceof Uint8Array")
+        }
     }
     /**
      * Encode rune to end of buffer.
@@ -102,7 +118,7 @@ export class UTF8Builder {
      */
     append(...r: Array<Rune>): void {
         if (r.length > 0) {
-            const [buf, len] = deps.append_rune(r,
+            const [buf, len] = deps.append(r,
                 this.buf_,
                 this.len_,
             )

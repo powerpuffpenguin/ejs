@@ -111,7 +111,7 @@ int ppp_utf8_encode(uint8_t *p, const size_t p_len, ppp_utf8_rune_t r)
         }
         else if (p_len < 2)
         {
-            return -1;
+            return (int)p_len - 2;
         }
         p[0] = ppp_utf8_t2 | (uint8_t)(r >> 6);
         p[1] = ppp_utf8_tx | (uint8_t)(r)&ppp_utf8_maskx;
@@ -140,7 +140,7 @@ int ppp_utf8_encode(uint8_t *p, const size_t p_len, ppp_utf8_rune_t r)
         }
         else if (p_len < 4)
         {
-            return -1;
+            return (int)p_len - 4;
         }
         p[0] = ppp_utf8_t4 | (uint8_t)(r >> 18);
         p[1] = ppp_utf8_tx | (uint8_t)(r >> 12) & ppp_utf8_maskx;
@@ -150,7 +150,7 @@ int ppp_utf8_encode(uint8_t *p, const size_t p_len, ppp_utf8_rune_t r)
     }
     if (p_len < 3)
     {
-        return -1;
+        return (int)p_len - 3;
     }
 
     p[0] = ppp_utf8_t3 | (uint8_t)(r >> 12);

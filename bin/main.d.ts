@@ -190,7 +190,7 @@ declare module "ejs/unicode/utf8" {
         /**
          * reset buffer
          */
-        reset(): void
+        reset(buffer?: Uint8Array, len?: number): void
         /**
          * Encode rune to end of buffer.
          * If the rune is out of range, it appends the encoding of RuneError.
