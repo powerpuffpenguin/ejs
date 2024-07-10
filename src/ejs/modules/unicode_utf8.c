@@ -1,59 +1,23 @@
 #include "modules_shared.h"
 #include "../js/unicode_utf8.h"
 #include "../internal/utf8.h"
+#include "_append.h"
 
-static duk_ret_t append_rune(duk_context *ctx)
+static void rune_get_at(duk_context *ctx, duk_idx_t idx, void *value)
 {
-    duk_size_t buf_cap;
-    uint8_t *buf = duk_get_buffer_data_default(ctx, 1, &buf_cap, 0, 0);
-    duk_size_t buf_len;
-
-    duk_size_t length = duk_get_length(ctx, 0);
-    if (buf_cap)
-    {
-        buf_len = duk_require_number(ctx, 2);
-        duk_pop(ctx);
-
-        duk_push_array(ctx);
-        duk_swap_top(ctx, -2);
-    }
-    else
-    {
-        buf_len = 0;
-        duk_pop_2(ctx);
-        duk_push_array(ctx);
-        buf_cap = ppp_c_string_grow_calculate(0, 0, length * 3 / 2);
-        buf = duk_push_fixed_buffer(ctx, buf_cap);
-    }
-
-    duk_size_t count = 0;
-    ppp_utf8_rune_t r;
-    int n;
-    uint8_t *p;
-    for (duk_size_t i = 0; i < length; i++)
-    {
-        duk_get_prop_index(ctx, 0, i);
-        r = duk_require_number(ctx, -1);
-        duk_pop(ctx);
-
-        n = ppp_utf8_encode(buf + buf_len, buf_cap - buf_len, r);
-        if (n >= 0)
-        {
-            buf_len += n;
-            continue;
-        }
-        buf_cap = ppp_c_string_grow_calculate(buf_cap, buf_len, length - i - 1 - n);
-        p = duk_push_fixed_buffer(ctx, buf_cap);
-        memcpy(p, buf, buf_len);
-        buf_len += ppp_utf8_encode(p + buf_len, buf_cap - buf_len, r);
-        buf = p;
-        duk_swap_top(ctx, -2);
-        duk_pop(ctx);
-    }
-    duk_put_prop_index(ctx, -2, 0);
-    duk_push_number(ctx, buf_len);
-    duk_put_prop_index(ctx, -2, 1);
-    return 1;
+    *(ppp_utf8_rune_t *)value = duk_require_number(ctx, idx);
+}
+static int rune_encode(void *dst, size_t dst_len, void *value)
+{
+    ppp_utf8_encode(dst, dst_len, *(ppp_utf8_rune_t *)value);
+}
+duk_ret_t __ejs__unicode_utf8__append_rune(duk_context *ctx)
+{
+    ppp_utf8_rune_t value;
+    __ejs__modules_append(
+        ctx,
+        &value, 1,
+        rune_get_at, rune_encode);
 }
 static duk_ret_t encode_rune(duk_context *ctx)
 {
@@ -226,7 +190,7 @@ EJS_SHARED_MODULE__DECLARE(unicode_utf8)
 
     duk_push_object(ctx);
     {
-        duk_push_c_lightfunc(ctx, append_rune, 3, 3, 0);
+        duk_push_c_lightfunc(ctx, __ejs__unicode_utf8__append_rune, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "append", 6);
 
         duk_push_c_lightfunc(ctx, encode_rune, 2, 2, 0);

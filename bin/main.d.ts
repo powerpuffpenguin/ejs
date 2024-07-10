@@ -190,12 +190,12 @@ declare module "ejs/unicode/utf8" {
         /**
          * reset buffer
          */
-        reset(buffer?: Uint8Array, len?: number): void
+        reset(buffer?: Uint8Array, len?: number): UTF8Builder
         /**
          * Encode rune to end of buffer.
          * If the rune is out of range, it appends the encoding of RuneError.
          */
-        append(...r: Array<Rune>): void
+        append(...r: Array<Rune>): UTF8Builder
     }
     /**
      * Writes into p (which must be large enough) the UTF-8 encoding of the rune.
@@ -270,6 +270,55 @@ declare module "ejs/unicode/utf8" {
      * @param cb If true is returned, stop continuing the callback
      */
     export function forEach(p: Uint8Array, cb: (r: Rune, offset: number) => void | boolean)
+}
+/**
+ * String conversion function ported from golang standard library
+ */
+declare module "ejs/strconv" {
+    import { Rune } from "ejs/unicode/utf8";
+    /**
+     * returns "true" or "false" according to the value of b.
+     */
+    export function formatBool(b: any): string
+    /**
+     * used to build string
+     */
+    export class StringBuilder {
+        /**
+         * 
+         * @param buf optional buffer
+         */
+        constructor(buf?: Uint8Array, len?: number)
+        /**
+         * Returns the encoded string
+         */
+        toString(): string
+        /**
+         * Returns the encoded byte array
+         */
+        toBuffer(): Uint8Array | undefined
+        /**
+         * Returns the encoded length in bytes
+         */
+        readonly length: number
+        /**
+         * encoded buffer
+         */
+        readonly buffer?: Uint8Array
+        /**
+         * reset buffer
+         */
+        reset(buffer?: Uint8Array, len?: number): StringBuilder
+        /**
+         * Encode rune to end of buffer.
+         * If the rune is out of range, it appends the encoding of RuneError.
+         */
+        appendRune(...r: Array<Rune>): StringBuilder
+        /**
+         * Appends "true" or "false", according to the value of b, to dst
+         */
+        appendBool(...values: Array<any>): StringBuilder
+    }
 }
 declare module "ejs/net" {
     import { YieldContext } from "ejs/sync"

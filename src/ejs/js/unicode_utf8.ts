@@ -93,7 +93,7 @@ export class UTF8Builder {
     /**
      * reset buffer
      */
-    reset(buffer?: Uint8Array, len?: number): void {
+    reset(buffer?: Uint8Array, len?: number): UTF8Builder {
         if (buffer === undefined || buffer === null) {
             this.len_ = 0
         } else if (buffer instanceof Uint8Array) {
@@ -111,12 +111,13 @@ export class UTF8Builder {
         } else {
             throw new Error("buffer must instanceof Uint8Array")
         }
+        return this
     }
     /**
      * Encode rune to end of buffer.
      * If the rune is out of range, it appends the encoding of RuneError.
      */
-    append(...r: Array<Rune>): void {
+    append(...r: Array<Rune>): UTF8Builder {
         if (r.length > 0) {
             const [buf, len] = deps.append(r,
                 this.buf_,
@@ -125,6 +126,7 @@ export class UTF8Builder {
             this.buf_ = buf
             this.len_ = len
         }
+        return this
     }
 }
 /**

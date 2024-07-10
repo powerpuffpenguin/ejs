@@ -99,6 +99,7 @@
         "stat.h": "c",
         "duk.h": "c",
         "unicode_utf8.h": "c",
-        "utf8.h": "c"
+        "utf8.h": "c",
+        "c_string.h": "c"
     }
 }

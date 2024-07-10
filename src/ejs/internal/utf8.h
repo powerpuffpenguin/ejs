@@ -6,14 +6,12 @@
  * source:
  *  - utf8.h
  *  - utf8.c
- *  - utf8.c
- *  - utf8.c
  */
 #ifndef _PPP_C_UTF8_H_
 #define _PPP_C_UTF8_H_
 
 #include <stdint.h>
-#include "c_string.h"
+#include <stdlib.h>
 
 #ifndef BOOL
 #define BOOL uint8_t
@@ -46,7 +44,7 @@ typedef int32_t ppp_utf8_rune_t;
 #define PPP_UTF8_UTF_MAX 4
 
 /**
- * EncodeRune writes into p the UTF-8 encoding of the rune.
+ * Writes into p the UTF-8 encoding of the rune.
  * If the rune is out of range, it writes the encoding of RuneError.
  * It returns the number(<0 if p_len not enough, The abs value is the missing capacity value) of bytes written.
  * If p is 0, only the length of bytes required for encoding is calculate
