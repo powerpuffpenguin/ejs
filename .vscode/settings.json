@@ -100,6 +100,7 @@
         "duk.h": "c",
         "unicode_utf8.h": "c",
         "utf8.h": "c",
-        "c_string.h": "c"
+        "c_string.h": "c",
+        "strconv.h": "c"
     }
 }

@@ -9,12 +9,12 @@ static void rune_get_at(duk_context *ctx, duk_idx_t idx, void *value)
 }
 static int rune_encode(void *dst, size_t dst_len, void *value)
 {
-    ppp_utf8_encode(dst, dst_len, *(ppp_utf8_rune_t *)value);
+    return ppp_utf8_encode(dst, dst_len, *(ppp_utf8_rune_t *)value);
 }
 duk_ret_t __ejs__unicode_utf8__append_rune(duk_context *ctx)
 {
     ppp_utf8_rune_t value;
-    __ejs__modules_append(
+    return __ejs__modules_append(
         ctx,
         &value, 1,
         rune_get_at, rune_encode);

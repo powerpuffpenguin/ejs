@@ -3,6 +3,9 @@
 
 #include "../../duk/duktape.h"
 
+#define EJS_SHARED_MODULE__MAX_SAFE_INTEGER 9007199254740991
+#define EJS_SHARED_MODULE__MIN_SAFE_INTEGER (-9007199254740991)
+
 #define EJS_SHARED_MODULE__FUNC(name) __ejs_modules__init_f__##name
 #define EJS_SHARED_MODULE__PUSH(ctx, name, func)                       \
     duk_push_c_lightfunc(ctx, EJS_SHARED_MODULE__FUNC(func), 2, 2, 0); \
