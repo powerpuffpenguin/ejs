@@ -21,7 +21,7 @@ declare namespace deps {
     function toString(b: Uint8Array): string
     function toBuffer(s: string): Uint8Array
 
-    function append(val: Uint8Array, buf: Uint8Array | undefined, len: number): [Uint8Array, number]
+    function append(val: Uint8Array | string, buf: Uint8Array | undefined, len: number): [Uint8Array, number]
 
     function appendRune(r: Array<number>, buf: Uint8Array | undefined, len: number): [Uint8Array, number]
 
@@ -51,6 +51,16 @@ declare namespace deps {
         input: string
     }
     function fast_atoi(opts: FastAtoIOptions): number
+
+    interface AppendQuotedWithOptions {
+        buf?: Uint8Array
+        len: number
+        s: string
+        quote: number
+        ASCIIonly: boolean
+        graphicOnly: boolean
+    }
+    function appendQuotedWith(opts: AppendQuotedWithOptions): [Uint8Array, number]
 }
 
 export interface NumErrorOptions {
@@ -237,6 +247,7 @@ export function atoi(s: string): number {
         bitSize: 64,
     })
 }
+
 /**
  * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
  * The string may begin with a leading sign: "+" or "-".
@@ -331,6 +342,15 @@ export class StringBuilder {
         } else {
             throw new Error("buffer must instanceof Uint8Array")
         }
+        return this
+    }
+    append(val: Uint8Array | string): StringBuilder {
+        const [buf, len] = deps.append(val,
+            this.buf_,
+            this.len_,
+        )
+        this.buf_ = buf
+        this.len_ = len
         return this
     }
     /**

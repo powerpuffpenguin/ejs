@@ -10,7 +10,7 @@ var strconv = require("ejs/strconv")
 function main() {
     try {
         var builder = new strconv.StringBuilder()
-        builder.appendBool(false, true, 0, 1)
+        builder.appendBool(false, true, 0, 1).append("yes ok")
         console.log(builder.toString())
 
         // console.log(utf8.test("\xee\x80\x80"))
