@@ -3,6 +3,44 @@
 #include "unicode_utf8.h"
 #include "_append.h"
 #include "../internal/strconv.h"
+
+#define EJS_STRCONV_ERROR_NUM 1
+#define EJS_STRCONV_ERROR_SYNTAX 2
+#define EJS_STRCONV_ERROR_RANGE 3
+#define EJS_STRCONV_ERROR_BASE 4
+#define EJS_STRCONV_ERROR_BIT_SIZE 5
+
+static duk_ret_t strconv_throw_name(duk_context *ctx,
+                                    duk_idx_t idx,
+                                    int what,
+                                    const char *name, duk_size_t len)
+{
+    if (idx < 0)
+    {
+        idx = duk_require_normalize_index(ctx, idx);
+    }
+
+    duk_push_int(ctx, what);
+    duk_put_prop_lstring(ctx, idx, "_what", 5);
+    if (len && name)
+    {
+        duk_push_lstring(ctx, name, len);
+        duk_put_prop_lstring(ctx, idx, "_fn", 3);
+    }
+    if (idx)
+    {
+        duk_swap(ctx, 0, idx);
+    }
+    duk_idx_t pop = duk_get_top_index(ctx);
+    if (pop)
+    {
+        duk_pop_n(ctx, pop);
+    }
+    duk_get_prop_lstring(ctx, 0, "_throw", 6);
+    duk_swap_top(ctx, -2);
+    duk_call(ctx, 1);
+}
+
 static duk_ret_t toString(duk_context *ctx)
 {
     duk_size_t len;
@@ -63,15 +101,20 @@ static duk_ret_t appendBool(duk_context *ctx)
 }
 static duk_ret_t parseBool(duk_context *ctx)
 {
+    duk_get_prop_lstring(ctx, 0, "input", 5);
     duk_size_t len;
-    const uint8_t *s = duk_require_lstring(ctx, 0, &len);
+    const uint8_t *s = duk_require_lstring(ctx, -1, &len);
+    // duk_pop(ctx);
+
     int v = ppp_strconv_parse_bool(s, len);
-    duk_pop(ctx);
     if (v < 0)
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseBool invalid syntax");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, -2,
+            EJS_STRCONV_ERROR_SYNTAX,
+            "parseBool", 9);
     }
+    duk_pop(ctx);
     if (v)
     {
         duk_push_true(ctx);
@@ -84,16 +127,16 @@ static duk_ret_t parseBool(duk_context *ctx)
 }
 static duk_ret_t formatUint(duk_context *ctx)
 {
-    int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 1, 10);
+    int base = _ejs_require_lprop_number(ctx, 0, "base", 4);
     if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
     {
-        duk_pop_2(ctx);
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal formatUint base");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_BASE,
+            "formatUint", 10);
     }
-    uint64_t i = duk_require_number(ctx, 0);
-    duk_pop_2(ctx);
 
+    uint64_t i = _ejs_require_lprop_number(ctx, 0, "input", 5);
     if (i < PPP_STRCONV_N_SMALLS && base == 10)
     {
         ppp_strconv_small_t small = ppp_strconv_small(i);
@@ -116,16 +159,15 @@ static duk_ret_t formatUint(duk_context *ctx)
 }
 static duk_ret_t formatInt(duk_context *ctx)
 {
-    int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 1, 10);
+    int base = _ejs_require_lprop_number(ctx, 0, "base", 4);
     if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
     {
-        duk_pop_2(ctx);
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal formatInt base");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_BASE,
+            "formatInt", 10);
     }
-    int64_t i = duk_require_number(ctx, 0);
-    duk_pop_2(ctx);
-
+    int64_t i = _ejs_require_lprop_number(ctx, 0, "input", 5);
     if (i < PPP_STRCONV_N_SMALLS && base == 10)
     {
         ppp_strconv_small_t small = ppp_strconv_small(i);
@@ -388,15 +430,10 @@ static uint64_t _parseUint(
     }
     else
     {
-        if (isuint)
-        {
-            duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal parseUint base");
-        }
-        else
-        {
-            duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal parseInt base");
-        }
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_BASE,
+            0, 0);
     }
     if (bitSize == 0)
     {
@@ -404,15 +441,10 @@ static uint64_t _parseUint(
     }
     else if (bitSize < 0 || bitSize > 64)
     {
-        if (isuint)
-        {
-            duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal parseUint bitSize");
-        }
-        else
-        {
-            duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal parseInt bitSize");
-        }
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_BIT_SIZE,
+            0, 0);
     }
     // Cutoff is the smallest number such that cutoff*base > maxUint64.
     // Use compile-time constants for common cases.
@@ -456,42 +488,27 @@ static uint64_t _parseUint(
             }
             else
             {
-                if (isuint)
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseUint invalid syntax");
-                }
-                else
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseInt invalid syntax");
-                }
-                duk_throw(ctx);
+                strconv_throw_name(
+                    ctx, 0,
+                    EJS_STRCONV_ERROR_SYNTAX,
+                    0, 0);
             }
         }
 
         if (d >= base)
         {
-            if (isuint)
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseUint invalid syntax");
-            }
-            else
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseInt invalid syntax");
-            }
-            duk_throw(ctx);
+            strconv_throw_name(
+                ctx, 0,
+                EJS_STRCONV_ERROR_SYNTAX,
+                0, 0);
         }
         if (n >= cutoff)
         {
             // n*base overflows
-            if (isuint)
-            {
-                duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseUint value out of range");
-            }
-            else
-            {
-                duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseInt value out of range");
-            }
-            duk_throw(ctx);
+            strconv_throw_name(
+                ctx, 0,
+                EJS_STRCONV_ERROR_RANGE,
+                0, 0);
         }
         n *= (uint64_t)(base);
 
@@ -499,30 +516,20 @@ static uint64_t _parseUint(
         if (n1 < n || n1 > maxVal)
         {
             // n+d overflows
-            if (isuint)
-            {
-                duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseUint value out of range");
-            }
-            else
-            {
-                duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseInt value out of range");
-            }
-            duk_throw(ctx);
+            strconv_throw_name(
+                ctx, 0,
+                EJS_STRCONV_ERROR_RANGE,
+                0, 0);
         }
         n = n1;
     }
 
     if (underscores && !underscoreOK(s0, s0_len))
     {
-        if (isuint)
-        {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseUint invalid syntax");
-        }
-        else
-        {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseInt invalid syntax");
-        }
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_SYNTAX,
+            0, 0);
     }
     return n;
 }
@@ -555,8 +562,10 @@ static int64_t _parseInt(
     cutoff <<= (bitSize - 1);
     if (un >= cutoff)
     {
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseInt value out of range");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_RANGE,
+            0, 0);
     }
     int64_t n = un;
     if (neg)
@@ -568,26 +577,38 @@ static int64_t _parseInt(
 static duk_ret_t parseInt(duk_context *ctx)
 {
     duk_size_t s_len;
-    const uint8_t *s = duk_require_lstring(ctx, 0, &s_len);
-    int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 1, 0);
-    int bitSize = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 2, 64);
-    duk_pop_3(ctx);
+    const uint8_t *s = _ejs_require_lprop_lstring(
+        ctx, 0,
+        "input", 5,
+        &s_len);
+    int base = _ejs_require_lprop_number(
+        ctx, 0,
+        "base", 4);
+    int bitSize = _ejs_require_lprop_number(
+        ctx, 0,
+        "bitSize", 7);
     if (s_len == 0)
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseInt invalid syntax");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_SYNTAX,
+            0, 0);
     }
 
     int64_t v = _parseInt(ctx, s, s_len, base, bitSize);
     if (v > EJS_SHARED_MODULE__MAX_SAFE_INTEGER)
     {
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseInt exceeds maximum safe value");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_RANGE,
+            0, 0);
     }
     else if (v < EJS_SHARED_MODULE__MIN_SAFE_INTEGER)
     {
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseInt exceeds minimum safe value");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_RANGE,
+            0, 0);
     }
     duk_push_number(ctx, v);
     return 1;
@@ -595,23 +616,82 @@ static duk_ret_t parseInt(duk_context *ctx)
 static duk_ret_t parseUint(duk_context *ctx)
 {
     duk_size_t s_len;
-    const uint8_t *s = duk_require_lstring(ctx, 0, &s_len);
-    int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 1, 0);
-    int bitSize = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 2, 64);
-    duk_pop_3(ctx);
+    const uint8_t *s = _ejs_require_lprop_lstring(
+        ctx, 0,
+        "input", 5,
+        &s_len);
+    int base = _ejs_require_lprop_number(
+        ctx, 0,
+        "base", 4);
+    int bitSize = _ejs_require_lprop_number(
+        ctx, 0,
+        "bitSize", 7);
     if (s_len == 0)
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "strconv: parseUint invalid syntax");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_SYNTAX,
+            0, 0);
     }
 
     uint64_t v = _parseUint(ctx, s, s_len, base, bitSize, 1);
     if (v > EJS_SHARED_MODULE__MAX_SAFE_INTEGER)
     {
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: parseUint exceeds maximum safe value");
-        duk_throw(ctx);
+        strconv_throw_name(
+            ctx, 0,
+            EJS_STRCONV_ERROR_RANGE,
+            0, 0);
     }
     duk_push_number(ctx, v);
+    return 1;
+}
+static duk_ret_t fast_atoi(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const uint8_t *s = _ejs_require_lprop_lstring(
+        ctx, 0,
+        "input", 5,
+        &s_len);
+
+    const uint8_t *s0 = s;
+    duk_size_t s0_len = s_len;
+    duk_bool_t neg = 0;
+    switch (s[0])
+    {
+    case '-':
+        neg = 1;
+    case '+':
+        if (s_len < 2)
+        {
+            strconv_throw_name(
+                ctx, 0,
+                EJS_STRCONV_ERROR_SYNTAX,
+                "atoi", 4);
+        }
+        s++;
+        s_len--;
+        break;
+    }
+
+    int64_t n = 0;
+    uint8_t ch;
+    for (size_t i = 0; i < s_len; i++)
+    {
+        ch = s[i] - '0';
+        if (ch > 9)
+        {
+            strconv_throw_name(
+                ctx, 0,
+                EJS_STRCONV_ERROR_SYNTAX,
+                "atoi", 4);
+        }
+        n = n * 10 + ch;
+    }
+    if (neg)
+    {
+        n = -n;
+    }
+    duk_push_number(ctx, n);
     return 1;
 }
 EJS_SHARED_MODULE__DECLARE(strconv)
@@ -629,6 +709,16 @@ EJS_SHARED_MODULE__DECLARE(strconv)
 
     duk_push_object(ctx);
     {
+        duk_push_number(ctx, EJS_STRCONV_ERROR_NUM);
+        duk_put_prop_lstring(ctx, -2, "ErrNum", 6);
+        duk_push_number(ctx, EJS_STRCONV_ERROR_SYNTAX);
+        duk_put_prop_lstring(ctx, -2, "ErrSyntax", 9);
+        duk_push_number(ctx, EJS_STRCONV_ERROR_RANGE);
+        duk_put_prop_lstring(ctx, -2, "ErrRange", 8);
+        duk_push_number(ctx, EJS_STRCONV_ERROR_BASE);
+        duk_put_prop_lstring(ctx, -2, "ErrBase", 7);
+        duk_push_number(ctx, EJS_STRCONV_ERROR_BIT_SIZE);
+        duk_put_prop_lstring(ctx, -2, "ErrBitSize", 10);
 
         duk_push_c_lightfunc(ctx, toString, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "toString", 8);
@@ -643,10 +733,10 @@ EJS_SHARED_MODULE__DECLARE(strconv)
 
         duk_push_c_lightfunc(ctx, appendBool, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "appendBool", 10);
-        duk_push_c_lightfunc(ctx, parseBool, 3, 1, 1);
+        duk_push_c_lightfunc(ctx, parseBool, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parseBool", 9);
 
-        duk_push_c_lightfunc(ctx, formatUint, 2, 2, 0);
+        duk_push_c_lightfunc(ctx, formatUint, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "formatUint", 10);
         duk_push_c_lightfunc(ctx, formatInt, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "formatInt", 9);
@@ -655,10 +745,12 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_push_c_lightfunc(ctx, appendInt, 4, 4, 0);
         duk_put_prop_lstring(ctx, -2, "appendInt", 9);
 
-        duk_push_c_lightfunc(ctx, parseInt, 3, 3, 0);
+        duk_push_c_lightfunc(ctx, parseInt, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parseInt", 8);
-        duk_push_c_lightfunc(ctx, parseUint, 3, 3, 0);
+        duk_push_c_lightfunc(ctx, parseUint, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parseUint", 9);
+        duk_push_c_lightfunc(ctx, fast_atoi, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "fast_atoi", 9);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

@@ -1,4 +1,20 @@
 declare namespace deps {
+    const ErrNum: number
+    const ErrSyntax: number
+    const ErrRange: number
+    const ErrBase: number
+    const ErrBitSize: number
+    interface ThrowOptions {
+        _what: number
+        _fn: string
+        _err?: any
+    }
+    interface Options {
+        _fn?: string
+        _throw: (opts: any) => never
+    }
+
+
     function toString(b: Uint8Array): string
     function toBuffer(s: string): Uint8Array
 
@@ -7,14 +23,124 @@ declare namespace deps {
     function appendRune(r: Array<number>, buf: Uint8Array | undefined, len: number): [Uint8Array, number]
 
     function appendBool(vals: Array<boolean>, buf: Uint8Array | undefined, len: number): [Uint8Array, number]
-    function parseBool(str: string): boolean
+    interface ParseBoolOptions extends Options {
+        input: string
+    }
+    function parseBool(opts: ParseBoolOptions): boolean
+    interface FormatUintOptions extends Options {
+        input: number
+        base: number
+    }
+    function formatUint(opts: FormatUintOptions): string
+    function formatInt(opts: FormatUintOptions): string
 
-    function formatUint(i: number, base?: number): string
-    function formatInt(i: number, base?: number): string
     function appendUint(buf: Uint8Array | undefined, len: number, i: number, base?: number): [Uint8Array, number]
     function appendInt(buf: Uint8Array | undefined, len: number, i: number, base?: number): [Uint8Array, number]
-    function parseUint(s: string, base?: number, bitSize?: number): number
-    function parseInt(s: string, base?: number, bitSize?: number): number
+
+    interface ParseUintOptions extends Options {
+        input: string
+        base: number
+        bitSize: number
+    }
+    function parseUint(opts: ParseUintOptions): number
+    function parseInt(opts: ParseUintOptions): number
+    interface FastAtoIOptions extends Options {
+        input: string
+    }
+    function fast_atoi(opts: FastAtoIOptions): number
+}
+
+export interface NumErrorOptions {
+    /**
+     * the failing function (parseBool, parseInt, parseUint, ...)
+     */
+    func: string
+    /**
+     * the input
+     */
+    input: string | number
+    /**
+     * the reason the conversion failed 
+     */
+    err: any
+}
+export class NumError extends Error {
+    constructor(public opts: NumErrorOptions) {
+        super()
+        // restore prototype chain   
+        const proto = new.target.prototype
+        if (Object.setPrototypeOf) {
+            Object.setPrototypeOf(this, proto)
+        }
+        else {
+            (this as any).__proto__ = proto
+        }
+        this.name = "NumError"
+    }
+    get message(): string {
+        const opts = this.opts
+        const err = opts.err
+        let input = opts.input
+        return `strconv.${opts.func} ${input}: ${err instanceof Error ? err.message : err}`
+    }
+    unwrap() {
+        return this.opts.err
+    }
+}
+/**
+ * indicates that a value is out of range for the target type.
+ */
+export const ErrRange = new RangeError("value out of range")
+
+/**
+ * indicates that a value does not have the right syntax for the target type.
+ */
+export const ErrSyntax = new Error("invalid syntax")
+
+interface ThrowOptions extends deps.ThrowOptions {
+    input: any
+    base?: number
+    bitSize?: number
+}
+function throwError(opts: ThrowOptions): never {
+    switch (opts._what) {
+        case deps.ErrNum:
+            throw new NumError({
+                func: opts._fn,
+                input: opts.input,
+                err: opts._err,
+            })
+        case deps.ErrSyntax:
+            throw new NumError({
+                func: opts._fn,
+                input: opts.input,
+                err: ErrSyntax,
+            })
+        case deps.ErrRange:
+            throw new NumError({
+                func: opts._fn,
+                input: opts.input,
+                err: ErrRange,
+            })
+        case deps.ErrBase:
+            throw new NumError({
+                func: opts._fn,
+                input: opts.input,
+                err: new Error(`invalid base ${opts.base}`),
+            })
+        case deps.ErrBitSize:
+            throw new NumError({
+                func: opts._fn,
+                input: opts.input,
+                err: new Error(`invalid bit size ${opts.bitSize}`),
+            })
+        default:
+            throw new NumError({
+                func: opts._fn,
+                input: opts.input,
+                err: `unknow error what ${opts._what}`,
+            })
+    }
 }
 
 /**
@@ -33,9 +159,13 @@ export function formatBool(b: any): string {
  * returns the boolean value represented by the string.
  * It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
  * Any other value returns undefined.
+ * @throws NumError
  */
 export function parseBool(str: string): boolean {
-    return deps.parseBool(str)
+    return deps.parseBool({
+        _throw: throwError,
+        input: str,
+    })
 }
 
 /**
@@ -43,25 +173,67 @@ export function parseBool(str: string): boolean {
  * for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
  * for digit values >= 10.
  */
-export function formatUint(i: number, base?: number): string {
-    return deps.formatUint(i, base)
+export function formatUint(i: number, base = 10): string {
+    return deps.formatUint({
+        _throw: throwError,
+        input: i,
+        base: base,
+    })
 }
 /**
  * Like parseInt but for unsigned numbers.
  * A sign prefix is not permitted.
  */
-export function parseUint(s: string, base?: number, bitSize?: number): number {
-    return deps.parseUint(s, base, bitSize)
+export function parseUint(s: string, base = 0, bitSize = 64): number {
+    return deps.parseUint({
+        _throw: throwError,
+        _fn: 'parseUint',
+        input: s,
+        base: base,
+        bitSize: bitSize,
+    })
 }
+
 /**
  * returns the string representation of i in the given base,
  * for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
  * for digit values >= 10.
  */
-export function formatInt(i: number, base?: number): string {
-    return deps.formatInt(i, base)
+export function formatInt(i: number, base = 10): string {
+    return deps.formatInt({
+        _throw: throwError,
+        input: i,
+        base: base,
+    })
 }
-
+/**
+ * equivalent to formatInt(i, 10).
+ */
+export function itoa(i: number): string {
+    return deps.formatInt({
+        _throw: throwError,
+        input: i,
+        base: 10,
+    })
+}
+/**
+ * equivalent to parseInt(s, 10, 0), converted to type int.
+ */
+export function atoi(s: string): number {
+    if (0 < s.length && s.length < 19) {
+        return deps.fast_atoi({
+            _throw: throwError,
+            input: s,
+        })
+    }
+    return deps.parseInt({
+        _throw: throwError,
+        _fn: 'atoi',
+        input: s,
+        base: 0,
+        bitSize: 64,
+    })
+}
 /**
  * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
  * The string may begin with a leading sign: "+" or "-".
@@ -69,8 +241,14 @@ export function formatInt(i: number, base?: number): string {
  * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the Go syntax for integer literals.
  * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
  */
-export function parseInt(s: string, base?: number, bitSize?: number): number {
-    return deps.parseInt(s, base, bitSize)
+export function parseInt(s: string, base = 0, bitSize = 64): number {
+    return deps.parseInt({
+        _throw: throwError,
+        _fn: 'parseInt',
+        input: s,
+        base: base,
+        bitSize: bitSize,
+    })
 }
 /**
  * used to build string

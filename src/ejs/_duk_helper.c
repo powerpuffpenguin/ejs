@@ -380,3 +380,22 @@ duk_ret_t _ejs_async_read_text_file(duk_context *ctx, const char *name)
     EJS_ASYNC_POST_OR_SEND_UINT8ARRAY_TEXT(ctx, _ejs_async_read_file_impl);
     return 0;
 }
+const char *_ejs_require_lprop_lstring(
+    duk_context *ctx, duk_idx_t idx,
+    const char *key, duk_size_t key_len,
+    duk_size_t *out_len)
+{
+    duk_get_prop_lstring(ctx, idx, key, key_len);
+    const char *v = duk_require_lstring(ctx, -1, out_len);
+    duk_pop(ctx);
+    return v;
+}
+duk_double_t _ejs_require_lprop_number(
+    duk_context *ctx, duk_idx_t idx,
+    const char *key, duk_size_t key_len)
+{
+    duk_get_prop_lstring(ctx, idx, key, key_len);
+    duk_double_t v = duk_require_number(ctx, -1);
+    duk_pop(ctx);
+    return v;
+}

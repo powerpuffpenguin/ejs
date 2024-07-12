@@ -55,4 +55,19 @@ duk_ret_t _ejs_async_read_file(duk_context *ctx, const char *name);
  */
 duk_ret_t _ejs_async_read_text_file(duk_context *ctx, const char *name);
 
+/**
+ * ... {} ... -> ... {} ...
+ */
+const char *_ejs_require_lprop_lstring(
+    duk_context *ctx, duk_idx_t idx,
+    const char *key, duk_size_t key_len,
+    duk_size_t *out_len);
+/**
+ * ... {} ... -> ... {} ...
+ */
+duk_double_t _ejs_require_lprop_number(
+    duk_context *ctx, duk_idx_t idx,
+    const char *key, duk_size_t key_len);
+
+
 #endif
