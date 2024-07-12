@@ -74,6 +74,7 @@ static duk_ret_t toBuffer(duk_context *ctx)
 }
 static void bool_get_at(duk_context *ctx, duk_idx_t idx, void *value)
 {
+    *(uint8_t *)value = 0;
     if (duk_is_null_or_undefined(ctx, idx))
     {
         return;
@@ -93,7 +94,7 @@ static int bool_encode(void *dst, size_t dst_len, void *value)
 }
 static duk_ret_t appendBool(duk_context *ctx)
 {
-    uint8_t value = 0;
+    uint8_t value;
     return __ejs__modules_append(
         ctx,
         &value, 4,
@@ -226,12 +227,12 @@ static duk_ret_t append_raw(
 static duk_ret_t appendUint(duk_context *ctx)
 {
     int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 3, 10);
-    if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
-    {
-        duk_pop_n(ctx, 4);
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal appendUint base");
-        duk_throw(ctx);
-    }
+    // if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
+    // {
+    //     duk_pop_n(ctx, 4);
+    //     duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal appendUint base");
+    //     duk_throw(ctx);
+    // }
     uint64_t i = duk_require_number(ctx, 2);
     duk_size_t buf_cap;
     uint8_t *buf = duk_get_buffer_data_default(ctx, 1, &buf_cap, 0, 0);
@@ -268,12 +269,12 @@ static duk_ret_t appendUint(duk_context *ctx)
 static duk_ret_t appendInt(duk_context *ctx)
 {
     int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 3, 10);
-    if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
-    {
-        duk_pop_n(ctx, 4);
-        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal appendInt base");
-        duk_throw(ctx);
-    }
+    // if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
+    // {
+    //     duk_pop_n(ctx, 4);
+    //     duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal appendInt base");
+    //     duk_throw(ctx);
+    // }
     uint64_t i = duk_require_number(ctx, 2);
     duk_size_t buf_cap;
     uint8_t *buf = duk_get_buffer_data_default(ctx, 1, &buf_cap, 0, 0);
@@ -709,6 +710,12 @@ EJS_SHARED_MODULE__DECLARE(strconv)
 
     duk_push_object(ctx);
     {
+
+        duk_push_number(ctx, PPP_STRCONV_MIN_BASE);
+        duk_put_prop_lstring(ctx, -2, "minBase", 7);
+        duk_push_number(ctx, PPP_STRCONV_MAX_BASE);
+        duk_put_prop_lstring(ctx, -2, "maxBase", 7);
+
         duk_push_number(ctx, EJS_STRCONV_ERROR_NUM);
         duk_put_prop_lstring(ctx, -2, "ErrNum", 6);
         duk_push_number(ctx, EJS_STRCONV_ERROR_SYNTAX);
@@ -731,7 +738,7 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_push_c_lightfunc(ctx, __ejs__unicode_utf8__append_rune, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "appendRune", 10);
 
-        duk_push_c_lightfunc(ctx, appendBool, 3, 3, 0);
+        duk_push_c_lightfunc(ctx, appendBool, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "appendBool", 10);
         duk_push_c_lightfunc(ctx, parseBool, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parseBool", 9);

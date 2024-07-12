@@ -9,10 +9,9 @@ var strconv = require("ejs/strconv")
 
 function main() {
     try {
-
-        // console.log(new RangeError("123").toString())
-        console.log(strconv.parseInt('123', undefined, 32))
-
+        var builder = new strconv.StringBuilder()
+        builder.appendBool(false, true, 0, 1)
+        console.log(builder.toString())
 
         // console.log(utf8.test("\xee\x80\x80"))
         // console.log(parseInt("0xB", 16))
