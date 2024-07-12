@@ -738,7 +738,7 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_push_c_lightfunc(ctx, __ejs__unicode_utf8__append_rune, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "appendRune", 10);
 
-        duk_push_c_lightfunc(ctx, appendBool, 1, 1, 0);
+        duk_push_c_lightfunc(ctx, appendBool, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "appendBool", 10);
         duk_push_c_lightfunc(ctx, parseBool, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parseBool", 9);
