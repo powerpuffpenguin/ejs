@@ -52,6 +52,9 @@ declare namespace deps {
     }
     function fast_atoi(opts: FastAtoIOptions): number
 
+    function isGraphic(r: number): boolean
+    function isPrint(r: number): boolean
+
     interface AppendQuotedWithOptions {
         buf?: Uint8Array
         len: number
@@ -263,6 +266,23 @@ export function parseInt(s: string, base = 0, bitSize = 64): number {
         base: base,
         bitSize: bitSize,
     })
+}
+
+/**
+ * Reports whether the rune is defined as a Graphic by Unicode. Such
+ * characters include letters, marks, numbers, punctuation, symbols, and
+ * spaces, from categories L, M, N, P, S, and Zs.
+ */
+export function isGraphic(r: number): boolean {
+    return deps.isGraphic(r)
+}
+/**
+ * Reports whether the rune is defined as printable by Go, with
+ * the same definition as unicode.IsPrint: letters, numbers, punctuation,
+ * symbols and ASCII space.
+ */
+export function isPrint(r: number): boolean {
+    return deps.isPrint(r)
 }
 /**
  * used to build string

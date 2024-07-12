@@ -55,4 +55,8 @@ typedef struct
 ppp_strconv_small_t ppp_strconv_small(int i);
 
 #define PPP_STRCONV_LOWER(c) ((uint8_t)(c) | ('x' - 'X'))
+
+int ppp_strconv_is_print(int32_t r);
+int ppp_strconv_is_graphic(int32_t r);
+
 #endif

@@ -695,6 +695,34 @@ static duk_ret_t fast_atoi(duk_context *ctx)
     duk_push_number(ctx, n);
     return 1;
 }
+static duk_ret_t isGraphic(duk_context *ctx)
+{
+    int32_t r = duk_require_number(ctx, 0);
+    duk_pop(ctx);
+    if (ppp_strconv_is_graphic(r))
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
+static duk_ret_t isPrint(duk_context *ctx)
+{
+    int32_t r = duk_require_number(ctx, 0);
+    duk_pop(ctx);
+    if (ppp_strconv_is_print(r))
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(strconv)
 {
     /*
@@ -758,6 +786,10 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_put_prop_lstring(ctx, -2, "parseUint", 9);
         duk_push_c_lightfunc(ctx, fast_atoi, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "fast_atoi", 9);
+        duk_push_c_lightfunc(ctx, isGraphic, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "isGraphic", 9);
+        duk_push_c_lightfunc(ctx, isPrint, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "isPrint", 7);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

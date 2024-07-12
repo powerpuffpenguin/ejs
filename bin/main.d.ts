@@ -339,6 +339,19 @@ declare module "ejs/strconv" {
      * equivalent to parseInt(s, 10, 0), converted to type int.
      */
     export function atoi(s: string): number
+
+    /**
+     * Reports whether the rune is defined as a Graphic by Unicode. Such
+     * characters include letters, marks, numbers, punctuation, symbols, and
+     * spaces, from categories L, M, N, P, S, and Zs.
+     */
+    export function isGraphic(r: Rune): boolean
+    /**
+     * Reports whether the rune is defined as printable by Go, with
+     * the same definition as unicode.IsPrint: letters, numbers, punctuation,
+     * symbols and ASCII space.
+     */
+    export function isPrint(r: Rune): boolean
     /**
      * used to build string
      */
