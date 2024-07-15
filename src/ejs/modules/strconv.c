@@ -723,6 +723,242 @@ static duk_ret_t isPrint(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t canBackquote(duk_context *ctx)
+{
+    duk_size_t len;
+    const uint8_t *s = duk_require_lstring(ctx, 0, &len);
+    duk_pop(ctx);
+
+    if (ppp_strconv_can_backquote(s, len))
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
+static duk_ret_t _len(duk_context *ctx)
+{
+    duk_size_t len;
+    if (duk_is_string(ctx, 0))
+    {
+        duk_require_lstring(ctx, 0, &len);
+    }
+    else
+    {
+        duk_require_buffer_data(ctx, 0, &len);
+    }
+    duk_pop(ctx);
+    duk_push_number(ctx, len);
+    return 1;
+}
+// ... Uint8Array => ... Uint8Array
+static uint8_t *appendByte(
+    duk_context *ctx,
+    uint8_t *buf, duk_size_t *p_len, duk_size_t *p_cap,
+    uint8_t c)
+{
+    duk_size_t len = *p_len;
+    duk_size_t cap = ppp_c_string_grow_calculate(*p_cap, len, 1);
+    if (cap)
+    {
+        void *p = duk_push_fixed_buffer(ctx, cap);
+        memcpy(p, buf, len);
+        buf = p;
+        *p_cap = cap;
+        duk_swap_top(ctx, -2);
+        duk_pop(ctx);
+    }
+    buf[len++] = c;
+    *p_len = len;
+    return buf;
+}
+// ... Uint8Array => ... Uint8Array
+static uint8_t *appendBytes(
+    duk_context *ctx,
+    uint8_t *buf, duk_size_t *p_len, duk_size_t *p_cap,
+    const uint8_t *s, duk_size_t s_len)
+{
+    duk_size_t len = *p_len;
+    duk_size_t cap = ppp_c_string_grow_calculate(*p_cap, len, 2);
+    if (cap)
+    {
+        void *p = duk_push_fixed_buffer(ctx, cap);
+        memcpy(p, buf, len);
+        buf = p;
+        *p_cap = cap;
+        duk_swap_top(ctx, -2);
+        duk_pop(ctx);
+        memcpy(buf + len, s, s_len);
+    }
+    else
+    {
+        memmove(buf + len, s, s_len);
+    }
+    *p_len = len + s_len;
+    return buf;
+}
+static uint8_t *appendEscapedRune(
+    duk_context *ctx,
+    uint8_t *buf, duk_size_t *buf_len, duk_size_t *buf_cap,
+    ppp_utf8_rune_t r, uint8_t quote,
+    duk_bool_t ASCIIonly, duk_bool_t graphicOnly)
+{
+    uint8_t runeTmp[4] = {0};
+    if (r == quote || r == '\\')
+    { // always backslashed
+        buf = appendByte(ctx, buf, buf_len, buf_cap, '\\');
+        buf = appendByte(ctx, buf, buf_len, buf_cap, r);
+        return buf;
+    }
+    if (ASCIIonly)
+    {
+        if (r < PPP_UTF8_RUNE_SELF && ppp_strconv_is_print(r))
+        {
+            buf = appendByte(ctx, buf, buf_len, buf_cap, r);
+            return buf;
+        }
+    }
+    else if (ppp_strconv_is_print(r) || graphicOnly && ppp_strconv_is_graphic_list(r))
+    {
+        int n = ppp_utf8_encode(runeTmp, 4, r);
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, runeTmp, n);
+        return buf;
+    }
+    switch (r)
+    {
+    case '\a':
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\a", 2);
+        break;
+    case '\b':
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\b", 2);
+        break;
+    case '\f':
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\f", 2);
+        break;
+    case '\n':
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\n", 2);
+        break;
+    case '\r':
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\r", 2);
+        break;
+    case '\t':
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\t", 2);
+        break;
+    case '\v':
+        buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\v", 2);
+        break;
+    default:
+        if (r < ' ' || r == 0x7f)
+        {
+            const char *lowerhex = EJS_SHARED_LOWER_HEX_DIGIT;
+            buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\x", 2);
+            buf = appendByte(ctx, buf, buf_len, buf_cap, lowerhex[r >> 4]);
+            buf = appendByte(ctx, buf, buf_len, buf_cap, lowerhex[r & 0xF]);
+        }
+        else
+        {
+            if (!ppp_utf8_is_rune(r))
+            {
+                r = 0xFFFD;
+            }
+            const char *lowerhex = EJS_SHARED_LOWER_HEX_DIGIT;
+            if (r < 0x10000)
+            {
+                buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\u", 2);
+                for (int s = 12; s >= 0; s -= 4)
+                {
+                    buf = appendByte(ctx, buf, buf_len, buf_cap, lowerhex[r >> s & 0xF]);
+                }
+            }
+            else
+            {
+                buf = appendBytes(ctx, buf, buf_len, buf_cap, "\\U", 2);
+                for (int s = 28; s >= 0; s -= 4)
+                {
+                    buf = appendByte(ctx, buf, buf_len, buf_cap, lowerhex[r >> s & 0xF]);
+                }
+            }
+        }
+        break;
+    }
+    return buf;
+}
+static duk_ret_t appendQuotedWith(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const uint8_t *s = _ejs_require_lprop_lstring(ctx, 0, "s", 1, &s_len);
+    duk_bool_t ASCIIonly = _ejs_require_lprop_bool(ctx, 0, "ASCIIonly", 9);
+    duk_bool_t graphicOnly = _ejs_require_lprop_bool(ctx, 0, "graphicOnly", 11);
+    uint8_t quote = _ejs_require_lprop_number(ctx, 0, "quote", 5);
+
+    duk_get_prop_lstring(ctx, 0, "buf", 3);
+    uint8_t *buf = 0;
+    duk_size_t buf_cap = 0;
+    if (!duk_is_null_or_undefined(ctx, -1))
+    {
+        buf = duk_require_buffer_data(ctx, -1, &buf_cap);
+    }
+    duk_size_t buf_len = 0;
+    if (buf)
+    {
+        buf_len = _ejs_require_lprop_number(ctx, 0, "len", 3);
+    }
+    duk_push_array(ctx);
+    duk_swap_top(ctx, -2);
+    // Often called with big strings, so preallocate. If there's quoting,
+    // this is conservative but still helps a lot.
+    if (buf_cap - buf_len < s_len)
+    {
+        duk_pop(ctx);
+        buf_cap = buf_len + 1 + s_len + 1;
+        void *p = duk_push_fixed_buffer(ctx, buf_cap);
+        memcpy(p, buf, buf_len);
+        buf = p;
+    }
+
+    buf = appendByte(ctx, buf, &buf_len, &buf_cap, quote);
+    ppp_utf8_rune_t r;
+    const char *lowerhex = EJS_SHARED_LOWER_HEX_DIGIT;
+    for (int width = 0; s_len > 0;)
+    {
+        // 	r := rune(s[0])
+        // width = 1
+        if (s[0] >= PPP_UTF8_RUNE_SELF)
+        {
+            r = ppp_utf8_decode(s, s_len, &width);
+        }
+        else
+        {
+            r = s[0];
+            width = 1;
+        }
+        if (width == 1 && r == PPP_UTF8_RUNE_ERROR)
+        {
+            buf = appendBytes(ctx, buf, &buf_len, &buf_cap, "\\x", 2);
+            buf = appendByte(ctx, buf, &buf_len, &buf_cap, lowerhex[s[0] >> 4]);
+            buf = appendByte(ctx, buf, &buf_len, &buf_cap, lowerhex[s[0] & 0xF]);
+        }
+        else
+        {
+            buf = appendEscapedRune(
+                ctx,
+                buf, &buf_len, &buf_cap,
+                r, quote,
+                ASCIIonly, graphicOnly);
+        }
+        s += width;
+        s_len -= width;
+    }
+    buf = appendByte(ctx, buf, &buf_len, &buf_cap, quote);
+
+    duk_put_prop_index(ctx, -2, 0);
+    duk_push_number(ctx, buf_len);
+    duk_put_prop_index(ctx, -2, 1);
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(strconv)
 {
     /*
@@ -790,6 +1026,13 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_put_prop_lstring(ctx, -2, "isGraphic", 9);
         duk_push_c_lightfunc(ctx, isPrint, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "isPrint", 7);
+        duk_push_c_lightfunc(ctx, canBackquote, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "canBackquote", 12);
+
+        duk_push_c_lightfunc(ctx, _len, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "len", 3);
+        duk_push_c_lightfunc(ctx, appendQuotedWith, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "appendQuotedWith", 16);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

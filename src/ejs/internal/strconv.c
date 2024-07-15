@@ -1592,7 +1592,7 @@ static size_t bsearch32(uint32_t *a, size_t a_len, uint32_t x)
     }
     return i;
 }
-int ppp_strconv_is_print(int32_t r)
+BOOL ppp_strconv_is_print(ppp_utf8_rune_t r)
 {
     // Fast check for Latin-1
     if (r <= 0xFF)
@@ -1600,14 +1600,14 @@ int ppp_strconv_is_print(int32_t r)
         if (0x20 <= r && r <= 0x7E)
         {
             // All the ASCII is printable from space through DEL-1.
-            return 1;
+            return TRUE;
         }
         if (0xA1 <= r && r <= 0xFF)
         {
             // Similarly for ¡ through ÿ...
-            return r != 0xAD ? 1 : 0; // ...except for the bizarre soft hyphen.
+            return r != 0xAD ? TRUE : FALSE; // ...except for the bizarre soft hyphen.
         }
-        return 0;
+        return FALSE;
     }
 
     // Same algorithm, either on uint16 or uint32 value.
@@ -1626,10 +1626,10 @@ int ppp_strconv_is_print(int32_t r)
         size_t i = bsearch16(isPrint, isPrint_len, rr);
         if (i >= isPrint_len || rr < isPrint[i & ~1] || isPrint[i | 1] < rr)
         {
-            return 0;
+            return FALSE;
         }
         size_t j = bsearch16(isNotPrint, isNotPrint_len, rr);
-        return j >= isNotPrint_len || isNotPrint[j] != rr ? 1 : 0;
+        return j >= isNotPrint_len || isNotPrint[j] != rr ? TRUE : FALSE;
     }
     uint32_t rr = r;
     uint32_t *isPrint = isPrint32;
@@ -1639,30 +1639,62 @@ int ppp_strconv_is_print(int32_t r)
     size_t i = bsearch32(isPrint, isPrint_len, rr);
     if (i >= isPrint_len || rr < isPrint[i & ~1] || isPrint[i | 1] < rr)
     {
-        return 0;
+        return FALSE;
     }
     if (r >= 0x20000)
     {
-        return 1;
+        return TRUE;
     }
     r -= 0x10000;
     size_t j = bsearch16(isNotPrint, isNotPrint_len, r);
-    return j >= isNotPrint_len || isNotPrint[j] != r ? 1 : 0;
+    return j >= isNotPrint_len || isNotPrint[j] != r ? TRUE : FALSE;
 }
-int ppp_strconv_is_graphic(int32_t r)
+BOOL ppp_strconv_is_graphic_list(ppp_utf8_rune_t r)
 {
-    if (ppp_strconv_is_print(r))
-    {
-        return 1;
-    }
     // We know r must fit in 16 bits - see makeisprint.go.
     if (r > 0xFFFF)
     {
-        return 0;
+        return FALSE;
     }
     uint16_t rr = r;
     size_t isGraphic_len = sizeof(isGraphic) / sizeof(uint16_t);
     size_t i = bsearch16(isGraphic, isGraphic_len, rr);
 
-    return i < isGraphic_len && rr == isGraphic[i] ? 1 : 0;
+    return i < isGraphic_len && rr == isGraphic[i] ? TRUE : FALSE;
+}
+BOOL ppp_strconv_is_graphic(ppp_utf8_rune_t r)
+{
+    if (ppp_strconv_is_print(r))
+    {
+        return TRUE;
+    }
+    return ppp_strconv_is_graphic_list(r);
+}
+BOOL ppp_strconv_can_backquote(const uint8_t *s, size_t s_len)
+{
+    int wid;
+    ppp_utf8_rune_t r;
+    while (s_len > 0)
+    {
+        r = ppp_utf8_decode(s, s_len, &wid);
+        s += wid;
+        s_len--;
+        if (wid > 1)
+        {
+            if (r == 0xFEFF)
+            {
+                return FALSE; // BOMs are invisible and should not be quoted.
+            }
+            continue; // All other multibyte runes are correctly encoded and assumed printable.
+        }
+        if (r == PPP_UTF8_RUNE_ERROR)
+        {
+            return FALSE;
+        }
+        if ((r < ' ' && r != '\t') || r == '`' || r == 0x7F)
+        {
+            return FALSE;
+        }
+    }
+    return TRUE;
 }

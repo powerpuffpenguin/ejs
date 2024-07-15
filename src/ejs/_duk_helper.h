@@ -69,5 +69,11 @@ duk_double_t _ejs_require_lprop_number(
     duk_context *ctx, duk_idx_t idx,
     const char *key, duk_size_t key_len);
 
+/**
+ * ... {} ... -> ... {} ...
+ */
+duk_bool_t _ejs_require_lprop_bool(
+    duk_context *ctx, duk_idx_t idx,
+    const char *key, duk_size_t key_len);
 
 #endif

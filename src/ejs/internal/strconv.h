@@ -3,10 +3,20 @@
 
 #include <stdint.h>
 #include "c_string.h"
+#include "utf8.h"
 
 #define PPP_STRCONV_N_SMALLS 100
 #define PPP_STRCONV_MIN_BASE 2
 #define PPP_STRCONV_MAX_BASE 36
+
+/**
+ * errno identifies the cause of the error
+ */
+#define PPP_STRCONV_ERROR_OS 1
+/**
+ * syntax error
+ */
+#define PPP_STRCONV_ERROR_SYNTAX 2
 
 int ppp_strconv_encode(uint8_t *p, const size_t p_len, const void *value, size_t value_len, uint8_t mv);
 /**
@@ -56,7 +66,9 @@ ppp_strconv_small_t ppp_strconv_small(int i);
 
 #define PPP_STRCONV_LOWER(c) ((uint8_t)(c) | ('x' - 'X'))
 
-int ppp_strconv_is_print(int32_t r);
-int ppp_strconv_is_graphic(int32_t r);
+BOOL ppp_strconv_is_print(ppp_utf8_rune_t r);
+BOOL ppp_strconv_is_graphic_list(ppp_utf8_rune_t r);
+BOOL ppp_strconv_is_graphic(ppp_utf8_rune_t r);
 
+BOOL ppp_strconv_can_backquote(const uint8_t *s, size_t s_len);
 #endif
