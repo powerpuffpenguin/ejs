@@ -447,13 +447,20 @@ export class StringBuilder {
      * Returns the encoded string
      */
     toString(): string {
-        const len = this.len_
-        if (len) {
-            const buf = this.buf_!
-            return new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+        let s = this.str_
+        if (s === undefined) {
+            const len = this.len_
+            if (len) {
+                const buf = this.buf_!
+                s = new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+            } else {
+                s = ""
+            }
+            this.str_ = s
         }
-        return ""
+        return s
     }
+    private str_?: string
     /**
      * Returns the encoded length in bytes
      */
@@ -497,15 +504,25 @@ export class StringBuilder {
         } else {
             throw new Error("buffer must instanceof Uint8Array")
         }
+        this.str_ = undefined
         return this
     }
     append(val: Uint8Array | string): StringBuilder {
-        const [buf, len] = deps.append(val,
-            this.buf_,
-            this.len_,
-        )
-        this.buf_ = buf
-        this.len_ = len
+        try {
+            const [buf, len] = deps.append(val,
+                this.buf_,
+                this.len_,
+            )
+            this.buf_ = buf
+            this.len_ = len
+        } catch (e) {
+            throw new NumError({
+                func: 'StringBuilder.append',
+                input: val,
+                err: e,
+            })
+        }
+        this.str_ = undefined
         return this
     }
     /**
@@ -529,6 +546,7 @@ export class StringBuilder {
                 })
             }
         }
+        this.str_ = undefined
         return this
     }
     /**
@@ -551,6 +569,7 @@ export class StringBuilder {
                 })
             }
         }
+        this.str_ = undefined
         return this
     }
     /**
@@ -573,7 +592,6 @@ export class StringBuilder {
             )
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendInt',
@@ -581,6 +599,8 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
     /**
      * Appends the string form of the integer i,
@@ -602,7 +622,6 @@ export class StringBuilder {
             )
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendUint',
@@ -610,6 +629,8 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
     /**
      * appends a double-quoted string literal representing s,
@@ -633,7 +654,6 @@ export class StringBuilder {
             })
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendQuote',
@@ -641,6 +661,8 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
     /**
      * Appends a double-quoted  string literal representing s,
@@ -664,7 +686,6 @@ export class StringBuilder {
             })
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendQuoteToASCII',
@@ -672,6 +693,8 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
     /**
      * Appends a double-quoted string literal representing s, 
@@ -695,7 +718,6 @@ export class StringBuilder {
             })
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendQuoteToGraphic',
@@ -703,6 +725,8 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
     /**
      * Appends a single-quoted character literal representing the rune, 
@@ -720,7 +744,6 @@ export class StringBuilder {
             })
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendQuoteRune',
@@ -728,6 +751,8 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
     /**
      * Appends a single-quoted character literal representing the rune, 
@@ -745,7 +770,6 @@ export class StringBuilder {
             })
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendQuoteRuneToASCII',
@@ -753,6 +777,8 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
     /**
      * Appends a single-quoted character literal representing the rune, 
@@ -770,7 +796,6 @@ export class StringBuilder {
             })
             this.buf_ = buf
             this.len_ = len
-            return this
         } catch (e) {
             throw new NumError({
                 func: 'StringBuilder.appendQuoteRuneToGraphic',
@@ -778,5 +803,7 @@ export class StringBuilder {
                 err: e,
             })
         }
+        this.str_ = undefined
+        return this
     }
 }

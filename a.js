@@ -10,10 +10,9 @@ var strconv = require("ejs/strconv")
 function main() {
     try {
         var builder = new strconv.StringBuilder()
-        builder.appendBool(false, true, 0, 1).append("yes ok")
-        console.log(strconv.quote('abc'))
-        console.log("'".charCodeAt(0))
+        builder.appendQuoteRune('a'.charCodeAt(0))
 
+        console.log(builder.toString())
         // console.log(utf8.test("\xee\x80\x80"))
         // console.log(parseInt("0xB", 16))
 

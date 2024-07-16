@@ -1560,7 +1560,7 @@ static size_t bsearch16(uint16_t *a, size_t a_len, uint16_t x)
     size_t h;
     while (i < j)
     {
-        h = i + (j - i) >> 1;
+        h = i + ((j - i) >> 1);
         if (a[h] < x)
         {
             i = h + 1;
@@ -1580,7 +1580,7 @@ static size_t bsearch32(uint32_t *a, size_t a_len, uint32_t x)
     size_t h;
     while (i < j)
     {
-        h = i + (j - i) >> 1;
+        h = i + ((j - i) >> 1);
         if (a[h] < x)
         {
             i = h + 1;
@@ -1615,7 +1615,6 @@ BOOL ppp_strconv_is_print(ppp_utf8_rune_t r)
     // This is the index of either the start or end of a pair that might span x.
     // The start is even (isPrint[i&^1]) and the end is odd (isPrint[i|1]).
     // If we find x in a range, make sure x is not in isNotPrint list.
-
     if (0 <= r && r < 1 << 16)
     {
         uint16_t rr = r;
@@ -1631,6 +1630,7 @@ BOOL ppp_strconv_is_print(ppp_utf8_rune_t r)
         size_t j = bsearch16(isNotPrint, isNotPrint_len, rr);
         return j >= isNotPrint_len || isNotPrint[j] != rr ? TRUE : FALSE;
     }
+
     uint32_t rr = r;
     uint32_t *isPrint = isPrint32;
     size_t isPrint_len = sizeof(isPrint32) / sizeof(uint32_t);

@@ -808,11 +808,13 @@ static uint8_t *appendEscapedRune(
 {
     uint8_t runeTmp[4] = {0};
     if (r == quote || r == '\\')
-    { // always backslashed
+    {
+        // always backslashed
         buf = appendByte(ctx, buf, buf_len, buf_cap, '\\');
         buf = appendByte(ctx, buf, buf_len, buf_cap, r);
         return buf;
     }
+
     if (ASCIIonly)
     {
         if (r < PPP_UTF8_RUNE_SELF && ppp_strconv_is_print(r))
@@ -821,11 +823,14 @@ static uint8_t *appendEscapedRune(
             return buf;
         }
     }
-    else if (ppp_strconv_is_print(r) || graphicOnly && ppp_strconv_is_graphic_list(r))
+    else
     {
-        int n = ppp_utf8_encode(runeTmp, 4, r);
-        buf = appendBytes(ctx, buf, buf_len, buf_cap, runeTmp, n);
-        return buf;
+        if (ppp_strconv_is_print(r) || graphicOnly && ppp_strconv_is_graphic_list(r))
+        {
+            int n = ppp_utf8_encode(runeTmp, 4, r);
+            buf = appendBytes(ctx, buf, buf_len, buf_cap, runeTmp, n);
+            return buf;
+        }
     }
     switch (r)
     {
@@ -959,6 +964,45 @@ static duk_ret_t appendQuotedWith(duk_context *ctx)
     duk_put_prop_index(ctx, -2, 1);
     return 1;
 }
+static duk_ret_t appendQuotedRuneWith(duk_context *ctx)
+{
+    ppp_utf8_rune_t r = _ejs_require_lprop_number(ctx, 0, "r", 1);
+    duk_bool_t ASCIIonly = _ejs_require_lprop_bool(ctx, 0, "ASCIIonly", 9);
+    duk_bool_t graphicOnly = _ejs_require_lprop_bool(ctx, 0, "graphicOnly", 11);
+    uint8_t quote = _ejs_require_lprop_number(ctx, 0, "quote", 5);
+
+    duk_get_prop_lstring(ctx, 0, "buf", 3);
+    uint8_t *buf = 0;
+    duk_size_t buf_cap = 0;
+    if (!duk_is_null_or_undefined(ctx, -1))
+    {
+        buf = duk_require_buffer_data(ctx, -1, &buf_cap);
+    }
+    duk_size_t buf_len = 0;
+    if (buf)
+    {
+        buf_len = _ejs_require_lprop_number(ctx, 0, "len", 3);
+    }
+    duk_push_array(ctx);
+    duk_swap_top(ctx, -2);
+
+    buf = appendByte(ctx, buf, &buf_len, &buf_cap, quote);
+    if (!ppp_utf8_is_rune(r))
+    {
+        r = PPP_UTF8_RUNE_ERROR;
+    }
+    buf = appendEscapedRune(
+        ctx,
+        buf, &buf_len, &buf_cap,
+        r, quote,
+        ASCIIonly, graphicOnly);
+    buf = appendByte(ctx, buf, &buf_len, &buf_cap, quote);
+
+    duk_put_prop_index(ctx, -2, 0);
+    duk_push_number(ctx, buf_len);
+    duk_put_prop_index(ctx, -2, 1);
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(strconv)
 {
     /*
@@ -1033,6 +1077,8 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_put_prop_lstring(ctx, -2, "len", 3);
         duk_push_c_lightfunc(ctx, appendQuotedWith, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "appendQuotedWith", 16);
+        duk_push_c_lightfunc(ctx, appendQuotedRuneWith, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "appendQuotedRuneWith", 20);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
