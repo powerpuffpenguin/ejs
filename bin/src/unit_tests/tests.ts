@@ -1,5 +1,8 @@
 import "./unicode/utf8";
-import "./net/ip";
 
+import "./strconv/atob";
+import "./strconv/atoi";
+
+import "./net/ip";
 
 
