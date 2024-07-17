@@ -29,7 +29,6 @@ m.test('ParseBool', (assert) => {
         if (test.err) {
             try {
                 strconv.parseBool(test.in)
-                assert.true(false, test, "not throw")
             } catch (e) {
                 if (e instanceof strconv.NumError) {
                     assert.equal(test.err.message, e.unwrap().message, test);
@@ -38,6 +37,7 @@ m.test('ParseBool', (assert) => {
                 assert.true(false, test, "throw", e)
                 continue
             }
+            assert.true(false, test, "not throw")
         } else {
             assert.equal(test.out, strconv.parseBool(test.in), test)
         }

@@ -44,6 +44,7 @@ declare namespace deps {
         input: string
         base: number
         bitSize: number
+        toString: boolean
     }
     function parseUint(opts: ParseUintOptions): number
     function parseInt(opts: ParseUintOptions): number
@@ -223,13 +224,14 @@ export function formatUint(i: number, base = 10): string {
  * Like parseInt but for unsigned numbers.
  * A sign prefix is not permitted.
  */
-export function parseUint(s: string, base = 0, bitSize = 64): number {
+export function parseUint(s: string, base = 0, bitSize = 64, toString?: boolean): number {
     return deps.parseUint({
         _throw: throwError,
         _fn: 'parseUint',
         input: s,
         base: base,
         bitSize: bitSize,
+        toString: toString ? true : false,
     })
 }
 
@@ -258,7 +260,7 @@ export function itoa(i: number): string {
 /**
  * equivalent to parseInt(s, 10, 0), converted to type int.
  */
-export function atoi(s: string): number {
+export function atoi(s: string, toString?: boolean): number {
     if (0 < s.length && s.length < 19) {
         return deps.fast_atoi({
             _throw: throwError,
@@ -271,6 +273,7 @@ export function atoi(s: string): number {
         input: s,
         base: 0,
         bitSize: 64,
+        toString: toString ? true : false,
     })
 }
 
@@ -281,13 +284,14 @@ export function atoi(s: string): number {
  * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the Go syntax for integer literals.
  * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
  */
-export function parseInt(s: string, base = 0, bitSize = 64): number {
+export function parseInt(s: string, base = 0, bitSize = 64, toString?: boolean): number {
     return deps.parseInt({
         _throw: throwError,
         _fn: 'parseInt',
         input: s,
         base: base,
         bitSize: bitSize,
+        toString: toString ? true : false,
     })
 }
 

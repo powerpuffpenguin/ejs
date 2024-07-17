@@ -79,7 +79,6 @@ m.test('ParseBool', function (assert) {
             if (test_1.err) {
                 try {
                     strconv.parseBool(test_1.in);
-                    assert.true(false, test_1, "not throw");
                 }
                 catch (e) {
                     if (e instanceof strconv.NumError) {
@@ -89,6 +88,7 @@ m.test('ParseBool', function (assert) {
                     assert.true(false, test_1, "throw", e);
                     continue;
                 }
+                assert.true(false, test_1, "not throw");
             }
             else {
                 assert.equal(test_1.out, strconv.parseBool(test_1.in), test_1);

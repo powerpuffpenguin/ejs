@@ -337,6 +337,11 @@ declare module "ejs/strconv" {
      */
     export function parseUint(s: string, base = 0, bitSize = 64): number
     /**
+     * Like parseInt but for unsigned numbers.
+     * A sign prefix is not permitted.
+     */
+    export function parseUint(s: string, base = 0, bitSize = 64, toString = true): string
+    /**
      * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
      * The string may begin with a leading sign: "+" or "-".
      * @param s 
@@ -344,7 +349,14 @@ declare module "ejs/strconv" {
      * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
      */
     export function parseInt(s: string, base = 0, bitSize = 64): number
-
+    /**
+     * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
+     * The string may begin with a leading sign: "+" or "-".
+     * @param s 
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the Go syntax for integer literals.
+     * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
+     */
+    export function parseInt(s: string, base = 0, bitSize = 64, toString = true): string
     /**
      * equivalent to formatInt(i, 10).
      */
@@ -353,6 +365,10 @@ declare module "ejs/strconv" {
      * equivalent to parseInt(s, 10, 0), converted to type int.
      */
     export function atoi(s: string): number
+    /**
+     * equivalent to parseInt(s, 10, 0), converted to type int.
+     */
+    export function atoi(s: string, toString = true): string
 
     /**
      * Reports whether the rune is defined as a Graphic by Unicode. Such

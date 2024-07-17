@@ -11,8 +11,7 @@ function main() {
     try {
         // var builder = new strconv.StringBuilder()
 
-        console.log(strconv.quotedPrefix("測試bc"))
-
+        console.log(strconv.parseUint("18446744073709551615", 10))
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)
