@@ -275,6 +275,8 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_OS);
         duk_push_lstring(ctx, EJS_CONFIG_ARCH);
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_ARCH);
+        duk_push_number(ctx, sizeof(void *) * 8);
+        duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_BITS);
 
         duk_push_string(ctx, ejs_version());
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_VERSION);

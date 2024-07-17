@@ -9,12 +9,9 @@ var strconv = require("ejs/strconv")
 
 function main() {
     try {
-        var builder = new strconv.StringBuilder()
-        builder.appendQuoteRune('a'.charCodeAt(0))
+        // var builder = new strconv.StringBuilder()
 
-        console.log(builder.toString())
-        // console.log(utf8.test("\xee\x80\x80"))
-        // console.log(parseInt("0xB", 16))
+        console.log(strconv.quotedPrefix("測試bc"))
 
     } catch (e) {
         console.log("---", e)

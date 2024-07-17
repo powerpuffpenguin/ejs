@@ -67,4 +67,8 @@
 #define EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, idx, def) EJS_REQUIRE_VALUE_DEFAULT(ctx, idx, def, duk_require_number)
 #define EJS_REQUIRE_STRING_VALUE_DEFAULT(ctx, idx, def) EJS_REQUIRE_VALUE_DEFAULT(ctx, idx, def, duk_require_string)
 
+#define EJS_SET_OUTPUT(ptr, value) \
+    if ((ptr))                     \
+    *(ptr) = (value)
+
 #endif

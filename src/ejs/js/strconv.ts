@@ -75,6 +75,18 @@ declare namespace deps {
         graphicOnly: boolean
     }
     function appendQuotedRuneWith(opts: AppendQuotedRuneWithOptions): [Uint8Array, number]
+
+    function unquote(
+        subarray: (data: Uint8Array, start?: number, end?: number) => Uint8Array,
+        s: string | Uint8Array,
+        unquote: boolean): string | Uint8Array
+    function unquoteChar(
+        subarray: (data: Uint8Array, start?: number, end?: number) => Uint8Array,
+        s: string | Uint8Array, quote: number): {
+            value: number,
+            multibyte: boolean,
+            tail: string | Uint8Array,
+        }
 }
 
 export interface NumErrorOptions {
@@ -302,15 +314,16 @@ export function isPrint(r: number): boolean {
 export function canBackquote(s: string | Uint8Array): boolean {
     return deps.canBackquote(s)
 }
+
 /**
  * Returns a double-quoted string literal representing s. The
  * returned string uses escape sequences (\t, \n, \xFF, \u0100) for
  *  control characters and non-printable characters as defined by
  * isPrint.
  */
-export function quote(s: string | Uint8Array): string {
+export function quote(s: string | Uint8Array, bytes?: boolean): string | Uint8Array {
     const cap = deps.len(s)
-    const [buf, len] = deps.appendQuotedWith({
+    let [buf, len] = deps.appendQuotedWith({
         buf: cap == 0 ? undefined : new Uint8Array(cap * 3 / 2),
         len: 0,
         s: s,
@@ -318,19 +331,20 @@ export function quote(s: string | Uint8Array): string {
         ASCIIonly: false,
         graphicOnly: false,
     })
-    if (len) {
-        return new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+    if (buf) {
+        buf = buf.length == len ? buf : buf.subarray(0, len)
+        return bytes ? buf : new TextDecoder().decode(buf)
     }
-    return ""
+    return bytes ? new Uint8Array() : ""
 }
 /**
  * returns a double-quoted string literal representing s. 
  * The returned string uses escape sequences (\t, \n, \xFF, \u0100) for non-ASCII characters 
  * and non-printable characters as defined by isPrint.
  */
-export function quoteToASCII(s: string | Uint8Array): string {
+export function quoteToASCII(s: string | Uint8Array, bytes?: boolean): string | Uint8Array {
     const cap = deps.len(s)
-    const [buf, len] = deps.appendQuotedWith({
+    let [buf, len] = deps.appendQuotedWith({
         buf: cap == 0 ? undefined : new Uint8Array(cap * 3 / 2),
         len: 0,
         s: s,
@@ -338,19 +352,20 @@ export function quoteToASCII(s: string | Uint8Array): string {
         ASCIIonly: true,
         graphicOnly: false,
     })
-    if (len) {
-        return new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+    if (buf) {
+        buf = buf.length == len ? buf : buf.subarray(0, len)
+        return bytes ? buf : new TextDecoder().decode(buf)
     }
-    return ""
+    return bytes ? new Uint8Array() : ""
 }
 /**
  * Returns a double-quoted string literal representing s. 
  * The returned string leaves Unicode graphic characters, as defined by IsGraphic, 
  * unchanged and uses escape sequences (\t, \n, \xFF, \u0100) for non-graphic characters.
  */
-export function quoteToGraphic(s: string | Uint8Array): string {
+export function quoteToGraphic(s: string | Uint8Array, bytes?: boolean): string | Uint8Array {
     const cap = deps.len(s)
-    const [buf, len] = deps.appendQuotedWith({
+    let [buf, len] = deps.appendQuotedWith({
         buf: cap == 0 ? undefined : new Uint8Array(cap * 3 / 2),
         len: 0,
         s: s,
@@ -358,10 +373,11 @@ export function quoteToGraphic(s: string | Uint8Array): string {
         ASCIIonly: false,
         graphicOnly: true,
     })
-    if (len) {
-        return new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+    if (buf) {
+        buf = buf.length == len ? buf : buf.subarray(0, len)
+        return bytes ? buf : new TextDecoder().decode(buf)
     }
-    return ""
+    return bytes ? new Uint8Array() : ""
 }
 
 /**
@@ -371,17 +387,18 @@ export function quoteToGraphic(s: string | Uint8Array): string {
  * if r is not a valid Unicode code point, it is interpreted as the Unicode replacement 
  * character U+FFFD.
  */
-export function quoteRune(r: number): string {
-    const [buf, len] = deps.appendQuotedRuneWith({
+export function quoteRune(r: number, bytes?: boolean): string | Uint8Array {
+    let [buf, len] = deps.appendQuotedRuneWith({
         r: r,
         quote: 39,// `'`
         ASCIIonly: false,
         graphicOnly: false,
     })
-    if (len) {
-        return new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+    if (buf) {
+        buf = buf.length == len ? buf : buf.subarray(0, len)
+        return bytes ? buf : new TextDecoder().decode(buf)
     }
-    return ""
+    return bytes ? new Uint8Array() : ""
 }
 /**
  * Returns a single-quoted character literal representing the rune. 
@@ -389,17 +406,18 @@ export function quoteRune(r: number): string {
  * and non-printable characters as defined by isPrint. If r is not a valid Unicode code point, 
  * it is interpreted as the Unicode replacement character U+FFFD.
  */
-export function quoteRuneToASCII(r: number): string {
-    const [buf, len] = deps.appendQuotedRuneWith({
+export function quoteRuneToASCII(r: number, bytes?: boolean): string | Uint8Array {
+    let [buf, len] = deps.appendQuotedRuneWith({
         r: r,
         quote: 39,// `'`
         ASCIIonly: true,
         graphicOnly: false,
     })
-    if (len) {
-        return new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+    if (buf) {
+        buf = buf.length == len ? buf : buf.subarray(0, len)
+        return bytes ? buf : new TextDecoder().decode(buf)
     }
-    return ""
+    return bytes ? new Uint8Array() : ""
 }
 /**
  * Returns a single-quoted character literal representing the rune. 
@@ -407,18 +425,20 @@ export function quoteRuneToASCII(r: number): string {
  * the returned string will use a escape sequence (\t, \n, \xFF, \u0100). 
  * If r is not a valid Unicode code point, it is interpreted as the Unicode replacement character U+FFFD.
  */
-export function quoteRuneToGraphic(r: number): string {
-    const [buf, len] = deps.appendQuotedRuneWith({
+export function quoteRuneToGraphic(r: number, bytes?: boolean): string | Uint8Array {
+    let [buf, len] = deps.appendQuotedRuneWith({
         r: r,
         quote: 39,// `'`
         ASCIIonly: false,
         graphicOnly: true,
     })
-    if (len) {
-        return new TextDecoder().decode(buf.length == len ? buf : buf.subarray(0, len))
+    if (buf) {
+        buf = buf.length == len ? buf : buf.subarray(0, len)
+        return bytes ? buf : new TextDecoder().decode(buf)
     }
-    return ""
+    return bytes ? new Uint8Array() : ""
 }
+
 /**
  * used to build string
  */
@@ -806,4 +826,47 @@ export class StringBuilder {
         this.str_ = undefined
         return this
     }
+}
+function subarray(data: Uint8Array, begin?: number, end?: number): Uint8Array {
+    return data.subarray(begin, end)
+}
+/**
+ * Returns the quoted string (as understood by Unquote) at the prefix of s. 
+ * If s does not start with a valid quoted string, throw an error.
+ */
+export function quotedPrefix(s: string | Uint8Array): string | Uint8Array {
+    return deps.unquote(subarray, s, false)
+}
+/**
+ * Interprets s as a single-quoted, double-quoted,
+ * or backquoted Go string literal, returning the string value
+ * that s quotes.  (If s is single-quoted, it would be a 
+ * character literal; Unquote returns the corresponding
+ * one-character string.)
+ */
+export function unquote(s: string | Uint8Array): string | Uint8Array {
+    return deps.unquote(subarray, s, true)
+}
+/**
+ * Decodes the first character or byte in the escaped string
+ * or character literal represented by the string s.
+ * It returns four values:
+ * 
+ * 1. value, the decoded Unicode code point or byte value;
+ * 2. multibyte, a boolean indicating whether the decoded character requires a multibyte UTF-8 representation;
+ * 3. tail, the remainder of the string after the character; and
+ * 4. an error that will be nil if the character is syntactically valid.
+ * 
+ * The second argument, quote, specifies the type of literal being parsed
+ * and therefore which escaped quote character is permitted.
+ * If set to a single quote, it permits the sequence \' and disallows unescaped '.
+ * If set to a double quote, it permits \" and disallows unescaped ".
+ * If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
+ */
+export function unquoteChar(s: string | Uint8Array, quote: number): {
+    value: number,
+    multibyte: boolean,
+    tail: string | Uint8Array,
+} {
+    return deps.unquoteChar(subarray, s, quote)
 }

@@ -272,7 +272,7 @@ static duk_ret_t _unescape_impl(duk_context *ctx)
         switch (c)
         {
         case '%':
-            args->t[t_len++] = __ejs_modules_shared_unhex(args->s[i + 1]) << 4 | __ejs_modules_shared_unhex(args->s[i + 2]);
+            args->t[t_len++] = __ejs_modules_shared_unhex(args->s[i + 1], 0) << 4 | __ejs_modules_shared_unhex(args->s[i + 2], 0);
             i += 2;
             break;
         case '+':
@@ -333,7 +333,7 @@ static duk_ret_t _unescape(duk_context *ctx)
             // introduces %25 being allowed to escape a percent sign
             // in IPv6 scoped-address literals. Yay.
             if (mode == EJS_NET_URL_encodeHost &&
-                __ejs_modules_shared_unhex(s[i + 1]) < 8 &&
+                __ejs_modules_shared_unhex(s[i + 1], 0) < 8 &&
                 memcmp(s + i, "%25", 3))
             {
                 duk_pop(ctx);
@@ -351,7 +351,7 @@ static duk_ret_t _unescape(duk_context *ctx)
                 // That is, you can use escaping in the zone identifier but not
                 // to introduce bytes you couldn't just write directly.
                 // But Windows puts spaces here! Yay.
-                uint8_t v = __ejs_modules_shared_unhex(s[i + 1]) << 4 | __ejs_modules_shared_unhex(s[i + 2]);
+                uint8_t v = __ejs_modules_shared_unhex(s[i + 1], 0) << 4 | __ejs_modules_shared_unhex(s[i + 2], 0);
                 if (memcmp(s + i, "%25", 3) &&
                     v != ' ' &&
                     _should_escape(v, EJS_NET_URL_encodeHost))

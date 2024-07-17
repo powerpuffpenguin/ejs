@@ -1003,6 +1003,555 @@ static duk_ret_t appendQuotedRuneWith(duk_context *ctx)
     duk_put_prop_index(ctx, -2, 1);
     return 1;
 }
+static int _unquote_char_impl(
+    const uint8_t *s, size_t s_len, uint8_t quote,
+    ppp_utf8_rune_t *output_rune,
+    duk_bool_t *output_multibyte,
+    size_t *output_tail)
+{
+
+    // easy cases
+    if (s_len == 0)
+    {
+        return -1;
+    }
+    uint8_t c = s[0];
+    if (c == quote && (quote == '\'' || quote == '"'))
+    {
+        return -1;
+    }
+    else if (c >= PPP_UTF8_RUNE_SELF)
+    {
+        int size;
+        ppp_utf8_rune_t r = ppp_utf8_decode(s, s_len, &size);
+        EJS_SET_OUTPUT(output_rune, r);
+        EJS_SET_OUTPUT(output_multibyte, 1);
+        EJS_SET_OUTPUT(output_tail, size);
+        return 0;
+    }
+    else if (c != '\\')
+    {
+        EJS_SET_OUTPUT(output_rune, s[0]);
+        EJS_SET_OUTPUT(output_multibyte, 0);
+        EJS_SET_OUTPUT(output_tail, 1);
+        return 0;
+    }
+
+    // hard case: c is backslash
+    if (s_len <= 1)
+    {
+        return -1;
+    }
+    c = s[1];
+    s += 2;
+    s_len -= 2;
+
+    size_t tail = 2;
+    ppp_utf8_rune_t value = 0;
+    duk_bool_t multibyte = 0;
+    switch (c)
+    {
+    case 'a':
+        value = '\a';
+        break;
+    case 'b':
+        value = '\b';
+        break;
+    case 'f':
+        value = '\f';
+        break;
+    case 'n':
+        value = '\n';
+        break;
+    case 'r':
+        value = '\r';
+        break;
+    case 't':
+        value = '\t';
+        break;
+    case 'v':
+        value = '\v';
+        break;
+    case 'x':
+    case 'u':
+    case 'U':
+    {
+        int n = 0;
+        switch (c)
+        {
+        case 'x':
+            n = 2;
+            break;
+        case 'u':
+            n = 4;
+            break;
+        case 'U':
+            n = 8;
+            break;
+        }
+
+        if (s_len < n)
+        {
+            return -1;
+        }
+        ppp_utf8_rune_t v = 0;
+        duk_bool_t ok;
+        ppp_utf8_rune_t x;
+        for (int j = 0; j < n; j++)
+        {
+            x = __ejs_modules_shared_unhex(s[j], &ok);
+            if (!ok)
+            {
+                return -1;
+            }
+            v = v << 4 | x;
+        }
+        tail += n;
+        s += n;
+        s_len -= n;
+        if (c == 'x')
+        {
+            // single-byte string, possibly not UTF-8
+            value = v;
+        }
+        else if (!ppp_utf8_is_rune(v))
+        {
+            return -1;
+        }
+        else
+        {
+            value = v;
+            multibyte = 1;
+        }
+    }
+    break;
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    {
+        if (s_len < 2)
+        {
+            return -1;
+        }
+        ppp_utf8_rune_t v = c - '0';
+        ppp_utf8_rune_t x;
+        for (int j = 0; j < 2; j++)
+        { // one digit already; two more
+            x = s[j] - '0';
+            if (x < 0 || x > 7)
+            {
+                return -1;
+            }
+            v = (v << 3) | x;
+        }
+        if (v > 255)
+        {
+            return -1;
+        }
+        tail += 2;
+        s += 2;
+        s_len -= 2;
+
+        value = v;
+    }
+    break;
+    case '\\':
+        value = '\\';
+        break;
+    case '\'':
+    case '"':
+        if (c != quote)
+        {
+            return -1;
+        }
+        value = c;
+        break;
+    default:
+        return -1;
+    }
+    EJS_SET_OUTPUT(output_rune, value);
+    EJS_SET_OUTPUT(output_multibyte, multibyte);
+    EJS_SET_OUTPUT(output_tail, tail);
+    return 0;
+}
+static duk_ret_t _unquote(
+    duk_context *ctx,
+    duk_bool_t is_string,
+    const uint8_t *in, duk_size_t in_len,
+    duk_bool_t unescape)
+{
+    // Determine the quote form and optimistically find the terminating quote.
+    if (in_len < 2)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+        duk_throw(ctx);
+    }
+    uint8_t quote = in[0];
+    size_t end = __ejs_modules_shared_strings_index(in + 1, in_len - 1, quote);
+    if (end == -1)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+        duk_throw(ctx);
+    }
+    end += 2; // position after terminating quote; may be wrong if escape sequences are present
+
+    switch (quote)
+    {
+    case '`':
+        if (!unescape)
+        {
+            if (end != in_len)
+            {
+                if (is_string)
+                {
+                    duk_push_lstring(ctx, in, end);
+                }
+                else
+                {
+                    duk_push_number(ctx, 0);
+                    duk_push_number(ctx, end);
+                    duk_call(ctx, 3);
+                }
+            }
+        }
+        else if (!__ejs_modules_shared_strings_contains(in, end, '\r'))
+        {
+            if (end != in_len)
+            {
+                if (unescape)
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+                    duk_throw(ctx);
+                }
+            }
+            if (is_string)
+            {
+                duk_push_lstring(ctx, in + 1, end - 1 - 1);
+            }
+            else
+            {
+                duk_push_number(ctx, 1);
+                duk_push_number(ctx, end - 1);
+                duk_call(ctx, 3);
+            }
+        }
+        else
+        {
+            if (end != in_len)
+            {
+                if (unescape)
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+                    duk_throw(ctx);
+                }
+            }
+
+            // Carriage return characters ('\r') inside raw string literals
+            // are discarded from the raw string value.
+            duk_size_t cap = end - 3;
+            if (cap)
+            {
+                duk_pop(ctx);
+                uint8_t *buf = duk_push_fixed_buffer(ctx, cap);
+                duk_size_t buf_len = 0;
+                for (size_t i = 1; i < end - 1; i++)
+                {
+                    if (in[i] != '\r')
+                    {
+                        buf[buf_len++] = in[i];
+                    }
+                }
+                if (is_string)
+                {
+                    duk_push_lstring(ctx, buf, buf_len);
+                }
+                else if (buf_len != cap)
+                {
+                    duk_push_number(ctx, 0);
+                    duk_push_number(ctx, buf_len);
+                    duk_call(ctx, 3);
+                }
+            }
+            else
+            {
+                if (is_string)
+                {
+                    duk_push_lstring(ctx, "", 0);
+                }
+                else
+                {
+                    duk_push_number(ctx, 0);
+                    duk_push_number(ctx, 0);
+                    duk_call(ctx, 3);
+                }
+            }
+        }
+        // NOTE: Prior implementations did not verify that raw strings consist
+        // of valid UTF-8 characters and we continue to not verify it as such.
+        // The Go specification does not explicitly require valid UTF-8,
+        // but only mention that it is implicitly valid for Go source code
+        // (which must be valid UTF-8).
+        break;
+    case '"':
+    case '\'':
+    {
+        // Handle quoted strings without any escape sequences.
+        if (!__ejs_modules_shared_strings_contains_any(in, end, "\\\n", 2))
+        {
+            BOOL valid;
+            switch (quote)
+            {
+            case '"':
+                valid = ppp_utf8_is_valid(in + 1, end - 1 - 1);
+                break;
+            case '\'':
+            {
+                int n;
+                ppp_utf8_rune_t r = ppp_utf8_decode(in + 1, end - 1 - 1, &n);
+                valid = (1 + n + 1 == end) && (r != PPP_UTF8_RUNE_ERROR || n != 1) ? 1 : 0;
+            }
+            break;
+            }
+            if (valid)
+            {
+                if (unescape)
+                {
+                    if (end != in_len)
+                    {
+                        duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+                        duk_throw(ctx);
+                    }
+                    // exclude quotes
+                    if (is_string)
+                    {
+                        duk_push_lstring(ctx, in + 1, end - 1 - 1);
+                    }
+                    else
+                    {
+                        duk_push_number(ctx, 1);
+                        duk_push_number(ctx, end - 1);
+                        duk_call(ctx, 3);
+                    }
+                }
+                else
+                {
+                    if (end != in_len)
+                    {
+                        if (is_string)
+                        {
+                            duk_push_lstring(ctx, in, end);
+                        }
+                        else
+                        {
+                            duk_push_number(ctx, 0);
+                            duk_push_number(ctx, end);
+                            duk_call(ctx, 3);
+                        }
+                    }
+                }
+                return 1;
+            }
+        }
+
+        // Handle quoted strings with escape sequences.
+        uint8_t *buf = 0;
+        size_t buf_len = 0;
+        size_t buf_cap = 0;
+        const uint8_t *in0 = in;
+        size_t in0_len = in_len;
+        in++; // skip starting quote
+        in_len--;
+        if (unescape)
+        {
+            buf_cap = 3 * end / 2;
+            buf = duk_push_fixed_buffer(ctx, buf_cap);
+        }
+        duk_bool_t multibyte;
+        size_t rem;
+        ppp_utf8_rune_t r;
+        while (in_len > 0 && in[0] != quote)
+        {
+            if (in[0] == '\n')
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+                duk_throw(ctx);
+            }
+            // Process the next character,
+            // rejecting any unescaped newline characters which are invalid.
+            if (_unquote_char_impl(
+                    in, in_len,
+                    quote,
+                    &r, &multibyte, &rem))
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+                duk_throw(ctx);
+            }
+            in += rem;
+            in_len -= rem;
+
+            // Append the character if unescaping the input.
+            if (unescape)
+            {
+                if (r < PPP_UTF8_RUNE_SELF || !multibyte)
+                {
+                    buf = appendByte(ctx, buf, &buf_len, &buf_cap, r);
+                }
+                else
+                {
+                    uint8_t arr[4] = {0};
+                    int n = ppp_utf8_encode(arr, 4, r);
+                    buf = appendBytes(ctx, buf, &buf_len, &buf_cap, arr, n);
+                }
+            }
+
+            // Single quoted strings must be a single character.
+            if (quote == '\'')
+            {
+                break;
+            }
+        }
+
+        // Verify that the string ends with a terminating quote.
+        if (!(in_len > 0 && in[0] == quote))
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+            duk_throw(ctx);
+        }
+        in++; // skip terminating quote
+        in_len--;
+        if (unescape)
+        {
+            if (is_string)
+            {
+                duk_push_lstring(ctx, buf, buf_len);
+            }
+            else
+            {
+                duk_swap_top(ctx, -2);
+                duk_pop(ctx);
+
+                duk_push_number(ctx, 0);
+                duk_push_number(ctx, buf_len);
+                duk_call(ctx, 3);
+            }
+            return 1;
+        }
+        if (is_string)
+        {
+            duk_push_lstring(ctx, in0, in0_len - in_len);
+        }
+        else
+        {
+            duk_pop(ctx);
+
+            duk_push_number(ctx, 0);
+            duk_push_number(ctx, in0_len - in_len);
+            duk_call(ctx, 3);
+        }
+    }
+    break;
+    default:
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t unquoteChar(duk_context *ctx)
+{
+    uint8_t quote = duk_require_number(ctx, 2);
+    duk_bool_t is_string = duk_is_string(ctx, 0);
+    const uint8_t *s;
+    size_t s_len;
+    if (is_string)
+    {
+        s = duk_require_lstring(ctx, 1, &s_len);
+        duk_swap_top(ctx, 0);
+        duk_pop_2(ctx);
+    }
+    else
+    {
+        s = duk_require_buffer_data(ctx, 1, &s_len);
+        duk_pop(ctx);
+    }
+    ppp_utf8_rune_t r;
+    duk_bool_t multibyte;
+    size_t tail;
+    if (_unquote_char_impl(
+            s, s_len,
+            quote,
+            &r, &multibyte, &tail))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "invalid syntax");
+        duk_throw(ctx);
+    }
+    if (is_string)
+    {
+        if (tail == s_len)
+        {
+            duk_push_object(ctx);
+            duk_swap_top(ctx, -2);
+        }
+        else
+        {
+            duk_pop(ctx);
+            duk_push_object(ctx);
+            duk_push_lstring(ctx, s + tail, s_len - tail);
+        }
+    }
+    else
+    {
+        if (tail == s_len)
+        {
+            duk_push_object(ctx);
+            duk_swap_top(ctx, -3);
+            duk_pop(ctx);
+        }
+        else
+        {
+            duk_push_number(ctx, tail);
+            duk_call(ctx, 2);
+            duk_push_object(ctx);
+            duk_swap_top(ctx, -2);
+        }
+    }
+    duk_put_prop_lstring(ctx, -2, "tail", 4);
+    duk_push_number(ctx, r);
+    duk_put_prop_lstring(ctx, -2, "value", 5);
+    if (multibyte)
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    duk_put_prop_lstring(ctx, -2, "multibyte", 9);
+    return 1;
+}
+static duk_ret_t unquote(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const uint8_t *s;
+    duk_bool_t is_string = duk_is_string(ctx, 1);
+    duk_bool_t unescape = duk_require_boolean(ctx, 2);
+    if (is_string)
+    {
+        s = duk_require_lstring(ctx, 1, &s_len);
+        duk_pop_3(ctx);
+    }
+    else
+    {
+        s = duk_require_buffer_data(ctx, 1, &s_len);
+        duk_pop(ctx);
+    }
+
+    return _unquote(ctx, is_string, s, s_len, unescape);
+}
 EJS_SHARED_MODULE__DECLARE(strconv)
 {
     /*
@@ -1079,6 +1628,10 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_put_prop_lstring(ctx, -2, "appendQuotedWith", 16);
         duk_push_c_lightfunc(ctx, appendQuotedRuneWith, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "appendQuotedRuneWith", 20);
+        duk_push_c_lightfunc(ctx, unquote, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "unquote", 7);
+        duk_push_c_lightfunc(ctx, unquoteChar, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "unquoteChar", 11);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

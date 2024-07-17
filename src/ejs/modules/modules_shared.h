@@ -19,12 +19,23 @@
 #define EJS_SHARED_LOWER_HEX_DIGIT "0123456789abcdef";
 
 duk_bool_t __ejs_modules_shared_ishex(char c);
-uint8_t __ejs_modules_shared_unhex(uint8_t c);
+uint8_t __ejs_modules_shared_unhex(uint8_t c, duk_bool_t *ok);
 /**
  * reports whether s contains any ASCII control character
  */
 duk_bool_t __ejs_modules_shared_strings_contains_ctl(const uint8_t *s, const size_t s_len);
+/**
+ * returns the index of the first instance of c in s, or -1 if missing.
+ */
+size_t __ejs_modules_shared_strings_index(const uint8_t *s, const size_t s_len, uint8_t c);
 
-
+/**
+ * reports whether the string contains the byte c.
+ */
+duk_bool_t __ejs_modules_shared_strings_contains(const uint8_t *s, const size_t s_len, uint8_t c);
+/**
+ * reports whether the string contains the byte c.
+ */
+duk_bool_t __ejs_modules_shared_strings_contains_any(const uint8_t *s, const size_t s_len, const uint8_t *c, const size_t c_len);
 
 #endif
