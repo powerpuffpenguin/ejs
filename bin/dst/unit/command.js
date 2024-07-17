@@ -11,20 +11,36 @@ exports.command = new flags_1.Command({
         var module = flags.strings({
             name: 'module',
             short: 'm',
-            usage: 'test module match',
+            usage: 'Testing matched modules',
         });
         var func = flags.strings({
             name: 'func',
             short: 'f',
-            usage: 'test func match',
+            usage: 'Testing matched funcs',
         });
         var fail = flags.bool({
-            name: 'fail',
-            short: 'F',
+            name: 'allow-fail',
+            short: 'a',
             usage: 'Ignore the failure and continue with the unfinished test',
         });
+        var excludeModule = flags.strings({
+            name: 'exclude-module',
+            short: 'M',
+            usage: 'Testing mismatched modules',
+        });
+        var excludeFunc = flags.strings({
+            name: 'exclude-func',
+            short: 'F',
+            usage: 'Testing mismatched funcs',
+        });
         return function () {
-            (0, unit_1.run)(module.value, func.value, fail.value);
+            (0, unit_1.run)({
+                module: module.value,
+                func: func.value,
+                fail: fail.value,
+                excludeModule: excludeModule.value,
+                excludeFunc: excludeFunc.value,
+            });
         };
     },
 });

@@ -102,25 +102,19 @@ export class Module {
     test(name: string, run: (assert: Assert) => void | Promise<void>) {
         this.keys_.put(name, run)
     }
-    async run(func: Array<string>, fail: boolean): Promise<[number, number]> {
+    async run(func?: Record<string, boolean>, excludeFunc?: Record<string, boolean>, fail?: boolean): Promise<[number, number]> {
         const at = Date.now()
         let passed = 0
         let failed = 0
-        let matched = false
         let first = true
         for (const key of this.keys_.keys()) {
-            if (func.length != 0) {
-                matched = false
-                for (const match of func) {
-                    if (match.match(key)) {
-                        matched = true
-                        break
-                    }
-                }
-                if (!matched) {
-                    continue
-                }
+            if (func && !func[key]) {
+                continue
             }
+            if (excludeFunc && excludeFunc[key]) {
+                continue
+            }
+
             if (first) {
                 first = false
                 console.log(this.name)
@@ -169,33 +163,66 @@ export class Test {
 }
 
 export const test = new Test();
+export interface RunOptions {
+    /**
+     * 設置要測試的模塊
+     */
+    module?: Array<string>
+    /**
+     * 設置要測試的函數
+     */
+    func?: Array<string>
+    /**
+     * 如果爲 true 會忽略未通過的測試，繼續後續未完成的測試
+     */
+    fail?: boolean
+
+    /**
+     * 要排除測試的模塊
+     */
+    excludeModule?: Array<string>
+    /**
+     * 要排除測試的函數
+     */
+    excludeFunc?: Array<string>
+}
+const emptyArray: Array<string> = []
+function createKeys(vals?: Array<string>): Record<string, boolean> | undefined {
+    let keys: Record<string, boolean> | undefined
+    if (Array.isArray(vals)) {
+        for (let i = 0; i < vals.length; i++) {
+            if (!keys) {
+                keys = {}
+            }
+            keys[vals[i]] = true
+        }
+    }
+    return keys
+}
 /**
  * 運行所有註冊的測試代碼
- * @param module 設置要測試的模塊
- * @param func 設置要測試的函數
- * @param fail 如果爲 true 會忽略未通過的測試，繼續後續未完成的測試
  */
-export async function run(module: Array<string>, func: Array<string>, fail: boolean) {
+export async function run(opts?: RunOptions) {
+    const module = createKeys(opts?.module)
+    const func = createKeys(opts?.func)
+    const fail = opts?.fail
+    const excludeModule = createKeys(opts?.excludeModule)
+    const excludeFunc = createKeys(opts?.excludeFunc)
+
     const at = Date.now()
     let n = 0
     let passed = 0
     let failed = 0
     const keys = test.keys()
-    let matched = false
     for (const key of keys.keys()) {
-        if (module.length != 0) {
-            matched = false
-            for (const match of module) {
-                if (match.match(key)) {
-                    matched = true
-                    break
-                }
-            }
-            if (!matched) {
-                continue
-            }
+        if (module && !module[key]) {
+            continue
         }
-        const [v0, v1] = await keys.get(key)!.run(func, fail)
+        if (excludeModule && excludeModule[key]) {
+            continue
+        }
+
+        const [v0, v1] = await keys.get(key)!.run(func, excludeFunc, fail)
         if (!v0 && !v1) {
             continue
         }

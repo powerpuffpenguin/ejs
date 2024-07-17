@@ -9,20 +9,36 @@ export const command = new Command({
         const module = flags.strings({
             name: 'module',
             short: 'm',
-            usage: 'test module match',
-        });
+            usage: 'Testing matched modules',
+        })
         const func = flags.strings({
             name: 'func',
             short: 'f',
-            usage: 'test func match',
+            usage: 'Testing matched funcs',
         });
         const fail = flags.bool({
-            name: 'fail',
-            short: 'F',
+            name: 'allow-fail',
+            short: 'a',
             usage: 'Ignore the failure and continue with the unfinished test',
         })
+        const excludeModule = flags.strings({
+            name: 'exclude-module',
+            short: 'M',
+            usage: 'Testing mismatched modules',
+        })
+        const excludeFunc = flags.strings({
+            name: 'exclude-func',
+            short: 'F',
+            usage: 'Testing mismatched funcs',
+        });
         return () => {
-            run(module.value, func.value, fail.value)
+            run({
+                module: module.value,
+                func: func.value,
+                fail: fail.value,
+                excludeModule: excludeModule.value,
+                excludeFunc: excludeFunc.value,
+            })
         }
     },
 })
