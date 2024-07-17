@@ -11,7 +11,7 @@ function main() {
     try {
         // var builder = new strconv.StringBuilder()
 
-        console.log(strconv.parseUint("18446744073709551615", 10))
+        console.log(strconv.parseUint("_12345", 0, 0, true))
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)

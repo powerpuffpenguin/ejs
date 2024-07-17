@@ -78,10 +78,10 @@ var parseUint64BaseTests = [
     { in: "18446744073709551620", base: 0, out: 0, err: ErrRange },
     { in: "0xFFFFFFFFFFFFFFFF", base: 0, out: "18446744073709551615", err: nil },
     { in: "0x10000000000000000", base: 0, out: 0, err: ErrRange },
-    { in: "01777777777777777777777", base: 0, out: 0, err: nil },
+    { in: "01777777777777777777777", base: 0, out: "18446744073709551615", err: nil },
     { in: "01777777777777777777778", base: 0, out: 0, err: ErrSyntax },
     { in: "02000000000000000000000", base: 0, out: 0, err: ErrRange },
-    { in: "0200000000000000000000", base: 0, out: 0, err: nil },
+    { in: "0200000000000000000000", base: 0, out: "2305843009213693952", err: nil },
     { in: "0b", base: 0, out: 0, err: ErrSyntax },
     { in: "0B", base: 0, out: 0, err: ErrSyntax },
     { in: "0b101", base: 0, out: 5, err: nil },
@@ -295,7 +295,7 @@ m.test("ParseUint32", function (assert) {
                     }
                     continue;
                 }
-                assert.true(false, test_1, "not throw");
+                assert.true(false, test_1, "not throw", test_1);
             }
             else {
                 assert.equal("".concat(test_1.out), "".concat(strconv.parseUint(test_1.in, 10, 32)), test_1);
@@ -326,7 +326,7 @@ m.test("ParseUint64", function (assert) {
                     }
                     continue;
                 }
-                assert.true(false, test_2, "not throw");
+                assert.true(false, test_2, "not throw", test_2);
             }
             else {
                 assert.equal("".concat(test_2.out), "".concat(strconv.parseUint(test_2.in, 10, 64, true)), test_2);
@@ -339,5 +339,36 @@ m.test("ParseUint64", function (assert) {
             if (parseUint64Tests_1_1 && !parseUint64Tests_1_1.done && (_a = parseUint64Tests_1.return)) _a.call(parseUint64Tests_1);
         }
         finally { if (e_2) throw e_2.error; }
+    }
+});
+m.test("ParseUint64Base", function (assert) {
+    var e_3, _a;
+    try {
+        for (var parseUint64BaseTests_1 = __values(parseUint64BaseTests), parseUint64BaseTests_1_1 = parseUint64BaseTests_1.next(); !parseUint64BaseTests_1_1.done; parseUint64BaseTests_1_1 = parseUint64BaseTests_1.next()) {
+            var test_3 = parseUint64BaseTests_1_1.value;
+            if (test_3.err) {
+                try {
+                    strconv.parseUint(test_3.in, test_3.base, 64, true);
+                }
+                catch (e) {
+                    if (e instanceof strconv.NumError) {
+                        assert.equal(test_3.err.message, e.unwrap().message, test_3);
+                        continue;
+                    }
+                    continue;
+                }
+                assert.true(false, test_3, "not throw", test_3);
+            }
+            else {
+                assert.equal("".concat(test_3.out), "".concat(strconv.parseUint(test_3.in, test_3.base, 64, true)), test_3);
+            }
+        }
+    }
+    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+    finally {
+        try {
+            if (parseUint64BaseTests_1_1 && !parseUint64BaseTests_1_1.done && (_a = parseUint64BaseTests_1.return)) _a.call(parseUint64BaseTests_1);
+        }
+        finally { if (e_3) throw e_3.error; }
     }
 });

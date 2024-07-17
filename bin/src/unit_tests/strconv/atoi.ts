@@ -55,10 +55,10 @@ const parseUint64BaseTests: Array<parseUint64BaseTest> = [
     { in: "18446744073709551620", base: 0, out: 0, err: ErrRange },
     { in: "0xFFFFFFFFFFFFFFFF", base: 0, out: "18446744073709551615", err: nil },
     { in: "0x10000000000000000", base: 0, out: 0, err: ErrRange },
-    { in: "01777777777777777777777", base: 0, out: 0, err: nil },
+    { in: "01777777777777777777777", base: 0, out: "18446744073709551615", err: nil },
     { in: "01777777777777777777778", base: 0, out: 0, err: ErrSyntax },
     { in: "02000000000000000000000", base: 0, out: 0, err: ErrRange },
-    { in: "0200000000000000000000", base: 0, out: 0, err: nil },
+    { in: "0200000000000000000000", base: 0, out: "2305843009213693952", err: nil },
     { in: "0b", base: 0, out: 0, err: ErrSyntax },
     { in: "0B", base: 0, out: 0, err: ErrSyntax },
     { in: "0b101", base: 0, out: 5, err: nil },
@@ -317,7 +317,7 @@ m.test("ParseUint32", (assert) => {
                 }
                 continue
             }
-            assert.true(false, test, "not throw")
+            assert.true(false, test, "not throw", test)
         } else {
             assert.equal(`${test.out}`, `${strconv.parseUint(test.in, 10, 32)}`, test)
         }
@@ -336,9 +336,28 @@ m.test("ParseUint64", (assert) => {
                 }
                 continue
             }
-            assert.true(false, test, "not throw")
+            assert.true(false, test, "not throw", test)
         } else {
             assert.equal(`${test.out}`, `${strconv.parseUint(test.in, 10, 64, true)}`, test)
+        }
+    }
+})
+
+m.test("ParseUint64Base", (assert) => {
+    for (const test of parseUint64BaseTests) {
+        if (test.err) {
+            try {
+                strconv.parseUint(test.in, test.base, 64, true)
+            } catch (e) {
+                if (e instanceof strconv.NumError) {
+                    assert.equal(test.err.message, e.unwrap().message, test);
+                    continue
+                }
+                continue
+            }
+            assert.true(false, test, "not throw", test)
+        } else {
+            assert.equal(`${test.out}`, `${strconv.parseUint(test.in, test.base, 64, true)}`, test)
         }
     }
 })

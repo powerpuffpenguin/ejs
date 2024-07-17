@@ -669,6 +669,7 @@ static uint64_t _parseUint(
         c = s[i];
         if (c == '_' && base0)
         {
+            underscores = 1;
             continue;
         }
         else if ('0' <= c && c <= '9')
@@ -720,7 +721,6 @@ static uint64_t _parseUint(
         }
         n = n1;
     }
-
     if (underscores && !underscoreOK(s0, s0_len))
     {
         strconv_throw_name(
