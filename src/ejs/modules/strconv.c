@@ -789,10 +789,17 @@ static int64_t _parseInt(
 static duk_ret_t parseInt(duk_context *ctx)
 {
     duk_size_t s_len;
-    const uint8_t *s = _ejs_require_lprop_lstring(
-        ctx, 0,
-        "input", 5,
-        &s_len);
+    const uint8_t *s;
+    duk_get_prop_lstring(ctx, 0, "input", 5);
+    if (duk_is_string(ctx, -1))
+    {
+        s = duk_require_lstring(ctx, -1, &s_len);
+    }
+    else
+    {
+        s = duk_require_buffer_data(ctx, -1, &s_len);
+    }
+    duk_pop(ctx);
     int base = _ejs_require_lprop_number(
         ctx, 0,
         "base", 4);
@@ -838,10 +845,17 @@ static duk_ret_t parseInt(duk_context *ctx)
 static duk_ret_t parseUint(duk_context *ctx)
 {
     duk_size_t s_len;
-    const uint8_t *s = _ejs_require_lprop_lstring(
-        ctx, 0,
-        "input", 5,
-        &s_len);
+    const uint8_t *s;
+    duk_get_prop_lstring(ctx, 0, "input", 5);
+    if (duk_is_string(ctx, -1))
+    {
+        s = duk_require_lstring(ctx, -1, &s_len);
+    }
+    else
+    {
+        s = duk_require_buffer_data(ctx, -1, &s_len);
+    }
+    duk_pop(ctx);
     int base = _ejs_require_lprop_number(
         ctx, 0,
         "base", 4);
@@ -880,10 +894,17 @@ static duk_ret_t parseUint(duk_context *ctx)
 static duk_ret_t fast_atoi(duk_context *ctx)
 {
     duk_size_t s_len;
-    const uint8_t *s = _ejs_require_lprop_lstring(
-        ctx, 0,
-        "input", 5,
-        &s_len);
+    const uint8_t *s;
+    duk_get_prop_lstring(ctx, 0, "input", 5);
+    if (duk_is_string(ctx, -1))
+    {
+        s = duk_require_lstring(ctx, -1, &s_len);
+    }
+    else
+    {
+        s = duk_require_buffer_data(ctx, -1, &s_len);
+    }
+    duk_pop(ctx);
 
     const uint8_t *s0 = s;
     duk_size_t s0_len = s_len;

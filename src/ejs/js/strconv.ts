@@ -41,7 +41,7 @@ declare namespace deps {
     function appendInt(buf: Uint8Array | undefined, len: number, i: number, base?: number): [Uint8Array, number]
 
     interface ParseUintOptions extends Options {
-        input: string
+        input: string | Uint8Array
         base: number
         bitSize: number
         toString: boolean
@@ -49,7 +49,7 @@ declare namespace deps {
     function parseUint(opts: ParseUintOptions): number
     function parseInt(opts: ParseUintOptions): number
     interface FastAtoIOptions extends Options {
-        input: string
+        input: string | Uint8Array
     }
     function fast_atoi(opts: FastAtoIOptions): number
 

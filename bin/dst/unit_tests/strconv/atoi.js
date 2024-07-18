@@ -274,11 +274,6 @@ var parseInt32Tests = [
     { in: "12345_", out: 0, err: ErrSyntax },
     { in: "123%45out:", out: 0, err: ErrSyntax },
 ];
-var numErrorTests = [
-    { num: "0", want: "strconv.ParseFloat: parsing \"0\": failed" },
-    { num: "`", want: "strconv.ParseFloat: parsing \"`\": failed" },
-    { num: "1\x00.2", want: "strconv.ParseFloat: parsing \"1\0.2\": failed" },
-];
 m.test("ParseUint32", function (assert) {
     var e_1, _a;
     try {
@@ -463,5 +458,36 @@ m.test("ParseInt64Base", function (assert) {
             if (parseInt64BaseTests_1_1 && !parseInt64BaseTests_1_1.done && (_a = parseInt64BaseTests_1.return)) _a.call(parseInt64BaseTests_1);
         }
         finally { if (e_6) throw e_6.error; }
+    }
+});
+m.test("Atoi", function (assert) {
+    var e_7, _a;
+    try {
+        for (var parseInt64Tests_2 = __values(parseInt64Tests), parseInt64Tests_2_1 = parseInt64Tests_2.next(); !parseInt64Tests_2_1.done; parseInt64Tests_2_1 = parseInt64Tests_2.next()) {
+            var test_7 = parseInt64Tests_2_1.value;
+            if (test_7.err) {
+                try {
+                    strconv.atoi(test_7.in, true);
+                }
+                catch (e) {
+                    if (e instanceof strconv.NumError) {
+                        assert.equal(test_7.err.message, e.unwrap().message, test_7);
+                        continue;
+                    }
+                    continue;
+                }
+                assert.true(false, test_7, "not throw", test_7);
+            }
+            else {
+                assert.equal("".concat(test_7.out), "".concat(strconv.atoi(test_7.in, true)), test_7);
+            }
+        }
+    }
+    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    finally {
+        try {
+            if (parseInt64Tests_2_1 && !parseInt64Tests_2_1.done && (_a = parseInt64Tests_2.return)) _a.call(parseInt64Tests_2);
+        }
+        finally { if (e_7) throw e_7.error; }
     }
 });

@@ -295,16 +295,6 @@ const parseInt32Tests: Array<parseInt32Test> = [
     { in: "123%45out:", out: 0, err: ErrSyntax },
 ]
 
-interface numErrorTest {
-    num: string
-    want: string
-}
-
-const numErrorTests: Array<numErrorTest> = [
-    { num: "0", want: `strconv.ParseFloat: parsing "0": failed` },
-    { num: "`", want: "strconv.ParseFloat: parsing \"`\": failed" },
-    { num: "1\x00.2", want: `strconv.ParseFloat: parsing "1\x00.2": failed` },
-]
 m.test("ParseUint32", (assert) => {
     for (const test of parseUint32Tests) {
         if (test.err) {
@@ -412,6 +402,24 @@ m.test("ParseInt64Base", (assert) => {
             assert.true(false, test, "not throw", test)
         } else {
             assert.equal(`${test.out}`, `${strconv.parseInt(test.in, test.base, 64, true)}`, test)
+        }
+    }
+})
+m.test("Atoi", (assert) => {
+    for (const test of parseInt64Tests) {
+        if (test.err) {
+            try {
+                strconv.atoi(test.in, true)
+            } catch (e) {
+                if (e instanceof strconv.NumError) {
+                    assert.equal(test.err.message, e.unwrap().message, test);
+                    continue
+                }
+                continue
+            }
+            assert.true(false, test, "not throw", test)
+        } else {
+            assert.equal(`${test.out}`, `${strconv.atoi(test.in, true)}`, test)
         }
     }
 })
