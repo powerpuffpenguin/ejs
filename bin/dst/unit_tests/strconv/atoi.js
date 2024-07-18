@@ -154,7 +154,7 @@ var parseInt64Tests = [
     { in: "9223372036854775807", out: "9223372036854775807", err: nil },
     { in: "-9223372036854775807", out: "-9223372036854775807", err: nil },
     { in: "9223372036854775808", out: 0, err: ErrRange },
-    { in: "-9223372036854775808", out: 0, err: nil },
+    { in: "-9223372036854775808", out: "-9223372036854775808", err: nil },
     { in: "9223372036854775809", out: 0, err: ErrRange },
     { in: "-9223372036854775809", out: 0, err: ErrRange },
     { in: "-1_2_3_4_5", out: 0, err: ErrSyntax },
@@ -183,7 +183,7 @@ var parseInt64BaseTests = [
     { in: "9223372036854775807", base: 0, out: "9223372036854775807", err: nil },
     { in: "-9223372036854775807", base: 0, out: "-9223372036854775807", err: nil },
     { in: "9223372036854775808", base: 0, out: 0, err: ErrRange },
-    { in: "-9223372036854775808", base: 0, out: "9223372036854775808", err: nil },
+    { in: "-9223372036854775808", base: 0, out: "-9223372036854775808", err: nil },
     { in: "9223372036854775809", base: 0, out: 0, err: ErrRange },
     { in: "-9223372036854775809", base: 0, out: 0, err: ErrRange },
     // other bases
@@ -196,9 +196,9 @@ var parseInt64BaseTests = [
     { in: "-1", base: 2, out: -1, err: nil },
     { in: "1010", base: 2, out: 10, err: nil },
     { in: "1000000000000000", base: 2, out: 1 << 15, err: nil },
-    { in: "111111111111111111111111111111111111111111111111111111111111111", base: 2, out: "9223372036854775809", err: nil },
+    { in: "111111111111111111111111111111111111111111111111111111111111111", base: 2, out: "9223372036854775807", err: nil },
     { in: "1000000000000000000000000000000000000000000000000000000000000000", base: 2, out: 0, err: ErrRange },
-    { in: "-1000000000000000000000000000000000000000000000000000000000000000", base: 2, out: "-9223372036854775809", err: nil },
+    { in: "-1000000000000000000000000000000000000000000000000000000000000000", base: 2, out: "-9223372036854775808", err: nil },
     { in: "-1000000000000000000000000000000000000000000000000000000000000001", base: 2, out: 0, err: ErrRange },
     // base 8
     { in: "-10", base: 8, out: -8, err: nil },
@@ -206,8 +206,8 @@ var parseInt64BaseTests = [
     { in: "100000000", base: 8, out: 1 << 24, err: nil },
     // base 16
     { in: "10", base: 16, out: 16, err: nil },
-    { in: "-123456789abcdef", base: 16, out: -0x123456789abcdef, err: nil },
-    { in: "7fffffffffffffff", base: 16, out: "9223372036854775809", err: nil },
+    { in: "-123456789abcdef", base: 16, out: "-81985529216486895", err: nil },
+    { in: "7fffffffffffffff", base: 16, out: "9223372036854775807", err: nil },
     // underscores
     { in: "-0x_1_2_3_4_5", base: 0, out: -0x12345, err: nil },
     { in: "0x_1_2_3_4_5", base: 0, out: 0x12345, err: nil },
@@ -218,14 +218,14 @@ var parseInt64BaseTests = [
     { in: "0x1__2345", base: 0, out: 0, err: ErrSyntax },
     { in: "0x1234__5", base: 0, out: 0, err: ErrSyntax },
     { in: "0x12345_", base: 0, out: 0, err: ErrSyntax },
-    { in: "-0_1_2_3_4_5", out: 0, base: -5349, err: nil },
-    { in: "0_1_2_3_4_5", out: 0, base: 5349, err: nil },
-    { in: "-_012345", out: 0, base: 0, err: ErrSyntax },
-    { in: "_-012345", out: 0, base: 0, err: ErrSyntax },
-    { in: "_012345", out: 0, base: 0, err: ErrSyntax },
-    { in: "0__12345", out: 0, base: 0, err: ErrSyntax },
-    { in: "01234__5", out: 0, base: 0, err: ErrSyntax },
-    { in: "012345_", out: 0, base: 0, err: ErrSyntax },
+    { in: "-0_1_2_3_4_5", base: 0, out: -5349, err: nil },
+    { in: "0_1_2_3_4_5", base: 0, out: 5349, err: nil },
+    { in: "-_012345", base: 0, out: 0, err: ErrSyntax },
+    { in: "_-012345", base: 0, out: 0, err: ErrSyntax },
+    { in: "_012345", base: 0, out: 0, err: ErrSyntax },
+    { in: "0__12345", base: 0, out: 0, err: ErrSyntax },
+    { in: "01234__5", base: 0, out: 0, err: ErrSyntax },
+    { in: "012345_", base: 0, out: 0, err: ErrSyntax },
     { in: "+0xf", base: 0, out: 0xf, err: nil },
     { in: "-0xf", base: 0, out: -0xf, err: nil },
     { in: "0x+f", base: 0, out: 0, err: ErrSyntax },
@@ -261,12 +261,12 @@ var parseInt32Tests = [
     { in: "-12345x", out: 0, err: ErrSyntax },
     { in: "987654321", out: 987654321, err: nil },
     { in: "-987654321", out: -987654321, err: nil },
-    { in: "2147483647", out: 1 << 31 - 1, err: nil },
-    { in: "-2147483647", out: -(1 << 31 - 1), err: nil },
-    { in: "2147483648", out: 1 << 31 - 1, err: ErrRange },
-    { in: "-2147483648", out: -1 << 31, err: nil },
-    { in: "2147483649", out: 1 << 31 - 1, err: ErrRange },
-    { in: "-2147483649", out: -1 << 31, err: ErrRange },
+    { in: "2147483647", out: 2147483647, err: nil },
+    { in: "-2147483647", out: -2147483647, err: nil },
+    { in: "2147483648", out: 0, err: ErrRange },
+    { in: "-2147483648", out: -2147483648, err: nil },
+    { in: "2147483649", out: 0, err: ErrRange },
+    { in: "-2147483649", out: 0, err: ErrRange },
     { in: "-1_2_3_4_5", out: 0, err: ErrSyntax },
     { in: "-_12345", out: 0, err: ErrSyntax },
     { in: "_12345", out: 0, err: ErrSyntax },
@@ -370,5 +370,98 @@ m.test("ParseUint64Base", function (assert) {
             if (parseUint64BaseTests_1_1 && !parseUint64BaseTests_1_1.done && (_a = parseUint64BaseTests_1.return)) _a.call(parseUint64BaseTests_1);
         }
         finally { if (e_3) throw e_3.error; }
+    }
+});
+m.test("ParseInt32", function (assert) {
+    var e_4, _a;
+    try {
+        for (var parseInt32Tests_1 = __values(parseInt32Tests), parseInt32Tests_1_1 = parseInt32Tests_1.next(); !parseInt32Tests_1_1.done; parseInt32Tests_1_1 = parseInt32Tests_1.next()) {
+            var test_4 = parseInt32Tests_1_1.value;
+            if (test_4.err) {
+                try {
+                    strconv.parseInt(test_4.in, 10, 32, true);
+                }
+                catch (e) {
+                    if (e instanceof strconv.NumError) {
+                        assert.equal(test_4.err.message, e.unwrap().message, test_4);
+                        continue;
+                    }
+                    continue;
+                }
+                assert.true(false, test_4, "not throw", test_4);
+            }
+            else {
+                assert.equal("".concat(test_4.out), "".concat(strconv.parseInt(test_4.in, 10, 32, true)), test_4);
+            }
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (parseInt32Tests_1_1 && !parseInt32Tests_1_1.done && (_a = parseInt32Tests_1.return)) _a.call(parseInt32Tests_1);
+        }
+        finally { if (e_4) throw e_4.error; }
+    }
+});
+m.test("ParseInt64", function (assert) {
+    var e_5, _a;
+    try {
+        for (var parseInt64Tests_1 = __values(parseInt64Tests), parseInt64Tests_1_1 = parseInt64Tests_1.next(); !parseInt64Tests_1_1.done; parseInt64Tests_1_1 = parseInt64Tests_1.next()) {
+            var test_5 = parseInt64Tests_1_1.value;
+            if (test_5.err) {
+                try {
+                    strconv.parseInt(test_5.in, 10, 64, true);
+                }
+                catch (e) {
+                    if (e instanceof strconv.NumError) {
+                        assert.equal(test_5.err.message, e.unwrap().message, test_5);
+                        continue;
+                    }
+                    continue;
+                }
+                assert.true(false, test_5, "not throw", test_5);
+            }
+            else {
+                assert.equal("".concat(test_5.out), "".concat(strconv.parseInt(test_5.in, 10, 64, true)), test_5);
+            }
+        }
+    }
+    catch (e_5_1) { e_5 = { error: e_5_1 }; }
+    finally {
+        try {
+            if (parseInt64Tests_1_1 && !parseInt64Tests_1_1.done && (_a = parseInt64Tests_1.return)) _a.call(parseInt64Tests_1);
+        }
+        finally { if (e_5) throw e_5.error; }
+    }
+});
+m.test("ParseInt64Base", function (assert) {
+    var e_6, _a;
+    try {
+        for (var parseInt64BaseTests_1 = __values(parseInt64BaseTests), parseInt64BaseTests_1_1 = parseInt64BaseTests_1.next(); !parseInt64BaseTests_1_1.done; parseInt64BaseTests_1_1 = parseInt64BaseTests_1.next()) {
+            var test_6 = parseInt64BaseTests_1_1.value;
+            if (test_6.err) {
+                try {
+                    strconv.parseInt(test_6.in, test_6.base, 64, true);
+                }
+                catch (e) {
+                    if (e instanceof strconv.NumError) {
+                        assert.equal(test_6.err.message, e.unwrap().message, test_6);
+                        continue;
+                    }
+                    continue;
+                }
+                assert.true(false, test_6, "not throw", test_6);
+            }
+            else {
+                assert.equal("".concat(test_6.out), "".concat(strconv.parseInt(test_6.in, test_6.base, 64, true)), test_6);
+            }
+        }
+    }
+    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+    finally {
+        try {
+            if (parseInt64BaseTests_1_1 && !parseInt64BaseTests_1_1.done && (_a = parseInt64BaseTests_1.return)) _a.call(parseInt64BaseTests_1);
+        }
+        finally { if (e_6) throw e_6.error; }
     }
 });

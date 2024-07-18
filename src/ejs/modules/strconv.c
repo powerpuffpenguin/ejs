@@ -753,17 +753,32 @@ static int64_t _parseInt(
     uint64_t un = _parseUint(ctx, s, s_len, base, bitSize, 0);
     if (bitSize == 0)
     {
-        bitSize = 64;
+        bitSize = 63;
+    }
+    else
+    {
+        bitSize--;
     }
     uint64_t cutoff = 1;
-    cutoff <<= (bitSize - 1);
-    if (un >= cutoff)
+    cutoff <<= bitSize;
+    if (neg)
+    {
+        if (un > cutoff)
+        {
+            strconv_throw_name(
+                ctx, 0,
+                EJS_STRCONV_ERROR_RANGE,
+                0, 0);
+        }
+    }
+    else if (un >= cutoff)
     {
         strconv_throw_name(
             ctx, 0,
             EJS_STRCONV_ERROR_RANGE,
             0, 0);
     }
+
     int64_t n = un;
     if (neg)
     {
@@ -795,7 +810,8 @@ static duk_ret_t parseInt(duk_context *ctx)
             0, 0);
     }
     int64_t v = _parseInt(ctx, s, s_len, base, bitSize);
-    if (to_string)
+    if (to_string &&
+        (v > EJS_SHARED_MODULE__MAX_SAFE_INTEGER || v < EJS_SHARED_MODULE__MIN_SAFE_INTEGER))
     {
         char s[21] = {0};
         sprintf(s, "%ld", v);
@@ -844,7 +860,7 @@ static duk_ret_t parseUint(duk_context *ctx)
     }
 
     uint64_t v = _parseUint(ctx, s, s_len, base, bitSize, 1);
-    if (to_string)
+    if (to_string && v > EJS_SHARED_MODULE__MAX_SAFE_INTEGER)
     {
         char s[21] = {0};
         sprintf(s, "%lu", v);

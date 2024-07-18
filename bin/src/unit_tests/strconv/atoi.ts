@@ -146,7 +146,7 @@ const parseInt64Tests: Array<parseInt64Test> = [
     { in: "9223372036854775807", out: "9223372036854775807", err: nil },
     { in: "-9223372036854775807", out: "-9223372036854775807", err: nil },
     { in: "9223372036854775808", out: 0, err: ErrRange },
-    { in: "-9223372036854775808", out: 0, err: nil },
+    { in: "-9223372036854775808", out: "-9223372036854775808", err: nil },
     { in: "9223372036854775809", out: 0, err: ErrRange },
     { in: "-9223372036854775809", out: 0, err: ErrRange },
     { in: "-1_2_3_4_5", out: 0, err: ErrSyntax }, // base=10 so no underscores allowed
@@ -182,7 +182,7 @@ const parseInt64BaseTests: Array<parseInt64BaseTest> = [
     { in: "9223372036854775807", base: 0, out: "9223372036854775807", err: nil },
     { in: "-9223372036854775807", base: 0, out: "-9223372036854775807", err: nil },
     { in: "9223372036854775808", base: 0, out: 0, err: ErrRange },
-    { in: "-9223372036854775808", base: 0, out: "9223372036854775808", err: nil },
+    { in: "-9223372036854775808", base: 0, out: "-9223372036854775808", err: nil },
     { in: "9223372036854775809", base: 0, out: 0, err: ErrRange },
     { in: "-9223372036854775809", base: 0, out: 0, err: ErrRange },
 
@@ -197,9 +197,9 @@ const parseInt64BaseTests: Array<parseInt64BaseTest> = [
     { in: "-1", base: 2, out: -1, err: nil },
     { in: "1010", base: 2, out: 10, err: nil },
     { in: "1000000000000000", base: 2, out: 1 << 15, err: nil },
-    { in: "111111111111111111111111111111111111111111111111111111111111111", base: 2, out: "9223372036854775809", err: nil },
+    { in: "111111111111111111111111111111111111111111111111111111111111111", base: 2, out: "9223372036854775807", err: nil },
     { in: "1000000000000000000000000000000000000000000000000000000000000000", base: 2, out: 0, err: ErrRange },
-    { in: "-1000000000000000000000000000000000000000000000000000000000000000", base: 2, out: "-9223372036854775809", err: nil },
+    { in: "-1000000000000000000000000000000000000000000000000000000000000000", base: 2, out: "-9223372036854775808", err: nil },
     { in: "-1000000000000000000000000000000000000000000000000000000000000001", base: 2, out: 0, err: ErrRange },
 
     // base 8
@@ -209,8 +209,8 @@ const parseInt64BaseTests: Array<parseInt64BaseTest> = [
 
     // base 16
     { in: "10", base: 16, out: 16, err: nil },
-    { in: "-123456789abcdef", base: 16, out: -0x123456789abcdef, err: nil },
-    { in: "7fffffffffffffff", base: 16, out: "9223372036854775809", err: nil },
+    { in: "-123456789abcdef", base: 16, out: "-81985529216486895", err: nil },
+    { in: "7fffffffffffffff", base: 16, out: "9223372036854775807", err: nil },
 
     // underscores
     { in: "-0x_1_2_3_4_5", base: 0, out: -0x12345, err: nil },
@@ -223,14 +223,14 @@ const parseInt64BaseTests: Array<parseInt64BaseTest> = [
     { in: "0x1234__5", base: 0, out: 0, err: ErrSyntax },
     { in: "0x12345_", base: 0, out: 0, err: ErrSyntax },
 
-    { in: "-0_1_2_3_4_5", out: 0, base: -0o12345, err: nil }, // octal
-    { in: "0_1_2_3_4_5", out: 0, base: 0o12345, err: nil },   // octal
-    { in: "-_012345", out: 0, base: 0, err: ErrSyntax },
-    { in: "_-012345", out: 0, base: 0, err: ErrSyntax },
-    { in: "_012345", out: 0, base: 0, err: ErrSyntax },
-    { in: "0__12345", out: 0, base: 0, err: ErrSyntax },
-    { in: "01234__5", out: 0, base: 0, err: ErrSyntax },
-    { in: "012345_", out: 0, base: 0, err: ErrSyntax },
+    { in: "-0_1_2_3_4_5", base: 0, out: -0o12345, err: nil }, // octal
+    { in: "0_1_2_3_4_5", base: 0, out: 0o12345, err: nil },   // octal
+    { in: "-_012345", base: 0, out: 0, err: ErrSyntax },
+    { in: "_-012345", base: 0, out: 0, err: ErrSyntax },
+    { in: "_012345", base: 0, out: 0, err: ErrSyntax },
+    { in: "0__12345", base: 0, out: 0, err: ErrSyntax },
+    { in: "01234__5", base: 0, out: 0, err: ErrSyntax },
+    { in: "012345_", base: 0, out: 0, err: ErrSyntax },
 
     { in: "+0xf", base: 0, out: 0xf, err: nil },
     { in: "-0xf", base: 0, out: -0xf, err: nil },
@@ -281,12 +281,12 @@ const parseInt32Tests: Array<parseInt32Test> = [
     { in: "-12345x", out: 0, err: ErrSyntax },
     { in: "987654321", out: 987654321, err: nil },
     { in: "-987654321", out: -987654321, err: nil },
-    { in: "2147483647", out: 1 << 31 - 1, err: nil },
-    { in: "-2147483647", out: -(1 << 31 - 1), err: nil },
-    { in: "2147483648", out: 1 << 31 - 1, err: ErrRange },
-    { in: "-2147483648", out: -1 << 31, err: nil },
-    { in: "2147483649", out: 1 << 31 - 1, err: ErrRange },
-    { in: "-2147483649", out: -1 << 31, err: ErrRange },
+    { in: "2147483647", out: 2147483647, err: nil },
+    { in: "-2147483647", out: -2147483647, err: nil },
+    { in: "2147483648", out: 0, err: ErrRange },
+    { in: "-2147483648", out: -2147483648, err: nil },
+    { in: "2147483649", out: 0, err: ErrRange },
+    { in: "-2147483649", out: 0, err: ErrRange },
     { in: "-1_2_3_4_5", out: 0, err: ErrSyntax }, // base=10 so no underscores allowed
     { in: "-_12345", out: 0, err: ErrSyntax },
     { in: "_12345", out: 0, err: ErrSyntax },
@@ -358,6 +358,60 @@ m.test("ParseUint64Base", (assert) => {
             assert.true(false, test, "not throw", test)
         } else {
             assert.equal(`${test.out}`, `${strconv.parseUint(test.in, test.base, 64, true)}`, test)
+        }
+    }
+})
+m.test("ParseInt32", (assert) => {
+    for (const test of parseInt32Tests) {
+        if (test.err) {
+            try {
+                strconv.parseInt(test.in, 10, 32, true)
+            } catch (e) {
+                if (e instanceof strconv.NumError) {
+                    assert.equal(test.err.message, e.unwrap().message, test);
+                    continue
+                }
+                continue
+            }
+            assert.true(false, test, "not throw", test)
+        } else {
+            assert.equal(`${test.out}`, `${strconv.parseInt(test.in, 10, 32, true)}`, test)
+        }
+    }
+})
+m.test("ParseInt64", (assert) => {
+    for (const test of parseInt64Tests) {
+        if (test.err) {
+            try {
+                strconv.parseInt(test.in, 10, 64, true)
+            } catch (e) {
+                if (e instanceof strconv.NumError) {
+                    assert.equal(test.err.message, e.unwrap().message, test);
+                    continue
+                }
+                continue
+            }
+            assert.true(false, test, "not throw", test)
+        } else {
+            assert.equal(`${test.out}`, `${strconv.parseInt(test.in, 10, 64, true)}`, test)
+        }
+    }
+})
+m.test("ParseInt64Base", (assert) => {
+    for (const test of parseInt64BaseTests) {
+        if (test.err) {
+            try {
+                strconv.parseInt(test.in, test.base, 64, true)
+            } catch (e) {
+                if (e instanceof strconv.NumError) {
+                    assert.equal(test.err.message, e.unwrap().message, test);
+                    continue
+                }
+                continue
+            }
+            assert.true(false, test, "not throw", test)
+        } else {
+            assert.equal(`${test.out}`, `${strconv.parseInt(test.in, test.base, 64, true)}`, test)
         }
     }
 })

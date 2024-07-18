@@ -334,18 +334,25 @@ declare module "ejs/strconv" {
     /**
      * Like parseInt but for unsigned numbers.
      * A sign prefix is not permitted.
+     * @param s 
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
+     * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
      */
     export function parseUint(s: string, base = 0, bitSize = 64): number
     /**
      * Like parseInt but for unsigned numbers.
      * A sign prefix is not permitted.
+     * @param s 
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
+     * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
+     * @returns Returns number for valid values ​​within Number.MIN_SAFE_INTEGER to Number.MAX_SAFE_INTEGER, and returns as a string for values ​​outside this range.
      */
-    export function parseUint(s: string, base = 0, bitSize = 64, toString = true): string
+    export function parseUint(s: string, base = 0, bitSize = 64, toString = true): number | string
     /**
      * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
      * The string may begin with a leading sign: "+" or "-".
      * @param s 
-     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the Go syntax for integer literals.
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
      * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
      */
     export function parseInt(s: string, base = 0, bitSize = 64): number
@@ -353,10 +360,11 @@ declare module "ejs/strconv" {
      * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
      * The string may begin with a leading sign: "+" or "-".
      * @param s 
-     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the Go syntax for integer literals.
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
      * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
+     * @returns Returns number for valid values ​​within Number.MIN_SAFE_INTEGER to Number.MAX_SAFE_INTEGER, and returns as a string for values ​​outside this range.
      */
-    export function parseInt(s: string, base = 0, bitSize = 64, toString = true): string
+    export function parseInt(s: string, base = 0, bitSize = 64, toString = true): number | string
     /**
      * equivalent to formatInt(i, 10).
      */

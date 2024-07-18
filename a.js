@@ -10,8 +10,9 @@ var strconv = require("ejs/strconv")
 function main() {
     try {
         // var builder = new strconv.StringBuilder()
-
-        console.log(strconv.parseUint("_12345", 0, 0, true))
+        console.log(Number.MAX_SAFE_INTEGER)
+        console.log(Number.MIN_SAFE_INTEGER)
+        console.log(strconv.parseInt("7fffffffffffffff", 16, 64, true))
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)
