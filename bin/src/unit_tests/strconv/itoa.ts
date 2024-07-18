@@ -85,4 +85,79 @@ m.test("Itoa", (assert) => {
             assert.equal(test.out, s, test)
         }
     }
+    try {
+        strconv.formatUint(12345678, 1)
+    } catch (e) {
+        return
+    }
+    assert.true(false, "expected panic due to illegal base")
+})
+
+interface uitob64Test {
+    _s: string
+    in: string
+    base: number
+    out: string
+}
+const uitob64tests: Array<uitob64Test> = [
+    { "_s": "9223372036854775807", "in": "7fffffffffffffff", "base": 10, "out": "9223372036854775807" },
+    { "_s": "9223372036854775808", "in": "8000000000000000", "base": 10, "out": "9223372036854775808" },
+    { "_s": "9223372036854775809", "in": "8000000000000001", "base": 10, "out": "9223372036854775809" },
+    { "_s": "18446744073709551614", "in": "fffffffffffffffe", "base": 10, "out": "18446744073709551614" },
+    { "_s": "18446744073709551615", "in": "ffffffffffffffff", "base": 10, "out": "18446744073709551615" },
+    { "_s": "18446744073709551615", "in": "ffffffffffffffff", "base": 2, "out": "1111111111111111111111111111111111111111111111111111111111111111" },
+]
+m.test("Uitoa", (assert) => {
+    let s: string;
+    const formatUint: (i: string, base?: number) => string = (strconv as any)._formatUint
+    for (const test of uitob64tests) {
+        s = formatUint(test.in, test.base)
+        assert.equal(test.out, s, test)
+
+        const buf = new TextEncoder().encode("abc")
+        const builder: any = new strconv.StringBuilder(buf, buf.length)
+        builder._appendUint(test.in, test.base)
+        assert.equal("abc" + test.out, builder.toString(), test)
+        builder.reset()
+        builder._appendUint(test.in, test.base)
+        assert.equal(test.out, builder.toString(), test)
+    }
+})
+const varlenUints = [
+    { "_s": "1", "in": "0000000000000001", "out": "1" },
+    { "_s": "12", "in": "000000000000000c", "out": "12" },
+    { "_s": "123", "in": "000000000000007b", "out": "123" },
+    { "_s": "1234", "in": "00000000000004d2", "out": "1234" },
+    { "_s": "12345", "in": "0000000000003039", "out": "12345" },
+    { "_s": "123456", "in": "000000000001e240", "out": "123456" },
+    { "_s": "1234567", "in": "000000000012d687", "out": "1234567" },
+    { "_s": "12345678", "in": "0000000000bc614e", "out": "12345678" },
+    { "_s": "123456789", "in": "00000000075bcd15", "out": "123456789" },
+    { "_s": "1234567890", "in": "00000000499602d2", "out": "1234567890" },
+    { "_s": "12345678901", "in": "00000002dfdc1c35", "out": "12345678901" },
+    { "_s": "123456789012", "in": "0000001cbe991a14", "out": "123456789012" },
+    { "_s": "1234567890123", "in": "0000011f71fb04cb", "out": "1234567890123" },
+    { "_s": "12345678901234", "in": "00000b3a73ce2ff2", "out": "12345678901234" },
+    { "_s": "123456789012345", "in": "00007048860ddf79", "out": "123456789012345" },
+    { "_s": "1234567890123456", "in": "000462d53c8abac0", "out": "1234567890123456" },
+    { "_s": "12345678901234567", "in": "002bdc545d6b4b87", "out": "12345678901234567" },
+    { "_s": "123456789012345678", "in": "01b69b4ba630f34e", "out": "123456789012345678" },
+    { "_s": "1234567890123456789", "in": "112210f47de98115", "out": "1234567890123456789" },
+    { "_s": "12345678901234567890", "in": "ab54a98ceb1f0ad2", "out": "12345678901234567890" },
+]
+m.test("FormatUintVarlen", (assert) => {
+    let s: string;
+    const formatUint: (i: string, base?: number) => string = (strconv as any)._formatUint
+    for (const test of varlenUints) {
+        s = formatUint(test.in, 10)
+        assert.equal(test.out, s, test)
+
+        const buf = new TextEncoder().encode("abc")
+        const builder: any = new strconv.StringBuilder(buf, buf.length)
+        builder._appendUint(test.in, 10)
+        assert.equal("abc" + test.out, builder.toString(), test)
+        builder.reset()
+        builder._appendUint(test.in, 10)
+        assert.equal(test.out, builder.toString(), test)
+    }
 })

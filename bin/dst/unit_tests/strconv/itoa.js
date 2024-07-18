@@ -118,4 +118,93 @@ m.test("Itoa", function (assert) {
         }
         finally { if (e_1) throw e_1.error; }
     }
+    try {
+        strconv.formatUint(12345678, 1);
+    }
+    catch (e) {
+        return;
+    }
+    assert.true(false, "expected panic due to illegal base");
+});
+var uitob64tests = [
+    { "_s": "9223372036854775807", "in": "7fffffffffffffff", "base": 10, "out": "9223372036854775807" },
+    { "_s": "9223372036854775808", "in": "8000000000000000", "base": 10, "out": "9223372036854775808" },
+    { "_s": "9223372036854775809", "in": "8000000000000001", "base": 10, "out": "9223372036854775809" },
+    { "_s": "18446744073709551614", "in": "fffffffffffffffe", "base": 10, "out": "18446744073709551614" },
+    { "_s": "18446744073709551615", "in": "ffffffffffffffff", "base": 10, "out": "18446744073709551615" },
+    { "_s": "18446744073709551615", "in": "ffffffffffffffff", "base": 2, "out": "1111111111111111111111111111111111111111111111111111111111111111" },
+];
+m.test("Uitoa", function (assert) {
+    var e_2, _a;
+    var s;
+    var formatUint = strconv._formatUint;
+    try {
+        for (var uitob64tests_1 = __values(uitob64tests), uitob64tests_1_1 = uitob64tests_1.next(); !uitob64tests_1_1.done; uitob64tests_1_1 = uitob64tests_1.next()) {
+            var test_2 = uitob64tests_1_1.value;
+            s = formatUint(test_2.in, test_2.base);
+            assert.equal(test_2.out, s, test_2);
+            var buf = new TextEncoder().encode("abc");
+            var builder = new strconv.StringBuilder(buf, buf.length);
+            builder._appendUint(test_2.in, test_2.base);
+            assert.equal("abc" + test_2.out, builder.toString(), test_2);
+            builder.reset();
+            builder._appendUint(test_2.in, test_2.base);
+            assert.equal(test_2.out, builder.toString(), test_2);
+        }
+    }
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (uitob64tests_1_1 && !uitob64tests_1_1.done && (_a = uitob64tests_1.return)) _a.call(uitob64tests_1);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+});
+var varlenUints = [
+    { "_s": "1", "in": "0000000000000001", "out": "1" },
+    { "_s": "12", "in": "000000000000000c", "out": "12" },
+    { "_s": "123", "in": "000000000000007b", "out": "123" },
+    { "_s": "1234", "in": "00000000000004d2", "out": "1234" },
+    { "_s": "12345", "in": "0000000000003039", "out": "12345" },
+    { "_s": "123456", "in": "000000000001e240", "out": "123456" },
+    { "_s": "1234567", "in": "000000000012d687", "out": "1234567" },
+    { "_s": "12345678", "in": "0000000000bc614e", "out": "12345678" },
+    { "_s": "123456789", "in": "00000000075bcd15", "out": "123456789" },
+    { "_s": "1234567890", "in": "00000000499602d2", "out": "1234567890" },
+    { "_s": "12345678901", "in": "00000002dfdc1c35", "out": "12345678901" },
+    { "_s": "123456789012", "in": "0000001cbe991a14", "out": "123456789012" },
+    { "_s": "1234567890123", "in": "0000011f71fb04cb", "out": "1234567890123" },
+    { "_s": "12345678901234", "in": "00000b3a73ce2ff2", "out": "12345678901234" },
+    { "_s": "123456789012345", "in": "00007048860ddf79", "out": "123456789012345" },
+    { "_s": "1234567890123456", "in": "000462d53c8abac0", "out": "1234567890123456" },
+    { "_s": "12345678901234567", "in": "002bdc545d6b4b87", "out": "12345678901234567" },
+    { "_s": "123456789012345678", "in": "01b69b4ba630f34e", "out": "123456789012345678" },
+    { "_s": "1234567890123456789", "in": "112210f47de98115", "out": "1234567890123456789" },
+    { "_s": "12345678901234567890", "in": "ab54a98ceb1f0ad2", "out": "12345678901234567890" },
+];
+m.test("FormatUintVarlen", function (assert) {
+    var e_3, _a;
+    var s;
+    var formatUint = strconv._formatUint;
+    try {
+        for (var varlenUints_1 = __values(varlenUints), varlenUints_1_1 = varlenUints_1.next(); !varlenUints_1_1.done; varlenUints_1_1 = varlenUints_1.next()) {
+            var test_3 = varlenUints_1_1.value;
+            s = formatUint(test_3.in, 10);
+            assert.equal(test_3.out, s, test_3);
+            var buf = new TextEncoder().encode("abc");
+            var builder = new strconv.StringBuilder(buf, buf.length);
+            builder._appendUint(test_3.in, 10);
+            assert.equal("abc" + test_3.out, builder.toString(), test_3);
+            builder.reset();
+            builder._appendUint(test_3.in, 10);
+            assert.equal(test_3.out, builder.toString(), test_3);
+        }
+    }
+    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+    finally {
+        try {
+            if (varlenUints_1_1 && !varlenUints_1_1.done && (_a = varlenUints_1.return)) _a.call(varlenUints_1);
+        }
+        finally { if (e_3) throw e_3.error; }
+    }
 });
