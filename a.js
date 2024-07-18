@@ -10,9 +10,10 @@ var strconv = require("ejs/strconv")
 function main() {
     try {
         // var builder = new strconv.StringBuilder()
-        console.log(Number.MAX_SAFE_INTEGER)
-        console.log(Number.MIN_SAFE_INTEGER)
-        console.log(strconv.parseInt("7fffffffffffffff", 16, 64, true))
+        const buf = new TextEncoder().encode("abc")
+        const builder = new strconv.StringBuilder(buf, buf.length)
+        builder._appendInt("7fffffffffffffff", 10)
+        console.log(builder.toString())
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)

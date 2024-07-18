@@ -88,3 +88,26 @@ duk_bool_t __ejs_modules_shared_strings_contains_any(const uint8_t *s, const siz
     }
     return 0;
 }
+uint64_t __ejs_modules_shared_get_hex_uint64(duk_context *ctx, duk_size_t idx)
+{
+    duk_size_t s_len;
+    const uint8_t *s = duk_require_lstring(ctx, idx, &s_len);
+    if (s_len != 8 * 2)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "hex invalid: %s", s);
+        duk_throw(ctx);
+    }
+    uint8_t dst[8] = {0};
+    if (ppp_encoding_hex_decode(dst, s, s_len) != 8)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "hex invalid: %s", s);
+        duk_throw(ctx);
+    }
+
+    return ppp_encoding_binary_big_endian_uint64(dst);
+}
+int64_t __ejs_modules_shared_get_hex_int64(duk_context *ctx, duk_size_t idx)
+{
+    uint64_t v = __ejs_modules_shared_get_hex_uint64(ctx, idx);
+    return v;
+}

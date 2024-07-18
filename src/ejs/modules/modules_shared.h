@@ -14,6 +14,8 @@
 #include "../internal/buffer.h"
 #include "../internal/c_filepath.h"
 #include "../internal/c_string.h"
+#include "../internal/encoding_hex.h"
+#include "../internal/encoding_binary.h"
 
 #define EJS_SHARED_UPPER_HEX_DIGIT "0123456789ABCDEF";
 #define EJS_SHARED_LOWER_HEX_DIGIT "0123456789abcdef";
@@ -38,4 +40,6 @@ duk_bool_t __ejs_modules_shared_strings_contains(const uint8_t *s, const size_t 
  */
 duk_bool_t __ejs_modules_shared_strings_contains_any(const uint8_t *s, const size_t s_len, const uint8_t *c, const size_t c_len);
 
+uint64_t __ejs_modules_shared_get_hex_uint64(duk_context *ctx, duk_size_t idx);
+int64_t __ejs_modules_shared_get_hex_int64(duk_context *ctx, duk_size_t idx);
 #endif

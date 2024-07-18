@@ -126,6 +126,43 @@ static duk_ret_t parseBool(duk_context *ctx)
     }
     return 1;
 }
+
+// {input: number | string,hex?:boolean}...
+static uint64_t get_format_input(duk_context *ctx)
+{
+    uint64_t i;
+    duk_get_prop_lstring(ctx, 0, "hex", 3);
+    if (duk_get_boolean_default(ctx, -1, 0))
+    {
+        duk_pop(ctx);
+
+        duk_get_prop_lstring(ctx, 0, "input", 5);
+        duk_size_t s_len;
+        const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
+        duk_pop(ctx);
+        if (s_len != 8 * 2)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "hex invalid: %s", s);
+            duk_throw(ctx);
+        }
+        uint8_t dst[8] = {0};
+        if (ppp_encoding_hex_decode(dst, s, s_len) != 8)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "hex invalid: %s", s);
+            duk_throw(ctx);
+        }
+        i = ppp_encoding_binary_big_endian_uint64(dst);
+    }
+    else
+    {
+        duk_pop(ctx);
+
+        duk_get_prop_lstring(ctx, 0, "input", 5);
+        i = duk_require_number(ctx, -1);
+        duk_pop(ctx);
+    }
+    return i;
+}
 static duk_ret_t formatUint(duk_context *ctx)
 {
     int base = _ejs_require_lprop_number(ctx, 0, "base", 4);
@@ -137,7 +174,7 @@ static duk_ret_t formatUint(duk_context *ctx)
             "formatUint", 10);
     }
 
-    uint64_t i = _ejs_require_lprop_number(ctx, 0, "input", 5);
+    uint64_t i = get_format_input(ctx);
     if (i < PPP_STRCONV_N_SMALLS && base == 10)
     {
         ppp_strconv_small_t small = ppp_strconv_small(i);
@@ -168,8 +205,8 @@ static duk_ret_t formatInt(duk_context *ctx)
             EJS_STRCONV_ERROR_BASE,
             "formatInt", 10);
     }
-    int64_t i = _ejs_require_lprop_number(ctx, 0, "input", 5);
-    if (i < PPP_STRCONV_N_SMALLS && base == 10)
+    int64_t i = get_format_input(ctx);
+    if (0 <= i && i < PPP_STRCONV_N_SMALLS && base == 10)
     {
         ppp_strconv_small_t small = ppp_strconv_small(i);
         duk_push_lstring(ctx, small.s, small.n);
@@ -224,7 +261,7 @@ static duk_ret_t append_raw(
     duk_put_prop_index(ctx, -2, 1);
     return 1;
 }
-static duk_ret_t appendUint(duk_context *ctx)
+static duk_ret_t appendUint_impl(duk_context *ctx, duk_bool_t hex)
 {
     int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 3, 10);
     // if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
@@ -233,9 +270,9 @@ static duk_ret_t appendUint(duk_context *ctx)
     //     duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal appendUint base");
     //     duk_throw(ctx);
     // }
-    uint64_t i = duk_require_number(ctx, 2);
+    uint64_t i = hex ? __ejs_modules_shared_get_hex_uint64(ctx, 2) : (uint64_t)duk_require_number(ctx, 2);
     duk_size_t buf_cap;
-    uint8_t *buf = duk_get_buffer_data_default(ctx, 1, &buf_cap, 0, 0);
+    uint8_t *buf = duk_get_buffer_data_default(ctx, 0, &buf_cap, 0, 0);
     duk_size_t buf_len;
     if (buf)
     {
@@ -266,7 +303,15 @@ static duk_ret_t appendUint(duk_context *ctx)
     }
     return append_raw(ctx, buf, buf_len, buf_cap, "", 0);
 }
-static duk_ret_t appendInt(duk_context *ctx)
+static duk_ret_t appendUint(duk_context *ctx)
+{
+    return appendUint_impl(ctx, 0);
+}
+static duk_ret_t appendUintHex(duk_context *ctx)
+{
+    return appendUint_impl(ctx, 1);
+}
+static duk_ret_t appendInt_impl(duk_context *ctx, duk_bool_t hex)
 {
     int base = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, 3, 10);
     // if (base < PPP_STRCONV_MIN_BASE || base > PPP_STRCONV_MAX_BASE)
@@ -275,9 +320,9 @@ static duk_ret_t appendInt(duk_context *ctx)
     //     duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "strconv: illegal appendInt base");
     //     duk_throw(ctx);
     // }
-    uint64_t i = duk_require_number(ctx, 2);
+    int64_t i = hex ? __ejs_modules_shared_get_hex_uint64(ctx, 2) : (uint64_t)duk_require_number(ctx, 2);
     duk_size_t buf_cap;
-    uint8_t *buf = duk_get_buffer_data_default(ctx, 1, &buf_cap, 0, 0);
+    uint8_t *buf = duk_get_buffer_data_default(ctx, 0, &buf_cap, 0, 0);
     duk_size_t buf_len;
     if (buf)
     {
@@ -294,7 +339,7 @@ static duk_ret_t appendInt(duk_context *ctx)
         duk_push_array(ctx);
     }
 
-    if (i < PPP_STRCONV_N_SMALLS && base == 10)
+    if (i >= 0 && i < PPP_STRCONV_N_SMALLS && base == 10)
     {
         ppp_strconv_small_t small = ppp_strconv_small(i);
         return append_raw(ctx, buf, buf_len, buf_cap, small.s, small.n);
@@ -307,6 +352,14 @@ static duk_ret_t appendInt(duk_context *ctx)
         return append_raw(ctx, buf, buf_len, buf_cap, a.a + a.i, n - a.i);
     }
     return append_raw(ctx, buf, buf_len, buf_cap, "", 0);
+}
+static duk_ret_t appendInt(duk_context *ctx)
+{
+    return appendInt_impl(ctx, 0);
+}
+static duk_ret_t appendIntHex(duk_context *ctx)
+{
+    return appendInt_impl(ctx, 1);
 }
 
 // underscoreOK reports whether the underscores in s are allowed.
@@ -1860,6 +1913,10 @@ EJS_SHARED_MODULE__DECLARE(strconv)
         duk_put_prop_lstring(ctx, -2, "appendUint", 10);
         duk_push_c_lightfunc(ctx, appendInt, 4, 4, 0);
         duk_put_prop_lstring(ctx, -2, "appendInt", 9);
+        duk_push_c_lightfunc(ctx, appendUintHex, 4, 4, 0);
+        duk_put_prop_lstring(ctx, -2, "_appendUint", 11);
+        duk_push_c_lightfunc(ctx, appendIntHex, 4, 4, 0);
+        duk_put_prop_lstring(ctx, -2, "_appendInt", 10);
 
         duk_push_c_lightfunc(ctx, parseInt, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "parseInt", 8);
