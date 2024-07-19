@@ -36,7 +36,15 @@ export function encodeToString(src: string | Uint8Array, uppercase = false): str
  * 
  * You can tell if an error occurred by min(decodedLen(x),dst.length) == returns.
  */
-export function decode(dst: Uint8Array, src: string | Uint8Array): number {
+export function decode(dst: Uint8Array, src?: string | Uint8Array): number | Uint8Array {
+    if (src === null || src === undefined) {
+        const buf = new Uint8Array(deps.decodedLen(dst))
+        if (buf.length == 0) {
+            return buf
+        }
+        const n = deps.decode(buf, dst)
+        return n == buf.length ? buf : buf.subarray(0, n)
+    }
     return deps.decode(dst, src)
 }
 export function isHex(v: string | Uint8Array | number): boolean {

@@ -9,18 +9,8 @@ var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
 function main() {
     try {
-        var buf = new Uint8Array(128)
-        var n = hex.encode(buf, "jbc1", 1)
-        console.log(n)
-        buf = buf.subarray(0, n)
-        console.log(new TextDecoder().decode(buf))
-
-        var b0 = new Uint8Array(128)
-        n = hex.decode(b0, buf)
-        console.log(n)
-        b0 = b0.subarray(0, n)
-        console.log(new TextDecoder().decode(b0))
-
+        var buf = hex.decode("zd4aa")
+        console.log(buf)
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)

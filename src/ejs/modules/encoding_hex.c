@@ -220,7 +220,7 @@ static duk_ret_t decode(duk_context *ctx)
     {
         n = dst_len;
     }
-    ppp_encoding_hex_decode(dst, src, n * 2);
+    n = ppp_encoding_hex_decode(dst, src, n * 2);
     duk_push_number(ctx, n);
     return 1;
 }
