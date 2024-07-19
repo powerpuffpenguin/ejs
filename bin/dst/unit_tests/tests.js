@@ -5,5 +5,5 @@ require("./encoding/hex");
 require("./strconv/atob");
 require("./strconv/atoi");
 require("./strconv/itoa");
-// import "./strconv/qoute";
+require("./strconv/qoute");
 require("./net/ip");

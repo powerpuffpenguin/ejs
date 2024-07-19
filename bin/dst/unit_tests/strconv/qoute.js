@@ -36,23 +36,33 @@ var __values = (this && this.__values) || function(o) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var unit_1 = require("../../unit/unit");
 var strconv = __importStar(require("ejs/strconv"));
+var hex = __importStar(require("ejs/encoding/hex"));
 var m = unit_1.test.module("ejs/strconv");
 var quotetests = [
-    { "in": "\u0007\u0008\u000c\r\n\t\u000b", "out": "\"\\a\\b\\f\\r\\n\\t\\v\"", "ascii": "\"\\a\\b\\f\\r\\n\\t\\v\"", "graphic": "\"\\a\\b\\f\\r\\n\\t\\v\"" },
-    { "in": "\\", "out": "\"\\\\\"", "ascii": "\"\\\\\"", "graphic": "\"\\\\\"" },
-    { "in": "abc\ufffddef", "out": "\"abc\\xffdef\"", "ascii": "\"abc\\xffdef\"", "graphic": "\"abc\\xffdef\"" },
-    { "in": "☺", "out": "\"☺\"", "ascii": "\"\\u263a\"", "graphic": "\"☺\"" },
-    { "in": "􏿿", "out": "\"\\U0010ffff\"", "ascii": "\"\\U0010ffff\"", "graphic": "\"\\U0010ffff\"" },
-    { "in": "\u0004", "out": "\"\\x04\"", "ascii": "\"\\x04\"", "graphic": "\"\\x04\"" },
-    { "in": "! ! !　!", "out": "\"!\\u00a0!\\u2000!\\u3000!\"", "ascii": "\"!\\u00a0!\\u2000!\\u3000!\"", "graphic": "\"! ! !　!\"" },
-    { "in": "", "out": "\"\\x7f\"", "ascii": "\"\\x7f\"", "graphic": "\"\\x7f\"" }
+    { "in": "07080c0d0a090b", "out": "225c615c625c665c725c6e5c745c7622", "ascii": "225c615c625c665c725c6e5c745c7622", "graphic": "225c615c625c665c725c6e5c745c7622" },
+    { "in": "5c", "out": "225c5c22", "ascii": "225c5c22", "graphic": "225c5c22" },
+    { "in": "616263ff646566", "out": "226162635c78666664656622", "ascii": "226162635c78666664656622", "graphic": "226162635c78666664656622" },
+    { "in": "e298ba", "out": "22e298ba22", "ascii": "225c753236336122", "graphic": "22e298ba22" },
+    { "in": "f48fbfbf", "out": "225c55303031306666666622", "ascii": "225c55303031306666666622", "graphic": "225c55303031306666666622" },
+    { "in": "04", "out": "225c78303422", "ascii": "225c78303422", "graphic": "225c78303422" },
+    { "in": "21c2a021e2808021e3808021", "out": "22215c7530306130215c7532303030215c75333030302122", "ascii": "22215c7530306130215c7532303030215c75333030302122", "graphic": "2221c2a021e2808021e380802122" },
+    { "in": "7f", "out": "225c78376622", "ascii": "225c78376622", "graphic": "225c78376622" },
 ];
 m.test("Quote", function (assert) {
     var e_1, _a;
     try {
         for (var quotetests_1 = __values(quotetests), quotetests_1_1 = quotetests_1.next(); !quotetests_1_1.done; quotetests_1_1 = quotetests_1.next()) {
             var test_1 = quotetests_1_1.value;
-            assert.equal(test_1.out, strconv.quote(test_1.in), test_1);
+            var out = strconv.quote(hex.decode(test_1.in));
+            assert.equal(test_1.out, hex.encodeToString(out), test_1);
+            var builder = new strconv.StringBuilder();
+            builder.appendQuote(hex.decode(test_1.in));
+            assert.equal(test_1.out, hex.encodeToString(builder.toBuffer()), test_1);
+            var buf = new TextEncoder().encode("abc");
+            builder = new strconv.StringBuilder(buf, buf.length);
+            builder.appendQuote(hex.decode(test_1.in));
+            assert.equal(buf, builder.toBuffer().subarray(0, buf.length), test_1);
+            assert.equal(test_1.out, hex.encodeToString(builder.toBuffer().subarray(buf.length)), test_1);
         }
     }
     catch (e_1_1) { e_1 = { error: e_1_1 }; }

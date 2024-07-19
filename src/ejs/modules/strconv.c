@@ -1198,8 +1198,11 @@ static uint8_t *appendEscapedRune(
 }
 static duk_ret_t appendQuotedWith(duk_context *ctx)
 {
+    duk_get_prop_lstring(ctx, 0, "s", 1);
     duk_size_t s_len;
-    const uint8_t *s = _ejs_require_lprop_lstring(ctx, 0, "s", 1, &s_len);
+    const uint8_t *s = EJS_REQUIRE_CONST_LSOURCE(ctx, -1, &s_len);
+    duk_pop(ctx);
+
     duk_bool_t ASCIIonly = _ejs_require_lprop_bool(ctx, 0, "ASCIIonly", 9);
     duk_bool_t graphicOnly = _ejs_require_lprop_bool(ctx, 0, "graphicOnly", 11);
     uint8_t quote = _ejs_require_lprop_number(ctx, 0, "quote", 5);

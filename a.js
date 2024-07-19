@@ -9,8 +9,8 @@ var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
 function main() {
     try {
-        var buf = hex.decode("zd4aa")
-        console.log(buf)
+        var out = strconv.quote(hex.decode("07080c0d0a090b"))
+        console.log(out)
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)
