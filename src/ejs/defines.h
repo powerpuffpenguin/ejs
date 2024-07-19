@@ -66,6 +66,7 @@
 
 #define EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, idx, def) EJS_REQUIRE_VALUE_DEFAULT(ctx, idx, def, duk_require_number)
 #define EJS_REQUIRE_STRING_VALUE_DEFAULT(ctx, idx, def) EJS_REQUIRE_VALUE_DEFAULT(ctx, idx, def, duk_require_string)
+#define EJS_REQUIRE_CONST_LSOURCE(ctx, idx, len) (duk_is_string(ctx, idx) ? duk_require_lstring(ctx, idx, len) : duk_require_buffer_data(ctx, idx, len))
 
 #define EJS_SET_OUTPUT(ptr, value) \
     if ((ptr))                     \

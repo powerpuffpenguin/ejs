@@ -102,6 +102,8 @@
         "utf8.h": "c",
         "c_string.h": "c",
         "strconv.h": "c",
-        "modules_declare.h": "c"
+        "modules_declare.h": "c",
+        "modules_shared.h": "c",
+        "encoding_hex.h": "c"
     }
 }

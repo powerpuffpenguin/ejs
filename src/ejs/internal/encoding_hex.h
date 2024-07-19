@@ -37,7 +37,7 @@
  * Encodes src into src_len*2 bytes of dst.
  * dst should ensure that the length is at least src_len*2
  */
-void ppp_encoding_hex_encode(uint8_t *dst, const uint8_t *src, const size_t src_len);
+void ppp_encoding_hex_encode(uint8_t *dst, const uint8_t *src, const size_t src_len, BOOL uppercase);
 
 /**
  * Decodes src into src_len/2 bytes,returning the actual number of bytes written to dst.
@@ -48,11 +48,11 @@ size_t ppp_encoding_hex_decode(uint8_t *dst, const uint8_t *src, const size_t sr
 
 /**
  * Returns TRUE if the c is a valid hex-encoded character, otherwise returns FALSE
-*/
+ */
 BOOL ppp_encoding_hex_is_valid_char(uint8_t c);
 /**
  * Returns TRUE if the s is a valid hex-encoded string, otherwise returns FALSE
-*/
+ */
 BOOL ppp_encoding_hex_is_valid(const uint8_t *s, const size_t s_len);
 
 #endif

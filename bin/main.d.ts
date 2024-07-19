@@ -138,7 +138,48 @@ namespace ejs {
      */
     export function threadsSet(opts?: ThreadsSetOptions): void
 }
+/**
+ * most of which are ported from golang
+ */
+declare module "ejs/encoding/hex" {
+    export function encodedLen(n: number): number
+    export function encodedLen(n: string): number
+    export function encodedLen(n: Uint8Array): number
 
+    export function decodedLen(n: number): number
+    export function decodedLen(n: string): number
+    export function decodedLen(n: Uint8Array): number
+
+    /**
+     * Encodes src into dst. It returns the numberof bytes written to dst, 
+     */
+    export function encode(dst: Uint8Array, src: string | Uint8Array, uppercase = false): number
+    /**
+     * Returns the hexadecimal encoding of src.
+     */
+    export function encodeToString(src: string | Uint8Array, uppercase = false): string
+    /**
+     * Decodes src into dst,
+     * returning the actual number of bytes written to dst.
+     * 
+     * Decode expects that src contains only hexadecimal
+     * characters and that src has even length.
+     * If the input is malformed, Decode returns the number
+     * of bytes decoded before the error.
+     * 
+     * You can tell if an error occurred by min(decodedLen(x),dst.length) == returns.
+     */
+    export function decode(dst: Uint8Array, src: string | Uint8Array): number
+    /**
+     * 
+     * Report whether v is a hexadecimal character
+     */
+    export function isHex(v: number): boolean
+    /**
+     * Reports whether v is a hex-encoded content
+     */
+    export function isHex(v: string | Uint8Array): boolean
+}
 /**
  * String conversion functions, most of which are ported from golang
  */

@@ -6,14 +6,21 @@ var url = require("ejs/net/url")
 var os = require("ejs/os")
 var utf8 = require("ejs/unicode/utf8")
 var strconv = require("ejs/strconv")
-
+var hex = require("ejs/encoding/hex")
 function main() {
     try {
-        // var builder = new strconv.StringBuilder()
-        const buf = new TextEncoder().encode("abc")
-        const builder = new strconv.StringBuilder(buf, buf.length)
-        builder._appendInt("7fffffffffffffff", 10)
-        console.log(builder.toString())
+        var buf = new Uint8Array(128)
+        var n = hex.encode(buf, "jbc1", 1)
+        console.log(n)
+        buf = buf.subarray(0, n)
+        console.log(new TextDecoder().decode(buf))
+
+        var b0 = new Uint8Array(128)
+        n = hex.decode(b0, buf)
+        console.log(n)
+        b0 = b0.subarray(0, n)
+        console.log(new TextDecoder().decode(b0))
+
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)

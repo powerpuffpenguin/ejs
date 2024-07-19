@@ -4,4 +4,5 @@ require("./unicode/utf8");
 require("./strconv/atob");
 require("./strconv/atoi");
 require("./strconv/itoa");
+require("./strconv/qoute");
 require("./net/ip");
