@@ -4,7 +4,7 @@
 #include "../core.h"
 #include <stdio.h>
 #include <errno.h>
-#include "../js/http.h"
+#include "../js/net_http.h"
 #include "../internal/sync_evconn_listener.h"
 
 #include <event2/buffer.h>
@@ -739,7 +739,7 @@ EJS_SHARED_MODULE__DECLARE(net_http)
      *  Entry stack: [ require exports ]
      */
 
-    duk_eval_lstring(ctx, js_ejs_js_http_min_js, js_ejs_js_http_min_js_len);
+    duk_eval_lstring(ctx, js_ejs_js_net_http_min_js, js_ejs_js_net_http_min_js_len);
     duk_swap_top(ctx, -2);
 
     duk_push_heap_stash(ctx);
