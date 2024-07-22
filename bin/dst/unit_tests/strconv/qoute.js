@@ -73,3 +73,53 @@ m.test("Quote", function (assert) {
         finally { if (e_1) throw e_1.error; }
     }
 });
+m.test("QuoteToASCII", function (assert) {
+    var e_2, _a;
+    try {
+        for (var quotetests_2 = __values(quotetests), quotetests_2_1 = quotetests_2.next(); !quotetests_2_1.done; quotetests_2_1 = quotetests_2.next()) {
+            var test_2 = quotetests_2_1.value;
+            var out = strconv.quoteToASCII(hex.decode(test_2.in));
+            assert.equal(test_2.ascii, hex.encodeToString(out), test_2);
+            var builder = new strconv.StringBuilder();
+            builder.appendQuoteToASCII(hex.decode(test_2.in));
+            assert.equal(test_2.ascii, hex.encodeToString(builder.toBuffer()), test_2);
+            var buf = new TextEncoder().encode("abc");
+            builder = new strconv.StringBuilder(buf, buf.length);
+            builder.appendQuoteToASCII(hex.decode(test_2.in));
+            assert.equal(buf, builder.toBuffer().subarray(0, buf.length), test_2);
+            assert.equal(test_2.ascii, hex.encodeToString(builder.toBuffer().subarray(buf.length)), test_2);
+        }
+    }
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (quotetests_2_1 && !quotetests_2_1.done && (_a = quotetests_2.return)) _a.call(quotetests_2);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+});
+m.test("QuoteToGraphic", function (assert) {
+    var e_3, _a;
+    try {
+        for (var quotetests_3 = __values(quotetests), quotetests_3_1 = quotetests_3.next(); !quotetests_3_1.done; quotetests_3_1 = quotetests_3.next()) {
+            var test_3 = quotetests_3_1.value;
+            var out = strconv.quoteToGraphic(hex.decode(test_3.in));
+            assert.equal(test_3.graphic, hex.encodeToString(out), test_3);
+            var builder = new strconv.StringBuilder();
+            builder.appendQuoteToGraphic(hex.decode(test_3.in));
+            assert.equal(test_3.graphic, hex.encodeToString(builder.toBuffer()), test_3);
+            var buf = new TextEncoder().encode("abc");
+            builder = new strconv.StringBuilder(buf, buf.length);
+            builder.appendQuoteToGraphic(hex.decode(test_3.in));
+            assert.equal(buf, builder.toBuffer().subarray(0, buf.length), test_3);
+            assert.equal(test_3.graphic, hex.encodeToString(builder.toBuffer().subarray(buf.length)), test_3);
+        }
+    }
+    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+    finally {
+        try {
+            if (quotetests_3_1 && !quotetests_3_1.done && (_a = quotetests_3.return)) _a.call(quotetests_3);
+        }
+        finally { if (e_3) throw e_3.error; }
+    }
+});

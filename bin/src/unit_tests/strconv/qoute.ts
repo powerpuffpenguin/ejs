@@ -30,3 +30,38 @@ m.test("Quote", (assert) => {
         assert.equal(test.out, hex.encodeToString(builder.toBuffer()!.subarray(buf.length)), test)
     }
 })
+m.test("QuoteToASCII", (assert) => {
+    for (const test of quotetests) {
+        const out = strconv.quoteToASCII(hex.decode(test.in))
+        assert.equal(test.ascii, hex.encodeToString(out), test)
+
+        let builder = new strconv.StringBuilder()
+        builder.appendQuoteToASCII(hex.decode(test.in))
+        assert.equal(test.ascii, hex.encodeToString(builder.toBuffer()!), test)
+
+        const buf = new TextEncoder().encode("abc")
+        builder = new strconv.StringBuilder(buf, buf.length)
+        builder.appendQuoteToASCII(hex.decode(test.in))
+        assert.equal(buf, builder.toBuffer()!.subarray(0, buf.length), test)
+
+        assert.equal(test.ascii, hex.encodeToString(builder.toBuffer()!.subarray(buf.length)), test)
+    }
+})
+
+m.test("QuoteToGraphic", (assert) => {
+    for (const test of quotetests) {
+        const out = strconv.quoteToGraphic(hex.decode(test.in))
+        assert.equal(test.graphic, hex.encodeToString(out), test)
+
+        let builder = new strconv.StringBuilder()
+        builder.appendQuoteToGraphic(hex.decode(test.in))
+        assert.equal(test.graphic, hex.encodeToString(builder.toBuffer()!), test)
+
+        const buf = new TextEncoder().encode("abc")
+        builder = new strconv.StringBuilder(buf, buf.length)
+        builder.appendQuoteToGraphic(hex.decode(test.in))
+        assert.equal(buf, builder.toBuffer()!.subarray(0, buf.length), test)
+
+        assert.equal(test.graphic, hex.encodeToString(builder.toBuffer()!.subarray(buf.length)), test)
+    }
+})
