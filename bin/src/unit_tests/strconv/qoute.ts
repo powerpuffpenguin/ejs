@@ -1,4 +1,4 @@
-import { test } from "../../unit/unit";
+import { Assert, test } from "../../unit/unit";
 import * as strconv from "ejs/strconv";
 import * as hex from "ejs/encoding/hex";
 const m = test.module("ejs/strconv")
@@ -180,5 +180,105 @@ const canbackquotetests = [
 m.test("CanBackquote", (assert) => {
     for (const test of canbackquotetests) {
         assert.equal(test.out, strconv.canBackquote(hex.decode(test.in)), test)
+    }
+})
+
+const unquotetests = [
+    { "in": "2222", "out": "" },
+    { "in": "226122", "out": "61" },
+    { "in": "2261626322", "out": "616263" },
+    { "in": "22e298ba22", "out": "e298ba" },
+    { "in": "2268656c6c6f20776f726c6422", "out": "68656c6c6f20776f726c64" },
+    { "in": "225c78464622", "out": "ff" },
+    { "in": "225c33373722", "out": "ff" },
+    { "in": "225c753132333422", "out": "e188b4" },
+    { "in": "225c55303030313031313122", "out": "f0908491" },
+    { "in": "225c553030303130313131313122", "out": "f09084913131" },
+    { "in": "225c615c625c665c6e5c725c745c765c5c5c2222", "out": "07080c0a0d090b5c22" },
+    { "in": "222722", "out": "27" },
+    { "in": "276127", "out": "61" },
+    { "in": "27e298b927", "out": "e298b9" },
+    { "in": "275c6127", "out": "07" },
+    { "in": "275c78313027", "out": "10" },
+    { "in": "275c33373727", "out": "ff" },
+    { "in": "275c753132333427", "out": "e188b4" },
+    { "in": "275c55303030313031313127", "out": "f0908491" },
+    { "in": "275c7427", "out": "09" },
+    { "in": "272027", "out": "20" },
+    { "in": "275c2727", "out": "27" },
+    { "in": "272227", "out": "22" },
+    { "in": "6060", "out": "" },
+    { "in": "606160", "out": "61" },
+    { "in": "6061626360", "out": "616263" },
+    { "in": "60e298ba60", "out": "e298ba" },
+    { "in": "6068656c6c6f20776f726c6460", "out": "68656c6c6f20776f726c64" },
+    { "in": "605c78464660", "out": "5c784646" },
+    { "in": "605c33373760", "out": "5c333737" },
+    { "in": "605c60", "out": "5c" },
+    { "in": "600a60", "out": "0a" },
+    { "in": "600960", "out": "09" },
+    { "in": "602060", "out": "20" },
+    { "in": "60610d6260", "out": "6162" },
+]
+const misquoted = [
+    "",
+    "22",
+    "2261",
+    "2227",
+    "6222",
+    "225c22",
+    "225c3922",
+    "225c313922",
+    "225c31323922",
+    "275c27",
+    "275c3927",
+    "275c313927",
+    "275c31323927",
+    "27616227",
+    "225c78312122",
+    "225c55313233343536373822",
+    "225c7a22",
+    "60",
+    "60787878",
+    "6060780d",
+    "6022",
+    "225c2722",
+    "275c2227",
+    "220a22",
+    "225c6e0a22",
+    "270a27",
+    "225c756465616422",
+    "225c75643833645c756465346622",
+]
+function testUnquote(assert: Assert, i: string, out: string, err?: Error) {
+    let got: string = ''
+    if (err) {
+        let gotErr: any
+        try {
+            strconv.unquote(hex.decode(i))
+        } catch (e) {
+            gotErr = e
+        }
+        if (gotErr) {
+            assert.equal(err.message, gotErr.message, i, out)
+        } else {
+            assert.equal(err, gotErr, i, out)
+        }
+    } else {
+        got = hex.encodeToString(strconv.unquote(hex.decode(i)))
+        assert.equal(out, got, i, out)
+    }
+
+    
+}
+m.test("Unquote", (assert) => {
+    for (const test of unquotetests) {
+        testUnquote(assert, test.in, test.out, undefined)
+    }
+    for (const test of quotetests) {
+        testUnquote(assert, test.out, test.in, undefined)
+    }
+    for (const s of misquoted) {
+        testUnquote(assert, s, "", strconv.ErrSyntax)
     }
 })

@@ -274,3 +274,134 @@ m.test("CanBackquote", function (assert) {
         finally { if (e_7) throw e_7.error; }
     }
 });
+var unquotetests = [
+    { "in": "2222", "out": "" },
+    { "in": "226122", "out": "61" },
+    { "in": "2261626322", "out": "616263" },
+    { "in": "22e298ba22", "out": "e298ba" },
+    { "in": "2268656c6c6f20776f726c6422", "out": "68656c6c6f20776f726c64" },
+    { "in": "225c78464622", "out": "ff" },
+    { "in": "225c33373722", "out": "ff" },
+    { "in": "225c753132333422", "out": "e188b4" },
+    { "in": "225c55303030313031313122", "out": "f0908491" },
+    { "in": "225c553030303130313131313122", "out": "f09084913131" },
+    { "in": "225c615c625c665c6e5c725c745c765c5c5c2222", "out": "07080c0a0d090b5c22" },
+    { "in": "222722", "out": "27" },
+    { "in": "276127", "out": "61" },
+    { "in": "27e298b927", "out": "e298b9" },
+    { "in": "275c6127", "out": "07" },
+    { "in": "275c78313027", "out": "10" },
+    { "in": "275c33373727", "out": "ff" },
+    { "in": "275c753132333427", "out": "e188b4" },
+    { "in": "275c55303030313031313127", "out": "f0908491" },
+    { "in": "275c7427", "out": "09" },
+    { "in": "272027", "out": "20" },
+    { "in": "275c2727", "out": "27" },
+    { "in": "272227", "out": "22" },
+    { "in": "6060", "out": "" },
+    { "in": "606160", "out": "61" },
+    { "in": "6061626360", "out": "616263" },
+    { "in": "60e298ba60", "out": "e298ba" },
+    { "in": "6068656c6c6f20776f726c6460", "out": "68656c6c6f20776f726c64" },
+    { "in": "605c78464660", "out": "5c784646" },
+    { "in": "605c33373760", "out": "5c333737" },
+    { "in": "605c60", "out": "5c" },
+    { "in": "600a60", "out": "0a" },
+    { "in": "600960", "out": "09" },
+    { "in": "602060", "out": "20" },
+    { "in": "60610d6260", "out": "6162" },
+];
+var misquoted = [
+    "",
+    "22",
+    "2261",
+    "2227",
+    "6222",
+    "225c22",
+    "225c3922",
+    "225c313922",
+    "225c31323922",
+    "275c27",
+    "275c3927",
+    "275c313927",
+    "275c31323927",
+    "27616227",
+    "225c78312122",
+    "225c55313233343536373822",
+    "225c7a22",
+    "60",
+    "60787878",
+    "6060780d",
+    "6022",
+    "225c2722",
+    "275c2227",
+    "220a22",
+    "225c6e0a22",
+    "270a27",
+    "225c756465616422",
+    "225c75643833645c756465346622",
+];
+function testUnquote(assert, i, out, err) {
+    var got = '';
+    if (err) {
+        var gotErr = void 0;
+        try {
+            strconv.unquote(hex.decode(i));
+        }
+        catch (e) {
+            gotErr = e;
+        }
+        if (gotErr) {
+            assert.equal(err.message, gotErr.message, i, out);
+        }
+        else {
+            assert.equal(err, gotErr, i, out);
+        }
+    }
+    else {
+        got = hex.encodeToString(strconv.unquote(hex.decode(i)));
+        assert.equal(out, got, i, out);
+    }
+}
+m.test("Unquote", function (assert) {
+    var e_8, _a, e_9, _b, e_10, _c;
+    try {
+        for (var unquotetests_1 = __values(unquotetests), unquotetests_1_1 = unquotetests_1.next(); !unquotetests_1_1.done; unquotetests_1_1 = unquotetests_1.next()) {
+            var test_8 = unquotetests_1_1.value;
+            testUnquote(assert, test_8.in, test_8.out, undefined);
+        }
+    }
+    catch (e_8_1) { e_8 = { error: e_8_1 }; }
+    finally {
+        try {
+            if (unquotetests_1_1 && !unquotetests_1_1.done && (_a = unquotetests_1.return)) _a.call(unquotetests_1);
+        }
+        finally { if (e_8) throw e_8.error; }
+    }
+    try {
+        for (var quotetests_4 = __values(quotetests), quotetests_4_1 = quotetests_4.next(); !quotetests_4_1.done; quotetests_4_1 = quotetests_4.next()) {
+            var test_9 = quotetests_4_1.value;
+            testUnquote(assert, test_9.out, test_9.in, undefined);
+        }
+    }
+    catch (e_9_1) { e_9 = { error: e_9_1 }; }
+    finally {
+        try {
+            if (quotetests_4_1 && !quotetests_4_1.done && (_b = quotetests_4.return)) _b.call(quotetests_4);
+        }
+        finally { if (e_9) throw e_9.error; }
+    }
+    try {
+        for (var misquoted_1 = __values(misquoted), misquoted_1_1 = misquoted_1.next(); !misquoted_1_1.done; misquoted_1_1 = misquoted_1.next()) {
+            var s = misquoted_1_1.value;
+            testUnquote(assert, s, "", strconv.ErrSyntax);
+        }
+    }
+    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+    finally {
+        try {
+            if (misquoted_1_1 && !misquoted_1_1.done && (_c = misquoted_1.return)) _c.call(misquoted_1);
+        }
+        finally { if (e_10) throw e_10.error; }
+    }
+});
