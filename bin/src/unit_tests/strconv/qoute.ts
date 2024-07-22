@@ -98,3 +98,87 @@ m.test("QuoteRune", (assert) => {
         assert.equal(test.out, hex.encodeToString(builder.toBuffer()!.subarray(buf.length)), test)
     }
 })
+m.test("QuoteRuneToASCII", (assert) => {
+    for (const test of quoterunetests) {
+        const out = strconv.quoteRuneToASCII(test.in)
+        assert.equal(test.ascii, hex.encodeToString(out), test)
+
+        let builder = new strconv.StringBuilder()
+        builder.appendQuoteRuneToASCII(test.in)
+        assert.equal(test.ascii, hex.encodeToString(builder.toBuffer()!), test)
+
+        const buf = new TextEncoder().encode("abc")
+        builder = new strconv.StringBuilder(buf, buf.length)
+        builder.appendQuoteRuneToASCII(test.in)
+        assert.equal(buf, builder.toBuffer()!.subarray(0, buf.length), test)
+
+        assert.equal(test.ascii, hex.encodeToString(builder.toBuffer()!.subarray(buf.length)), test)
+    }
+})
+m.test("QuoteRuneToGraphic", (assert) => {
+    for (const test of quoterunetests) {
+        const out = strconv.quoteRuneToGraphic(test.in)
+        assert.equal(test.graphic, hex.encodeToString(out), test)
+
+        let builder = new strconv.StringBuilder()
+        builder.appendQuoteRuneToGraphic(test.in)
+        assert.equal(test.graphic, hex.encodeToString(builder.toBuffer()!), test)
+
+        const buf = new TextEncoder().encode("abc")
+        builder = new strconv.StringBuilder(buf, buf.length)
+        builder.appendQuoteRuneToGraphic(test.in)
+        assert.equal(buf, builder.toBuffer()!.subarray(0, buf.length), test)
+
+        assert.equal(test.graphic, hex.encodeToString(builder.toBuffer()!.subarray(buf.length)), test)
+    }
+})
+const canbackquotetests = [
+    { "in": "60", "out": false },
+    { "in": "00", "out": false },
+    { "in": "01", "out": false },
+    { "in": "02", "out": false },
+    { "in": "03", "out": false },
+    { "in": "04", "out": false },
+    { "in": "05", "out": false },
+    { "in": "06", "out": false },
+    { "in": "07", "out": false },
+    { "in": "08", "out": false },
+    { "in": "09", "out": true },
+    { "in": "0a", "out": false },
+    { "in": "0b", "out": false },
+    { "in": "0c", "out": false },
+    { "in": "0d", "out": false },
+    { "in": "0e", "out": false },
+    { "in": "0f", "out": false },
+    { "in": "10", "out": false },
+    { "in": "11", "out": false },
+    { "in": "12", "out": false },
+    { "in": "13", "out": false },
+    { "in": "14", "out": false },
+    { "in": "15", "out": false },
+    { "in": "16", "out": false },
+    { "in": "17", "out": false },
+    { "in": "18", "out": false },
+    { "in": "19", "out": false },
+    { "in": "1a", "out": false },
+    { "in": "1b", "out": false },
+    { "in": "1c", "out": false },
+    { "in": "1d", "out": false },
+    { "in": "1e", "out": false },
+    { "in": "1f", "out": false },
+    { "in": "7f", "out": false },
+    { "in": "27202122232425262728292a2b2c2d2e2f3a3b3c3d3e3f405b5c5d5e5f7b7c7d7e", "out": true },
+    { "in": "30313233343536373839", "out": true },
+    { "in": "4142434445464748494a4b4c4d4e4f505152535455565758595a", "out": true },
+    { "in": "6162636465666768696a6b6c6d6e6f707172737475767778797a", "out": true },
+    { "in": "e298ba", "out": true },
+    { "in": "80", "out": false },
+    { "in": "61e0a07a", "out": false },
+    { "in": "efbbbf616263", "out": false },
+    { "in": "61efbbbf7a", "out": false },
+]
+m.test("CanBackquote", (assert) => {
+    for (const test of canbackquotetests) {
+        assert.equal(test.out, strconv.canBackquote(hex.decode(test.in)), test)
+    }
+})

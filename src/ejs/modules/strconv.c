@@ -1031,7 +1031,7 @@ static duk_ret_t isPrint(duk_context *ctx)
 static duk_ret_t canBackquote(duk_context *ctx)
 {
     duk_size_t len;
-    const uint8_t *s = duk_require_lstring(ctx, 0, &len);
+    const uint8_t *s = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &len);
     duk_pop(ctx);
 
     if (ppp_strconv_can_backquote(s, len))

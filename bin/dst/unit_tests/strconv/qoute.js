@@ -163,3 +163,114 @@ m.test("QuoteRune", function (assert) {
         finally { if (e_4) throw e_4.error; }
     }
 });
+m.test("QuoteRuneToASCII", function (assert) {
+    var e_5, _a;
+    try {
+        for (var quoterunetests_2 = __values(quoterunetests), quoterunetests_2_1 = quoterunetests_2.next(); !quoterunetests_2_1.done; quoterunetests_2_1 = quoterunetests_2.next()) {
+            var test_5 = quoterunetests_2_1.value;
+            var out = strconv.quoteRuneToASCII(test_5.in);
+            assert.equal(test_5.ascii, hex.encodeToString(out), test_5);
+            var builder = new strconv.StringBuilder();
+            builder.appendQuoteRuneToASCII(test_5.in);
+            assert.equal(test_5.ascii, hex.encodeToString(builder.toBuffer()), test_5);
+            var buf = new TextEncoder().encode("abc");
+            builder = new strconv.StringBuilder(buf, buf.length);
+            builder.appendQuoteRuneToASCII(test_5.in);
+            assert.equal(buf, builder.toBuffer().subarray(0, buf.length), test_5);
+            assert.equal(test_5.ascii, hex.encodeToString(builder.toBuffer().subarray(buf.length)), test_5);
+        }
+    }
+    catch (e_5_1) { e_5 = { error: e_5_1 }; }
+    finally {
+        try {
+            if (quoterunetests_2_1 && !quoterunetests_2_1.done && (_a = quoterunetests_2.return)) _a.call(quoterunetests_2);
+        }
+        finally { if (e_5) throw e_5.error; }
+    }
+});
+m.test("QuoteRuneToGraphic", function (assert) {
+    var e_6, _a;
+    try {
+        for (var quoterunetests_3 = __values(quoterunetests), quoterunetests_3_1 = quoterunetests_3.next(); !quoterunetests_3_1.done; quoterunetests_3_1 = quoterunetests_3.next()) {
+            var test_6 = quoterunetests_3_1.value;
+            var out = strconv.quoteRuneToGraphic(test_6.in);
+            assert.equal(test_6.graphic, hex.encodeToString(out), test_6);
+            var builder = new strconv.StringBuilder();
+            builder.appendQuoteRuneToGraphic(test_6.in);
+            assert.equal(test_6.graphic, hex.encodeToString(builder.toBuffer()), test_6);
+            var buf = new TextEncoder().encode("abc");
+            builder = new strconv.StringBuilder(buf, buf.length);
+            builder.appendQuoteRuneToGraphic(test_6.in);
+            assert.equal(buf, builder.toBuffer().subarray(0, buf.length), test_6);
+            assert.equal(test_6.graphic, hex.encodeToString(builder.toBuffer().subarray(buf.length)), test_6);
+        }
+    }
+    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+    finally {
+        try {
+            if (quoterunetests_3_1 && !quoterunetests_3_1.done && (_a = quoterunetests_3.return)) _a.call(quoterunetests_3);
+        }
+        finally { if (e_6) throw e_6.error; }
+    }
+});
+var canbackquotetests = [
+    { "in": "60", "out": false },
+    { "in": "00", "out": false },
+    { "in": "01", "out": false },
+    { "in": "02", "out": false },
+    { "in": "03", "out": false },
+    { "in": "04", "out": false },
+    { "in": "05", "out": false },
+    { "in": "06", "out": false },
+    { "in": "07", "out": false },
+    { "in": "08", "out": false },
+    { "in": "09", "out": true },
+    { "in": "0a", "out": false },
+    { "in": "0b", "out": false },
+    { "in": "0c", "out": false },
+    { "in": "0d", "out": false },
+    { "in": "0e", "out": false },
+    { "in": "0f", "out": false },
+    { "in": "10", "out": false },
+    { "in": "11", "out": false },
+    { "in": "12", "out": false },
+    { "in": "13", "out": false },
+    { "in": "14", "out": false },
+    { "in": "15", "out": false },
+    { "in": "16", "out": false },
+    { "in": "17", "out": false },
+    { "in": "18", "out": false },
+    { "in": "19", "out": false },
+    { "in": "1a", "out": false },
+    { "in": "1b", "out": false },
+    { "in": "1c", "out": false },
+    { "in": "1d", "out": false },
+    { "in": "1e", "out": false },
+    { "in": "1f", "out": false },
+    { "in": "7f", "out": false },
+    { "in": "27202122232425262728292a2b2c2d2e2f3a3b3c3d3e3f405b5c5d5e5f7b7c7d7e", "out": true },
+    { "in": "30313233343536373839", "out": true },
+    { "in": "4142434445464748494a4b4c4d4e4f505152535455565758595a", "out": true },
+    { "in": "6162636465666768696a6b6c6d6e6f707172737475767778797a", "out": true },
+    { "in": "e298ba", "out": true },
+    { "in": "80", "out": false },
+    { "in": "61e0a07a", "out": false },
+    { "in": "efbbbf616263", "out": false },
+    { "in": "61efbbbf7a", "out": false },
+];
+m.test("CanBackquote", function (assert) {
+    var e_7, _a;
+    try {
+        for (var canbackquotetests_1 = __values(canbackquotetests), canbackquotetests_1_1 = canbackquotetests_1.next(); !canbackquotetests_1_1.done; canbackquotetests_1_1 = canbackquotetests_1.next()) {
+            var test_7 = canbackquotetests_1_1.value;
+            assert.equal(test_7.out, strconv.canBackquote(hex.decode(test_7.in)), test_7);
+        }
+    }
+    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    finally {
+        try {
+            if (canbackquotetests_1_1 && !canbackquotetests_1_1.done && (_a = canbackquotetests_1.return)) _a.call(canbackquotetests_1);
+        }
+        finally { if (e_7) throw e_7.error; }
+    }
+});

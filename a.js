@@ -9,13 +9,8 @@ var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
 function main() {
     try {
-        const buf = new TextEncoder().encode("abc")
 
-        const builder = new strconv.StringBuilder(buf, buf.length)
-        builder.appendQuoteRune(9786)
-
-        console.log(builder.toBuffer())
-        console.log(hex.encodeToString(builder.toBuffer()))
+        console.log(strconv.canBackquote(hex.decode("e298ba")))
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)

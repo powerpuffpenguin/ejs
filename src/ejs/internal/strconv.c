@@ -1678,7 +1678,7 @@ BOOL ppp_strconv_can_backquote(const uint8_t *s, size_t s_len)
     {
         r = ppp_utf8_decode(s, s_len, &wid);
         s += wid;
-        s_len--;
+        s_len -= wid;
         if (wid > 1)
         {
             if (r == 0xFEFF)
