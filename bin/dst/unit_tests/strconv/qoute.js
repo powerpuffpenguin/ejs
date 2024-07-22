@@ -123,3 +123,43 @@ m.test("QuoteToGraphic", function (assert) {
         finally { if (e_3) throw e_3.error; }
     }
 });
+var quoterunetests = [
+    { "in": 97, "out": "276127", "ascii": "276127", "graphic": "276127" },
+    { "in": 7, "out": "275c6127", "ascii": "275c6127", "graphic": "275c6127" },
+    { "in": 92, "out": "275c5c27", "ascii": "275c5c27", "graphic": "275c5c27" },
+    { "in": 255, "out": "27c3bf27", "ascii": "275c753030666627", "graphic": "27c3bf27" },
+    { "in": 9786, "out": "27e298ba27", "ascii": "275c753236336127", "graphic": "27e298ba27" },
+    { "in": 57005, "out": "27efbfbd27", "ascii": "275c756666666427", "graphic": "27efbfbd27" },
+    { "in": 65533, "out": "27efbfbd27", "ascii": "275c756666666427", "graphic": "27efbfbd27" },
+    { "in": 1114111, "out": "275c55303031306666666627", "ascii": "275c55303031306666666627", "graphic": "275c55303031306666666627" },
+    { "in": 1114112, "out": "27efbfbd27", "ascii": "275c756666666427", "graphic": "27efbfbd27" },
+    { "in": 4, "out": "275c78303427", "ascii": "275c78303427", "graphic": "275c78303427" },
+    { "in": 160, "out": "275c753030613027", "ascii": "275c753030613027", "graphic": "27c2a027" },
+    { "in": 8192, "out": "275c753230303027", "ascii": "275c753230303027", "graphic": "27e2808027" },
+    { "in": 12288, "out": "275c753330303027", "ascii": "275c753330303027", "graphic": "27e3808027" },
+];
+m.test("QuoteRune", function (assert) {
+    var e_4, _a;
+    try {
+        for (var quoterunetests_1 = __values(quoterunetests), quoterunetests_1_1 = quoterunetests_1.next(); !quoterunetests_1_1.done; quoterunetests_1_1 = quoterunetests_1.next()) {
+            var test_4 = quoterunetests_1_1.value;
+            var out = strconv.quoteRune(test_4.in);
+            assert.equal(test_4.out, hex.encodeToString(out), test_4);
+            var builder = new strconv.StringBuilder();
+            builder.appendQuoteRune(test_4.in);
+            assert.equal(test_4.out, hex.encodeToString(builder.toBuffer()), test_4);
+            var buf = new TextEncoder().encode("abc");
+            builder = new strconv.StringBuilder(buf, buf.length);
+            builder.appendQuoteRune(test_4.in);
+            assert.equal(buf, builder.toBuffer().subarray(0, buf.length), test_4);
+            assert.equal(test_4.out, hex.encodeToString(builder.toBuffer().subarray(buf.length)), test_4);
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (quoterunetests_1_1 && !quoterunetests_1_1.done && (_a = quoterunetests_1.return)) _a.call(quoterunetests_1);
+        }
+        finally { if (e_4) throw e_4.error; }
+    }
+});

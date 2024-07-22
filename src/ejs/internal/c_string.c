@@ -48,7 +48,14 @@ size_t ppp_c_string_grow_calculate(size_t _cap, size_t _len, size_t n)
         size_t cap;
         if (_cap)
         {
-            available = _cap - _len;
+            if (_cap > _len)
+            {
+                available = _cap - _len;
+            }
+            else
+            {
+                available = 0;
+            }
             cap = _cap;
         }
         else

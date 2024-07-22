@@ -9,13 +9,13 @@ var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
 function main() {
     try {
-        var out = hex.decode("225c615c625c665c725c6e5c745c7622")
-        console.log(out)
-        console.log(new TextDecoder().decode(out))
+        const buf = new TextEncoder().encode("abc")
 
-        var s = new TextDecoder().decode(hex.decode("07080c0d0a090b"))
-        // console.log(s)
-        console.log(strconv.quote(s))
+        const builder = new strconv.StringBuilder(buf, buf.length)
+        builder.appendQuoteRune(9786)
+
+        console.log(builder.toBuffer())
+        console.log(hex.encodeToString(builder.toBuffer()))
     } catch (e) {
         console.log("---", e)
         console.log("---", e.message)

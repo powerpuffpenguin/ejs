@@ -1293,7 +1293,6 @@ static duk_ret_t appendQuotedRuneWith(duk_context *ctx)
     }
     duk_push_array(ctx);
     duk_swap_top(ctx, -2);
-
     buf = appendByte(ctx, buf, &buf_len, &buf_cap, quote);
     if (!ppp_utf8_is_rune(r))
     {
