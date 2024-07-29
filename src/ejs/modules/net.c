@@ -1329,7 +1329,8 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_pointer(ctx, core);
     duk_put_prop_lstring(ctx, -2, "core", 4);
-    ejs_dump_context_stdout(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
     if (duk_is_undefined(ctx, -1))
     {
         duk_pop(ctx);
@@ -1342,7 +1343,6 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     duk_push_c_lightfunc(ctx, evconnlistener_tcp_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
     args->listener = NULL;
-
     ejs_stash_put_pointer(ctx, EJS_STASH_NET_TCP_LISTENER);
     return 1;
 }

@@ -8,7 +8,7 @@ var utf8 = require("ejs/unicode/utf8")
 var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
 function main() {
-    var l = net.listen({
+    var opts = {
         network: 'tcp',
         address: '127.0.0.1:9000',
         // sync: true,
@@ -20,9 +20,13 @@ function main() {
         //         },
         //     ],
         // },
-    })
-
-    console.log("https listen on:", l.addr)
+    }
+    var l = net.listen(opts)
+    if (opts.tls) {
+        console.log("https listen on:", l.addr)
+    } else {
+        console.log("http listen on:", l.addr)
+    }
     // new http.Server(l, function (w, r) {
     //     console.log("host:", r.host)
     //     var uri = r.uri
