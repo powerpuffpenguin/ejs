@@ -1329,13 +1329,15 @@ static duk_ret_t tcp_listen_impl(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_pointer(ctx, core);
     duk_put_prop_lstring(ctx, -2, "core", 4);
-
-    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    ejs_dump_context_stdout(ctx);
     if (duk_is_undefined(ctx, -1))
     {
         duk_pop(ctx);
     }
-    duk_put_prop_lstring(ctx, -2, "tls", 3);
+    else
+    {
+        duk_put_prop_lstring(ctx, -2, "tls", 3);
+    }
 
     duk_push_c_lightfunc(ctx, evconnlistener_tcp_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
@@ -1487,7 +1489,10 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
     {
         duk_pop(ctx);
     }
-    duk_put_prop_lstring(ctx, -2, "tls", 3);
+    else
+    {
+        duk_put_prop_lstring(ctx, -2, "tls", 3);
+    }
 
     duk_push_c_lightfunc(ctx, sync_evconn_listener_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
@@ -1498,6 +1503,7 @@ static duk_ret_t tcp_listen_sync_impl(duk_context *ctx)
 }
 static duk_ret_t tcp_listen(duk_context *ctx)
 {
+
     duk_get_prop_lstring(ctx, -1, "sync", 4);
     duk_bool_t sync = duk_require_boolean(ctx, -1);
     duk_pop(ctx);
@@ -1622,7 +1628,10 @@ static duk_ret_t unix_listen_impl(duk_context *ctx)
     {
         duk_pop(ctx);
     }
-    duk_put_prop_lstring(ctx, -2, "tls", 3);
+    else
+    {
+        duk_put_prop_lstring(ctx, -2, "tls", 3);
+    }
 
     duk_push_c_lightfunc(ctx, evconnlistener_tcp_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
@@ -1700,8 +1709,10 @@ static duk_ret_t unix_listen_sync_impl(duk_context *ctx)
     {
         duk_pop(ctx);
     }
-    duk_put_prop_lstring(ctx, -2, "tls", 3);
-
+    else
+    {
+        duk_put_prop_lstring(ctx, -2, "tls", 3);
+    }
     duk_push_c_lightfunc(ctx, sync_evconn_listener_destroy, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
     args->listener = NULL;

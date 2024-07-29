@@ -1,59 +1,59 @@
 declare namespace deps {
-    export const GET: number
-    export const POST: number
-    export const HEAD: number
-    export const PUT: number
-    export const DELETE: number
-    export const OPTIONS: number
-    export const TRACE: number
-    export const CONNECT: number
-    export const PATCH: number
+    const GET: number
+    const POST: number
+    const HEAD: number
+    const PUT: number
+    const DELETE: number
+    const OPTIONS: number
+    const TRACE: number
+    const CONNECT: number
+    const PATCH: number
 
-    export class Server {
+    class Server {
         readonly __id = "Server"
         p: unknown
     }
-    export class RawRequest {
+    class RawRequest {
         readonly __id = "RawRequest"
     }
-    export function create_server(cb: (req: RawRequest) => void): Server
-    export function close_server(s: Server): void
-    export function serve(l: any, tls: any, server: any): void
+    function create_server(cb: (req: RawRequest) => void): Server
+    function close_server(s: Server): void
+    function serve(l: any, tls: any, server: any): void
 
-    export function request_free_raw(req: RawRequest): void
-    export class RawHeader {
+    function request_free_raw(req: RawRequest): void
+    class RawHeader {
         readonly __id = "RawHeader"
     }
-    export function request_input_header(req: RawRequest): RawHeader
-    export function request_output_header(req: RawRequest): RawHeader
+    function request_input_header(req: RawRequest): RawHeader
+    function request_output_header(req: RawRequest): RawHeader
 
-    export function header_set(req: RawHeader, key: string, value: string): void
-    export function header_add(req: RawHeader, key: string, value: string): void
-    export function header_get(req: RawHeader, key: string): string
-    export function header_del(req: RawHeader, key: string): void
-    export function header_del_all(req: RawHeader, key: string): void
-    export function header_clear(req: RawHeader): void
+    function header_set(req: RawHeader, key: string, value: string): void
+    function header_add(req: RawHeader, key: string, value: string): void
+    function header_get(req: RawHeader, key: string): string
+    function header_del(req: RawHeader, key: string): void
+    function header_del_all(req: RawHeader, key: string): void
+    function header_clear(req: RawHeader): void
 
 
-    export function request_get_host(req: RawRequest): string
-    export function request_get_method(req: RawRequest): number
-    export class RawUri {
+    function request_get_host(req: RawRequest): string
+    function request_get_method(req: RawRequest): number
+    class RawUri {
         readonly __id = "RawUri"
     }
-    export function request_get_uri(req: RawRequest): [string, RawUri]
-    export function request_get_uri_r(req: RawRequest): RawUri
-    export function request_get_uri_s(req: RawRequest): string
-    export function uri_join(uri: RawUri): string
-    export function uri_get_fragment(uri: RawUri): string
-    export function uri_get_host(uri: RawUri): string
-    export function uri_get_port(uri: RawUri): number
-    export function uri_get_path(uri: RawUri): string
-    export function uri_get_query(uri: RawUri): string
-    export function uri_get_scheme(uri: RawUri): string
-    export function uri_get_userinfo(uri: RawUri): string
+    function request_get_uri(req: RawRequest): [string, RawUri]
+    function request_get_uri_r(req: RawRequest): RawUri
+    function request_get_uri_s(req: RawRequest): string
+    function uri_join(uri: RawUri): string
+    function uri_get_fragment(uri: RawUri): string
+    function uri_get_host(uri: RawUri): string
+    function uri_get_port(uri: RawUri): number
+    function uri_get_path(uri: RawUri): string
+    function uri_get_query(uri: RawUri): string
+    function uri_get_scheme(uri: RawUri): string
+    function uri_get_userinfo(uri: RawUri): string
 
-    export function status_text(code: number): string
-    export interface WriterResponseOptions {
+    function status_text(code: number): string
+    interface WriterResponseOptions {
         f: Uint8Array
 
         r: deps.RawRequest
@@ -61,8 +61,8 @@ declare namespace deps {
         t?: string
         body?: string | Uint8Array
     }
-    export function create_flags(): Uint8Array
-    export function writer_response(opts: WriterResponseOptions): void
+    function create_flags(): Uint8Array
+    function writer_response(opts: WriterResponseOptions): void
 }
 import { BaseTcpListener } from "ejs/net";
 export enum Method {

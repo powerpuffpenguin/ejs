@@ -8,46 +8,46 @@ declare namespace __duk {
 }
 declare namespace deps {
     const ETIMEDOUT: number
-    export function copy(dst: Uint8Array, src: Uint8Array): number
-    export function eq(a: Uint8Array, b: Uint8Array): boolean
-    export function hex_string(b: Uint8Array): string
-    export function ip_string(ip: Uint8Array): string
-    export function parse_ip(s: string): Uint8Array | undefined
-    export function ip_4in6(ip: Uint8Array): boolean
-    export function ip_equal(a: Uint8Array, b: Uint8Array): boolean
-    export function ip_mask(mask: Uint8Array, ip: Uint8Array): Uint8Array | undefined
-    export function networkNumberAndMask(ip: Uint8Array, mask: Uint8Array): [Uint8Array, Uint8Array] | undefined
-    export function cidr_mask(ones: number, bits: number): Uint8Array | undefined
-    export function mask_size(mask: Uint8Array): [number, number]
-    export function ipnet_contains(net_ip: Uint8Array, mask: Uint8Array, ip: Uint8Array): boolean
-    export function ipnet_string(net_ip: Uint8Array, mask: Uint8Array): string
-    export function parse_cidr(s: string): { ip: Uint8Array, mask: Uint8Array } | undefined
+    function copy(dst: Uint8Array, src: Uint8Array): number
+    function eq(a: Uint8Array, b: Uint8Array): boolean
+    function hex_string(b: Uint8Array): string
+    function ip_string(ip: Uint8Array): string
+    function parse_ip(s: string): Uint8Array | undefined
+    function ip_4in6(ip: Uint8Array): boolean
+    function ip_equal(a: Uint8Array, b: Uint8Array): boolean
+    function ip_mask(mask: Uint8Array, ip: Uint8Array): Uint8Array | undefined
+    function networkNumberAndMask(ip: Uint8Array, mask: Uint8Array): [Uint8Array, Uint8Array] | undefined
+    function cidr_mask(ones: number, bits: number): Uint8Array | undefined
+    function mask_size(mask: Uint8Array): [number, number]
+    function ipnet_contains(net_ip: Uint8Array, mask: Uint8Array, ip: Uint8Array): boolean
+    function ipnet_string(net_ip: Uint8Array, mask: Uint8Array): string
+    function parse_cidr(s: string): { ip: Uint8Array, mask: Uint8Array } | undefined
 
-    export class evbuffer {
+    class evbuffer {
         readonly __id = "evbuffer"
     }
-    export function evbuffer_len(b: evbuffer): number
-    export function evbuffer_read(b: evbuffer, dst: Uint8Array): number
-    export function evbuffer_copy(b: evbuffer, dst: Uint8Array, skip?: number): number
-    export function evbuffer_drain(b: evbuffer, n: number): number
+    function evbuffer_len(b: evbuffer): number
+    function evbuffer_read(b: evbuffer, dst: Uint8Array): number
+    function evbuffer_copy(b: evbuffer, dst: Uint8Array, skip?: number): number
+    function evbuffer_drain(b: evbuffer, n: number): number
 
-    export const BEV_EVENT_CONNECTED: number
-    export const BEV_EVENT_WRITING: number
-    export const BEV_EVENT_READING: number
-    export const BEV_EVENT_TIMEOUT: number
-    export const BEV_EVENT_EOF: number
-    export const BEV_EVENT_ERROR: number
+    const BEV_EVENT_CONNECTED: number
+    const BEV_EVENT_WRITING: number
+    const BEV_EVENT_READING: number
+    const BEV_EVENT_TIMEOUT: number
+    const BEV_EVENT_EOF: number
+    const BEV_EVENT_ERROR: number
 
-    export function socket_error(err: number): string
+    function socket_error(err: number): string
 
-    export interface ConnMetadata {
+    interface ConnMetadata {
         /**
          * max write bytes
          */
         mw: number
     }
 
-    export class TcpConn {
+    class TcpConn {
         readonly __id = "TcpConn"
 
         busy?: boolean
@@ -57,18 +57,18 @@ declare namespace deps {
         md: ConnMetadata
         p: unknown
     }
-    export class TcpListenerOptions {
+    class TcpListenerOptions {
         remoteIP?: string
         remotePort?: number
         localIP?: string
         localPort?: number
     }
-    export class TcpListener {
+    class TcpListener {
         readonly __id = "TcpListener"
         cb?: (c?: TcpConn, opts?: TcpListenerOptions, e?: string) => void
         err?: (e: any) => void
     }
-    export interface TcpListenerOptions {
+    interface TcpListenerOptions {
         ip?: string
         v6?: boolean
         port: number
@@ -76,45 +76,45 @@ declare namespace deps {
         sync: boolean
         tls?: deps.ServerTls
     }
-    export function tcp_listen(opts: TcpListenerOptions): TcpListener
-    export function tcp_listen_close(l: TcpListener): void
-    export function tcp_listen_cb(l: TcpListener, enable: boolean): void
-    export function tcp_listen_err(l: TcpListener, enable: boolean): void
-    export function tcp_conn_stash(c: TcpConn, put: boolean): void
-    export function tcp_conn_pop_stash(p: unknown): void
-    export function tcp_conn_close(c: TcpConn): void
-    export function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
-    export function tcp_conn_cb(c: TcpConn, enable: boolean): void
-    export function tcp_conn_localAddr(c: TcpConn): [string, number]
-    export interface TcpConnectOptions {
+    function tcp_listen(opts: TcpListenerOptions): TcpListener
+    function tcp_listen_close(l: TcpListener): void
+    function tcp_listen_cb(l: TcpListener, enable: boolean): void
+    function tcp_listen_err(l: TcpListener, enable: boolean): void
+    function tcp_conn_stash(c: TcpConn, put: boolean): void
+    function tcp_conn_pop_stash(p: unknown): void
+    function tcp_conn_close(c: TcpConn): void
+    function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
+    function tcp_conn_cb(c: TcpConn, enable: boolean): void
+    function tcp_conn_localAddr(c: TcpConn): [string, number]
+    interface TcpConnectOptions {
         ip: string
         v6: boolean
         port: number
         tls: unknown
     }
-    export function tcp_conect(opts: TcpConnectOptions): TcpConn
+    function tcp_conect(opts: TcpConnectOptions): TcpConn
 
 
-    export interface UnixListenerOptions {
+    interface UnixListenerOptions {
         address: string
         backlog: number
         sync: boolean
         tls?: ServerTls
     }
-    export function unix_listen(opts: UnixListenerOptions): TcpListener
-    export interface UnixConnectOptions {
+    function unix_listen(opts: UnixListenerOptions): TcpListener
+    interface UnixConnectOptions {
         name: string
         tls: unknown
     }
-    export function unix_conect(opts: UnixConnectOptions): TcpConn
+    function unix_conect(opts: UnixConnectOptions): TcpConn
 
-    export class Resolve {
+    class Resolve {
         readonly __id = "Resolve"
     }
-    export class Resolver {
+    class Resolver {
         readonly __id = "Resolver"
     }
-    export interface ResolverOptions {
+    interface ResolverOptions {
         /**
          * upstream domain name server ip
          */
@@ -127,70 +127,70 @@ declare namespace deps {
          */
         system?: boolean
     }
-    export function resolver_new(opts: ResolverOptions): Resolver
-    export function resolver_free(r: Resolver): void
-    export interface ResolverResult {
+    function resolver_new(opts: ResolverOptions): Resolver
+    function resolver_free(r: Resolver): void
+    interface ResolverResult {
         ip?: Array<string>
         v6?: boolean
     }
-    export interface ResolverIPOptions {
+    interface ResolverIPOptions {
         r: Resolver
         name: string
         v6: boolean
         cb: (v?: ResolverResult, result?: number, msg?: string) => void
     }
-    export function resolver_ip(opts: ResolverIPOptions): Resolve
-    export function resolver_ip_cancel(r: Resolve): void
+    function resolver_ip(opts: ResolverIPOptions): Resolve
+    function resolver_ip_cancel(r: Resolve): void
 
-    export class UdpAddr {
+    class UdpAddr {
         readonly __id = "UdpAddr"
         s?: string
     }
-    export function udp_addr(ip: string, port: number): UdpAddr
-    export function udp_addr_copy(dst: UdpAddr, src: UdpAddr): void
-    export function udp_addr_s(addr: UdpAddr): string
-    export class UdpConn {
+    function udp_addr(ip: string, port: number): UdpAddr
+    function udp_addr_copy(dst: UdpAddr, src: UdpAddr): void
+    function udp_addr_s(addr: UdpAddr): string
+    class UdpConn {
         readonly __id = "UdpConn"
         md: ConnMetadata
         cb: () => void
 
         addr?: UdpAddr
     }
-    export interface UdpConnOptions {
+    interface UdpConnOptions {
         v6?: boolean
     }
-    export function udp_create(opts?: UdpConnOptions): UdpConn
-    export function udp_connect(conn: UdpConn, remoteAddr: UdpAddr): UdpAddr
-    export function udp_bind(conn: UdpConn, localAddr: UdpAddr): UdpAddr
-    export function udp_close(c: UdpConn): void
-    export function udp_localAddr(c: UdpConn): [string, number]
-    export function udp_write(c: UdpConn, data: string | Uint8Array | ArrayBuffer, remote?: UdpAddr): number
-    export function udp_conn_cb(c: UdpConn, enable: boolean): void
-    export interface UdpListenOptions {
+    function udp_create(opts?: UdpConnOptions): UdpConn
+    function udp_connect(conn: UdpConn, remoteAddr: UdpAddr): UdpAddr
+    function udp_bind(conn: UdpConn, localAddr: UdpAddr): UdpAddr
+    function udp_close(c: UdpConn): void
+    function udp_localAddr(c: UdpConn): [string, number]
+    function udp_write(c: UdpConn, data: string | Uint8Array | ArrayBuffer, remote?: UdpAddr): number
+    function udp_conn_cb(c: UdpConn, enable: boolean): void
+    interface UdpListenOptions {
         ip?: string
         port: number
         v6?: boolean
     }
-    export function udp_listen(opts: UdpListenOptions): UdpConn
-    export function udp_dial(opts: UdpListenOptions): UdpConn
+    function udp_listen(opts: UdpListenOptions): UdpConn
+    function udp_dial(opts: UdpListenOptions): UdpConn
 
-    export interface UdpReadOptions {
+    interface UdpReadOptions {
         c: UdpConn
         dst: Uint8Array
         addr?: deps.UdpAddr // in out
 
         out?: boolean // if true, out to addr
     }
-    export function udp_read(opts: UdpReadOptions): number
+    function udp_read(opts: UdpReadOptions): number
 
-    export let _ipv6: undefined | boolean
-    export function support_ipv6(): boolean
-    export let _ipv4: undefined | boolean
-    export function support_ipv4(): boolean
+    let _ipv6: undefined | boolean
+    function support_ipv6(): boolean
+    let _ipv4: undefined | boolean
+    function support_ipv4(): boolean
 
-    export function mbedtls_debug(v: number): void
+    function mbedtls_debug(v: number): void
 
-    export interface TlsConfig {
+    interface TlsConfig {
         /**
          * @default Tls12
          */
@@ -205,18 +205,18 @@ declare namespace deps {
         insecure?: boolean
         debug?: boolean
     }
-    export class Tls {
+    class Tls {
         readonly __id = "Tls"
         p: unknown
     }
-    export function create_tls(config: TlsConfig): Tls
+    function create_tls(config: TlsConfig): Tls
 
-    export interface Certificate {
+    interface Certificate {
         cert: string
         key: string
         password?: string
     }
-    export interface ServerTlsConfig {
+    interface ServerTlsConfig {
         /**
          * @default Tls12
          */
@@ -230,17 +230,17 @@ declare namespace deps {
 
         debug?: boolean
     }
-    export class ServerTls {
+    class ServerTls {
         readonly __id = "ServerTls"
         p: unknown
     }
-    export function create_server_tls(config: ServerTlsConfig): ServerTls
+    function create_server_tls(config: ServerTlsConfig): ServerTls
 
     interface AsyncOptions {
         post?: boolean
     }
-    export function load_certificate(): string
-    export function load_certificate(opts: AsyncOptions, cb: (s?: string, e?: any) => void): void
+    function load_certificate(): string
+    function load_certificate(opts: AsyncOptions, cb: (s?: string, e?: any) => void): void
 }
 import { parseArgs, parseOptionalArgs, callReturn, callVoid, coReturn, isYieldContext } from "ejs/sync";
 export class AddrError extends __duk.Error {
