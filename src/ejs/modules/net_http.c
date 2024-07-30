@@ -6,6 +6,8 @@
 #include <errno.h>
 #include "../js/net_http.h"
 #include "../internal/sync_evconn_listener.h"
+#include "../internal/utf8.h"
+#include "../internal/strconv.h"
 
 #include <event2/buffer.h>
 #include <event2/event.h>
@@ -732,7 +734,180 @@ static duk_ret_t header_clear(duk_context *ctx)
     evhttp_clear_headers(headers);
     return 0;
 }
+typedef struct
+{
+    const uint8_t *s;
+    duk_size_t s_len;
+    uint8_t *p;
+    duk_size_t cap;
+} html_escape_args_t;
+static duk_ret_t html_escape_impl(duk_context *ctx)
+{
+    html_escape_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
 
+    args->p = malloc(args->cap);
+    if (!args->p)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+
+    duk_size_t index = 0;
+    for (duk_size_t i = 0; i < args->s_len; i++)
+    {
+        switch (args->s[i])
+        {
+        case '&':
+            memcpy(args->p + index, "&amp;", 5);
+            index += 5;
+            break;
+        case '"':
+            memcpy(args->p + index, "&#34;", 5);
+            index += 5;
+            break;
+        case '\'':
+            memcpy(args->p + index, "&#39;", 5);
+            index += 5;
+            break;
+        case '<':
+            memcpy(args->p + index, "&lt;", 4);
+            index += 4;
+            break;
+        case '>':
+            memcpy(args->p + index, "&gt;", 4);
+            index += 4;
+            break;
+        default:
+            args->p[index++] = args->s[i];
+            break;
+        }
+    }
+    duk_push_lstring(ctx, args->p, args->cap);
+
+    free(args->p);
+    args->p = 0;
+
+    return 1;
+}
+static duk_ret_t html_escape(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const uint8_t *s = duk_require_lstring(ctx, 0, &s_len);
+    if (s_len)
+    {
+        duk_size_t n = 0;
+        for (duk_size_t i = 0; i < s_len; i++)
+        {
+            switch (s[i])
+            {
+            case '&':
+            case '"':
+            case '\'':
+                n += 5;
+                break;
+            case '<':
+            case '>':
+                n += 4;
+                break;
+            }
+        }
+        if (n)
+        {
+            html_escape_args_t args = {
+                .s = s,
+                .s_len = s_len,
+                .p = 0,
+                .cap = s_len + n,
+            };
+            if (ejs_pcall_function(ctx, html_escape_impl, &args))
+            {
+                if (args.p)
+                {
+                    free(args.p);
+                }
+                duk_throw(ctx);
+            }
+        }
+    }
+    return 1;
+}
+static duk_ret_t hexEscapeNonASCII_impl(duk_context *ctx)
+{
+    html_escape_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    args->p = malloc(args->cap);
+    if (!args->p)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+
+    duk_size_t pos = 0;
+    uint8_t *p = args->p;
+    for (duk_size_t i = 0; i < args->s_len; i++)
+    {
+        if (args->s[i] >= PPP_UTF8_RUNE_SELF)
+        {
+            if (pos < i)
+            {
+                pos = i - pos;
+                memcpy(p, args->s + pos, pos);
+                p += pos;
+            }
+            p[0] = '%';
+            ppp_strconv_format_bits_a_t a;
+            size_t n = sizeof(a.a);
+            ppp_strconv_format_bits(0, &a, (uint64_t)(args->s[i]), 16, 0, 0);
+            memcpy(p + 1, a.a + a.i, 2);
+
+            p += 3;
+            pos = i + 1;
+        }
+    }
+
+    duk_push_lstring(ctx, args->p, args->cap);
+
+    free(args->p);
+    args->p = 0;
+
+    return 1;
+}
+static duk_ret_t hexEscapeNonASCII(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const uint8_t *s = duk_require_lstring(ctx, 0, &s_len);
+    duk_size_t new_len = 0;
+    for (duk_size_t i = 0; i < s_len; i++)
+    {
+        if (s[i] >= PPP_UTF8_RUNE_SELF)
+        {
+            new_len += 3;
+        }
+        else
+        {
+            new_len++;
+        }
+    }
+    if (new_len == s_len)
+    {
+        return 1;
+    }
+    html_escape_args_t args = {
+        .s = s,
+        .s_len = s_len,
+        .p = 0,
+        .cap = new_len,
+    };
+    if (ejs_pcall_function(ctx, hexEscapeNonASCII_impl, &args))
+    {
+        if (args.p)
+        {
+            free(args.p);
+        }
+        duk_throw(ctx);
+    }
+
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(net_http)
 {
     /*
@@ -831,6 +1006,11 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "header_del_all", 14);
         duk_push_c_lightfunc(ctx, header_clear, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "header_clear", 12);
+
+        duk_push_c_lightfunc(ctx, html_escape, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "html_escape", 11);
+        duk_push_c_lightfunc(ctx, hexEscapeNonASCII, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "hexEscapeNonASCII", 17);
     }
     duk_call(ctx, 3);
     return 0;

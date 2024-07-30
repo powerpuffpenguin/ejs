@@ -251,7 +251,7 @@ typedef struct
     size_t volLen;
 #endif
 } ppp_c_filepath_lazybuf_t;
-int ppp_c_filepath_lazybuf_append_char(ppp_c_filepath_lazybuf_t *b, char c)
+static int ppp_c_filepath_lazybuf_append_char(ppp_c_filepath_lazybuf_t *b, char c)
 {
     if (!b->buf)
     {
@@ -279,15 +279,14 @@ int ppp_c_filepath_lazybuf_append_char(ppp_c_filepath_lazybuf_t *b, char c)
 #endif
         memcpy(b->buf, b->path.str, b->w);
     }
-    b->buf[b->w] = c;
-    b->w++;
+    b->buf[b->w++] = c;
     return 0;
 }
 static inline char ppp_c_filepath_lazybuf_index(ppp_c_filepath_lazybuf_t *b, size_t i)
 {
     return b->buf ? b->buf[i] : b->path.str[i];
 }
-void ppp_c_filepath_lazybuf_string(ppp_c_filepath_lazybuf_t *b, ppp_c_string_t *s)
+static void ppp_c_filepath_lazybuf_string(ppp_c_filepath_lazybuf_t *b, ppp_c_string_t *s)
 {
     if (b->buf)
     {

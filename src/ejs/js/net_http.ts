@@ -63,6 +63,9 @@ declare namespace deps {
     }
     function create_flags(): Uint8Array
     function writer_response(opts: WriterResponseOptions): void
+
+    function html_escape(s: string): string
+    function hexEscapeNonASCII(s: string): string
 }
 import { BaseTcpListener } from "ejs/net";
 export enum Method {
@@ -148,7 +151,6 @@ export const StatusNotExtended = 510 // RFC 2774, 7
 export const StatusNetworkAuthenticationRequired = 511 // RFC 6585, 6
 
 export const statusText = deps.status_text
-
 export const ContentTypeHTML = "text/html; charset=utf-8"
 export const ContentTypeText = "text/plain; charset=utf-8"
 export const ContentTypeJSON = "application/json; charset=utf-8"
@@ -165,7 +167,9 @@ interface RequestShared {
 export class Server {
     private srv_?: deps.Server
     private tls_?: any
-    constructor(readonly listener: BaseTcpListener, cb: (w: ResponseWriter, r: Request) => void) {
+    constructor(readonly listener: BaseTcpListener,
+        h: Handler,
+    ) {
         if (!(listener instanceof BaseTcpListener)) {
             throw new Error("listener must instanceof BaseTcpListener")
         }
@@ -184,7 +188,7 @@ export class Server {
                 }
                 const r = Request.__create(req, shared)
                 w = new ResponseWriter(req, shared)
-                cb(w, r)
+                h.serveHTTP(w, r)
             } catch (e) {
                 if (w) {
                     w.close()
@@ -413,6 +417,25 @@ export class ResponseWriter {
             throw e
         }
     }
+    body(code: number, body: string | Uint8Array, contentType: string) {
+        const f = this._flags()
+        const r = this._req()
+        try {
+            deps.writer_response({
+                f: f,
+                r: r,
+                t: contentType,
+                code: code,
+                body: body,
+            })
+        } catch (e) {
+            if (f[0]) {
+                f[0] = 0
+                deps.request_free_raw(r)
+            }
+            throw e
+        }
+    }
     text(code: number, body: string) {
         const f = this._flags()
         const r = this._req()
@@ -547,10 +570,199 @@ export interface Handler {
 }
 
 interface muxEntry {
-    h: Handler
     pattern: string
+    h: Handler
+}
+class HandlerFunc implements Handler {
+    constructor(readonly f: (w: ResponseWriter, r: Request) => void) { }
+    serveHTTP(w: ResponseWriter, r: Request): void {
+        const f = this.f
+        f(w, r)
+    }
+}
+export function handlerFunc(f: (w: ResponseWriter, r: Request) => void): Handler {
+    return new HandlerFunc(f)
+}
+// Helper handlers
+
+// Error replies to the request with the specified error message and HTTP code.
+// It does not otherwise end the request; the caller should ensure no further
+// writes are done to w.
+// The error message should be plain text.
+export function error(w: ResponseWriter, error: string, code: number) {
+    w.header("X-Content-Type-Options", "nosniff")
+    w.text(code, error)
 }
 
+// NotFound replies to the request with an HTTP 404 not found error.
+export function notFound(w: ResponseWriter, r: Request) {
+    w.header("X-Content-Type-Options", "nosniff")
+    w.text(StatusNotFound, "404 page not found")
+}
+const _notFoundMuxEntry: muxEntry = {
+    pattern: '',
+    h: handlerFunc(notFound),
+}
+// NotFoundHandler returns a simple request handler
+// that replies to each request with a “404 page not found” reply.
+export function notFoundHandler(): Handler {
+    return handlerFunc(notFound)
+}
+// Redirect replies to the request with a redirect to url,
+// which may be a path relative to the request path.
+//
+// The provided code should be in the 3xx range and is usually
+// StatusMovedPermanently, StatusFound or StatusSeeOther.
+//
+// If the Content-Type header has not been set, Redirect sets it
+// to "text/html; charset=utf-8" and writes a small HTML body.
+// Setting the Content-Type header to any value, including nil,
+// disables that behavior.
+export function redirect(w: ResponseWriter, r: Request, url: string, code: number) {
+    // if u, err := urlpkg.Parse(url); err == nil {
+    // 	// If url was relative, make its path absolute by
+    // 	// combining with request path.
+    // 	// The client would probably do this for us,
+    // 	// but doing it ourselves is more reliable.
+    // 	// See RFC 7231, section 7.1.2
+    // 	if u.Scheme == "" && u.Host == "" {
+    // 		oldpath := r.URL.Path
+    // 		if oldpath == "" { // should not happen, but avoid a crash if it does
+    // 			oldpath = "/"
+    // 		}
+
+    // 		// no leading http://server
+    // 		if url == "" || url[0] != '/' {
+    // 			// make relative path absolute
+    // 			olddir, _ := path.Split(oldpath)
+    // 			url = olddir + url
+    // 		}
+
+    // 		var query string
+    // 		if i := strings.Index(url, "?"); i != -1 {
+    // 			url, query = url[:i], url[i:]
+    // 		}
+
+    // 		// clean up but preserve trailing slash
+    // 		trailing := strings.HasSuffix(url, "/")
+    // 		url = path.Clean(url)
+    // 		if trailing && !strings.HasSuffix(url, "/") {
+    // 			url += "/"
+    // 		}
+    // 		url += query
+    // 	}
+    // }
+
+    const h = w.header()!
+
+    // RFC 7231 notes that a short HTML body is usually included in
+    // the response because older user agents may not understand 301/307.
+    // Do it only if the request didn't already have a Content-Type header.
+    const hadCT = h.get("Content-Type")
+    h.set("Location", deps.hexEscapeNonASCII(url))
+    if (hadCT == "") {
+        w.status(code)
+        return
+    }
+
+    switch (r.method) {
+        case Method.HEAD:
+            h.set("Content-Type", "text/html; charset=utf-8")
+            break
+        case Method.GET:
+            w.body(code,
+                "<a href=\"" + deps.html_escape(url) + "\">" + statusText(code) + "</a>.\n",
+                "text/html; charset=utf-8")
+            return
+    }
+    w.status(code)
+}
+// Redirect to a fixed URL
+class RedirectHandler implements Handler {
+    constructor(readonly url: string, readonly code: number) { }
+    serveHTTP(w: ResponseWriter, r: Request): void {
+        redirect(w, r, this.url, this.code)
+    }
+}
+
+// // cleanPath returns the canonical path for p, eliminating . and .. elements.
+// function cleanPath(p: string): string {
+// 	if( p == "" ){
+// 		return "/"
+// 	}
+// 	if( p[0] != '/' ){
+// 		p = "/" + p
+// 	}
+// 	np := path.Clean(p)
+// 	// path.Clean removes trailing slash except for root;
+// 	// put the trailing slash back if necessary.
+// 	if p[len(p)-1] == '/' && np != "/" {
+// 		// Fast path for common case of p being the string we want:
+// 		if len(p) == len(np)+1 && strings.HasPrefix(p, np) {
+// 			np = p
+// 		} else {
+// 			np += "/"
+// 		}
+// 	}
+// 	return np
+// }
+
+// stripHostPort returns h without any trailing ":<port>".
+function stripHostPort(hostport: string): string {
+
+    let j = 0
+
+    // The port starts after the last colon.
+    let i = hostport.lastIndexOf(':')
+    if (i < 0) {
+        return hostport
+    }
+    let k = 0
+
+    let host: string
+    if (hostport[0] == '[') {
+        // Expect the first ']' just before the last ':'.
+        const end = hostport.indexOf(']', 1)
+        if (end < 0) {
+            return ""
+        }
+        switch (end + 1) {
+            case hostport.length:
+                // There can't be a ':' behind the ']' now.
+                return ""
+            case i:
+                // The expected result.
+                break
+            default:
+                // Either ']' isn't followed by a colon, or it is
+                // followed by a colon that is not the last one.
+                if (hostport[end + 1] == ':') {
+                    return ""
+                }
+                return ""
+        }
+        host = hostport.substring(1, end)
+        j = 1
+        k = end + 1 // there can't be a '[' resp. ']' before these positions
+    } else {
+        host = hostport.substring(0, i)
+        if (host.indexOf(':') >= 0) {
+            return ""
+        }
+    }
+    if (hostport.indexOf('[', j) >= 0) {
+        return ""
+    }
+    if (hostport.indexOf(']', k) >= 0) {
+        return ""
+    }
+
+    return host
+}
+
+function joinPathQuery(path: string, query: string): string {
+    return query == "" ? path : `${path}?${query}`
+}
 export class ServeMux implements Handler {
     /**
      *  whether any patterns contain hostnames
@@ -561,39 +773,134 @@ export class ServeMux implements Handler {
      *  array of entries sorted from longest to shortest
      */
     private es_?: Array<muxEntry>
-    handler(r: Request): [Handler, string] {
+    // shouldRedirectRLocked reports whether the given path and host should be redirected to
+    // path+"/". This should happen if a handler is registered for path+"/" but
+    // not path -- see comments at ServeMux.
+    private _shouldRedirectRLocked(host: string, path: string): boolean {
+        const m = this.m_
+        if (m) {
+            if (m[path]) {
+                return false
+            }
+            host += path
+            if (m[host]) {
+                return false
+            }
+        }
+        const n = path.length
+        if (n == 0) {
+            return false
+        }
+        if (m) {
+            if (!path.endsWith("/")) {
+                if (m[path + "/"]) {
+                    return true
+                }
+                if (m[host + "/"]) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+    // redirectToPathSlash determines if the given path needs appending "/" to it.
+    // This occurs when a handler for path + "/" was already registered, but
+    // not for path itself. If the path needs appending to, it creates a new
+    // URL, setting the path to u.Path + "/" and returning true to indicate so.
+    private _redirectToPathSlash(host: string, path: string, u: Uri): {
+        url: string,
+        path: string,
+        ok: boolean
+    } {
+        if (!this._shouldRedirectRLocked(host, path)) {
+            return {
+                url: u.toString(),
+                path: u.path,
+                ok: false
+            }
+        }
+        path += "/"
+        return {
+            url: joinPathQuery(path, u.query),
+            path: path,
+            ok: true,
+        }
+    }
+    handler(r: Request): muxEntry {
         // CONNECT requests are not canonicalized.
-        // if (r.method == Method.CONNECT) {
-        //     // If r.URL.Path is /tree and its handler is not registered,
-        //     // the /tree -> /tree/ redirect applies to CONNECT requests
-        //     // but the path canonicalization does not.
-        //     // if u, ok := mux.redirectToPathSlash(r.URL.Host, r.URL.Path, r.URL); ok {
-        //     //     return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
-        //     // }
+        const uri = r.uri
+        if (r.method == Method.CONNECT) {
+            const o = this._redirectToPathSlash(uri.host, uri.path, uri)
+            if (o.ok) {
+                return {
+                    h: new RedirectHandler(o.url, StatusMovedPermanently),
+                    pattern: o.path,
+                }
+            }
+            return this._handler(r.host, uri.path)
+        }
 
-        //     // return mux.handler(r.Host, r.URL.Path)
-        // }
-
-        // // All other requests have any port stripped and path cleaned
-        // // before passing to mux.handler.
-        // host := stripHostPort(r.Host)
+        // All other requests have any port stripped and path cleaned
+        // before passing to mux.handler.
+        let host = stripHostPort(r.host)
+        let path = uri.path
         // path := cleanPath(r.URL.Path)
 
-        // // If the given path is /tree and its handler is not registered,
-        // // redirect for /tree/.
-        // if u, ok := mux.redirectToPathSlash(host, path, r.URL); ok {
-        //     return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
-        // }
-
-        // if path != r.URL.Path {
-        //     _, pattern = mux.handler(host, path)
-        //     u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
-        //     return RedirectHandler(u.String(), StatusMovedPermanently), pattern
-        // }
-
-        // return mux.handler(host, r.URL.Path)
-        throw new Error("not found");
-
+        // If the given path is /tree and its handler is not registered,
+        // redirect for /tree/.
+        const o = this._redirectToPathSlash(host, path, uri)
+        if (o.ok) {
+            return {
+                h: new RedirectHandler(o.url, StatusMovedPermanently),
+                pattern: o.path,
+            }
+        }
+        if (path != r.uri.path) {
+            const found = this._handler(host, path)
+            return {
+                h: new RedirectHandler(joinPathQuery(path, uri.query), StatusMovedPermanently),
+                pattern: found.pattern,
+            }
+        }
+        return this._handler(host, r.uri.path)
+    }
+    /**
+     * Find a handler on a handler map given a path string.
+     * Most-specific (longest) pattern wins.
+     */
+    private _match(path: string): muxEntry | undefined {
+        // Check for exact match first.
+        const m = this.m_
+        if (m) {
+            const v = m[path]
+            if (v) {
+                return v
+            }
+        }
+        // Check for longest valid match.  mux.es contains all patterns
+        // that end in / sorted from longest to shortest.
+        const es = this.es_
+        if (es) {
+            const length = es.length
+            let e: muxEntry
+            for (let i = 0; i < length; i++) {
+                e = es[i]
+                if (path.startsWith(e.pattern)) {
+                    return e
+                }
+            }
+        }
+    }
+    private _handler(host: string, path: string): muxEntry {
+        // Host-specific pattern takes precedence over generic ones
+        let h: muxEntry | undefined
+        if (this.hosts_) {
+            h = this._match(host + path)
+        }
+        if (!h) {
+            h = this._match(path)
+        }
+        return h ? h : _notFoundMuxEntry
     }
     serveHTTP(w: ResponseWriter, r: Request): void {
         if (!r.isValid) {
@@ -605,6 +912,6 @@ export class ServeMux implements Handler {
         }
 
         const found = this.handler(r)
-        found[0].serveHTTP(w, r)
+        found.h.serveHTTP(w, r)
     }
 }

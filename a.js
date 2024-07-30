@@ -27,36 +27,21 @@ function main() {
     } else {
         console.log("http listen on:", l.addr)
     }
-    // new http.Server(l, function (w, r) {
-    //     console.log("host:", r.host)
-    //     var uri = r.uri
-    //     console.log(r.methodString, r.uri.toString())
-    //     // console.log("scheme:", uri.scheme)
-    //     // console.log("userinfo:", uri.userinfo)
-    //     // console.log("host:", uri.host)
-    //     // console.log("port:", uri.port)
-    //     // console.log("path:", uri.path)
-    //     // console.log("query:", uri.query)
-    //     // console.log("fragment:", uri.fragment)
+    var mux = new http.ServeMux()
 
-    //     var h = r.header()
-    //     h.add("y", 10)
-    //     h.add("y", 11)
+    // new http.Server(l, mux)
+    new http.Server(l, {
+        serveHTTP: function (w, r) {
+            console.log("host:", r.host)
+            var uri = r.uri
+            console.log(r.methodString, uri.toString())
+            console.log(uri.query)
+            var h = r.header()
+            console.log("User-Agent:", h.get("user-agent"))
 
-
-    //     h.add("x", 1)
-    //     h.add("x", 2)
-    //     h.add("x", 3)
-    //     h.removeAll("x")
-
-    //     h.set("y", 123)
-
-    //     console.log(h.get("x"))
-    //     console.log(h.get("user-agent"))
-
-    //     w.text(200, "ok\n")
-    //     // w.status(http.StatusNoContent)
-    // })
-
+            w.text(200, "ok\n")
+            // w.status(http.StatusNoContent)
+        }
+    })
 }
 main()
