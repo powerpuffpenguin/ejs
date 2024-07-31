@@ -7,7 +7,12 @@ var os = require("ejs/os")
 var utf8 = require("ejs/unicode/utf8")
 var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
+var path = require("ejs/path")
 function main() {
+    {
+        console.log(path.split(new TextEncoder().encode("ab/a")))
+        return
+    }
     var opts = {
         network: 'tcp',
         address: '127.0.0.1:9000',

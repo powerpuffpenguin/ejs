@@ -12,8 +12,9 @@
 #include "../_duk_rand.h"
 
 #include "../internal/buffer.h"
-#include "../internal/c_filepath.h"
 #include "../internal/c_string.h"
+#include "../internal/c_filepath.h"
+#include "../internal/c_path.h"
 #include "../internal/encoding_hex.h"
 #include "../internal/encoding_binary.h"
 

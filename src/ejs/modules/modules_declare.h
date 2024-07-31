@@ -28,6 +28,9 @@ EJS_SHARED_MODULE__DECLARE(unicode_utf8);
 #define EJS_SHARED_MODULE__SYNC "ejs/sync", 8
 EJS_SHARED_MODULE__DECLARE(sync);
 
+#define EJS_SHARED_MODULE__PATH "ejs/path", 8
+EJS_SHARED_MODULE__DECLARE(path);
+
 #define EJS_SHARED_MODULE__OS "ejs/os", 6
 EJS_SHARED_MODULE__DECLARE(os);
 
