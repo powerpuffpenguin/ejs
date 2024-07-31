@@ -1,4 +1,5 @@
 #include "c_path.h"
+#include "utf8.h"
 typedef struct
 {
     ppp_c_string_t *path;
@@ -343,4 +344,349 @@ int ppp_c_path_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *iterato
         return 0;
     }
     return ppp_c_path_clean(output);
+}
+// scan_chunk gets the next segment of pattern, which is a non-star string
+// possibly preceded by a star.
+static uint8_t ppp_c_path_scan_chunk(
+    const char *pattern, size_t pattern_len,
+    ppp_c_fast_string_t *chunk, ppp_c_fast_string_t *rest)
+{
+    uint8_t star = 0;
+    while (pattern_len > 0 && pattern[0] == '*')
+    {
+        pattern++;
+        pattern_len--;
+        star = 1;
+    }
+
+    uint8_t inrange = 0;
+    size_t i;
+
+    for (i = 0; i < pattern_len; i++)
+    {
+        switch (pattern[i])
+        {
+        case '\\':
+            // error check handled in matchChunk: bad pattern.
+            if (i + 1 < pattern_len)
+            {
+                i++;
+            }
+            break;
+        case '[':
+            inrange = 1;
+            break;
+        case ']':
+            inrange = 0;
+            break;
+        case '*':
+            if (!inrange)
+            {
+                goto Scan;
+            }
+            break;
+        }
+    }
+
+Scan:
+    if (chunk)
+    {
+        chunk->str = pattern;
+        chunk->len = i;
+    }
+    if (rest)
+    {
+        rest->str = pattern + i;
+        rest->len = pattern_len - i;
+    }
+    return star;
+}
+// getEsc gets a possibly-escaped character from chunk, for a character class.
+static int ppp_c_path_get_esc(
+    const char *chunk, size_t chunk_len,
+    ppp_utf8_rune_t *r,
+    ppp_c_fast_string_t *nchunk)
+{
+    if (chunk_len == 0 || chunk[0] == '-' || chunk[0] == ']')
+    {
+        return -1;
+    }
+    if (chunk[0] == '\\')
+    {
+        chunk++;
+        chunk_len--;
+        if (chunk_len == 0)
+        {
+            return -1;
+        }
+    }
+    int n;
+    *r = ppp_utf8_decode(chunk, chunk_len, &n);
+    if (*r == PPP_UTF8_RUNE_ERROR && n == 1)
+    {
+        return -1;
+    }
+    chunk += n;
+    chunk_len -= n;
+    if (chunk_len == 0)
+    {
+        return -1;
+    }
+    nchunk->str = chunk;
+    nchunk->len = chunk_len;
+    return 0;
+}
+// match_chunk checks whether chunk matches the beginning of s.
+// If so, it returns the remainder of s (after the match).
+// Chunk is all single-character operators: literals, char classes, and ?.
+static int ppp_c_path_match_chunk(
+    const char *chunk, size_t chunk_len,
+    const char *s, size_t s_len,
+    ppp_c_fast_string_t *rest,
+    uint8_t *ok)
+{
+    // failed records whether the match has failed.
+    // After the match fails, the loop continues on processing chunk,
+    // checking that the pattern is well-formed but no longer reading s.
+    uint8_t failed = 0;
+    while (chunk_len > 0)
+    {
+        if (!failed && s_len == 0)
+        {
+            failed = 1;
+        }
+        switch (chunk[0])
+        {
+        case '[':
+        {
+            // character class
+            ppp_utf8_rune_t r = 0;
+            if (!failed)
+            {
+                int n;
+                r = ppp_utf8_decode(s, s_len, &n);
+                s += n;
+                s_len -= n;
+            }
+            chunk++;
+            chunk_len--;
+            // possibly negated
+            uint8_t negated = 0;
+            if (chunk_len > 0 && chunk[0] == '^')
+            {
+                negated = 1;
+                chunk++;
+                chunk_len--;
+            }
+            // parse all ranges
+            uint8_t match = 0;
+            size_t nrange = 0;
+            while (1)
+            {
+                if (chunk_len > 0 && chunk[0] == ']' && nrange > 0)
+                {
+                    chunk++;
+                    chunk_len--;
+                    break;
+                }
+                ppp_utf8_rune_t lo;
+                ppp_c_fast_string_t nchunk;
+                if (ppp_c_path_get_esc(chunk, chunk_len, &lo, &nchunk))
+                {
+                    if (ok)
+                    {
+                        *ok = 0;
+                    }
+                    if (rest)
+                    {
+                        rest->str = "";
+                        rest->len = 0;
+                    }
+                    return -1;
+                }
+                chunk = nchunk.str;
+                chunk_len = nchunk.len;
+                ppp_utf8_rune_t hi = lo;
+                if (chunk[0] == '-')
+                {
+                    if (ppp_c_path_get_esc(chunk + 1, chunk_len - 1, &hi, &nchunk))
+                    {
+                        if (ok)
+                        {
+                            *ok = 0;
+                        }
+                        if (rest)
+                        {
+                            rest->str = "";
+                            rest->len = 0;
+                        }
+                        return -1;
+                    }
+                    chunk = nchunk.str;
+                    chunk_len = nchunk.len;
+                }
+                if (lo <= r && r <= hi)
+                {
+                    match = 1;
+                }
+                nrange++;
+            }
+            if (match == negated)
+            {
+                failed = 1;
+            }
+        }
+        break;
+        case '?':
+            if (!failed)
+            {
+                if (s[0] == '/')
+                {
+                    failed = 1;
+                }
+                int n;
+                ppp_utf8_decode(s, s_len, &n);
+                s += n;
+                s_len -= n;
+            }
+            chunk++;
+            chunk_len--;
+            break;
+        case '\\':
+            chunk++;
+            chunk_len--;
+            if (chunk_len == 0)
+            {
+                if (ok)
+                {
+                    *ok = 0;
+                }
+                if (rest)
+                {
+                    rest->str = "";
+                    rest->len = 0;
+                }
+                return -1;
+            }
+        default:
+            if (!failed)
+            {
+                if (chunk[0] != s[0])
+                {
+                    failed = 1;
+                }
+                s++;
+                s_len--;
+            }
+            chunk++;
+            chunk_len--;
+            break;
+        }
+    }
+
+    if (failed)
+    {
+        if (rest)
+        {
+            rest->len = 0,
+            rest->str = "";
+        }
+        if (ok)
+        {
+            *ok = 0;
+        }
+        return 0;
+    }
+    if (rest)
+    {
+        rest->len = s_len,
+        rest->str = s;
+    }
+    if (ok)
+    {
+        *ok = 1;
+    }
+    return 0;
+}
+int ppp_c_path_match_raw(const char *_pattern, size_t _pattern_len, const char *name, size_t name_len)
+{
+    ppp_c_fast_string_t pattern = {
+        .str = _pattern,
+        .len = _pattern_len,
+    };
+    uint8_t star;
+    ppp_c_fast_string_t chunk;
+    ppp_c_fast_string_t t;
+    uint8_t ok;
+    int err;
+    while (pattern.len)
+    {
+        star = ppp_c_path_scan_chunk(pattern.str, pattern.len, &chunk, &pattern);
+        if (star && chunk.len == 0)
+        {
+            // Trailing * matches rest of string unless it has a /.
+            return ppp_c_stirng_first_char_raw(name, name_len, '/') == -1 ? 0 : 1;
+        }
+        err = ppp_c_path_match_chunk(
+            chunk.str, chunk.len,
+            name, name_len,
+            &t, &ok);
+        // if we're the last chunk, make sure we've exhausted the name
+        // otherwise we'll give a false result even if we could still match
+        // using the star
+        if (ok && (t.len == 0 || pattern.len > 0))
+        {
+            name = t.str;
+            name_len = t.len;
+            continue;
+        }
+        if (err)
+        {
+            return -1;
+        }
+        if (star)
+        {
+            // Look for match skipping i+1 bytes.
+            // Cannot skip /.
+            for (size_t i = 0; i < name_len && name[i] != '/'; i++)
+            {
+                err = ppp_c_path_match_chunk(
+                    chunk.str, chunk.len,
+                    name + i + 1, name_len - i - 1,
+                    &t, &ok);
+                if (ok)
+                {
+                    // if we're the last chunk, make sure we exhausted the name
+                    if (pattern.len == 0 && t.len > 0)
+                    {
+                        continue;
+                    }
+                    name = t.str;
+                    name_len = t.len;
+                    goto Pattern;
+                }
+                if (err)
+                {
+                    return -1;
+                }
+            }
+        }
+        // Before returning false with no error,
+        // check that the remainder of the pattern is syntactically valid.
+        while (pattern.len > 0)
+        {
+            ppp_c_path_scan_chunk(pattern.str, pattern.len, &chunk, &pattern);
+            if (ppp_c_path_match_chunk(
+                    chunk.str, chunk.len,
+                    "", 0,
+                    0, 0))
+            {
+                return -1;
+            }
+        }
+        return 1;
+    Pattern: //
+        ;
+    }
+    return name_len == 0 ? 0 : 1;
 }

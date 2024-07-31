@@ -319,6 +319,86 @@ static EJS_TESTS_GROUP_FUNC(path, ext, t)
         }
     }
 }
+typedef struct
+{
+    const char *pattern;
+    const char *s;
+    int match;
+} match_test_t;
+static match_test_t match_tests[] = {
+    {"abc", "abc", 0},
+    {"*", "abc", 0},
+    {"*c", "abc", 0},
+    {"a*", "a", 0},
+    {"a*", "abc", 0},
+    {"a*", "ab/c", 1},
+    {"a*/b", "abc/b", 0},
+    {"a*/b", "a/c/b", 1},
+    {"a*b*c*d*e*/f", "axbxcxdxe/f", 0},
+    {"a*b*c*d*e*/f", "axbxcxdxexxx/f", 0},
+    {"a*b*c*d*e*/f", "axbxcxdxe/xxx/f", 1},
+    {"a*b*c*d*e*/f", "axbxcxdxexxx/fff", 1},
+    {"a*b?c*x", "abxbbxdbxebxczzx", 0},
+    {"a*b?c*x", "abxbbxdbxebxczzy", 1},
+    {"ab[c]", "abc", 0},
+    {"ab[b-d]", "abc", 0},
+    {"ab[e-g]", "abc", 1},
+    {"ab[^c]", "abc", 1},
+    {"ab[^b-d]", "abc", 1},
+    {"ab[^e-g]", "abc", 0},
+    {"a\\*b", "a*b", 0},
+    {"a\\*b", "ab", 1},
+    {"a?b", "a☺b", 0},
+    {"a[^a]b", "a☺b", 0},
+    {"a???b", "a☺b", 1},
+    {"a[^a][^a][^a]b", "a☺b", 1},
+    {"[a-ζ]*", "α", 0},
+    {"*[a-ζ]", "A", 1},
+    {"a?b", "a/b", 1},
+    {"a*b", "a/b", 1},
+    {"[\\]a]", "]", 0},
+    {"[\\-]", "-", 0},
+    {"[x\\-]", "x", 0},
+    {"[x\\-]", "-", 0},
+    {"[x\\-]", "z", 1},
+    {"[\\-x]", "x", 0},
+    {"[\\-x]", "-", 0},
+    {"[\\-x]", "a", 1},
+    {"[]a]", "]", -1},
+    {"[-]", "-", -1},
+    {"[x-]", "x", -1},
+    {"[x-]", "-", -1},
+    {"[x-]", "z", -1},
+    {"[-x]", "x", -1},
+    {"[-x]", "-", -1},
+    {"[-x]", "a", -1},
+    {"\\", "a", -1},
+    {"[a-b-c]", "a", -1},
+    {"[", "a", -1},
+    {"[^", "a", -1},
+    {"[^bc", "a", -1},
+    {"a[", "a", -1},
+    {"a[", "ab", -1},
+    {"a[", "x", -1},
+    {"a/b[", "x", -1},
+    {"*x", "xxx", 0},
+};
+
+static EJS_TESTS_GROUP_FUNC(path, match, t)
+{
+    size_t count = sizeof(match_tests) / sizeof(match_test_t);
+    match_test_t *test;
+    for (size_t i = 0; i < count; i++)
+    {
+        test = match_tests + i;
+
+        int ret = ppp_c_path_match_raw(
+            test->pattern, strlen(test->pattern),
+            test->s, strlen(test->s));
+
+        CuAssertIntEquals_Msg(t, test->pattern, test->match, ret);
+    }
+}
 EJS_TESTS_GROUP(suite, path)
 {
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, clean);
@@ -327,4 +407,5 @@ EJS_TESTS_GROUP(suite, path)
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, join);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, base);
     EJS_TESTS_GROUP_ADD_FUNC(suite, path, ext);
+    EJS_TESTS_GROUP_ADD_FUNC(suite, path, match);
 }

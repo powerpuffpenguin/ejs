@@ -11,6 +11,8 @@
  *  - c_string.c
  *  - c_path.h
  *  - c_path.c
+ *  - utf8.h
+ *  - utf8.c
  */
 #ifndef _PPP_C_PATH_H_
 #define _PPP_C_PATH_H_
@@ -103,5 +105,59 @@ BOOL ppp_c_path_is_abs_raw(const char *path, size_t path_len);
  * reports whether the path is absolute
  */
 #define ppp_c_path_is_abs(path) ppp_c_path_is_abs_raw((const char *)(path)->str, (path)->len)
+
+/**
+ * Reports whether name matches the shell pattern.
+ * If matched return 0, If not matched return 1, If err return -1.
+ *
+ * The pattern syntax is:
+ * pattern:
+ * 	{ term }
+ * term:
+ * 	'*'         matches any sequence of non-/ characters
+ * 	'?'         matches any single non-/ character
+ * 	'[' [ '^' ] { character-range } ']'
+ * 	            character class (must be non-empty)
+ * 	c           matches character c (c != '*', '?', '\\', '[')
+ * 	'\\' c      matches character c
+ *
+ * character-range:
+ * 	c           matches character c (c != '\\', '-', ']')
+ * 	'\\' c      matches character c
+ * 	lo '-' hi   matches character c for lo <= c <= hi
+ *
+ * Match requires pattern to match all of name, not just a substring.
+ * The only possible returned error is ErrBadPattern, when pattern
+ * is malformed.
+ */
+int ppp_c_path_match_raw(const char *pattern, size_t pattern_len, const char *name, size_t name_len);
+/**
+ * - int (ppp_c_fast_string_t* pattern, ppp_c_fast_string_t* name)
+ * - int (ppp_c_string_t* pattern, ppp_c_fast_string_t* name)
+ *
+ * Reports whether name matches the shell pattern.
+ * If matched return 0, If not matched return 1, If err return -1.
+ *
+ * The pattern syntax is:
+ * pattern:
+ * 	{ term }
+ * term:
+ * 	'*'         matches any sequence of non-/ characters
+ * 	'?'         matches any single non-/ character
+ * 	'[' [ '^' ] { character-range } ']'
+ * 	            character class (must be non-empty)
+ * 	c           matches character c (c != '*', '?', '\\', '[')
+ * 	'\\' c      matches character c
+ *
+ * character-range:
+ * 	c           matches character c (c != '\\', '-', ']')
+ * 	'\\' c      matches character c
+ * 	lo '-' hi   matches character c for lo <= c <= hi
+ *
+ * Match requires pattern to match all of name, not just a substring.
+ * The only possible returned error is ErrBadPattern, when pattern
+ * is malformed.
+ */
+#define ppp_c_path_match(pattern, name) ppp_c_path_match_raw((const char *)(pattern)->str, (pattern)->len, (const char *)(name)->str, (name)->len)
 
 #endif
