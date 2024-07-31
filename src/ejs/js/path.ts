@@ -9,6 +9,7 @@ declare namespace deps {
     function join(elem: Array<string | Uint8Array>): string
     function join(elem: Array<string | Uint8Array>, toBuffer: boolean): Uint8Array
     function split(path: string | Uint8Array, subarray: SubarrayFunction): [/*dir*/ string, /*file*/ string] | [/*dir*/ Uint8Array, /*file*/ Uint8Array]
+    function match(pattern: string | Uint8Array, name: string | Uint8Array): number
 }
 /**
  * Indicates a pattern was malformed.
@@ -113,4 +114,36 @@ export function joinBuffer(...elem: Array<string | Uint8Array>): Uint8Array {
  */
 export function split(path: string | Uint8Array): [/*dir*/ string, /*file*/ string] | [/*dir*/ Uint8Array, /*file*/ Uint8Array] {
     return deps.split(path, subarray)
+}
+/**
+ *  Match reports whether name matches the shell pattern.
+ * The pattern syntax is:
+ *
+ *	pattern:
+ *		{ term }
+ *	term:
+ *		'*'         matches any sequence of non-/ characters
+ *		'?'         matches any single non-/ character
+ *		'[' [ '^' ] { character-range } ']'
+ *		            character class (must be non-empty)
+ *		c           matches character c (c != '*', '?', '\\', '[')
+ *		'\\' c      matches character c
+ *
+ *	character-range:
+ *		c           matches character c (c != '\\', '-', ']')
+ *		'\\' c      matches character c
+ *		lo '-' hi   matches character c for lo <= c <= hi
+ *
+ * Match requires pattern to match all of name, not just a substring.
+ * The only possible returned error is ErrBadPattern, when pattern
+ * is malformed.
+ */
+export function match(pattern: string | Uint8Array, name: string | Uint8Array): boolean {
+    switch (deps.match(pattern, name)) {
+        case 0:
+            return true
+        case 1:
+            return false
+    }
+    throw new BadPatternError()
 }

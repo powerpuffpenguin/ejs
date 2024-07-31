@@ -191,7 +191,7 @@ static void join_iteratorable_next(void *p, ppp_c_string_iterator_t *iterator)
     if (state->i < state->n)
     {
         duk_size_t s_len;
-        duk_get_prop_index(state->ctx, 0, state->i);
+        duk_get_prop_index(state->ctx, 0, state->i++);
         if (duk_is_string(state->ctx, -1))
         {
             iterator->str = duk_require_lstring(state->ctx, -1, &s_len);
@@ -202,6 +202,7 @@ static void join_iteratorable_next(void *p, ppp_c_string_iterator_t *iterator)
         }
         iterator->len = s_len;
         iterator->ok = 1;
+        duk_pop(state->ctx);
     }
     else
     {
@@ -228,7 +229,6 @@ static duk_ret_t join_impl(duk_context *ctx)
     {
         ejs_throw_os_errno(ctx);
     }
-
     if (toBuffer)
     {
         memcpy(duk_push_fixed_buffer(ctx, args->output.len), args->output.str, args->output.len);
@@ -348,6 +348,18 @@ static duk_ret_t split(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t match(duk_context *ctx)
+{
+    duk_size_t pattern_len;
+    const uint8_t *pattern = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &pattern_len);
+    duk_size_t name_len;
+    const uint8_t *name = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &name_len);
+
+    int ret = ppp_c_path_match_raw(pattern, pattern_len, name, name_len);
+    duk_pop_2(ctx);
+    duk_push_number(ctx, ret);
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(path)
 {
     /*
@@ -377,6 +389,8 @@ EJS_SHARED_MODULE__DECLARE(path)
         duk_put_prop_lstring(ctx, -2, "join", 4);
         duk_push_c_lightfunc(ctx, split, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "split", 5);
+        duk_push_c_lightfunc(ctx, match, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "match", 5);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

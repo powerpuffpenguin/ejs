@@ -6,4 +6,5 @@ require("./strconv/atob");
 require("./strconv/atoi");
 require("./strconv/itoa");
 require("./strconv/qoute");
+require("./path/path");
 require("./net/ip");
