@@ -123,3 +123,89 @@ m.test("Join", (assert) => {
         assert.equal(new TextEncoder().encode(test.path), path.joinBuffer(...test.elem), test)
     }
 })
+
+interface ExtTest {
+    path: string
+    ext: string
+}
+const exttests: Array<ExtTest> = [
+    { path: "path.go", ext: ".go" },
+    { path: "path.pb.go", ext: ".go" },
+    { path: "a.dir/b", ext: "" },
+    { path: "a.dir/b.go", ext: ".go" },
+    { path: "a.dir/", ext: "" },
+]
+m.test('Ext', (assert) => {
+    for (const test of exttests) {
+        assert.equal(test.ext, path.ext(test.path), test)
+
+        assert.equal(new TextEncoder().encode(test.ext), path.ext(new TextEncoder().encode(test.path)), test)
+    }
+})
+
+const basetests: Array<PathTest> = [
+    // Already clean
+    { path: "", result: "." },
+    { path: ".", result: "." },
+    { path: "/.", result: "." },
+    { path: "/", result: "/" },
+    { path: "////", result: "/" },
+    { path: "x/", result: "x" },
+    { path: "abc", result: "abc" },
+    { path: "abc/def", result: "def" },
+    { path: "a/b/.x", result: ".x" },
+    { path: "a/b/c.", result: "c." },
+    { path: "a/b/c.x", result: "c.x" },
+]
+m.test('Base', (assert) => {
+    for (const test of basetests) {
+        assert.equal(test.result, path.base(test.path), test)
+
+        assert.equal(new TextEncoder().encode(test.result), path.base(new TextEncoder().encode(test.path)), test)
+    }
+})
+
+const dirtests: Array<PathTest> = [
+    { path: "", result: "." },
+    { path: ".", result: "." },
+    { path: "/.", result: "/" },
+    { path: "/", result: "/" },
+    { path: "////", result: "/" },
+    { path: "/foo", result: "/" },
+    { path: "x/", result: "x" },
+    { path: "abc", result: "." },
+    { path: "abc/def", result: "abc" },
+    { path: "abc////def", result: "abc" },
+    { path: "a/b/.x", result: "a/b" },
+    { path: "a/b/c.", result: "a/b" },
+    { path: "a/b/c.x", result: "a/b" },
+]
+m.test('Dir', (assert) => {
+    for (const test of dirtests) {
+        assert.equal(test.result, path.dir(test.path), test)
+
+        assert.equal(new TextEncoder().encode(test.result), path.dir(new TextEncoder().encode(test.path)), test)
+    }
+})
+
+interface IsAbsTest {
+    path: string
+    isAbs: boolean
+}
+const isAbsTests: Array<IsAbsTest> = [
+    { path: "", isAbs: false },
+    { path: "/", isAbs: true },
+    { path: "/usr/bin/gcc", isAbs: true },
+    { path: "..", isAbs: false },
+    { path: "/a/../bb", isAbs: true },
+    { path: ".", isAbs: false },
+    { path: "./", isAbs: false },
+    { path: "lala", isAbs: false },
+]
+m.test('IsAbs', (assert) => {
+    for (const test of isAbsTests) {
+        assert.equal(test.isAbs, path.isAbs(test.path), test)
+
+        assert.equal(test.isAbs, path.isAbs(new TextEncoder().encode(test.path)), test)
+    }
+})

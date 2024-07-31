@@ -188,3 +188,117 @@ m.test("Join", function (assert) {
         finally { if (e_3) throw e_3.error; }
     }
 });
+var exttests = [
+    { path: "path.go", ext: ".go" },
+    { path: "path.pb.go", ext: ".go" },
+    { path: "a.dir/b", ext: "" },
+    { path: "a.dir/b.go", ext: ".go" },
+    { path: "a.dir/", ext: "" },
+];
+m.test('Ext', function (assert) {
+    var e_4, _a;
+    try {
+        for (var exttests_1 = __values(exttests), exttests_1_1 = exttests_1.next(); !exttests_1_1.done; exttests_1_1 = exttests_1.next()) {
+            var test_4 = exttests_1_1.value;
+            assert.equal(test_4.ext, path.ext(test_4.path), test_4);
+            assert.equal(new TextEncoder().encode(test_4.ext), path.ext(new TextEncoder().encode(test_4.path)), test_4);
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (exttests_1_1 && !exttests_1_1.done && (_a = exttests_1.return)) _a.call(exttests_1);
+        }
+        finally { if (e_4) throw e_4.error; }
+    }
+});
+var basetests = [
+    // Already clean
+    { path: "", result: "." },
+    { path: ".", result: "." },
+    { path: "/.", result: "." },
+    { path: "/", result: "/" },
+    { path: "////", result: "/" },
+    { path: "x/", result: "x" },
+    { path: "abc", result: "abc" },
+    { path: "abc/def", result: "def" },
+    { path: "a/b/.x", result: ".x" },
+    { path: "a/b/c.", result: "c." },
+    { path: "a/b/c.x", result: "c.x" },
+];
+m.test('Base', function (assert) {
+    var e_5, _a;
+    try {
+        for (var basetests_1 = __values(basetests), basetests_1_1 = basetests_1.next(); !basetests_1_1.done; basetests_1_1 = basetests_1.next()) {
+            var test_5 = basetests_1_1.value;
+            assert.equal(test_5.result, path.base(test_5.path), test_5);
+            assert.equal(new TextEncoder().encode(test_5.result), path.base(new TextEncoder().encode(test_5.path)), test_5);
+        }
+    }
+    catch (e_5_1) { e_5 = { error: e_5_1 }; }
+    finally {
+        try {
+            if (basetests_1_1 && !basetests_1_1.done && (_a = basetests_1.return)) _a.call(basetests_1);
+        }
+        finally { if (e_5) throw e_5.error; }
+    }
+});
+var dirtests = [
+    { path: "", result: "." },
+    { path: ".", result: "." },
+    { path: "/.", result: "/" },
+    { path: "/", result: "/" },
+    { path: "////", result: "/" },
+    { path: "/foo", result: "/" },
+    { path: "x/", result: "x" },
+    { path: "abc", result: "." },
+    { path: "abc/def", result: "abc" },
+    { path: "abc////def", result: "abc" },
+    { path: "a/b/.x", result: "a/b" },
+    { path: "a/b/c.", result: "a/b" },
+    { path: "a/b/c.x", result: "a/b" },
+];
+m.test('Dir', function (assert) {
+    var e_6, _a;
+    try {
+        for (var dirtests_1 = __values(dirtests), dirtests_1_1 = dirtests_1.next(); !dirtests_1_1.done; dirtests_1_1 = dirtests_1.next()) {
+            var test_6 = dirtests_1_1.value;
+            assert.equal(test_6.result, path.dir(test_6.path), test_6);
+            assert.equal(new TextEncoder().encode(test_6.result), path.dir(new TextEncoder().encode(test_6.path)), test_6);
+        }
+    }
+    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+    finally {
+        try {
+            if (dirtests_1_1 && !dirtests_1_1.done && (_a = dirtests_1.return)) _a.call(dirtests_1);
+        }
+        finally { if (e_6) throw e_6.error; }
+    }
+});
+var isAbsTests = [
+    { path: "", isAbs: false },
+    { path: "/", isAbs: true },
+    { path: "/usr/bin/gcc", isAbs: true },
+    { path: "..", isAbs: false },
+    { path: "/a/../bb", isAbs: true },
+    { path: ".", isAbs: false },
+    { path: "./", isAbs: false },
+    { path: "lala", isAbs: false },
+];
+m.test('IsAbs', function (assert) {
+    var e_7, _a;
+    try {
+        for (var isAbsTests_1 = __values(isAbsTests), isAbsTests_1_1 = isAbsTests_1.next(); !isAbsTests_1_1.done; isAbsTests_1_1 = isAbsTests_1.next()) {
+            var test_7 = isAbsTests_1_1.value;
+            assert.equal(test_7.isAbs, path.isAbs(test_7.path), test_7);
+            assert.equal(test_7.isAbs, path.isAbs(new TextEncoder().encode(test_7.path)), test_7);
+        }
+    }
+    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    finally {
+        try {
+            if (isAbsTests_1_1 && !isAbsTests_1_1.done && (_a = isAbsTests_1.return)) _a.call(isAbsTests_1);
+        }
+        finally { if (e_7) throw e_7.error; }
+    }
+});
