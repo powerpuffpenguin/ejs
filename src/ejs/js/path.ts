@@ -107,6 +107,12 @@ export function joinBuffer(...elem: Array<string | Uint8Array>): Uint8Array {
     return deps.join(elem, true)
 }
 
+export function joinArray(elem: Array<string | Uint8Array>, toBuffer?: boolean): string | Uint8Array {
+    if (toBuffer) {
+        return deps.join(elem, true)
+    }
+    return deps.join(elem)
+}
 /**
  * Splits path immediately following the final slash, separating it into a directory and file name component. 
  * If there is no slash in path, split returns an empty dir and file set to path. 

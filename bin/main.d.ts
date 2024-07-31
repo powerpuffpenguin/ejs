@@ -2110,7 +2110,20 @@ declare module "ejs/path" {
      * joinBuffer returns an empty string.
      */
     export function joinBuffer(...elem: Array<string | Uint8Array>): Uint8Array
-
+    /**
+     *  Joins any number of path elements into a single path, separating them with slashes. 
+     * Empty elements are ignored. The result is Cleaned. However, 
+     * if the argument list is empty or all its elements are empty, 
+     * join returns an empty string.
+     */
+    export function joinArray(elem: Array<string | Uint8Array>): string
+    /**
+     *  Joins any number of path elements into a single path, separating them with slashes. 
+     * Empty elements are ignored. The result is Cleaned. However, 
+     * if the argument list is empty or all its elements are empty, 
+     * join returns an empty string.
+     */
+    export function joinArray(elem: Array<string | Uint8Array>, toBuffer = true): Uint8Array
     /**
      * Splits path immediately following the final slash, separating it into a directory and file name component. 
      * If there is no slash in path, split returns an empty dir and file set to path. 
