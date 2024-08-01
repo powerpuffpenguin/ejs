@@ -10,7 +10,11 @@ var hex = require("ejs/encoding/hex")
 var path = require("ejs/path")
 function main() {
     {
-        console.log(path.split(new TextEncoder().encode("ab/a")))
+        var vals = new url.Values()
+        vals.add("id", 1)
+        vals.add("name", "kate")
+        vals.add("level", 999)
+        console.log(vals.encode())
         return
     }
     var opts = {

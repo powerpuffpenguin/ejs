@@ -68,6 +68,7 @@ declare namespace deps {
     function hexEscapeNonASCII(s: string): string
 }
 import { BaseTcpListener } from "ejs/net";
+import { clean } from "ejs/path";
 export enum Method {
     GET = deps.GET,
     POST = deps.POST,
@@ -685,27 +686,27 @@ class RedirectHandler implements Handler {
     }
 }
 
-// // cleanPath returns the canonical path for p, eliminating . and .. elements.
-// function cleanPath(p: string): string {
-// 	if( p == "" ){
-// 		return "/"
-// 	}
-// 	if( p[0] != '/' ){
-// 		p = "/" + p
-// 	}
-// 	np := path.Clean(p)
-// 	// path.Clean removes trailing slash except for root;
-// 	// put the trailing slash back if necessary.
-// 	if p[len(p)-1] == '/' && np != "/" {
-// 		// Fast path for common case of p being the string we want:
-// 		if len(p) == len(np)+1 && strings.HasPrefix(p, np) {
-// 			np = p
-// 		} else {
-// 			np += "/"
-// 		}
-// 	}
-// 	return np
-// }
+// cleanPath returns the canonical path for p, eliminating . and .. elements.
+function cleanPath(p: string): string {
+    if (p == "") {
+        return "/"
+    }
+    if (!p.startsWith("/")) {
+        p = "/" + p
+    }
+    let np = clean(p)
+    // path.Clean removes trailing slash except for root;
+    // put the trailing slash back if necessary.
+    if (p.endsWith("/") && np != "/") {
+        // Fast path for common case of p being the string we want:
+        if (p.length == np.length + 1 && p.startsWith(np)) {
+            np = p
+        } else {
+            np += "/"
+        }
+    }
+    return np
+}
 
 // stripHostPort returns h without any trailing ":<port>".
 function stripHostPort(hostport: string): string {
@@ -842,9 +843,8 @@ export class ServeMux implements Handler {
 
         // All other requests have any port stripped and path cleaned
         // before passing to mux.handler.
-        let host = stripHostPort(r.host)
-        let path = uri.path
-        // path := cleanPath(r.URL.Path)
+        const host = stripHostPort(r.host)
+        const path = cleanPath(uri.path)
 
         // If the given path is /tree and its handler is not registered,
         // redirect for /tree/.
@@ -907,6 +907,7 @@ export class ServeMux implements Handler {
             return
         }
         if (deps.request_get_uri_s(r.r_) == "*") {
+            w.header("Connection", "close")
             w.status(StatusBadRequest)
             return
         }

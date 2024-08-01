@@ -1,24 +1,25 @@
 declare const Duktape: any
 declare namespace deps {
-    export const encodePath: number
-    export const encodePathSegment: number
-    export const encodeHost: number
-    export const encodeZone: number
-    export const encodeUserPassword: number
-    export const encodeQueryComponent: number
-    export const encodeFragment: number
-    export function escape(s: string, mode: number): string
-    export interface UnescapeOptions {
+    const encodePath: number
+    const encodePathSegment: number
+    const encodeHost: number
+    const encodeZone: number
+    const encodeUserPassword: number
+    const encodeQueryComponent: number
+    const encodeFragment: number
+    function escape(s: string, mode: number): string
+    interface UnescapeOptions {
         escape: any
         host: any
     }
-    export function unescape(opts: UnescapeOptions, s: string, mode: number): string
+    function unescape(opts: UnescapeOptions, s: string, mode: number): string
 
-    export function join_values(next: () => undefined | [string, string]): string
+    function join_values(next: () => undefined | [string, string]): string
 
-    export function check(rawURL: string, viaRequest: boolean): void
-    export function getScheme(rawURL: string): number
-    export function validOptionalPort(s: string): boolean
+    function check(rawURL: string, viaRequest: boolean): void
+    function getScheme(rawURL: string): [/*scheme*/string,/*path*/string]
+    function validUserinfo(s: string): boolean
+    function validOptionalPort(s: string): boolean
 }
 export class EscapeError extends Error {
     constructor(message: string, opts?: any) {
@@ -281,7 +282,6 @@ export class Values {
             }
         }
         keys.sort()
-
         const t = new Duktape.Thread(() => {
             const cb = Duktape.Thread.yield;
             for (let i = 0; i < keys.length; i++) {
@@ -304,6 +304,25 @@ function stringsCountOne(s: string, substr: string): boolean {
         return false;
     }
     return s.indexOf(substr, i + substr.length) < 0 ? true : false
+}
+function stringsCut(s: string, sep: string): {
+    before: string
+    after: string
+    found: boolean
+} {
+    const i = s.indexOf(sep)
+    if (i >= 0) {
+        return {
+            before: s.substring(0, i),
+            after: s.substring(i + sep.length),
+            found: true,
+        }
+    }
+    return {
+        before: s,
+        after: "",
+        found: false,
+    }
 }
 function parseHost(host: string): string {
     let i: number
@@ -353,39 +372,41 @@ function parseHost(host: string): string {
 
     return deps.unescape(unescapeError, host, deps.encodeHost)
 }
-function parseAuthority(url: URL, authority: string) {
+function parseAuthority(authority: string): {
+    user?: Userinfo
+    host: string
+} {
+    let host = ''
     let i = authority.lastIndexOf("@")
     if (i < 0) {
-        url.host = parseHost(authority)
+        host = parseHost(authority)
     } else {
-        url.host = parseHost(authority.substring(i + 1))
+        host = parseHost(authority.substring(i + 1))
     }
-    // if err != nil {
-    // 	return nil, "", err
-    // }
-    // if i < 0 {
-    // 	return nil, host, nil
-    // }
-    // userinfo := authority[:i]
-    // if !validUserinfo(userinfo) {
-    // 	return nil, "", errors.New("net/url: invalid userinfo")
-    // }
-    // if !strings.Contains(userinfo, ":") {
-    // 	if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
-    // 		return nil, "", err
-    // 	}
-    // 	user = User(userinfo)
-    // } else {
-    // 	username, password, _ := strings.Cut(userinfo, ":")
-    // 	if username, err = unescape(username, encodeUserPassword); err != nil {
-    // 		return nil, "", err
-    // 	}
-    // 	if password, err = unescape(password, encodeUserPassword); err != nil {
-    // 		return nil, "", err
-    // 	}
-    // 	user = UserPassword(username, password)
-    // }
-    // return user, host, nil
+
+    if (i < 0) {
+        return {
+            host: host,
+        }
+    }
+    let userinfo = authority.substring(0, i)
+    if (!deps.validUserinfo(userinfo)) {
+        throw new Error("ejs/net/url: invalid userinfo")
+    }
+    let user: Userinfo | undefined
+    i = userinfo.indexOf(":")
+    if (i < 0) {
+        userinfo = deps.unescape(unescapeError, userinfo, deps.encodeUserPassword)
+        user = new Userinfo(userinfo)
+    } else {
+        const username = deps.unescape(unescapeError, userinfo.substring(0, i), deps.encodeUserPassword)
+        const password = deps.unescape(unescapeError, userinfo.substring(i + 1), deps.encodeUserPassword)
+        user = new Userinfo(username, password)
+    }
+    return {
+        user: user,
+        host: host,
+    }
 }
 
 function parse(url: URL, rawURL: string, viaRequest: boolean) {
@@ -393,30 +414,18 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
         url.path = "*"
         return
     }
-    let i = deps.getScheme(rawURL)
-    let rest: string
-    if (i) {
-        url.scheme = rawURL.substring(0, i).toLowerCase()
-        rest = rawURL.substring(i + 1)
-    } else {
-        // url.scheme=''
-        rest = rawURL
-    }
+    let vals = deps.getScheme(rawURL)
+    url.scheme = vals[0].toLowerCase()
+    let rest = vals[1]
 
 
     if (rest.startsWith("?") && stringsCountOne(rest, "?")) {
         url.forceQuery = true
         rest = rest.substring(0, rest.length - 1)
     } else {
-        i = rest.indexOf("?")
-        if (i >= 0) {
-            url.rawQuery = rest.substring(i + 1)
-            rest = rest.substring(0, i)
-        }
-        // else {
-        // url.rawQuery=''
-        // }
-        // rest, url.RawQuery, _ = strings.Cut(rest, "?")
+        const o = stringsCut(rest, "?")
+        rest = o.before
+        url.rawQuery = o.after
     }
 
     if (!rest.startsWith("/")) {
@@ -435,13 +444,7 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
         // RFC 3986, §3.3:
         // In addition, a URI reference (Section 4.1) may be a relative-path reference,
         // in which case the first path segment cannot contain a colon (":") character.
-        i = rest.indexOf("/")
-        let segment: string
-        if (i >= 0) {
-            segment = rest.substring(0, i)
-        } else {
-            segment = rest
-        }
+        const segment = stringsCut(rest, "/").before
         if (segment.indexOf(":") >= 0) {
             // First path segment has colon. Not allowed in relative URL.
             throw new Error("first path segment in URL cannot contain colon")
@@ -452,20 +455,24 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
         // var authority string
         let authority = rest.substring(2)
         rest = ''
-        i = authority.indexOf("/")
+        const i = authority.indexOf("/")
         if (i >= 0) {
             rest = authority.substring(i)
             authority = authority.substring(0, i)
         }
-        // url.User, url.Host, err = parseAuthority(authority)
-        // if err != nil {
-        // 	return nil, err
-        // }
+        const o = parseAuthority(authority)
+        url.user = o.user
+        url.host = o.host
     } else if (url.scheme != "" && rest.startsWith("/")) {
         // OmitHost is set to true when rawURL has an empty host (authority).
         // See golang.org/issue/46059.
         url.omitHost = true
     }
+    // Set Path and, optionally, RawPath.
+    // RawPath is a hint of the encoding of Path. We don't want to set it if
+    // the default escaping of Path is equivalent, to help make sure that people
+    // don't rely on it in general.
+    url._setPath(rest)
 }
 export class URL {
     static parse(rawURL: string, requestURI?: boolean): URL {
@@ -490,7 +497,9 @@ export class URL {
                 deps.check(u, false)
                 const url = new URL()
                 parse(url, u, false)
-                url._setFragment(frag)
+                if (frag != '') {
+                    url._setFragment(frag)
+                }
                 return url
             }
         } catch (e) {
@@ -555,5 +564,15 @@ export class URL {
             this.rawFragment = f
         }
     }
-    
+    _setPath(p: string) {
+        const path = deps.unescape(unescapeError, p, deps.encodePath)
+        const escp = deps.escape(path, deps.encodePath)
+        this.path = path
+        if (p == escp) {
+            // Default encoding is fine.
+            this.rawPath = ""
+        } else {
+            this.rawPath = p
+        }
+    }
 }

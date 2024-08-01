@@ -494,41 +494,98 @@ static duk_ret_t getScheme(duk_context *ctx)
     duk_size_t len;
     const uint8_t *s = duk_require_lstring(ctx, 0, &len);
 
-    if (len)
+    uint8_t c;
+    for (size_t i = 0; i < len; i++)
     {
-        uint8_t c;
-        for (size_t i = 0; i < len; i++)
+        c = s[i];
+        if ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z')
         {
-            c = s[i];
-            if ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z')
-            {
-            }
-            else if ('0' <= c && c <= '9' || c == '+' || c == '-' || c == '.')
-            {
-                if (i == 0)
-                {
-                    break;
-                }
-            }
-            else if (c == ':')
-            {
-                duk_pop(ctx);
-                if (i == 0)
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "missing protocol scheme");
-                    duk_throw(ctx);
-                }
-                duk_push_number(ctx, i);
-                return 1;
-            }
-            else
+        }
+        else if ('0' <= c && c <= '9' || c == '+' || c == '-' || c == '.')
+        {
+            if (i == 0)
             {
                 break;
             }
         }
+        else if (c == ':')
+        {
+            duk_pop(ctx);
+            if (i == 0)
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "missing protocol scheme");
+                duk_throw(ctx);
+            }
+            duk_pop(ctx);
+            duk_push_array(ctx);
+            duk_push_lstring(ctx, s, i);
+            duk_put_prop_index(ctx, -2, 0);
+            duk_push_lstring(ctx, s + i + 1, len - i - 1);
+            duk_put_prop_index(ctx, -2, 1);
+            return 1;
+        }
+        else
+        {
+            break;
+        }
+    }
+    duk_push_array(ctx);
+    duk_push_lstring(ctx, "", 0);
+    duk_put_prop_index(ctx, -2, 0);
+    duk_swap_top(ctx, -2);
+    duk_put_prop_index(ctx, -2, 1);
+    return 1;
+}
+static duk_ret_t validUserinfo(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const char *s = duk_require_lstring(ctx, 0, &s_len);
+
+    char r;
+    for (duk_size_t i = 0; i < s_len; i++)
+    {
+        r = s[i];
+        if ('A' <= r && r <= 'Z')
+        {
+            continue;
+        }
+        if ('a' <= r && r <= 'z')
+        {
+            continue;
+        }
+        if ('0' <= r && r <= '9')
+        {
+            continue;
+        }
+        switch (r)
+        {
+        case '-':
+        case '.':
+        case '_':
+        case ':':
+        case '~':
+        case '!':
+        case '$':
+        case '&':
+        case '\'':
+        case '(':
+        case ')':
+        case '*':
+        case '+':
+        case ',':
+        case ';':
+        case '=':
+        case '%':
+        case '@':
+            break;
+        default:
+            duk_pop(ctx);
+            duk_push_false(ctx);
+            return 1;
+        }
     }
     duk_pop(ctx);
-    duk_push_number(ctx, 0);
+    duk_push_true(ctx);
     return 1;
 }
 static duk_ret_t validOptionalPort(duk_context *ctx)
@@ -596,6 +653,9 @@ EJS_SHARED_MODULE__DECLARE(net_url)
         duk_put_prop_lstring(ctx, -2, "check", 5);
         duk_push_c_lightfunc(ctx, getScheme, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "getScheme", 9);
+
+        duk_push_c_lightfunc(ctx, validUserinfo, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "validUserinfo", 13);
         duk_push_c_lightfunc(ctx, validOptionalPort, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "validOptionalPort", 17);
     }

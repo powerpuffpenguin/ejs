@@ -704,6 +704,171 @@ declare module "ejs/net" {
      */
     export function dial(opts: DialOptions, cb: (conn?: BaseTcpConn, e?: any) => void): void
 }
+declare module "ejs/path" {
+    /**
+     * Indicates a pattern was malformed.
+     */
+    export class BadPatternError extends Error {
+        constructor(options?: ErrorOptions)
+    }
+    /**
+     * Returns the last element of path. Trailing slashes are removed before extracting the last element. 
+     * If the path is empty, base returns ".". If the path consists entirely of slashes, base returns "/".
+     */
+    export function base(path: string): string
+    /**
+     * Returns the last element of path. Trailing slashes are removed before extracting the last element. 
+     * If the path is empty, base returns ".". If the path consists entirely of slashes, base returns "/".
+     */
+    export function base(path: Uint8Array): Uint8Array
+    /**
+     * Returns the shortest path name equivalent to path
+     * by purely lexical processing. It applies the following rules
+     * iteratively until no further processing can be done:
+     * 
+     * 1. Replace multiple slashes with a single slash.
+     * 2. Eliminate each . path name element (the current directory).
+     * 3. Eliminate each inner .. path name element (the parent directory)
+     *     along with the non-.. element that precedes it.
+     * 4. Eliminate .. elements that begin a rooted path:
+     *     that is, replace "/.." by "/" at the beginning of a path.
+     * 
+     * The returned path ends in a slash only if it is the root "/".
+     * 
+     * If the result of this process is an empty string, clean
+     * returns the string ".".
+     * 
+     * See also Rob Pike, “Lexical File Names in Plan 9 or Getting Dot-Dot Right,”
+     * https://9p.io/sys/doc/lexnames.html
+     */
+    export function clean(path: string): string
+    /**
+     * Returns the shortest path name equivalent to path
+     * by purely lexical processing. It applies the following rules
+     * iteratively until no further processing can be done:
+     * 
+     * 1. Replace multiple slashes with a single slash.
+     * 2. Eliminate each . path name element (the current directory).
+     * 3. Eliminate each inner .. path name element (the parent directory)
+     *     along with the non-.. element that precedes it.
+     * 4. Eliminate .. elements that begin a rooted path:
+     *     that is, replace "/.." by "/" at the beginning of a path.
+     * 
+     * The returned path ends in a slash only if it is the root "/".
+     * 
+     * If the result of this process is an empty string, clean
+     * returns the string ".".
+     * 
+     * See also Rob Pike, “Lexical File Names in Plan 9 or Getting Dot-Dot Right,”
+     * https://9p.io/sys/doc/lexnames.html
+     */
+    export function clean(path: Uint8Array): Uint8Array
+
+    /**
+     * Returns all but the last element of path, typically the path's directory.
+     * After dropping the final element using Split, the path is Cleaned and trailing
+     * slashes are removed.
+     * If the path is empty, dir returns ".".
+     * If the path consists entirely of slashes followed by non-slash bytes, dir
+     * returns a single slash. In any other case, the returned path does not end in a slash.
+     */
+    export function dir(path: string): string
+    /**
+     * Returns all but the last element of path, typically the path's directory.
+     * After dropping the final element using Split, the path is Cleaned and trailing
+     * slashes are removed.
+     * If the path is empty, dir returns ".".
+     * If the path consists entirely of slashes followed by non-slash bytes, dir
+     * returns a single slash. In any other case, the returned path does not end in a slash.
+     */
+    export function dir(path: Uint8Array): Uint8Array
+
+    /**
+     * Returns the file name extension used by path.
+     * The extension is the suffix beginning at the final dot
+     * in the final slash-separated element of path;
+     * it is empty if there is no dot.
+     */
+    export function ext(path: string): string
+    /**
+     * Returns the file name extension used by path.
+     * The extension is the suffix beginning at the final dot
+     * in the final slash-separated element of path;
+     * it is empty if there is no dot.
+     */
+    export function ext(path: Uint8Array): Uint8Array
+
+    /**
+     * Reports whether the path is absolute.
+     */
+    export function isAbs(path: string | Uint8Array): boolean
+
+    /**
+     *  Joins any number of path elements into a single path, separating them with slashes. 
+     * Empty elements are ignored. The result is Cleaned. However, 
+     * if the argument list is empty or all its elements are empty, 
+     * join returns an empty string.
+     */
+    export function join(...elem: Array<string | Uint8Array>): string
+    /**
+     *  Joins any number of path elements into a single path, separating them with slashes. 
+     * Empty elements are ignored. The result is Cleaned. However, 
+     * if the argument list is empty or all its elements are empty, 
+     * joinBuffer returns an empty string.
+     */
+    export function joinBuffer(...elem: Array<string | Uint8Array>): Uint8Array
+    /**
+     *  Joins any number of path elements into a single path, separating them with slashes. 
+     * Empty elements are ignored. The result is Cleaned. However, 
+     * if the argument list is empty or all its elements are empty, 
+     * join returns an empty string.
+     */
+    export function joinArray(elem: Array<string | Uint8Array>): string
+    /**
+     *  Joins any number of path elements into a single path, separating them with slashes. 
+     * Empty elements are ignored. The result is Cleaned. However, 
+     * if the argument list is empty or all its elements are empty, 
+     * join returns an empty string.
+     */
+    export function joinArray(elem: Array<string | Uint8Array>, toBuffer = true): Uint8Array
+    /**
+     * Splits path immediately following the final slash, separating it into a directory and file name component. 
+     * If there is no slash in path, split returns an empty dir and file set to path. 
+     * The returned values have the property that path = dir+file.
+     */
+    export function split(path: string): [/*dir*/ string, /*file*/ string]
+    /**
+     * Splits path immediately following the final slash, separating it into a directory and file name component. 
+     * If there is no slash in path, split returns an empty dir and file set to path. 
+     * The returned values have the property that path = dir+file.
+     */
+    export function split(path: Uint8Array): [/*dir*/ Uint8Array, /*file*/ Uint8Array]
+
+    /**
+     *  Match reports whether name matches the shell pattern.
+     * The pattern syntax is:
+     *
+     *	pattern:
+     *		{ term }
+     *	term:
+     *		'*'         matches any sequence of non-/ characters
+     *		'?'         matches any single non-/ character
+     *		'[' [ '^' ] { character-range } ']'
+     *		            character class (must be non-empty)
+     *		c           matches character c (c != '*', '?', '\\', '[')
+     *		'\\' c      matches character c
+     *
+     *	character-range:
+     *		c           matches character c (c != '\\', '-', ']')
+     *		'\\' c      matches character c
+     *		lo '-' hi   matches character c for lo <= c <= hi
+     *
+     * Match requires pattern to match all of name, not just a substring.
+     * The only possible returned error is ErrBadPattern, when pattern
+     * is malformed.
+     */
+    export function match(pattern: string | Uint8Array, name: string | Uint8Array): boolean
+}
 /**
  * URL processing module ported from golang standard library
  */
