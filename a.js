@@ -10,8 +10,8 @@ var hex = require("ejs/encoding/hex")
 var path = require("ejs/path")
 function main() {
     {
-        var u = new url.URL("http://abc.com?id=12")
-        u.path = 123
+        var u = url.URL.parse("http://abc.com?id=12")
+        console.log(u)
         console.log(u.toString())
         return
     }

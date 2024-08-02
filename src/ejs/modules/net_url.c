@@ -516,7 +516,6 @@ static duk_ret_t getScheme(duk_context *ctx)
                 duk_push_error_object(ctx, DUK_ERR_ERROR, "missing protocol scheme");
                 duk_throw(ctx);
             }
-            duk_pop(ctx);
             duk_push_array(ctx);
             duk_push_lstring(ctx, s, i);
             duk_put_prop_index(ctx, -2, 0);
