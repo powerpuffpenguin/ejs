@@ -214,15 +214,6 @@ declare module "ejs/encoding/hex" {
     export function isHex(v: string | Uint8Array): boolean
 }
 /**
- * String conversion functions, most of which are ported from golang
- */
-declare module "ejs/strconv" {
-    /**
-     * Convert string to Uint8Array, useful for getting utf8 byte data of string
-     */
-    export function toBuffer(v: string): Uint8Array
-}
-/**
  * UTF8 processing function ported from golang standard library
  */
 declare module "ejs/unicode/utf8" {
@@ -653,6 +644,10 @@ declare module "ejs/strconv" {
          * reset buffer
          */
         reset(buffer?: Uint8Array, len?: number): StringBuilder
+        /**
+         * Append encoded utf8 string
+         */
+        append(val: Uint8Array | string): StringBuilder
         /**
          * Encode rune to end of buffer.
          * If the rune is out of range, it appends the encoding of RuneError.

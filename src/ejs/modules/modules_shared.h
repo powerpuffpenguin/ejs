@@ -43,4 +43,5 @@ duk_bool_t __ejs_modules_shared_strings_contains_any(const uint8_t *s, const siz
 
 uint64_t __ejs_modules_shared_get_hex_uint64(duk_context *ctx, duk_size_t idx);
 int64_t __ejs_modules_shared_get_hex_int64(duk_context *ctx, duk_size_t idx);
+
 #endif

@@ -177,6 +177,352 @@ declare module "ejs/sync" {
         cv?: CallbackMap<any, Result>, ce?: CallbackMap<any, any>,
     ): Result | Promise<Result> | void
 }
+declare module "ejs/strconv" {
+    import { Rune } from "ejs/unicode/utf8";
+    export class NumError extends Error {
+        constructor(public opts: NumErrorOptions)
+        unwrap(): any
+    }
+    /**
+     * indicates that a value is out of range for the target type.
+     */
+    export const ErrRange = new RangeError("value out of range")
+
+    /**
+     * indicates that a value does not have the right syntax for the target type.
+     */
+    export const ErrSyntax = new Error("invalid syntax")
+
+    /**
+     * returns "true" or "false" according to the value of b.
+     */
+    export function formatBool(b: any): string
+    /**
+     * returns the boolean value represented by the string.
+     * It accepts 1, t, T, TRUE, true, True, 0, f, F, FALSE, false, False.
+     * Any other value returns undefined.
+     * 
+     * @throws NumError
+     */
+    export function parseBool(str: string): boolean
+
+    /**
+     * returns the string representation of i uin the given base,
+     * for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
+     * for digit values >= 10.
+     */
+    export function formatUint(i: number, base = 10): string
+    /**
+     * returns the string representation of i in the given base,
+     * for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
+     * for digit values >= 10.
+     */
+    export function formatInt(i: number, base = 10): string
+    /**
+     * Like parseInt but for unsigned numbers.
+     * A sign prefix is not permitted.
+     * @param s 
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
+     * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
+     */
+    export function parseUint(s: string | Uint8Array, base = 0, bitSize = 64): number
+    /**
+     * Like parseInt but for unsigned numbers.
+     * A sign prefix is not permitted.
+     * @param s 
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
+     * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
+     * @returns Returns number for valid values ​​within Number.MIN_SAFE_INTEGER to Number.MAX_SAFE_INTEGER, and returns as a string for values ​​outside this range.
+     */
+    export function parseUint(s: string | Uint8Array, base = 0, bitSize = 64, toString = true): number | string
+    /**
+     * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
+     * The string may begin with a leading sign: "+" or "-".
+     * @param s 
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
+     * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
+     */
+    export function parseInt(s: string | Uint8Array, base = 0, bitSize = 64): number
+    /**
+     * Interprets a string s in the given base (0, 2 to 36) and bit size (0 to 64) and returns the corresponding value i.
+     * The string may begin with a leading sign: "+" or "-".
+     * @param s 
+     * @param base If the base argument is 0, the true base is implied by the string's prefix following the sign (if present): 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise. Also, for argument base 0 only, underscore characters are permitted as defined by the syntax for integer literals.
+     * @param bitSize The bitSize argument specifies the integer type that the result must fit into. Bit sizes 0, 8, 16, 32, and 64 correspond to int, int8, int16, int32, and int64. If bitSize is below 0 or above 64, an error is throw.
+     * @returns Returns number for valid values ​​within Number.MIN_SAFE_INTEGER to Number.MAX_SAFE_INTEGER, and returns as a string for values ​​outside this range.
+     */
+    export function parseInt(s: string | Uint8Array, base = 0, bitSize = 64, toString = true): number | string
+    /**
+     * equivalent to formatInt(i, 10).
+     */
+    export function itoa(i: number): string
+    /**
+     * equivalent to parseInt(s, 10, 0), converted to type int.
+     */
+    export function atoi(s: string | Uint8Array): number
+    /**
+     * equivalent to parseInt(s, 10, 0), converted to type int.
+     * @returns Returns number for valid values ​​within Number.MIN_SAFE_INTEGER to Number.MAX_SAFE_INTEGER, and returns as a string for values ​​outside this range.
+     */
+    export function atoi(s: string | Uint8Array, toString = true): string
+
+    /**
+     * Reports whether the rune is defined as a Graphic by Unicode. Such
+     * characters include letters, marks, numbers, punctuation, symbols, and
+     * spaces, from categories L, M, N, P, S, and Zs.
+     */
+    export function isGraphic(r: Rune): boolean
+    /**
+     * Reports whether the rune is defined as printable by Go, with
+     * the same definition as unicode.IsPrint: letters, numbers, punctuation,
+     * symbols and ASCII space.
+     */
+    export function isPrint(r: Rune): boolean
+
+    /**
+     * Reports whether the string s can be represented unchanged as 
+     * a single-line backquoted string without control characters other than tab.
+     */
+    export function canBackquote(s: string | Uint8Array): boolean
+    /**
+     * Returns a double-quoted string literal representing s. The
+     * returned string uses escape sequences (\t, \n, \xFF, \u0100) for
+     *  control characters and non-printable characters as defined by
+     * isPrint.
+     */
+    export function quote(s: string | Uint8Array): string
+    /**
+     * Returns a double-quoted string literal representing s. The
+     * returned string uses escape sequences (\t, \n, \xFF, \u0100) for
+     *  control characters and non-printable characters as defined by
+     * isPrint.
+     */
+    export function quote(s: string | Uint8Array, bytes = true): Uint8Array
+    /**
+     * returns a double-quoted string literal representing s. 
+     * The returned string uses escape sequences (\t, \n, \xFF, \u0100) for non-ASCII characters 
+     * and non-printable characters as defined by isPrint.
+     */
+    export function quoteToASCII(s: string | Uint8Array): string
+    /**
+     * returns a double-quoted string literal representing s. 
+     * The returned string uses escape sequences (\t, \n, \xFF, \u0100) for non-ASCII characters 
+     * and non-printable characters as defined by isPrint.
+     */
+    export function quoteToASCII(s: string | Uint8Array, bytes = true): Uint8Array
+    /**
+     * Returns a double-quoted string literal representing s. 
+     * The returned string leaves Unicode graphic characters, as defined by IsGraphic, 
+     * unchanged and uses escape sequences (\t, \n, \xFF, \u0100) for non-graphic characters.
+     */
+    export function quoteToGraphic(s: string | Uint8Array): string
+    /**
+     * Returns a double-quoted string literal representing s. 
+     * The returned string leaves Unicode graphic characters, as defined by IsGraphic, 
+     * unchanged and uses escape sequences (\t, \n, \xFF, \u0100) for non-graphic characters.
+     */
+    export function quoteToGraphic(s: string | Uint8Array, bytes = true): Uint8Array
+
+    /**
+     * Returns a single-quoted character literal representing the rune. 
+     * The returned string uses escape sequences (\t, \n, \xFF, \u0100) for 
+     * control characters and non-printable characters as defined by isPrint. 
+     * if r is not a valid Unicode code point, it is interpreted as the Unicode replacement 
+     * character U+FFFD.
+     */
+    export function quoteRune(r: Rune): string
+    /**
+     * Returns a single-quoted character literal representing the rune. 
+     * The returned string uses escape sequences (\t, \n, \xFF, \u0100) for 
+     * control characters and non-printable characters as defined by isPrint. 
+     * if r is not a valid Unicode code point, it is interpreted as the Unicode replacement 
+     * character U+FFFD.
+     */
+    export function quoteRune(r: Rune, bytes = true): Uint8Array
+    /**
+     * Returns a single-quoted character literal representing the rune. 
+     * The returned string uses escape sequences (\t, \n, \xFF, \u0100) for non-ASCII characters 
+     * and non-printable characters as defined by isPrint. If r is not a valid Unicode code point, 
+     * it is interpreted as the Unicode replacement character U+FFFD.
+     */
+    export function quoteRuneToASCII(r: Rune): string
+    /**
+     * Returns a single-quoted character literal representing the rune. 
+     * The returned string uses escape sequences (\t, \n, \xFF, \u0100) for non-ASCII characters 
+     * and non-printable characters as defined by isPrint. If r is not a valid Unicode code point, 
+     * it is interpreted as the Unicode replacement character U+FFFD.
+     */
+    export function quoteRuneToASCII(r: Rune, bytes = true): Uint8Array
+    /**
+     * Returns a single-quoted character literal representing the rune. 
+     * If the rune is not a Unicode graphic character, as defined by isGraphic, 
+     * the returned string will use a escape sequence (\t, \n, \xFF, \u0100). 
+     * If r is not a valid Unicode code point, it is interpreted as the Unicode replacement character U+FFFD.
+     */
+    export function quoteRuneToGraphic(r: Rune): string
+    /**
+     * Returns a single-quoted character literal representing the rune. 
+     * If the rune is not a Unicode graphic character, as defined by isGraphic, 
+     * the returned string will use a escape sequence (\t, \n, \xFF, \u0100). 
+     * If r is not a valid Unicode code point, it is interpreted as the Unicode replacement character U+FFFD.
+     */
+    export function quoteRuneToGraphic(r: Rune, bytes = true): Uint8Array
+    /**
+     * Returns the quoted string (as understood by Unquote) at the prefix of s. 
+     * If s does not start with a valid quoted string, throw an error.
+     */
+    export function quotedPrefix(s: string): string
+    /**
+     * Returns the quoted string (as understood by Unquote) at the prefix of s. 
+     * If s does not start with a valid quoted string, throw an error.
+     */
+    export function quotedPrefix(s: Uint8Array): Uint8Array
+
+    /**
+     * Interprets s as a single-quoted, double-quoted,
+     * or backquoted Go string literal, returning the string value
+     * that s quotes.  (If s is single-quoted, it would be a 
+     * character literal; Unquote returns the corresponding
+     * one-character string.)
+     */
+    export function unquote(s: string): string
+    /**
+     * Interprets s as a single-quoted, double-quoted,
+     * or backquoted Go string literal, returning the string value
+     * that s quotes.  (If s is single-quoted, it would be a 
+     * character literal; Unquote returns the corresponding
+     * one-character string.)
+     */
+    export function unquote(s: Uint8Array): Uint8Array
+
+    /**
+     * Decodes the first character or byte in the escaped string
+     * or character literal represented by the string s.
+     * It returns four values:
+     * 
+     * 1. value, the decoded Unicode code point or byte value;
+     * 2. multibyte, a boolean indicating whether the decoded character requires a multibyte UTF-8 representation;
+     * 3. tail, the remainder of the string after the character; and
+     * 4. an error that will be nil if the character is syntactically valid.
+     * 
+     * The second argument, quote, specifies the type of literal being parsed
+     * and therefore which escaped quote character is permitted.
+     * If set to a single quote, it permits the sequence \' and disallows unescaped '.
+     * If set to a double quote, it permits \" and disallows unescaped ".
+     * If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
+     */
+    export function unquoteChar(s: string, quote: Rune): {
+        value: Rune,
+        multibyte: boolean,
+        tail: string,
+    }
+    /**
+     * Decodes the first character or byte in the escaped string
+     * or character literal represented by the string s.
+     * It returns four values:
+     * 
+     * 1. value, the decoded Unicode code point or byte value;
+     * 2. multibyte, a boolean indicating whether the decoded character requires a multibyte UTF-8 representation;
+     * 3. tail, the remainder of the string after the character; and
+     * 4. an error that will be nil if the character is syntactically valid.
+     * 
+     * The second argument, quote, specifies the type of literal being parsed
+     * and therefore which escaped quote character is permitted.
+     * If set to a single quote, it permits the sequence \' and disallows unescaped '.
+     * If set to a double quote, it permits \" and disallows unescaped ".
+     * If set to zero, it does not permit either escape and allows both quote characters to appear unescaped.
+     */
+    export function unquoteChar(s: Uint8Array, quote: Rune): {
+        value: Rune,
+        multibyte: boolean,
+        tail: Uint8Array,
+    }
+    /**
+     * used to build string
+     */
+    export class StringBuilder {
+        /**
+         * 
+         * @param buf optional buffer
+         */
+        constructor(buf?: Uint8Array, len?: number)
+        /**
+         * Returns the encoded string
+         */
+        toString(): string
+        /**
+         * Returns the encoded byte array
+         */
+        toBuffer(): Uint8Array | undefined
+        /**
+         * Returns the encoded length in bytes
+         */
+        readonly length: number
+        /**
+         * encoded buffer
+         */
+        readonly buffer?: Uint8Array
+        /**
+         * reset buffer
+         */
+        reset(buffer?: Uint8Array, len?: number): StringBuilder
+        /**
+         * Append encoded utf8 string
+         */
+        append(val: Uint8Array | string): StringBuilder
+        /**
+         * Encode rune to end of buffer.
+         * If the rune is out of range, it appends the encoding of RuneError.
+         */
+        appendRune(...r: Array<Rune>): StringBuilder
+        /**
+         * Appends "true" or "false", according to the value of b, to dst
+         */
+        appendBool(...values: Array<any>): StringBuilder
+
+        /**
+         * Appends the string form of the integer i,
+         * as generated by formatInt.
+         */
+        appendInt(i: number, base = 10): StringBuilder
+        /**
+         * Appends the string form of the integer i,
+         * as generated by formatInt.
+         */
+        appendUint(i: number, base = 10): StringBuilder
+        /**
+         * Appends a double-quoted string literal representing s,
+         * as generated by quote.
+         */
+        appendQuote(s: string | Uint8Array): StringBuilder
+        /**
+         * Appends a double-quoted  string literal representing s,
+         * as generated by quoteToASCII.
+         */
+        appendQuoteToASCII(s: string | Uint8Array): StringBuilder
+        /**
+         * Appends a double-quoted string literal representing s, 
+         * as generated by QuoteToGraphic.
+         */
+        appendQuoteToGraphic(s: string | Uint8Array): StringBuilder
+
+        /**
+         * Appends a single-quoted character literal representing the rune, 
+         * as generated by quoteRune
+         */
+        appendQuoteRune(r: Rune): StringBuilder
+        /**
+         * Appends a single-quoted character literal representing the rune, 
+         * as generated by quoteRuneToASCII
+         */
+        appendQuoteRuneToASCII(r: Rune): StringBuilder
+        /**
+         * Appends a single-quoted character literal representing the rune, 
+         * as generated by quoteRuneToGraphic
+         */
+        appendQuoteRuneToGraphic(r: Rune): StringBuilder
+    }
+}
 declare module "ejs/net" {
     import { YieldContext } from "ejs/sync"
     export const IPv4len = 4;

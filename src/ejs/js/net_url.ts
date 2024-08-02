@@ -20,7 +20,11 @@ declare namespace deps {
     function getScheme(rawURL: string): [/*scheme*/string,/*path*/string]
     function validUserinfo(s: string): boolean
     function validOptionalPort(s: string): boolean
+    function validEncoded(s: string, mode: number): boolean
+    function resolvePath(full: string): string
 }
+import { joinArray } from "ejs/path";
+import { StringBuilder } from "ejs/strconv";
 export class EscapeError extends Error {
     constructor(message: string, opts?: any) {
         super(`invalid URL escape ${message}`, opts)
@@ -142,7 +146,56 @@ export class Userinfo {
     }
 }
 
+function parseQuery(m: Record<string, Array<string> | undefined>, query: string, ignoeInvalid?: boolean) {
+    let key: string
+    let value: string
+    let i: number
+    let found: Array<string> | undefined
+    while (query != "") {
+        i = query.indexOf("&")
+        if (i >= 0) {
+            key = query.substring(0, i)
+            query = query.substring(i + 1)
+        } else {
+            key = query
+            query = ""
+        }
 
+        if (key == "") {
+            continue
+        } else if (key.indexOf(";") >= 0) {
+            if (!ignoeInvalid) {
+                throw new Error("invalid semicolon separator in query")
+            }
+        }
+
+        i = key.indexOf("=")
+        if (i >= 0) {
+            value = key.substring(i + 1)
+            key = key.substring(0, i)
+        } else {
+            value = ""
+        }
+        if (ignoeInvalid) {
+            try {
+                key = queryUnescape(key)
+                value = queryUnescape(value)
+            } catch (_) {
+                continue
+            }
+        } else {
+            key = queryUnescape(key)
+            value = queryUnescape(value)
+        }
+
+        found = m[key]
+        if (found) {
+            found.push(value)
+        } else {
+            m[key] = [value]
+        }
+    }
+}
 
 /**
  * Values maps a string key to a list of values.
@@ -159,47 +212,9 @@ export class Values {
      * A setting without an equals sign is interpreted as a key set to an empty value.
      * Settings containing a non-URL-encoded semicolon are considered invalid.
      */
-    static parse(query: string): Values {
+    static parse(query: string, ignoeInvalid?: boolean): Values {
         const m: Record<string, Array<string> | undefined> = {}
-        let key: string
-        let value: string
-        let i: number
-        let found: Array<string> | undefined
-
-        while (query != "") {
-            i = query.indexOf("&")
-            if (i >= 0) {
-                key = query.substring(0, i)
-                query = query.substring(i + 1)
-            } else {
-                key = query
-                query = ""
-            }
-
-            if (key == "") {
-                continue
-            } else if (key.indexOf(";") >= 0) {
-                throw new Error("invalid semicolon separator in query")
-            }
-
-            i = key.indexOf("=")
-            if (i >= 0) {
-                value = key.substring(i + 1)
-                key = key.substring(0, i)
-            } else {
-                value = ""
-            }
-
-            key = queryUnescape(key)
-            value = queryUnescape(value)
-
-            found = m[key]
-            if (found) {
-                found.push(value)
-            } else {
-                m[key] = [value]
-            }
-        }
+        parseQuery(m, query, ignoeInvalid)
         return new Values(m)
     }
     readonly values: Record<string, Array<string> | undefined>
@@ -298,13 +313,7 @@ export class Values {
         })
     }
 }
-function stringsCountOne(s: string, substr: string): boolean {
-    let i = s.indexOf(substr)
-    if (i < 0) {
-        return false;
-    }
-    return s.indexOf(substr, i + substr.length) < 0 ? true : false
-}
+
 function stringsCut(s: string, sep: string): {
     before: string
     after: string
@@ -338,28 +347,18 @@ function parseHost(host: string): string {
             throw new Error(`invalid port ${colonPort} after host`)
         }
 
-        // 	// RFC 6874 defines that %25 (%-encoded percent) introduces
-        // 	// the zone identifier, and the zone identifier can use basically
-        // 	// any %-encoding it likes. That's different from the host, which
-        // 	// can only %-encode non-ASCII bytes.
-        // 	// We do impose some restrictions on the zone, to avoid stupidity
-        // 	// like newlines.
-        // 	zone := strings.Index(host[:i], "%25")
-        // 	if zone >= 0 {
-        // 		host1, err := unescape(host[:zone], encodeHost)
-        // 		if err != nil {
-        // 			return "", err
-        // 		}
-        // 		host2, err := unescape(host[zone:i], encodeZone)
-        // 		if err != nil {
-        // 			return "", err
-        // 		}
-        // 		host3, err := unescape(host[i:], encodeHost)
-        // 		if err != nil {
-        // 			return "", err
-        // 		}
-        // 		return host1 + host2 + host3, nil
-        // 	}
+        // RFC 6874 defines that %25 (%-encoded percent) introduces
+        // the zone identifier, and the zone identifier can use basically
+        // any %-encoding it likes. That's different from the host, which
+        // can only %-encode non-ASCII bytes.
+        // We do impose some restrictions on the zone, to avoid stupidity
+        // like newlines.
+        let zone = host.indexOf("%25")
+        if (zone >= 0 && zone < i) {
+            return deps.unescape(unescapeError, host.substring(0, zone), deps.encodeHost) +
+                deps.unescape(unescapeError, host.substring(zone, i), deps.encodeZone) +
+                deps.unescape(unescapeError, host.substring(i), deps.encodeHost)
+        }
     } else {
         i = host.lastIndexOf(":")
         if (i != -1) {
@@ -419,7 +418,7 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
     let rest = vals[1]
 
 
-    if (rest.startsWith("?") && stringsCountOne(rest, "?")) {
+    if (rest.startsWith("?") && rest.indexOf("?") > -1) {
         url.forceQuery = true
         rest = rest.substring(0, rest.length - 1)
     } else {
@@ -474,6 +473,49 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
     // don't rely on it in general.
     url._setPath(rest)
 }
+// splitHostPort separates host and port. If the port is not valid, it returns
+// the entire input as host, and it doesn't check the validity of the host.
+// Unlike net.SplitHostPort, but per RFC 3986, it requires ports to be numeric.
+function splitHostPort(hostPort: string, getport: boolean): string {
+    let host = hostPort
+
+    const colon = host.lastIndexOf(':')
+    if (colon != -1 && deps.validOptionalPort(host.substring(colon))) {
+        if (getport) {
+            return host.substring(colon + 1)
+        }
+        host = host.substring(0, colon)
+    } else if (getport) {
+        return ''
+    }
+
+    if (host.startsWith('[') && host.endsWith(']')) {
+        host = host.substring(1, host.length - 1)
+    }
+
+    return host
+}
+
+// resolvePath applies special path segments from refs and applies
+// them to base, per RFC 3986.
+function resolvePath(base: string, ref: string): string {
+    let full: string
+    if (ref == "") {
+        full = base
+    } else if (ref[0] != '/') {
+        const i = base.lastIndexOf("/") + 1
+        full = i == base.length ? base : base.substring(0, i)
+        if (ref != "") {
+            full += ref
+        }
+    } else {
+        full = ref
+    }
+    if (full == "") {
+        return ""
+    }
+    return deps.resolvePath(full)
+}
 export class URL {
     static parse(rawURL: string, requestURI?: boolean): URL {
         try {
@@ -509,6 +551,21 @@ export class URL {
                 err: e,
             })
         }
+    }
+    clone(): URL {
+        const url = new URL()
+        url.scheme = this.scheme
+        url.opaque = this.opaque
+        url.user = this.user
+        url.host = this.host
+        url.path = this.path
+        url.rawPath = this.rawPath
+        url.omitHost = this.omitHost
+        url.forceQuery = this.forceQuery
+        url.rawQuery = this.rawQuery
+        url.fragment = this.fragment
+        url.rawFragment = this.rawFragment
+        return url
     }
     scheme = ''
     /**
@@ -574,5 +631,253 @@ export class URL {
         } else {
             this.rawPath = p
         }
+    }
+    /**
+     * EscapedFragment returns the escaped form of URL.fragment.
+     * In general there are multiple possible escaped forms of any fragment.
+     * EscapedFragment returns URL.rawFragment when it is a valid escaping of URL.fragment.
+     * Otherwise escapedFragment ignores URL.rawFragment and computes an escaped
+     * form on its own.
+     * The toString method uses escapedFragment to construct its result.
+     * In general, code should call escapedFragment instead of
+     * reading URL.rawFragment directly.
+     */
+    escapedFragment(): string {
+        if (this.rawFragment != "" && deps.validEncoded(this.rawFragment, deps.encodeFragment)) {
+            try {
+                if (deps.unescape(unescapeError, this.rawFragment, deps.encodeFragment) == this.fragment) {
+                    return this.rawFragment
+                }
+            } catch (_) {
+            }
+        }
+        return deps.escape(this.fragment, deps.encodeFragment)
+    }
+    /**
+     * EscapedPath returns the escaped form of URL.path.
+     * In general there are multiple possible escaped forms of any path.
+     * EscapedPath returns URL.rawPath when it is a valid escaping of URL.path.
+     * Otherwise escapedPath ignores URL.rawPath and computes an escaped
+     * form on its own.
+     * The toString and requestURI methods use escapedPath to construct
+     * their results.
+     * In general, code should call escapedPath instead of
+     * reading URL.rawPath directly.
+     */
+    escapedPath(): string {
+        if (this.rawPath != "" && deps.validEncoded(this.rawPath, deps.encodePath)) {
+            try {
+                if (deps.unescape(unescapeError, this.rawPath, deps.encodePath) == this.path) {
+                    return this.rawPath
+                }
+            } catch (_) {
+            }
+        }
+        if (this.path == "*") {
+            return "*" // don't escape (Issue 11202)
+        }
+        return deps.escape(this.path, deps.encodePath)
+    }
+    /**
+     * Returns URL.host, stripping any valid port number if present.
+     * 
+     * If the result is enclosed in square brackets, as literal IPv6 addresses are,
+     * the square brackets are removed from the result.
+     */
+    hostname(): string {
+        return splitHostPort(this.host, false)
+    }
+    /**
+     * Returns the port part of URL.host, without the leading colon.
+     * 
+     * If URL.host doesn't contain a valid numeric port, Port returns an empty string.
+     */
+    port(): string {
+        return splitHostPort(this.host, true)
+    }
+    /**
+     * Reports whether the URL is absolute.
+     * Absolute means that it has a non-empty scheme.
+     */
+    isAbs(): boolean {
+        return this.scheme != ""
+    }
+    /**
+     * JoinPath returns a new URL with the provided path elements joined to
+     * any existing path and the resulting path cleaned of any ./ or ../ elements.
+     * Any sequences of multiple / characters will be reduced to a single /.
+     */
+    joinPathArray(elem: Array<string>): URL {
+        elem = [this.escapedPath(), ...elem]
+        let p: string
+        if (!elem[0].startsWith("/")) {
+            // Return a relative path if u is relative,
+            // but ensure that it contains no ../ elements.
+            elem[0] = "/" + elem[0]
+            p = joinArray(elem).substring(1)
+        } else {
+            p = joinArray(elem)
+        }
+        // path.Join will remove any trailing slashes.
+        // Preserve at least one.
+        if (elem[elem.length - 1].endsWith("/") && !p.endsWith("/")) {
+            p += "/"
+        }
+        const url = new URL().clone()
+        url._setPath(p)
+        return url
+    }
+    /**
+     * JoinPath returns a new URL with the provided path elements joined to
+     * any existing path and the resulting path cleaned of any ./ or ../ elements.
+     * Any sequences of multiple / characters will be reduced to a single /.
+     */
+    joinPath(...elem: Array<string>): URL {
+        return this.joinPathArray(elem)
+    }
+    /**
+     * Query parses rawQuery and returns the corresponding values.
+     * It silently discards malformed value pairs.
+     * To check errors use Values.parse.
+     */
+    query(ignoeInvalid?: boolean): Values {
+        return Values.parse(this.rawFragment, ignoeInvalid)
+    }
+    /**
+     * Redacted is like String but replaces any password with "xxxxx".
+     * Only the password in URL.user is redacted.
+     */
+    redacted(): string {
+        const user = this.user
+        if (user &&
+            user.password !== undefined &&
+            user.password !== null &&
+            user.password != '') {
+            const ru = this.clone()
+            ru.user = new Userinfo(user.username, "xxxxx")
+            return ru.toString()
+        }
+        return this.toString()
+    }
+    /**
+     * Returns the encoded path?query or opaque?query
+     * string that would be used in an HTTP request for u.
+     */
+    requestURI(): string {
+        let result = this.opaque
+        if (result == "") {
+            result = this.escapedPath()
+            if (result == "") {
+                result = "/"
+            }
+        } else {
+            if (result.startsWith("//")) {
+                result = this.scheme + ":" + result
+            }
+        }
+        if (this.forceQuery || this.rawQuery != "") {
+            result += "?" + this.rawQuery
+        }
+        return result
+    }
+    // ResolveReference resolves a URI reference to an absolute URI from
+    // an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
+    // may be relative or absolute. ResolveReference always returns a new
+    // URL instance, even if the returned URL is identical to either the
+    // base or reference. If ref is an absolute URL, then ResolveReference
+    // ignores base and returns a copy of ref.
+    /**
+     * Resolves a URI reference to an absolute URI from
+     * an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
+     * may be relative or absolute. ResolveReference always returns a new
+     * URL instance, even if the returned URL is identical to either the
+     * base or reference. If ref is an absolute URL, then ResolveReference
+     * ignores base and returns a copy of ref.
+     */
+    resolveReference(refer: URL | string): URL {
+        const ref = typeof refer === "string" ? URL.parse(refer) : refer
+        const url = ref.clone()
+        if (ref.scheme == "") {
+            url.scheme = this.scheme
+        }
+        if (ref.scheme != "" || ref.host != "" || ref.user) {
+            // The "absoluteURI" or "net_path" cases.
+            // We can ignore the error from setPath since we know we provided a
+            // validly-escaped path.
+            url._setPath(resolvePath(ref.escapedPath(), ""))
+            return url
+        }
+        if (ref.opaque != "") {
+            url.user = undefined
+            url.host = ""
+            url.path = ""
+            return url
+        }
+        if (ref.path == "" && !ref.forceQuery && ref.rawQuery == "") {
+            url.rawQuery = this.rawQuery
+            if (ref.fragment == "") {
+                url.fragment = this.fragment
+                url.rawFragment = this.rawFragment
+            }
+        }
+        // The "abs_path" or "rel_path" cases.
+        url.host = this.host
+        url.user = this.user
+        url._setPath(resolvePath(this.escapedPath(), ref.escapedPath()))
+        return url
+    }
+
+    toString(): string {
+        const buf = new StringBuilder()
+        if (this.scheme != "") {
+            buf.append(this.scheme)
+            buf.append(":")
+        }
+        if (this.opaque != "") {
+            buf.append(this.opaque)
+        } else {
+            if (this.scheme != "" || this.host != "" || this.user) {
+                if (this.omitHost && this.host == "" && !this.user) {
+                    // omit empty host
+                } else {
+                    if (this.host != "" || this.path != "" || this.user) {
+                        buf.append("//")
+                    }
+                    if (this.user) {
+                        buf.append(this.user.toString())
+                        buf.append("@")
+                    }
+                    if (this.host != "") {
+                        buf.append(deps.escape(this.host, deps.encodeHost))
+                    }
+                }
+            }
+            const path = this.escapedPath()
+            if (path != "" && path[0] != '/' && this.host != "") {
+                buf.append('/')
+            }
+            if (buf.length == 0) {
+                // RFC 3986 §4.2
+                // A path segment that contains a colon character (e.g., "this:that")
+                // cannot be used as the first segment of a relative-path reference, as
+                // it would be mistaken for a scheme name. Such a segment must be
+                // preceded by a dot-segment (e.g., "./this:that") to make a relative-
+                // path reference.
+                const segment = stringsCut(path, "/").before
+                if (segment.indexOf(":") > -1) {
+                    buf.append('./')
+                }
+            }
+            buf.append(path)
+        }
+        if (this.forceQuery || this.rawQuery != "") {
+            buf.append('?')
+            buf.append(this.rawQuery)
+        }
+        if (this.fragment != "") {
+            buf.append('#')
+            buf.append(this.escapedFragment())
+        }
+        return buf.toString()
     }
 }

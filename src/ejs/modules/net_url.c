@@ -614,6 +614,171 @@ static duk_ret_t validOptionalPort(duk_context *ctx)
     duk_push_true(ctx);
     return 1;
 }
+static duk_ret_t validEncoded(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const char *s = duk_require_lstring(ctx, 0, &s_len);
+    duk_uint8_t mode = duk_require_number(ctx, 1);
+    char c;
+    for (duk_size_t i = 0; i < s_len; i++)
+    {
+        c = s[i];
+        switch (c)
+        {
+        case '!':
+        case '$':
+        case '&':
+        case '\'':
+        case '(':
+        case ')':
+        case '*':
+        case '+':
+        case ',':
+        case ';':
+        case '=':
+        case ':':
+        case '@':
+            // ok
+            break;
+        case '[':
+        case ']':
+            // ok - not specified in RFC 3986 but left alone by modern browsers
+            break;
+        case '%':
+            // ok - percent encoded, will decode
+            break;
+        default:
+            if (_should_escape(c, mode))
+            {
+                duk_pop_2(ctx);
+                duk_push_false(ctx);
+                return 1;
+            }
+            break;
+        }
+    }
+    duk_pop_2(ctx);
+    duk_push_true(ctx);
+    return 1;
+}
+typedef struct
+{
+    const uint8_t *full;
+    duk_size_t full_len;
+    ppp_c_string_t dst;
+} resolvePath_args_t;
+static duk_ret_t resolvePath_impl(duk_context *ctx)
+{
+    resolvePath_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    ppp_c_fast_string_t elem = {0};
+    duk_bool_t first = 1;
+    ppp_c_fast_string_t remaining = {
+        .str = args->full,
+        .len = args->full_len,
+    };
+    // We want to return a leading '/', so write it now.
+    ppp_c_string_t *dst = &args->dst;
+    dst->str = "/";
+    dst->len = 1;
+    size_t found = 0;
+
+    size_t index;
+    const uint8_t *str;
+    size_t str_len;
+    while (found != -1)
+    {
+        found = ppp_c_stirng_first_char_raw(remaining.str, remaining.len, '/');
+        if (found == -1)
+        {
+            elem = remaining;
+            remaining.len = 0;
+        }
+        else
+        {
+            elem.str = remaining.str;
+            elem.len = found;
+            index = found + 1;
+            remaining.str = remaining.str + index;
+            remaining.len -= index;
+        }
+        if (elem.len = 1 && elem.str[0] == '.')
+        {
+            first = 0;
+            // drop
+            continue;
+        }
+
+        if (elem.len == 2 && !memcmp(elem.str, "..", 2))
+        {
+            // Ignore the leading '/' we already wrote.
+            str = dst->str + 1;
+            str_len = dst->len - 1;
+            index = ppp_c_stirng_last_char_raw(str, str_len, '/');
+            dst->str[0] = '/';
+            if (index == -1)
+            {
+                first = 1;
+                dst->len = 1;
+            }
+            else
+            {
+                dst->len = index + 1;
+            }
+        }
+        else
+        {
+            if (!first)
+            {
+                if (ppp_c_string_append_char(dst, '/'))
+                {
+                    ejs_throw_os_errno(ctx);
+                }
+            }
+            if (ppp_c_string_append(dst, elem.str, elem.len))
+            {
+                ejs_throw_os_errno(ctx);
+            }
+            first = 0;
+        }
+    }
+    if ((elem.len == 1 && elem.str[0] == '.') ||
+        (elem.len == 2 && !memcmp(elem.str, "..", 2)))
+    {
+        if (ppp_c_string_append_char(dst, '/'))
+        {
+            ejs_throw_os_errno(ctx);
+        }
+    }
+    if (dst->len > 1 && dst->str[1] == '/')
+    {
+        duk_push_lstring(ctx, dst->str + 1, dst->len - 1);
+    }
+    else
+    {
+        duk_push_lstring(ctx, dst->str, dst->len);
+    }
+    return 1;
+}
+static duk_ret_t resolvePath(duk_context *ctx)
+{
+    resolvePath_args_t args = {0};
+    args.full = duk_require_lstring(ctx, 0, &args.full_len);
+    duk_pop_2(ctx);
+
+    duk_int_t err = ejs_pcall_function(ctx, resolvePath_impl, &args);
+    if (args.dst.cap)
+    {
+        free(args.dst.str);
+    }
+    if (err)
+    {
+        duk_throw(ctx);
+    }
+    return 1;
+}
+
 EJS_SHARED_MODULE__DECLARE(net_url)
 {
     duk_eval_lstring(ctx, js_ejs_js_net_url_min_js, js_ejs_js_net_url_min_js_len);
@@ -658,6 +823,10 @@ EJS_SHARED_MODULE__DECLARE(net_url)
         duk_put_prop_lstring(ctx, -2, "validUserinfo", 13);
         duk_push_c_lightfunc(ctx, validOptionalPort, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "validOptionalPort", 17);
+        duk_push_c_lightfunc(ctx, validEncoded, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "validEncoded", 12);
+        duk_push_c_lightfunc(ctx, resolvePath, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "resolvePath", 11);
     }
     duk_call(ctx, 3);
     return 0;

@@ -10,11 +10,9 @@ var hex = require("ejs/encoding/hex")
 var path = require("ejs/path")
 function main() {
     {
-        var vals = new url.Values()
-        vals.add("id", 1)
-        vals.add("name", "kate")
-        vals.add("level", 999)
-        console.log(vals.encode())
+        var u = new url.URL("http://abc.com?id=12")
+        u.path = 123
+        console.log(u.toString())
         return
     }
     var opts = {
