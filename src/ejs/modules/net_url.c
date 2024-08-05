@@ -260,7 +260,7 @@ static duk_ret_t _unescape_impl(duk_context *ctx)
     _unescape_impl_args_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
     args->t = malloc(args->s_len + args->n * 2);
-    if (args->t)
+    if (!args->t)
     {
         ejs_throw_os_errno(ctx);
     }
@@ -602,7 +602,7 @@ static duk_ret_t validOptionalPort(duk_context *ctx)
         duk_push_false(ctx);
         return 1;
     }
-    for (size_t i = 0; i < s_len; i++)
+    for (size_t i = 1; i < s_len; i++)
     {
         if (s[i] < '0' || s[i] > '9')
         {

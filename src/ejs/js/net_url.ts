@@ -407,7 +407,13 @@ function parseAuthority(authority: string): {
         host: host,
     }
 }
-
+function stringsCountOne(s: string, substr: string): boolean {
+    const i = s.indexOf(substr)
+    if (i == -1) {
+        return false
+    }
+    return i == s.lastIndexOf(substr)
+}
 function parse(url: URL, rawURL: string, viaRequest: boolean) {
     if (rawURL == "*") {
         url.path = "*"
@@ -417,8 +423,7 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
     url.scheme = vals[0].toLowerCase()
     let rest = vals[1]
 
-
-    if (rest.startsWith("?") && rest.indexOf("?") > -1) {
+    if (rest.endsWith("?") && stringsCountOne(rest, "?")) {
         url.forceQuery = true
         rest = rest.substring(0, rest.length - 1)
     } else {
@@ -449,7 +454,6 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
             throw new Error("first path segment in URL cannot contain colon")
         }
     }
-
     if ((url.scheme != "" || !viaRequest && !rest.startsWith("///")) && rest.startsWith("//")) {
         // var authority string
         let authority = rest.substring(2)
@@ -467,6 +471,7 @@ function parse(url: URL, rawURL: string, viaRequest: boolean) {
         // See golang.org/issue/46059.
         url.omitHost = true
     }
+
     // Set Path and, optionally, RawPath.
     // RawPath is a hint of the encoding of Path. We don't want to set it if
     // the default escaping of Path is equivalent, to help make sure that people
@@ -515,6 +520,52 @@ function resolvePath(base: string, ref: string): string {
         return ""
     }
     return deps.resolvePath(full)
+}
+export interface URLOptions {
+    scheme?: string
+    /**
+     * encoded opaque data
+     */
+    opaque?: string
+    /**
+     * username and password information
+     */
+    user?: {
+        username?: string
+        password?: string
+    }
+    /**
+     * host or host:port
+     */
+    host?: string
+    /**
+     * path (relative paths may omit leading slash)
+     */
+    path?: string
+    /**
+     * encoded path hint (see escapedPath method)
+     */
+    rawPath?: string
+    /**
+     * do not emit empty host (authority)
+     */
+    omitHost?: boolean
+    /**
+     * append a query ('?') even if rawQuery is empty
+     */
+    forceQuery?: boolean
+    /**
+     * encoded query values, without '?'
+     */
+    rawQuery?: string
+    /**
+     * fragment for references, without '#'
+     */
+    fragment?: string
+    /**
+     *  encoded fragment hint (see EscapedFragment method)
+     */
+    rawFragment?: string
 }
 export class URL {
     static parse(rawURL: string, requestURI?: boolean): URL {
@@ -567,11 +618,43 @@ export class URL {
         url.rawFragment = this.rawFragment
         return url
     }
-    scheme = ''
+    constructor(o?: URLOptions) {
+        if (o) {
+            this.scheme = o.scheme ?? ''
+            this.opaque = o.opaque ?? ''
+            const user = o.user
+            if (user && user.username !== undefined) {
+                this.user = new Userinfo(user.username, user.password)
+            } else {
+                this.user = undefined
+            }
+            this.host = o.host ?? ''
+            this.path = o.path ?? ''
+            this.rawPath = o.rawPath ?? ''
+            this.omitHost = o.omitHost ? true : false
+            this.forceQuery = o.forceQuery ? true : false
+            this.rawQuery = o.rawQuery ?? ''
+            this.fragment = o.fragment ?? ''
+            this.rawFragment = o.rawFragment ?? ''
+        } else {
+            this.scheme = ''
+            this.opaque = ''
+            this.user = undefined
+            this.host = ''
+            this.path = ''
+            this.rawPath = ''
+            this.omitHost = false
+            this.forceQuery = false
+            this.rawQuery = ''
+            this.fragment = ''
+            this.rawFragment = ''
+        }
+    }
+    scheme: string
     /**
      * encoded opaque data
      */
-    opaque = ''
+    opaque: string
     /**
      * username and password information
      */
@@ -579,35 +662,35 @@ export class URL {
     /**
      * host or host:port
      */
-    host = ''
+    host: string
     /**
      * path (relative paths may omit leading slash)
      */
-    path = ''
+    path: string
     /**
      * encoded path hint (see escapedPath method)
      */
-    rawPath = ''
+    rawPath: string
     /**
      * do not emit empty host (authority)
      */
-    omitHost = false
+    omitHost: boolean
     /**
      * append a query ('?') even if rawQuery is empty
      */
-    forceQuery = false
+    forceQuery: boolean
     /**
      * encoded query values, without '?'
      */
-    rawQuery = ''
+    rawQuery: string
     /**
      * fragment for references, without '#'
      */
-    fragment = ''
+    fragment: string
     /**
      *  encoded fragment hint (see EscapedFragment method)
      */
-    rawFragment = ''
+    rawFragment: string
 
     private _setFragment(f: string) {
         const frag = deps.unescape(unescapeError, f, deps.encodeFragment)
@@ -780,12 +863,6 @@ export class URL {
         }
         return result
     }
-    // ResolveReference resolves a URI reference to an absolute URI from
-    // an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
-    // may be relative or absolute. ResolveReference always returns a new
-    // URL instance, even if the returned URL is identical to either the
-    // base or reference. If ref is an absolute URL, then ResolveReference
-    // ignores base and returns a copy of ref.
     /**
      * Resolves a URI reference to an absolute URI from
      * an absolute base URI u, per RFC 3986 Section 5.2. The URI reference

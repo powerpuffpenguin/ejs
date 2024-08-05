@@ -370,7 +370,10 @@ declare module "ejs/strconv" {
      * indicates that a value does not have the right syntax for the target type.
      */
     export const ErrSyntax = new Error("invalid syntax")
-
+    /**
+     * Convert v to a string Uint8Array, useful for getting utf8 byte data of string
+     */
+    export function toBuffer(v: string): Uint8Array
     /**
      * returns "true" or "false" according to the value of b.
      */
@@ -1748,7 +1751,52 @@ declare module "ejs/net/url" {
          */
         encode(): string
     }
-
+    export interface URLOptions {
+        scheme?: string
+        /**
+         * encoded opaque data
+         */
+        opaque?: string
+        /**
+         * username and password information
+         */
+        user?: {
+            username?: string
+            password?: string
+        }
+        /**
+         * host or host:port
+         */
+        host?: string
+        /**
+         * path (relative paths may omit leading slash)
+         */
+        path?: string
+        /**
+         * encoded path hint (see escapedPath method)
+         */
+        rawPath?: string
+        /**
+         * do not emit empty host (authority)
+         */
+        omitHost?: boolean
+        /**
+         * append a query ('?') even if rawQuery is empty
+         */
+        forceQuery?: boolean
+        /**
+         * encoded query values, without '?'
+         */
+        rawQuery?: string
+        /**
+         * fragment for references, without '#'
+         */
+        fragment?: string
+        /**
+         *  encoded fragment hint (see EscapedFragment method)
+         */
+        rawFragment?: string
+    }
     /**
      * A URL represents a parsed URL (technically, a URI reference).
      * 
@@ -1773,6 +1821,9 @@ declare module "ejs/net/url" {
      * URL's String method uses the escapedPath method to obtain the path.
      */
     export class URL {
+        static parse(rawURL: string, requestURI?: boolean): URL
+        clone(): URL
+        constructor(o?: URLOptions)
 
         scheme: string
         /**
@@ -1815,6 +1866,85 @@ declare module "ejs/net/url" {
          *  encoded fragment hint (see EscapedFragment method)
          */
         rawFragment: string
+        /**
+         * EscapedFragment returns the escaped form of URL.fragment.
+         * In general there are multiple possible escaped forms of any fragment.
+         * EscapedFragment returns URL.rawFragment when it is a valid escaping of URL.fragment.
+         * Otherwise escapedFragment ignores URL.rawFragment and computes an escaped
+         * form on its own.
+         * The toString method uses escapedFragment to construct its result.
+         * In general, code should call escapedFragment instead of
+         * reading URL.rawFragment directly.
+         */
+        escapedFragment(): string
+        /**
+         * EscapedPath returns the escaped form of URL.path.
+         * In general there are multiple possible escaped forms of any path.
+         * EscapedPath returns URL.rawPath when it is a valid escaping of URL.path.
+         * Otherwise escapedPath ignores URL.rawPath and computes an escaped
+         * form on its own.
+         * The toString and requestURI methods use escapedPath to construct
+         * their results.
+         * In general, code should call escapedPath instead of
+         * reading URL.rawPath directly.
+         */
+        escapedPath(): string
+        /**
+         * Returns URL.host, stripping any valid port number if present.
+         * 
+         * If the result is enclosed in square brackets, as literal IPv6 addresses are,
+         * the square brackets are removed from the result.
+         */
+        hostname(): string
+        /**
+         * Returns the port part of URL.host, without the leading colon.
+         * 
+         * If URL.host doesn't contain a valid numeric port, Port returns an empty string.
+         */
+        port(): string
+        /**
+         * Reports whether the URL is absolute.
+         * Absolute means that it has a non-empty scheme.
+         */
+        isAbs(): boolean
+        /**
+         * JoinPath returns a new URL with the provided path elements joined to
+         * any existing path and the resulting path cleaned of any ./ or ../ elements.
+         * Any sequences of multiple / characters will be reduced to a single /.
+         */
+        joinPathArray(elem: Array<string>): URL
+        /**
+         * JoinPath returns a new URL with the provided path elements joined to
+         * any existing path and the resulting path cleaned of any ./ or ../ elements.
+         * Any sequences of multiple / characters will be reduced to a single /.
+         */
+        joinPath(...elem: Array<string>): URL
+        /**
+         * Query parses rawQuery and returns the corresponding values.
+         * It silently discards malformed value pairs.
+         * To check errors use Values.parse.
+         */
+        query(ignoeInvalid?: boolean): Values
+        /**
+         * Redacted is like String but replaces any password with "xxxxx".
+         * Only the password in URL.user is redacted.
+         */
+        redacted(): string
+        /**
+         * Returns the encoded path?query or opaque?query
+         * string that would be used in an HTTP request for u.
+         */
+        requestURI(): string
+        /**
+         * Resolves a URI reference to an absolute URI from
+         * an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
+         * may be relative or absolute. ResolveReference always returns a new
+         * URL instance, even if the returned URL is identical to either the
+         * base or reference. If ref is an absolute URL, then ResolveReference
+         * ignores base and returns a copy of ref.
+         */
+        resolveReference(refer: URL | string): URL
+        toString(): string
     }
 }
 /**

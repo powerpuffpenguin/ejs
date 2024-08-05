@@ -1,12 +1,43 @@
-import { test } from "../../../unit/unit";
-import * as url from "ejs/net/url"
-const m = test.module("ejs/net/url")
-interface URLTest {
-    in: string
-    out: url.URL   // expected parse
-    roundtrip: string // expected result of reserializing the URL; empty means same as "in".
-}
-const urltests: Array<URLTest> = [
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __values = (this && this.__values) || function(o) {
+    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
+    if (m) return m.call(o);
+    if (o && typeof o.length === "number") return {
+        next: function () {
+            if (o && i >= o.length) o = void 0;
+            return { value: o && o[i++], done: !o };
+        }
+    };
+    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var unit_1 = require("../../../unit/unit");
+var url = __importStar(require("ejs/net/url"));
+var m = unit_1.test.module("ejs/net/url");
+var urltests = [
     // no path
     {
         in: "http://www.google.com",
@@ -368,7 +399,7 @@ const urltests: Array<URLTest> = [
     },
     // host subcomponent; IPv6 address with zone identifier in RFC 6874
     {
-        in: "http://[fe80::1%25en0]/", // alphanum zone identifier
+        in: "http://[fe80::1%25en0]/",
         out: new url.URL({
             scheme: "http",
             host: "[fe80::1%en0]",
@@ -378,7 +409,7 @@ const urltests: Array<URLTest> = [
     },
     // host and port subcomponents; IPv6 address with zone identifier in RFC 6874
     {
-        in: "http://[fe80::1%25en0]:8080/", // alphanum zone identifier
+        in: "http://[fe80::1%25en0]:8080/",
         out: new url.URL({
             scheme: "http",
             host: "[fe80::1%en0]:8080",
@@ -388,7 +419,7 @@ const urltests: Array<URLTest> = [
     },
     // host subcomponent; IPv6 address with zone identifier in RFC 6874
     {
-        in: "http://[fe80::1%25%65%6e%301-._~]/", // percent-encoded+unreserved zone identifier
+        in: "http://[fe80::1%25%65%6e%301-._~]/",
         out: new url.URL({
             scheme: "http",
             host: "[fe80::1%en01-._~]",
@@ -398,7 +429,7 @@ const urltests: Array<URLTest> = [
     },
     // host and port subcomponents; IPv6 address with zone identifier in RFC 6874
     {
-        in: "http://[fe80::1%25%65%6e%301-._~]:8080/", // percent-encoded+unreserved zone identifier
+        in: "http://[fe80::1%25%65%6e%301-._~]:8080/",
         out: new url.URL({
             scheme: "http",
             host: "[fe80::1%en01-._~]:8080",
@@ -598,10 +629,21 @@ const urltests: Array<URLTest> = [
         }),
         roundtrip: "mailto:?subject=hi",
     },
-]
-m.test("Parse", (assert) => {
-    for (const test of urltests) {
-        const out = url.URL.parse(test.in)
-        assert.equal(test.out, out, test)
+];
+m.test("Parse", function (assert) {
+    var e_1, _a;
+    try {
+        for (var urltests_1 = __values(urltests), urltests_1_1 = urltests_1.next(); !urltests_1_1.done; urltests_1_1 = urltests_1.next()) {
+            var test_1 = urltests_1_1.value;
+            var out = url.URL.parse(test_1.in);
+            assert.equal(test_1.out, out, test_1);
+        }
     }
-})
+    catch (e_1_1) { e_1 = { error: e_1_1 }; }
+    finally {
+        try {
+            if (urltests_1_1 && !urltests_1_1.done && (_a = urltests_1.return)) _a.call(urltests_1);
+        }
+        finally { if (e_1) throw e_1.error; }
+    }
+});
