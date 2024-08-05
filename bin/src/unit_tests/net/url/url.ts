@@ -605,3 +605,103 @@ m.test("Parse", (assert) => {
         assert.equal(test.out, out, test)
     }
 })
+
+const pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path"
+
+const parseRequestURLTests: Array<{
+    url: string
+    expectedValid: boolean
+}> = [
+        { url: "http://foo.com", expectedValid: true },
+        { url: "http://foo.com/", expectedValid: true },
+        { url: "http://foo.com/path", expectedValid: true },
+        { url: "/", expectedValid: true },
+        { url: pathThatLooksSchemeRelative, expectedValid: true },
+        { url: "//not.a.user@%66%6f%6f.com/just/a/path/also", expectedValid: true },
+        { url: "*", expectedValid: true },
+        { url: "http://192.168.0.1/", expectedValid: true },
+        { url: "http://192.168.0.1:8080/", expectedValid: true },
+        { url: "http://[fe80::1]/", expectedValid: true },
+        { url: "http://[fe80::1]:8080/", expectedValid: true },
+
+        // Tests exercising RFC 6874 compliance:
+        { url: "http://[fe80::1%25en0]/", expectedValid: true },                 // with alphanum zone identifier
+        { url: "http://[fe80::1%25en0]:8080/", expectedValid: true },            // with alphanum zone identifier
+        { url: "http://[fe80::1%25%65%6e%301-._~]/", expectedValid: true },      // with percent-encoded+unreserved zone identifier
+        { url: "http://[fe80::1%25%65%6e%301-._~]:8080/", expectedValid: true }, // with percent-encoded+unreserved zone identifier
+
+        { url: "foo.html", expectedValid: false },
+        { url: "../dir/", expectedValid: false },
+        { url: " http://foo.com", expectedValid: false },
+        { url: "http://192.168.0.%31/", expectedValid: false },
+        { url: "http://192.168.0.%31:8080/", expectedValid: false },
+        { url: "http://[fe80::%31]/", expectedValid: false },
+        { url: "http://[fe80::%31]:8080/", expectedValid: false },
+        { url: "http://[fe80::%31%25en0]/", expectedValid: false },
+        { url: "http://[fe80::%31%25en0]:8080/", expectedValid: false },
+
+        // These two cases are valid as textual representations as
+        // described in RFC 4007, but are not valid as address
+        // literals with IPv6 zone identifiers in URIs as described in
+        // RFC 6874.
+        { url: "http://[fe80::1%en0]/", expectedValid: false },
+        { url: "http://[fe80::1%en0]:8080/", expectedValid: false },
+    ]
+m.test('RequestURI', (assert) => {
+    for (const test of parseRequestURLTests) {
+        if (test.expectedValid) {
+            url.URL.parse(test.url, true)
+        } else {
+            try {
+                url.URL.parse(test.url, true)
+            } catch (_) {
+                continue
+            }
+            assert.fail(test)
+        }
+    }
+    const u = url.URL.parse(pathThatLooksSchemeRelative, true)
+    assert.equal(pathThatLooksSchemeRelative, u.path)
+})
+
+const stringURLTests: Array<{ url: url.URL, want: string }> = [
+    // No leading slash on path should prepend slash on String() call
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "www.google.com",
+            path: "search",
+        }),
+        want: "http://www.google.com/search",
+    },
+    // Relative path with first element containing ":" should be prepended with "./", golang.org/issue/17184
+    {
+        url: new url.URL({
+            path: "this:that",
+        }),
+        want: "./this:that",
+    },
+    // Relative path with second element containing ":" should not be prepended with "./"
+    {
+        url: new url.URL({
+            path: "here/this:that",
+        }),
+        want: "here/this:that",
+    },
+    // Non-relative path with first element containing ":" should not be prepended with "./"
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "www.google.com",
+            path: "this:that",
+        }),
+        want: "http://www.google.com/this:that",
+    },
+]
+m.test('URLString', (assert) => {
+    for (const test of urltests) {
+        const u = url.URL.parse(test.in)
+        const expected = test.roundtrip == '' ? test.in : test.roundtrip
+        assert.equal(expected, u.toString(), test)
+    }
+})

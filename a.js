@@ -10,7 +10,7 @@ var hex = require("ejs/encoding/hex")
 var path = require("ejs/path")
 function main() {
     {
-        var u = url.URL.parse("http://www.google.com/?")
+        var u = url.URL.parse("http://www.google.com")
         console.log(u)
         console.log(u.toString())
         return

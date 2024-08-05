@@ -58,7 +58,6 @@ duk_ret_t __ejs__modules_append(
 }
 duk_ret_t __ejs__modules_append_value(duk_context *ctx)
 {
-
     duk_size_t src_len;
     const uint8_t *src;
     if (duk_is_string(ctx, 0))
@@ -88,6 +87,7 @@ duk_ret_t __ejs__modules_append_value(duk_context *ctx)
     buf_cap = ppp_c_string_grow_calculate(buf_cap, buf_len, src_len);
     if (!buf_cap)
     {
+
         duk_swap(ctx, 0, 1);
         duk_pop_2(ctx);
         duk_push_array(ctx);

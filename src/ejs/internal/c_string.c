@@ -68,7 +68,6 @@ size_t ppp_c_string_grow_calculate(size_t _cap, size_t _len, size_t n)
         if (available < n)
         {
             n -= available;
-
             // calculate capacity
             if (!_cap && n < 64)
             {
@@ -76,7 +75,7 @@ size_t ppp_c_string_grow_calculate(size_t _cap, size_t _len, size_t n)
             }
             else
             {
-                size_t c = _len + n;
+                size_t c = _cap + n;
                 cap *= 2;
                 if (c >= cap)
                 {

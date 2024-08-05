@@ -171,6 +171,21 @@ var Assert = /** @class */ (function () {
         }
         throw assertQuit;
     };
+    Assert.prototype.fail = function () {
+        var msg = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            msg[_i] = arguments[_i];
+        }
+        console.log("--- FAIL: ".concat(this.name));
+        if (msg.length != 0) {
+            console.log.apply(console, __spreadArray(["  Message:"], __read(msg), false));
+        }
+        var stack = new Error().stack;
+        if (typeof stack === "string") {
+            console.log("  Stack:", stack);
+        }
+        throw assertQuit;
+    };
     Assert.prototype.false = function (expr) {
         var msg = [];
         for (var _i = 1; _i < arguments.length; _i++) {

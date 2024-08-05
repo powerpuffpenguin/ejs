@@ -74,6 +74,17 @@ export class Assert {
         }
         throw assertQuit
     }
+    fail(...msg: Array<any>) {
+        console.log(`--- FAIL: ${this.name}`)
+        if (msg.length != 0) {
+            console.log(`  Message:`, ...msg)
+        }
+        const stack = new Error().stack
+        if (typeof stack === "string") {
+            console.log(`  Stack:`, stack)
+        }
+        throw assertQuit
+    }
     false(expr: any, ...msg: Array<any>) {
         if (!expr) {
             return

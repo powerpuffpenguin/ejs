@@ -647,3 +647,118 @@ m.test("Parse", function (assert) {
         finally { if (e_1) throw e_1.error; }
     }
 });
+var pathThatLooksSchemeRelative = "//not.a.user@not.a.host/just/a/path";
+var parseRequestURLTests = [
+    { url: "http://foo.com", expectedValid: true },
+    { url: "http://foo.com/", expectedValid: true },
+    { url: "http://foo.com/path", expectedValid: true },
+    { url: "/", expectedValid: true },
+    { url: pathThatLooksSchemeRelative, expectedValid: true },
+    { url: "//not.a.user@%66%6f%6f.com/just/a/path/also", expectedValid: true },
+    { url: "*", expectedValid: true },
+    { url: "http://192.168.0.1/", expectedValid: true },
+    { url: "http://192.168.0.1:8080/", expectedValid: true },
+    { url: "http://[fe80::1]/", expectedValid: true },
+    { url: "http://[fe80::1]:8080/", expectedValid: true },
+    // Tests exercising RFC 6874 compliance:
+    { url: "http://[fe80::1%25en0]/", expectedValid: true },
+    { url: "http://[fe80::1%25en0]:8080/", expectedValid: true },
+    { url: "http://[fe80::1%25%65%6e%301-._~]/", expectedValid: true },
+    { url: "http://[fe80::1%25%65%6e%301-._~]:8080/", expectedValid: true },
+    { url: "foo.html", expectedValid: false },
+    { url: "../dir/", expectedValid: false },
+    { url: " http://foo.com", expectedValid: false },
+    { url: "http://192.168.0.%31/", expectedValid: false },
+    { url: "http://192.168.0.%31:8080/", expectedValid: false },
+    { url: "http://[fe80::%31]/", expectedValid: false },
+    { url: "http://[fe80::%31]:8080/", expectedValid: false },
+    { url: "http://[fe80::%31%25en0]/", expectedValid: false },
+    { url: "http://[fe80::%31%25en0]:8080/", expectedValid: false },
+    // These two cases are valid as textual representations as
+    // described in RFC 4007, but are not valid as address
+    // literals with IPv6 zone identifiers in URIs as described in
+    // RFC 6874.
+    { url: "http://[fe80::1%en0]/", expectedValid: false },
+    { url: "http://[fe80::1%en0]:8080/", expectedValid: false },
+];
+m.test('RequestURI', function (assert) {
+    var e_2, _a;
+    try {
+        for (var parseRequestURLTests_1 = __values(parseRequestURLTests), parseRequestURLTests_1_1 = parseRequestURLTests_1.next(); !parseRequestURLTests_1_1.done; parseRequestURLTests_1_1 = parseRequestURLTests_1.next()) {
+            var test_2 = parseRequestURLTests_1_1.value;
+            if (test_2.expectedValid) {
+                url.URL.parse(test_2.url, true);
+            }
+            else {
+                try {
+                    url.URL.parse(test_2.url, true);
+                }
+                catch (_) {
+                    continue;
+                }
+                assert.fail(test_2);
+            }
+        }
+    }
+    catch (e_2_1) { e_2 = { error: e_2_1 }; }
+    finally {
+        try {
+            if (parseRequestURLTests_1_1 && !parseRequestURLTests_1_1.done && (_a = parseRequestURLTests_1.return)) _a.call(parseRequestURLTests_1);
+        }
+        finally { if (e_2) throw e_2.error; }
+    }
+    var u = url.URL.parse(pathThatLooksSchemeRelative, true);
+    assert.equal(pathThatLooksSchemeRelative, u.path);
+});
+var stringURLTests = [
+    // No leading slash on path should prepend slash on String() call
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "www.google.com",
+            path: "search",
+        }),
+        want: "http://www.google.com/search",
+    },
+    // Relative path with first element containing ":" should be prepended with "./", golang.org/issue/17184
+    {
+        url: new url.URL({
+            path: "this:that",
+        }),
+        want: "./this:that",
+    },
+    // Relative path with second element containing ":" should not be prepended with "./"
+    {
+        url: new url.URL({
+            path: "here/this:that",
+        }),
+        want: "here/this:that",
+    },
+    // Non-relative path with first element containing ":" should not be prepended with "./"
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "www.google.com",
+            path: "this:that",
+        }),
+        want: "http://www.google.com/this:that",
+    },
+];
+m.test('URLString', function (assert) {
+    var e_3, _a;
+    try {
+        for (var urltests_2 = __values(urltests), urltests_2_1 = urltests_2.next(); !urltests_2_1.done; urltests_2_1 = urltests_2.next()) {
+            var test_3 = urltests_2_1.value;
+            var u = url.URL.parse(test_3.in);
+            var expected = test_3.roundtrip == '' ? test_3.in : test_3.roundtrip;
+            assert.equal(expected, u.toString(), test_3);
+        }
+    }
+    catch (e_3_1) { e_3 = { error: e_3_1 }; }
+    finally {
+        try {
+            if (urltests_2_1 && !urltests_2_1.done && (_a = urltests_2.return)) _a.call(urltests_2);
+        }
+        finally { if (e_3) throw e_3.error; }
+    }
+});
