@@ -10,6 +10,7 @@ import "./strconv/qoute";
 import "./path/path";
 import "./path/match";
 
+import "./net/url/url";
 import "./net/ip";
 
 
