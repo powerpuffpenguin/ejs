@@ -1002,9 +1002,9 @@ const encodeQueryTests: Array<EncodeQueryTest> = [
         }), expected: "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"
     },
 ]
-m.test('EncodeQuery', (asserts) => {
+m.test('EncodeQuery', (assert) => {
     for (const test of encodeQueryTests) {
-        asserts.equal(test.expected, test.m.encode())
+        assert.equal(test.expected, test.m.encode())
     }
 })
 const resolvePathTests: Array<{
@@ -1026,10 +1026,10 @@ const resolvePathTests: Array<{
         { base: "a/.././b", ref: "c", expected: "/c" },
     ]
 
-m.test('ResolvePath', (asserts) => {
+m.test('ResolvePath', (assert) => {
     for (const test of resolvePathTests) {
         const got = (url as any).resolvePath(test.base, test.ref)
-        asserts.equal(test.expected, got)
+        assert.equal(test.expected, got)
     }
 })
 
@@ -1159,42 +1159,42 @@ const resolveReferenceTests: Array<{
         // Empty path and query but with ForceQuery (issue 46033).
         { base: "https://a/b/c/d;p?q#s", rel: "?", expected: "https://a/b/c/d;p?" },
     ]
-m.test('ResolveReference', (asserts) => {
+m.test('ResolveReference', (assert) => {
     const mustParse = url.URL.parse
     const opaque = new url.URL({ scheme: "scheme", opaque: "opaque" })
     for (const test of resolveReferenceTests) {
         const base = mustParse(test.base)
         const rel = mustParse(test.rel)
         let url = base.resolveReference(rel)
-        asserts.equal(test.expected, url.toString(), test)
+        assert.equal(test.expected, url.toString(), test)
         // Ensure that new instances are returned.
 
-        asserts.false(base == url, test)
+        assert.false(base == url, test)
 
         // Test the convenience wrapper too.
         url = base.resolveReference(test.rel)
-        asserts.equal(test.expected, url.toString(), test)
+        assert.equal(test.expected, url.toString(), test)
 
         // Ensure Opaque resets the URL.
         url = base.resolveReference(opaque)
-        asserts.equal(opaque, url, test)
+        assert.equal(opaque, url, test)
     }
 })
-m.test("QueryValues", (asserts) => {
+m.test("QueryValues", (assert) => {
     const u = url.URL.parse("http://x.com?foo=bar&bar=1&bar=2&baz")
     const v = u.query()
-    asserts.equal("bar", v.get("foo"))
+    assert.equal("bar", v.get("foo"))
     // Case sensitive:
-    asserts.equal(undefined, v.get("Foo"))
-    asserts.equal("1", v.get("bar"))
-    asserts.equal("", v.get("baz"))
-    asserts.true(v.has("foo"))
-    asserts.true(v.has("bar"))
-    asserts.true(v.has("baz"))
+    assert.equal(undefined, v.get("Foo"))
+    assert.equal("1", v.get("bar"))
+    assert.equal("", v.get("baz"))
+    assert.true(v.has("foo"))
+    assert.true(v.has("bar"))
+    assert.true(v.has("baz"))
 
-    asserts.false(v.has("noexist"))
+    assert.false(v.has("noexist"))
     v.remove("bar")
-    asserts.equal(undefined, v.get("bar"))
+    assert.equal(undefined, v.get("bar"))
 
 })
 
@@ -1288,7 +1288,7 @@ const parseTests: Array<parseTest> = [
         ok: false,
     },
 ]
-m.test('ParseQuery', (asserts) => {
+m.test('ParseQuery', (assert) => {
     let form: url.Values
     for (const test of parseTests) {
         if (test.ok) {
@@ -1300,7 +1300,7 @@ m.test('ParseQuery', (asserts) => {
             } catch (_) {
                 isthrow = true
             }
-            asserts.true(isthrow, test)
+            assert.true(isthrow, test)
 
             form = url.Values.parse(test.query, true)
         }
@@ -1308,14 +1308,207 @@ m.test('ParseQuery', (asserts) => {
             if (Object.prototype.hasOwnProperty.call(test.out.values, key)) {
                 const evs = test.out.values[key]!
                 const vs = form.values[key]!
-                asserts.true(vs)
-                asserts.equal(evs.length, vs.length, test)
+                assert.true(vs)
+                assert.equal(evs.length, vs.length, test)
                 for (let i = 0; i < evs.length; i++) {
-                    asserts.equal(evs[i], vs[i])
+                    assert.equal(evs[i], vs[i])
 
                 }
             }
         }
 
     }
+})
+interface RequestURITest {
+    url: url.URL
+    out: string
+}
+const requritests: Array<RequestURITest> = [
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "",
+        }),
+        out: "/",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a b",
+        }),
+        out: "/a%20b",
+    },
+    // golang.org/issue/4860 variant 1
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            opaque: "/%2F/%2F/",
+        }),
+        out: "/%2F/%2F/",
+    },
+    // golang.org/issue/4860 variant 2
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            opaque: "//other.example.com/%2F/%2F/",
+        }),
+        out: "http://other.example.com/%2F/%2F/",
+    },
+    // better fix for issue 4860
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/////",
+            rawPath: "/%2F/%2F/",
+        }),
+        out: "/%2F/%2F/",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/////",
+            rawPath: "/WRONG/", // ignored because doesn't match Path
+        }),
+        out: "/////",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a b",
+            rawQuery: "q=go+language",
+        }),
+        out: "/a%20b?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a b",
+            rawPath: "/a b", // ignored because invalid
+            rawQuery: "q=go+language",
+        }),
+        out: "/a%20b?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a?b",
+            rawPath: "/a?b", // ignored because invalid
+            rawQuery: "q=go+language",
+        }),
+        out: "/a%3Fb?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "myschema",
+            opaque: "opaque",
+        }),
+        out: "opaque",
+    },
+    {
+        url: new url.URL({
+            scheme: "myschema",
+            opaque: "opaque",
+            rawQuery: "q=go+language",
+        }),
+        out: "opaque?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "//foo",
+        }),
+        out: "//foo",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/foo",
+            forceQuery: true,
+        }),
+        out: "/foo?",
+    },
+]
+m.test('URL.RequestURI', (assert) => {
+    for (const test of requritests) {
+        const s = test.url.requestURI()
+        assert.equal(test.out, s)
+
+    }
+})
+m.test('ParseFailure', (assert) => {
+    let err: Error | undefined
+    try {
+        url.Values.parse("%gh&%ij")
+    } catch (e) {
+        err = e as any
+    }
+    assert.true(err, "not throw")
+    const errStr = `${err?.message}`
+    assert.true(errStr.indexOf("%gh") >= 0)
+})
+m.test('ParseErrors', (assert) => {
+    const tests: Array<{
+        in: string
+        wantErr: boolean
+    }> = [
+            { in: "http://[::1]", wantErr: false },
+            { in: "http://[::1]:80", wantErr: false },
+            { in: "http://[::1]:namedport", wantErr: true }, // rfc3986 3.2.3
+            { in: "http://x:namedport", wantErr: true },     // rfc3986 3.2.3
+            { in: "http://[::1]/", wantErr: false },
+            { in: "http://[::1]a", wantErr: true },
+            { in: "http://[::1]%23", wantErr: true },
+            { in: "http://[::1%25en0]", wantErr: false },    // valid zone id
+            { in: "http://[::1]:", wantErr: false },         // colon, but no port OK
+            { in: "http://x:", wantErr: false },             // colon, but no port OK
+            { in: "http://[::1]:%38%30", wantErr: true },    // not allowed: % encoding only for non-ASCII
+            { in: "http://[::1%25%41]", wantErr: false },    // RFC 6874 allows over-escaping in zone
+            { in: "http://[%10::1]", wantErr: true },        // no %xx escapes in IP address
+            { in: "http://[::1]/%48", wantErr: false },      // %xx in path is fine
+            { in: "http://%41:8080/", wantErr: true },       // not allowed: % encoding only for non-ASCII
+            { in: "mysql://x@y(z:123)/foo", wantErr: true }, // not well-formed per RFC 3986, golang.org/issue/33646
+            { in: "mysql://x@y(1.2.3.4:123)/foo", wantErr: true },
+
+            { in: " http://foo.com", wantErr: true },  // invalid character in schema
+            { in: "ht tp://foo.com", wantErr: true },  // invalid character in schema
+            { in: "ahttp://foo.com", wantErr: false }, // valid schema characters
+            { in: "1http://foo.com", wantErr: true },  // invalid character in schema
+
+            { in: "http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", wantErr: true }, // golang.org/issue/11208
+            { in: "http://a b.com/", wantErr: true },    // no space in host name please
+            { in: "cache_object://foo", wantErr: true }, // scheme cannot have _, relative path cannot have : in first segment
+            { in: "cache_object:foo", wantErr: true },
+            { in: "cache_object:foo/bar", wantErr: true },
+            { in: "cache_object/:foo/bar", wantErr: false },
+        ]
+    for (const test of tests) {
+        if (test.wantErr) {
+            let isthrow = false
+            try {
+                url.URL.parse(test.in)
+            } catch (_) {
+                isthrow = true
+            }
+            if (!isthrow) {
+                assert.fail("not throw", test)
+            }
+        } else {
+            url.URL.parse(test.in)
+        }
+    }
+})
+// Issue 11202
+m.test('StarRequest', (assert) => {
+
 })

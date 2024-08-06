@@ -1097,12 +1097,12 @@ var encodeQueryTests = [
         }), expected: "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"
     },
 ];
-m.test('EncodeQuery', function (asserts) {
+m.test('EncodeQuery', function (assert) {
     var e_9, _a;
     try {
         for (var encodeQueryTests_1 = __values(encodeQueryTests), encodeQueryTests_1_1 = encodeQueryTests_1.next(); !encodeQueryTests_1_1.done; encodeQueryTests_1_1 = encodeQueryTests_1.next()) {
             var test_9 = encodeQueryTests_1_1.value;
-            asserts.equal(test_9.expected, test_9.m.encode());
+            assert.equal(test_9.expected, test_9.m.encode());
         }
     }
     catch (e_9_1) { e_9 = { error: e_9_1 }; }
@@ -1127,13 +1127,13 @@ var resolvePathTests = [
     { base: "a/../", ref: ".", expected: "/" },
     { base: "a/.././b", ref: "c", expected: "/c" },
 ];
-m.test('ResolvePath', function (asserts) {
+m.test('ResolvePath', function (assert) {
     var e_10, _a;
     try {
         for (var resolvePathTests_1 = __values(resolvePathTests), resolvePathTests_1_1 = resolvePathTests_1.next(); !resolvePathTests_1_1.done; resolvePathTests_1_1 = resolvePathTests_1.next()) {
             var test_10 = resolvePathTests_1_1.value;
             var got = url.resolvePath(test_10.base, test_10.ref);
-            asserts.equal(test_10.expected, got);
+            assert.equal(test_10.expected, got);
         }
     }
     catch (e_10_1) { e_10 = { error: e_10_1 }; }
@@ -1253,7 +1253,7 @@ var resolveReferenceTests = [
     // Empty path and query but with ForceQuery (issue 46033).
     { base: "https://a/b/c/d;p?q#s", rel: "?", expected: "https://a/b/c/d;p?" },
 ];
-m.test('ResolveReference', function (asserts) {
+m.test('ResolveReference', function (assert) {
     var e_11, _a;
     var mustParse = url.URL.parse;
     var opaque = new url.URL({ scheme: "scheme", opaque: "opaque" });
@@ -1263,15 +1263,15 @@ m.test('ResolveReference', function (asserts) {
             var base = mustParse(test_11.base);
             var rel = mustParse(test_11.rel);
             var url_1 = base.resolveReference(rel);
-            asserts.equal(test_11.expected, url_1.toString(), test_11);
+            assert.equal(test_11.expected, url_1.toString(), test_11);
             // Ensure that new instances are returned.
-            asserts.false(base == url_1, test_11);
+            assert.false(base == url_1, test_11);
             // Test the convenience wrapper too.
             url_1 = base.resolveReference(test_11.rel);
-            asserts.equal(test_11.expected, url_1.toString(), test_11);
+            assert.equal(test_11.expected, url_1.toString(), test_11);
             // Ensure Opaque resets the URL.
             url_1 = base.resolveReference(opaque);
-            asserts.equal(opaque, url_1, test_11);
+            assert.equal(opaque, url_1, test_11);
         }
     }
     catch (e_11_1) { e_11 = { error: e_11_1 }; }
@@ -1282,20 +1282,20 @@ m.test('ResolveReference', function (asserts) {
         finally { if (e_11) throw e_11.error; }
     }
 });
-m.test("QueryValues", function (asserts) {
+m.test("QueryValues", function (assert) {
     var u = url.URL.parse("http://x.com?foo=bar&bar=1&bar=2&baz");
     var v = u.query();
-    asserts.equal("bar", v.get("foo"));
+    assert.equal("bar", v.get("foo"));
     // Case sensitive:
-    asserts.equal(undefined, v.get("Foo"));
-    asserts.equal("1", v.get("bar"));
-    asserts.equal("", v.get("baz"));
-    asserts.true(v.has("foo"));
-    asserts.true(v.has("bar"));
-    asserts.true(v.has("baz"));
-    asserts.false(v.has("noexist"));
+    assert.equal(undefined, v.get("Foo"));
+    assert.equal("1", v.get("bar"));
+    assert.equal("", v.get("baz"));
+    assert.true(v.has("foo"));
+    assert.true(v.has("bar"));
+    assert.true(v.has("baz"));
+    assert.false(v.has("noexist"));
     v.remove("bar");
-    asserts.equal(undefined, v.get("bar"));
+    assert.equal(undefined, v.get("bar"));
 });
 var parseTests = [
     {
@@ -1381,7 +1381,7 @@ var parseTests = [
         ok: false,
     },
 ];
-m.test('ParseQuery', function (asserts) {
+m.test('ParseQuery', function (assert) {
     var e_12, _a;
     var form;
     try {
@@ -1398,17 +1398,17 @@ m.test('ParseQuery', function (asserts) {
                 catch (_) {
                     isthrow = true;
                 }
-                asserts.true(isthrow, test_12);
+                assert.true(isthrow, test_12);
                 form = url.Values.parse(test_12.query, true);
             }
             for (var key in test_12.out.values) {
                 if (Object.prototype.hasOwnProperty.call(test_12.out.values, key)) {
                     var evs = test_12.out.values[key];
                     var vs = form.values[key];
-                    asserts.true(vs);
-                    asserts.equal(evs.length, vs.length, test_12);
+                    assert.true(vs);
+                    assert.equal(evs.length, vs.length, test_12);
                     for (var i = 0; i < evs.length; i++) {
-                        asserts.equal(evs[i], vs[i]);
+                        assert.equal(evs[i], vs[i]);
                     }
                 }
             }
@@ -1420,5 +1420,209 @@ m.test('ParseQuery', function (asserts) {
             if (parseTests_1_1 && !parseTests_1_1.done && (_a = parseTests_1.return)) _a.call(parseTests_1);
         }
         finally { if (e_12) throw e_12.error; }
+    }
+});
+var requritests = [
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "",
+        }),
+        out: "/",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a b",
+        }),
+        out: "/a%20b",
+    },
+    // golang.org/issue/4860 variant 1
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            opaque: "/%2F/%2F/",
+        }),
+        out: "/%2F/%2F/",
+    },
+    // golang.org/issue/4860 variant 2
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            opaque: "//other.example.com/%2F/%2F/",
+        }),
+        out: "http://other.example.com/%2F/%2F/",
+    },
+    // better fix for issue 4860
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/////",
+            rawPath: "/%2F/%2F/",
+        }),
+        out: "/%2F/%2F/",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/////",
+            rawPath: "/WRONG/", // ignored because doesn't match Path
+        }),
+        out: "/////",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a b",
+            rawQuery: "q=go+language",
+        }),
+        out: "/a%20b?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a b",
+            rawPath: "/a b",
+            rawQuery: "q=go+language",
+        }),
+        out: "/a%20b?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/a?b",
+            rawPath: "/a?b",
+            rawQuery: "q=go+language",
+        }),
+        out: "/a%3Fb?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "myschema",
+            opaque: "opaque",
+        }),
+        out: "opaque",
+    },
+    {
+        url: new url.URL({
+            scheme: "myschema",
+            opaque: "opaque",
+            rawQuery: "q=go+language",
+        }),
+        out: "opaque?q=go+language",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "//foo",
+        }),
+        out: "//foo",
+    },
+    {
+        url: new url.URL({
+            scheme: "http",
+            host: "example.com",
+            path: "/foo",
+            forceQuery: true,
+        }),
+        out: "/foo?",
+    },
+];
+m.test('URL.RequestURI', function (assert) {
+    var e_13, _a;
+    try {
+        for (var requritests_1 = __values(requritests), requritests_1_1 = requritests_1.next(); !requritests_1_1.done; requritests_1_1 = requritests_1.next()) {
+            var test_13 = requritests_1_1.value;
+            var s = test_13.url.requestURI();
+            assert.equal(test_13.out, s);
+        }
+    }
+    catch (e_13_1) { e_13 = { error: e_13_1 }; }
+    finally {
+        try {
+            if (requritests_1_1 && !requritests_1_1.done && (_a = requritests_1.return)) _a.call(requritests_1);
+        }
+        finally { if (e_13) throw e_13.error; }
+    }
+});
+m.test('ParseFailure', function (assert) {
+    var err;
+    try {
+        url.Values.parse("%gh&%ij");
+    }
+    catch (e) {
+        err = e;
+    }
+    assert.true(err, "not throw");
+    var errStr = "".concat(err === null || err === void 0 ? void 0 : err.message);
+    assert.true(errStr.indexOf("%gh") >= 0);
+});
+m.test('ParseErrors', function (assert) {
+    var e_14, _a;
+    var tests = [
+        { in: "http://[::1]", wantErr: false },
+        { in: "http://[::1]:80", wantErr: false },
+        { in: "http://[::1]:namedport", wantErr: true },
+        { in: "http://x:namedport", wantErr: true },
+        { in: "http://[::1]/", wantErr: false },
+        { in: "http://[::1]a", wantErr: true },
+        { in: "http://[::1]%23", wantErr: true },
+        { in: "http://[::1%25en0]", wantErr: false },
+        { in: "http://[::1]:", wantErr: false },
+        { in: "http://x:", wantErr: false },
+        { in: "http://[::1]:%38%30", wantErr: true },
+        { in: "http://[::1%25%41]", wantErr: false },
+        { in: "http://[%10::1]", wantErr: true },
+        { in: "http://[::1]/%48", wantErr: false },
+        { in: "http://%41:8080/", wantErr: true },
+        { in: "mysql://x@y(z:123)/foo", wantErr: true },
+        { in: "mysql://x@y(1.2.3.4:123)/foo", wantErr: true },
+        { in: " http://foo.com", wantErr: true },
+        { in: "ht tp://foo.com", wantErr: true },
+        { in: "ahttp://foo.com", wantErr: false },
+        { in: "1http://foo.com", wantErr: true },
+        { in: "http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", wantErr: true },
+        { in: "http://a b.com/", wantErr: true },
+        { in: "cache_object://foo", wantErr: true },
+        { in: "cache_object:foo", wantErr: true },
+        { in: "cache_object:foo/bar", wantErr: true },
+        { in: "cache_object/:foo/bar", wantErr: false },
+    ];
+    try {
+        for (var tests_1 = __values(tests), tests_1_1 = tests_1.next(); !tests_1_1.done; tests_1_1 = tests_1.next()) {
+            var test_14 = tests_1_1.value;
+            if (test_14.wantErr) {
+                var isthrow = false;
+                try {
+                    url.URL.parse(test_14.in);
+                }
+                catch (_) {
+                    isthrow = true;
+                }
+                if (!isthrow) {
+                    assert.fail("not throw", test_14);
+                }
+            }
+            else {
+                url.URL.parse(test_14.in);
+            }
+        }
+    }
+    catch (e_14_1) { e_14 = { error: e_14_1 }; }
+    finally {
+        try {
+            if (tests_1_1 && !tests_1_1.done && (_a = tests_1.return)) _a.call(tests_1);
+        }
+        finally { if (e_14) throw e_14.error; }
     }
 });
