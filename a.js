@@ -8,11 +8,16 @@ var utf8 = require("ejs/unicode/utf8")
 var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
 var path = require("ejs/path")
+String.prototype.replaceAll1 = function (search, replacement) {
+    console.log("replaceAll1")
+    var target = this;
+    console.log("replaceAll1", target, new RegExp(search, 'g'), replacement)
+    return target.replace(new RegExp(search, 'g'), replacement)
+}
 function main() {
     {
-        var u = url.URL.parse("http://www.google.com")
-        console.log(u)
-        console.log(u.toString())
+        var s = url.resolvePath('a/b', '.')
+        console.log(s)
         return
     }
     var opts = {

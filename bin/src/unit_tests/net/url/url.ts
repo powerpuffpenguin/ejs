@@ -1,6 +1,7 @@
 import { test } from "../../../unit/unit";
 import * as url from "ejs/net/url"
 const m = test.module("ejs/net/url")
+const nil = undefined
 interface URLTest {
     in: string
     out: url.URL   // expected parse
@@ -703,5 +704,331 @@ m.test('URLString', (assert) => {
         const u = url.URL.parse(test.in)
         const expected = test.roundtrip == '' ? test.in : test.roundtrip
         assert.equal(expected, u.toString(), test)
+    }
+
+    for (const test of stringURLTests) {
+        assert.equal(test.want, test.url.toString())
+    }
+})
+
+m.test('URLRedacted', (assert) => {
+    const cases: Array<{
+        name: string
+        url: url.URL
+        want: string
+    }> = [
+            {
+                name: "non-blank Password",
+                url: new url.URL({
+                    scheme: "http",
+                    host: "host.tld",
+                    path: "this:that",
+                    user: { username: "user", password: "password" },
+                }),
+                want: "http://user:xxxxx@host.tld/this:that",
+            },
+            {
+                name: "blank Password",
+                url: new url.URL({
+                    scheme: "http",
+                    host: "host.tld",
+                    path: "this:that",
+                    user: { username: "user" },
+                }),
+                want: "http://user@host.tld/this:that",
+            },
+            {
+                name: "nil User",
+                url: new url.URL({
+                    scheme: "http",
+                    host: "host.tld",
+                    path: "this:that",
+                    user: { username: "", password: "password" },
+                }),
+                want: "http://:xxxxx@host.tld/this:that",
+            },
+            {
+                name: "blank Username, blank Password",
+                url: new url.URL({
+                    scheme: "http",
+                    host: "host.tld",
+                    path: "this:that",
+                }),
+                want: "http://host.tld/this:that",
+            },
+            {
+                name: "empty URL",
+                url: new url.URL(),
+                want: "",
+            },
+        ]
+    for (const test of cases) {
+        assert.equal(test.want, test.url.redacted(), test)
+    }
+})
+interface EscapeTest {
+    in: string
+    out: string
+    err?: Error
+}
+function EscapeError(s: string) {
+    return new url.EscapeError(s)
+}
+const unescapeTests: Array<EscapeTest> = [
+    {
+        in: "",
+        out: "",
+        err: nil,
+    },
+    {
+        in: "abc",
+        out: "abc",
+        err: nil,
+    },
+    {
+        in: "1%41",
+        out: "1A",
+        err: nil,
+    },
+    {
+        in: "1%41%42%43",
+        out: "1ABC",
+        err: nil,
+    },
+    {
+        in: "%4a",
+        out: "J",
+        err: nil,
+    },
+    {
+        in: "%6F",
+        out: "o",
+        err: nil,
+    },
+    {
+        in: "%", // not enough characters after %
+        out: "",
+        err: EscapeError("%"),
+    },
+    {
+        in: "%a", // not enough characters after %
+        out: "",
+        err: EscapeError("%a"),
+    },
+    {
+        in: "%1", // not enough characters after %
+        out: "",
+        err: EscapeError("%1"),
+    },
+    {
+        in: "123%45%6", // not enough characters after %
+        out: "",
+        err: EscapeError("%6"),
+    },
+    {
+        in: "%zzzzz", // invalid hex digits
+        out: "",
+        err: EscapeError("%zz"),
+    },
+    {
+        in: "a+b",
+        out: "a b",
+        err: nil,
+    },
+    {
+        in: "a%20b",
+        out: "a b",
+        err: nil,
+    },
+]
+m.test('Unescape', (assert) => {
+    for (const test of unescapeTests) {
+        if (test.err) {
+            let isthrow = false
+            try {
+                url.queryUnescape(test.in)
+            } catch (_) {
+                isthrow = true
+            }
+            if (!isthrow) {
+                assert.fail(test)
+            }
+        } else {
+            const actual = url.queryUnescape(test.in)
+            assert.equal(test.out, actual)
+        }
+
+        let input = test.in
+        let out = test.out
+        if (test.in.indexOf("+") != -1) {
+            input = input.replaceAll("+", "%20")
+            if (test.err) {
+                let isthrow = false
+                try {
+                    url.queryUnescape(input)
+                } catch (_) {
+                    isthrow = true
+                }
+                if (!isthrow) {
+                    assert.fail(test)
+                }
+            } else {
+                const actual = url.pathUnescape(input)
+                assert.equal(test.out, actual)
+
+                let s: string
+                try {
+                    s = url.queryUnescape(test.in.replaceAll("+", "XXX"))
+                } catch (_) {
+                    continue
+                }
+                input = test.in
+                out = s.replaceAll("XXX", "+")
+            }
+        }
+
+        if (test.err) {
+            let isthrow = false
+            try {
+                url.pathUnescape(input)
+            } catch (_) {
+                isthrow = true
+            }
+            if (!isthrow) {
+                assert.fail(test)
+            }
+        } else {
+            const actual = url.pathUnescape(input)
+            assert.equal(out, actual)
+        }
+    }
+})
+
+const queryEscapeTests: Array<EscapeTest> = [
+    {
+        in: "",
+        out: "",
+        err: nil,
+    },
+    {
+        in: "abc",
+        out: "abc",
+        err: nil,
+    },
+    {
+        in: "one two",
+        out: "one+two",
+        err: nil,
+    },
+    {
+        in: "10%",
+        out: "10%25",
+        err: nil,
+    },
+    {
+        in: " ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+        out: "+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B",
+        err: nil,
+    },
+]
+m.test('QueryEscape', (assert) => {
+    for (const test of queryEscapeTests) {
+        const actual = url.queryEscape(test.in)
+        assert.equal(test.out, actual)
+
+        const roundtrip = url.queryUnescape(actual)
+        assert.equal(test.in, roundtrip)
+    }
+})
+
+
+const pathEscapeTests: Array<EscapeTest> = [
+    {
+        in: "",
+        out: "",
+        err: nil,
+    },
+    {
+        in: "abc",
+        out: "abc",
+        err: nil,
+    },
+    {
+        in: "abc+def",
+        out: "abc+def",
+        err: nil,
+    },
+    {
+        in: "a/b",
+        out: "a%2Fb",
+        err: nil,
+    },
+    {
+        in: "one two",
+        out: "one%20two",
+        err: nil,
+    },
+    {
+        in: "10%",
+        out: "10%25",
+        err: nil,
+    },
+    {
+        in: " ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+        out: "%20%3F&=%23+%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09:%2F@$%27%28%29%2A%2C%3B",
+        err: nil,
+    },
+]
+m.test('PathEscape', (assert) => {
+    for (const test of pathEscapeTests) {
+        const actual = url.pathEscape(test.in)
+        assert.equal(test.out, actual)
+    }
+})
+
+interface EncodeQueryTest {
+    m: url.Values
+    expected: string
+}
+const encodeQueryTests: Array<EncodeQueryTest> = [
+    { m: new url.Values(), expected: "" },
+    { m: new url.Values({ "q": ["puppies"], "oe": ["utf8"] }), expected: "oe=utf8&q=puppies" },
+    { m: new url.Values({ "q": ["dogs", "&", "7"] }), expected: "q=dogs&q=%26&q=7" },
+    {
+        m: new url.Values({
+            "a": ["a1", "a2", "a3"],
+            "b": ["b1", "b2", "b3"],
+            "c": ["c1", "c2", "c3"],
+        }), expected: "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"
+    },
+]
+m.test('EncodeQuery', (asserts) => {
+    for (const test of encodeQueryTests) {
+        asserts.equal(test.expected, test.m.encode())
+    }
+})
+const resolvePathTests: Array<{
+    base: string
+    ref: string
+    expected: string
+}> = [
+        { base: "a/b", ref: ".", expected: "/a/" },
+        { base: "a/b", ref: "c", expected: "/a/c" },
+        { base: "a/b", ref: "..", expected: "/" },
+        { base: "a/", ref: "..", expected: "/" },
+        { base: "a/", ref: "../..", expected: "/" },
+        { base: "a/b/c", ref: "..", expected: "/a/" },
+        { base: "a/b/c", ref: "../d", expected: "/a/d" },
+        { base: "a/b/c", ref: ".././d", expected: "/a/d" },
+        { base: "a/b", ref: "./..", expected: "/" },
+        { base: "a/./b", ref: ".", expected: "/a/" },
+        { base: "a/../", ref: ".", expected: "/" },
+        { base: "a/.././b", ref: "c", expected: "/c" },
+    ]
+
+m.test('ResolvePath', (asserts) => {
+    for (const test of resolvePathTests) {
+        const got = (url as any).resolvePath(test.base, test.ref)
+        asserts.equal(test.expected, got)
     }
 })

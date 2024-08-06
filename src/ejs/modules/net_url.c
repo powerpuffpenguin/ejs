@@ -702,7 +702,7 @@ static duk_ret_t resolvePath_impl(duk_context *ctx)
             remaining.str = remaining.str + index;
             remaining.len -= index;
         }
-        if (elem.len = 1 && elem.str[0] == '.')
+        if (elem.len == 1 && elem.str[0] == '.')
         {
             first = 0;
             // drop
@@ -764,7 +764,7 @@ static duk_ret_t resolvePath(duk_context *ctx)
 {
     resolvePath_args_t args = {0};
     args.full = duk_require_lstring(ctx, 0, &args.full_len);
-    duk_pop_2(ctx);
+    duk_pop(ctx);
 
     duk_int_t err = ejs_pcall_function(ctx, resolvePath_impl, &args);
     if (args.dst.cap)

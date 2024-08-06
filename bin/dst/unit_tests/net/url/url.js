@@ -37,6 +37,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var unit_1 = require("../../../unit/unit");
 var url = __importStar(require("ejs/net/url"));
 var m = unit_1.test.module("ejs/net/url");
+var nil = undefined;
 var urltests = [
     // no path
     {
@@ -745,7 +746,7 @@ var stringURLTests = [
     },
 ];
 m.test('URLString', function (assert) {
-    var e_3, _a;
+    var e_3, _a, e_4, _b;
     try {
         for (var urltests_2 = __values(urltests), urltests_2_1 = urltests_2.next(); !urltests_2_1.done; urltests_2_1 = urltests_2.next()) {
             var test_3 = urltests_2_1.value;
@@ -760,5 +761,386 @@ m.test('URLString', function (assert) {
             if (urltests_2_1 && !urltests_2_1.done && (_a = urltests_2.return)) _a.call(urltests_2);
         }
         finally { if (e_3) throw e_3.error; }
+    }
+    try {
+        for (var stringURLTests_1 = __values(stringURLTests), stringURLTests_1_1 = stringURLTests_1.next(); !stringURLTests_1_1.done; stringURLTests_1_1 = stringURLTests_1.next()) {
+            var test_4 = stringURLTests_1_1.value;
+            assert.equal(test_4.want, test_4.url.toString());
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (stringURLTests_1_1 && !stringURLTests_1_1.done && (_b = stringURLTests_1.return)) _b.call(stringURLTests_1);
+        }
+        finally { if (e_4) throw e_4.error; }
+    }
+});
+m.test('URLRedacted', function (assert) {
+    var e_5, _a;
+    var cases = [
+        {
+            name: "non-blank Password",
+            url: new url.URL({
+                scheme: "http",
+                host: "host.tld",
+                path: "this:that",
+                user: { username: "user", password: "password" },
+            }),
+            want: "http://user:xxxxx@host.tld/this:that",
+        },
+        {
+            name: "blank Password",
+            url: new url.URL({
+                scheme: "http",
+                host: "host.tld",
+                path: "this:that",
+                user: { username: "user" },
+            }),
+            want: "http://user@host.tld/this:that",
+        },
+        {
+            name: "nil User",
+            url: new url.URL({
+                scheme: "http",
+                host: "host.tld",
+                path: "this:that",
+                user: { username: "", password: "password" },
+            }),
+            want: "http://:xxxxx@host.tld/this:that",
+        },
+        {
+            name: "blank Username, blank Password",
+            url: new url.URL({
+                scheme: "http",
+                host: "host.tld",
+                path: "this:that",
+            }),
+            want: "http://host.tld/this:that",
+        },
+        {
+            name: "empty URL",
+            url: new url.URL(),
+            want: "",
+        },
+    ];
+    try {
+        for (var cases_1 = __values(cases), cases_1_1 = cases_1.next(); !cases_1_1.done; cases_1_1 = cases_1.next()) {
+            var test_5 = cases_1_1.value;
+            assert.equal(test_5.want, test_5.url.redacted(), test_5);
+        }
+    }
+    catch (e_5_1) { e_5 = { error: e_5_1 }; }
+    finally {
+        try {
+            if (cases_1_1 && !cases_1_1.done && (_a = cases_1.return)) _a.call(cases_1);
+        }
+        finally { if (e_5) throw e_5.error; }
+    }
+});
+function EscapeError(s) {
+    return new url.EscapeError(s);
+}
+var unescapeTests = [
+    {
+        in: "",
+        out: "",
+        err: nil,
+    },
+    {
+        in: "abc",
+        out: "abc",
+        err: nil,
+    },
+    {
+        in: "1%41",
+        out: "1A",
+        err: nil,
+    },
+    {
+        in: "1%41%42%43",
+        out: "1ABC",
+        err: nil,
+    },
+    {
+        in: "%4a",
+        out: "J",
+        err: nil,
+    },
+    {
+        in: "%6F",
+        out: "o",
+        err: nil,
+    },
+    {
+        in: "%",
+        out: "",
+        err: EscapeError("%"),
+    },
+    {
+        in: "%a",
+        out: "",
+        err: EscapeError("%a"),
+    },
+    {
+        in: "%1",
+        out: "",
+        err: EscapeError("%1"),
+    },
+    {
+        in: "123%45%6",
+        out: "",
+        err: EscapeError("%6"),
+    },
+    {
+        in: "%zzzzz",
+        out: "",
+        err: EscapeError("%zz"),
+    },
+    {
+        in: "a+b",
+        out: "a b",
+        err: nil,
+    },
+    {
+        in: "a%20b",
+        out: "a b",
+        err: nil,
+    },
+];
+m.test('Unescape', function (assert) {
+    var e_6, _a;
+    try {
+        for (var unescapeTests_1 = __values(unescapeTests), unescapeTests_1_1 = unescapeTests_1.next(); !unescapeTests_1_1.done; unescapeTests_1_1 = unescapeTests_1.next()) {
+            var test_6 = unescapeTests_1_1.value;
+            if (test_6.err) {
+                var isthrow = false;
+                try {
+                    url.queryUnescape(test_6.in);
+                }
+                catch (_) {
+                    isthrow = true;
+                }
+                if (!isthrow) {
+                    assert.fail(test_6);
+                }
+            }
+            else {
+                var actual = url.queryUnescape(test_6.in);
+                assert.equal(test_6.out, actual);
+            }
+            var input = test_6.in;
+            var out = test_6.out;
+            if (test_6.in.indexOf("+") != -1) {
+                input = input.replaceAll("+", "%20");
+                if (test_6.err) {
+                    var isthrow = false;
+                    try {
+                        url.queryUnescape(input);
+                    }
+                    catch (_) {
+                        isthrow = true;
+                    }
+                    if (!isthrow) {
+                        assert.fail(test_6);
+                    }
+                }
+                else {
+                    var actual = url.pathUnescape(input);
+                    assert.equal(test_6.out, actual);
+                    var s = void 0;
+                    try {
+                        s = url.queryUnescape(test_6.in.replaceAll("+", "XXX"));
+                    }
+                    catch (_) {
+                        continue;
+                    }
+                    input = test_6.in;
+                    out = s.replaceAll("XXX", "+");
+                }
+            }
+            if (test_6.err) {
+                var isthrow = false;
+                try {
+                    url.pathUnescape(input);
+                }
+                catch (_) {
+                    isthrow = true;
+                }
+                if (!isthrow) {
+                    assert.fail(test_6);
+                }
+            }
+            else {
+                var actual = url.pathUnescape(input);
+                assert.equal(out, actual);
+            }
+        }
+    }
+    catch (e_6_1) { e_6 = { error: e_6_1 }; }
+    finally {
+        try {
+            if (unescapeTests_1_1 && !unescapeTests_1_1.done && (_a = unescapeTests_1.return)) _a.call(unescapeTests_1);
+        }
+        finally { if (e_6) throw e_6.error; }
+    }
+});
+var queryEscapeTests = [
+    {
+        in: "",
+        out: "",
+        err: nil,
+    },
+    {
+        in: "abc",
+        out: "abc",
+        err: nil,
+    },
+    {
+        in: "one two",
+        out: "one+two",
+        err: nil,
+    },
+    {
+        in: "10%",
+        out: "10%25",
+        err: nil,
+    },
+    {
+        in: " ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+        out: "+%3F%26%3D%23%2B%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09%3A%2F%40%24%27%28%29%2A%2C%3B",
+        err: nil,
+    },
+];
+m.test('QueryEscape', function (assert) {
+    var e_7, _a;
+    try {
+        for (var queryEscapeTests_1 = __values(queryEscapeTests), queryEscapeTests_1_1 = queryEscapeTests_1.next(); !queryEscapeTests_1_1.done; queryEscapeTests_1_1 = queryEscapeTests_1.next()) {
+            var test_7 = queryEscapeTests_1_1.value;
+            var actual = url.queryEscape(test_7.in);
+            assert.equal(test_7.out, actual);
+            var roundtrip = url.queryUnescape(actual);
+            assert.equal(test_7.in, roundtrip);
+        }
+    }
+    catch (e_7_1) { e_7 = { error: e_7_1 }; }
+    finally {
+        try {
+            if (queryEscapeTests_1_1 && !queryEscapeTests_1_1.done && (_a = queryEscapeTests_1.return)) _a.call(queryEscapeTests_1);
+        }
+        finally { if (e_7) throw e_7.error; }
+    }
+});
+var pathEscapeTests = [
+    {
+        in: "",
+        out: "",
+        err: nil,
+    },
+    {
+        in: "abc",
+        out: "abc",
+        err: nil,
+    },
+    {
+        in: "abc+def",
+        out: "abc+def",
+        err: nil,
+    },
+    {
+        in: "a/b",
+        out: "a%2Fb",
+        err: nil,
+    },
+    {
+        in: "one two",
+        out: "one%20two",
+        err: nil,
+    },
+    {
+        in: "10%",
+        out: "10%25",
+        err: nil,
+    },
+    {
+        in: " ?&=#+%!<>#\"{}|\\^[]`☺\t:/@$'()*,;",
+        out: "%20%3F&=%23+%25%21%3C%3E%23%22%7B%7D%7C%5C%5E%5B%5D%60%E2%98%BA%09:%2F@$%27%28%29%2A%2C%3B",
+        err: nil,
+    },
+];
+m.test('PathEscape', function (assert) {
+    var e_8, _a;
+    try {
+        for (var pathEscapeTests_1 = __values(pathEscapeTests), pathEscapeTests_1_1 = pathEscapeTests_1.next(); !pathEscapeTests_1_1.done; pathEscapeTests_1_1 = pathEscapeTests_1.next()) {
+            var test_8 = pathEscapeTests_1_1.value;
+            var actual = url.pathEscape(test_8.in);
+            assert.equal(test_8.out, actual);
+        }
+    }
+    catch (e_8_1) { e_8 = { error: e_8_1 }; }
+    finally {
+        try {
+            if (pathEscapeTests_1_1 && !pathEscapeTests_1_1.done && (_a = pathEscapeTests_1.return)) _a.call(pathEscapeTests_1);
+        }
+        finally { if (e_8) throw e_8.error; }
+    }
+});
+var encodeQueryTests = [
+    { m: new url.Values(), expected: "" },
+    { m: new url.Values({ "q": ["puppies"], "oe": ["utf8"] }), expected: "oe=utf8&q=puppies" },
+    { m: new url.Values({ "q": ["dogs", "&", "7"] }), expected: "q=dogs&q=%26&q=7" },
+    {
+        m: new url.Values({
+            "a": ["a1", "a2", "a3"],
+            "b": ["b1", "b2", "b3"],
+            "c": ["c1", "c2", "c3"],
+        }), expected: "a=a1&a=a2&a=a3&b=b1&b=b2&b=b3&c=c1&c=c2&c=c3"
+    },
+];
+m.test('EncodeQuery', function (asserts) {
+    var e_9, _a;
+    try {
+        for (var encodeQueryTests_1 = __values(encodeQueryTests), encodeQueryTests_1_1 = encodeQueryTests_1.next(); !encodeQueryTests_1_1.done; encodeQueryTests_1_1 = encodeQueryTests_1.next()) {
+            var test_9 = encodeQueryTests_1_1.value;
+            asserts.equal(test_9.expected, test_9.m.encode());
+        }
+    }
+    catch (e_9_1) { e_9 = { error: e_9_1 }; }
+    finally {
+        try {
+            if (encodeQueryTests_1_1 && !encodeQueryTests_1_1.done && (_a = encodeQueryTests_1.return)) _a.call(encodeQueryTests_1);
+        }
+        finally { if (e_9) throw e_9.error; }
+    }
+});
+var resolvePathTests = [
+    { base: "a/b", ref: ".", expected: "/a/" },
+    { base: "a/b", ref: "c", expected: "/a/c" },
+    { base: "a/b", ref: "..", expected: "/" },
+    { base: "a/", ref: "..", expected: "/" },
+    { base: "a/", ref: "../..", expected: "/" },
+    { base: "a/b/c", ref: "..", expected: "/a/" },
+    { base: "a/b/c", ref: "../d", expected: "/a/d" },
+    { base: "a/b/c", ref: ".././d", expected: "/a/d" },
+    { base: "a/b", ref: "./..", expected: "/" },
+    { base: "a/./b", ref: ".", expected: "/a/" },
+    { base: "a/../", ref: ".", expected: "/" },
+    { base: "a/.././b", ref: "c", expected: "/c" },
+];
+m.test('ResolvePath', function (asserts) {
+    var e_10, _a;
+    try {
+        for (var resolvePathTests_1 = __values(resolvePathTests), resolvePathTests_1_1 = resolvePathTests_1.next(); !resolvePathTests_1_1.done; resolvePathTests_1_1 = resolvePathTests_1.next()) {
+            var test_10 = resolvePathTests_1_1.value;
+            var got = url.resolvePath(test_10.base, test_10.ref);
+            asserts.equal(test_10.expected, got);
+        }
+    }
+    catch (e_10_1) { e_10 = { error: e_10_1 }; }
+    finally {
+        try {
+            if (resolvePathTests_1_1 && !resolvePathTests_1_1.done && (_a = resolvePathTests_1.return)) _a.call(resolvePathTests_1);
+        }
+        finally { if (e_10) throw e_10.error; }
     }
 });

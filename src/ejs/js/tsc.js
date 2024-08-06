@@ -52,6 +52,10 @@
     String.prototype.padStart = function (m, f) {
         return pad(this, m, f, true)
     }
+    String.prototype.replaceAll = function (search, replacement) {
+        var target = this;
+        return target.split(search).join(replacement)
+    }
     return function (deps) {
         var __values = (this && this.__values) || function (o) {
             var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;

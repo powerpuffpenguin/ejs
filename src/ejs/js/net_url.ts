@@ -503,7 +503,7 @@ function splitHostPort(hostPort: string, getport: boolean): string {
 
 // resolvePath applies special path segments from refs and applies
 // them to base, per RFC 3986.
-function resolvePath(base: string, ref: string): string {
+export function resolvePath(base: string, ref: string): string {
     let full: string
     if (ref == "") {
         full = base
