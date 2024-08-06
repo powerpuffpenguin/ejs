@@ -1717,7 +1717,7 @@ declare module "ejs/net/url" {
          * A setting without an equals sign is interpreted as a key set to an empty value.
          * Settings containing a non-URL-encoded semicolon are considered invalid.
          */
-        static parse(query: string): Values
+        static parse(query: string, ignoeInvalid?: boolean): Values
 
         readonly values: Record<string, Array<string> | undefined>
         constructor(values?: Record<string, Array<string> | undefined>)

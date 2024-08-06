@@ -1144,3 +1144,281 @@ m.test('ResolvePath', function (asserts) {
         finally { if (e_10) throw e_10.error; }
     }
 });
+var resolveReferenceTests = [
+    // Absolute URL references
+    { base: "http://foo.com?a=b", rel: "https://bar.com/", expected: "https://bar.com/" },
+    { base: "http://foo.com/", rel: "https://bar.com/?a=b", expected: "https://bar.com/?a=b" },
+    { base: "http://foo.com/", rel: "https://bar.com/?", expected: "https://bar.com/?" },
+    { base: "http://foo.com/bar", rel: "mailto:foo@example.com", expected: "mailto:foo@example.com" },
+    // Path-absolute references
+    { base: "http://foo.com/bar", rel: "/baz", expected: "http://foo.com/baz" },
+    { base: "http://foo.com/bar?a=b#f", rel: "/baz", expected: "http://foo.com/baz" },
+    { base: "http://foo.com/bar?a=b", rel: "/baz?", expected: "http://foo.com/baz?" },
+    { base: "http://foo.com/bar?a=b", rel: "/baz?c=d", expected: "http://foo.com/baz?c=d" },
+    // Multiple slashes
+    { base: "http://foo.com/bar", rel: "http://foo.com//baz", expected: "http://foo.com//baz" },
+    { base: "http://foo.com/bar", rel: "http://foo.com///baz/quux", expected: "http://foo.com///baz/quux" },
+    // Scheme-relative
+    { base: "https://foo.com/bar?a=b", rel: "//bar.com/quux", expected: "https://bar.com/quux" },
+    // Path-relative references:
+    // ... current directory
+    { base: "http://foo.com", rel: ".", expected: "http://foo.com/" },
+    { base: "http://foo.com/bar", rel: ".", expected: "http://foo.com/" },
+    { base: "http://foo.com/bar/", rel: ".", expected: "http://foo.com/bar/" },
+    // ... going down
+    { base: "http://foo.com", rel: "bar", expected: "http://foo.com/bar" },
+    { base: "http://foo.com/", rel: "bar", expected: "http://foo.com/bar" },
+    { base: "http://foo.com/bar/baz", rel: "quux", expected: "http://foo.com/bar/quux" },
+    // ... going up
+    { base: "http://foo.com/bar/baz", rel: "../quux", expected: "http://foo.com/quux" },
+    { base: "http://foo.com/bar/baz", rel: "../../../../../quux", expected: "http://foo.com/quux" },
+    { base: "http://foo.com/bar", rel: "..", expected: "http://foo.com/" },
+    { base: "http://foo.com/bar/baz", rel: "./..", expected: "http://foo.com/" },
+    // ".." in the middle (issue 3560)
+    { base: "http://foo.com/bar/baz", rel: "quux/dotdot/../tail", expected: "http://foo.com/bar/quux/tail" },
+    { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/../tail", expected: "http://foo.com/bar/quux/tail" },
+    { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/.././tail", expected: "http://foo.com/bar/quux/tail" },
+    { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/./../tail", expected: "http://foo.com/bar/quux/tail" },
+    { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/dotdot/././../../tail", expected: "http://foo.com/bar/quux/tail" },
+    { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/dotdot/./.././../tail", expected: "http://foo.com/bar/quux/tail" },
+    { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/dotdot/dotdot/./../../.././././tail", expected: "http://foo.com/bar/quux/tail" },
+    { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/../dotdot/../dot/./tail/..", expected: "http://foo.com/bar/quux/dot/" },
+    // Remove any dot-segments prior to forming the target URI.
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4
+    { base: "http://foo.com/dot/./dotdot/../foo/bar", rel: "../baz", expected: "http://foo.com/dot/baz" },
+    // Triple dot isn't special
+    { base: "http://foo.com/bar", rel: "...", expected: "http://foo.com/..." },
+    // Fragment
+    { base: "http://foo.com/bar", rel: ".#frag", expected: "http://foo.com/#frag" },
+    { base: "http://example.org/", rel: "#!$&%27()*+,;=", expected: "http://example.org/#!$&%27()*+,;=" },
+    // Paths with escaping (issue 16947).
+    { base: "http://foo.com/foo%2fbar/", rel: "../baz", expected: "http://foo.com/baz" },
+    { base: "http://foo.com/1/2%2f/3%2f4/5", rel: "../../a/b/c", expected: "http://foo.com/1/a/b/c" },
+    { base: "http://foo.com/1/2/3", rel: "./a%2f../../b/..%2fc", expected: "http://foo.com/1/2/b/..%2fc" },
+    { base: "http://foo.com/1/2%2f/3%2f4/5", rel: "./a%2f../b/../c", expected: "http://foo.com/1/2%2f/3%2f4/a%2f../c" },
+    { base: "http://foo.com/foo%20bar/", rel: "../baz", expected: "http://foo.com/baz" },
+    { base: "http://foo.com/foo", rel: "../bar%2fbaz", expected: "http://foo.com/bar%2fbaz" },
+    { base: "http://foo.com/foo%2dbar/", rel: "./baz-quux", expected: "http://foo.com/foo%2dbar/baz-quux" },
+    // RFC 3986: Normal Examples
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.1
+    { base: "http://a/b/c/d;p?q", rel: "g:h", expected: "g:h" },
+    { base: "http://a/b/c/d;p?q", rel: "g", expected: "http://a/b/c/g" },
+    { base: "http://a/b/c/d;p?q", rel: "./g", expected: "http://a/b/c/g" },
+    { base: "http://a/b/c/d;p?q", rel: "g/", expected: "http://a/b/c/g/" },
+    { base: "http://a/b/c/d;p?q", rel: "/g", expected: "http://a/g" },
+    { base: "http://a/b/c/d;p?q", rel: "//g", expected: "http://g" },
+    { base: "http://a/b/c/d;p?q", rel: "?y", expected: "http://a/b/c/d;p?y" },
+    { base: "http://a/b/c/d;p?q", rel: "g?y", expected: "http://a/b/c/g?y" },
+    { base: "http://a/b/c/d;p?q", rel: "#s", expected: "http://a/b/c/d;p?q#s" },
+    { base: "http://a/b/c/d;p?q", rel: "g#s", expected: "http://a/b/c/g#s" },
+    { base: "http://a/b/c/d;p?q", rel: "g?y#s", expected: "http://a/b/c/g?y#s" },
+    { base: "http://a/b/c/d;p?q", rel: ";x", expected: "http://a/b/c/;x" },
+    { base: "http://a/b/c/d;p?q", rel: "g;x", expected: "http://a/b/c/g;x" },
+    { base: "http://a/b/c/d;p?q", rel: "g;x?y#s", expected: "http://a/b/c/g;x?y#s" },
+    { base: "http://a/b/c/d;p?q", rel: "", expected: "http://a/b/c/d;p?q" },
+    { base: "http://a/b/c/d;p?q", rel: ".", expected: "http://a/b/c/" },
+    { base: "http://a/b/c/d;p?q", rel: "./", expected: "http://a/b/c/" },
+    { base: "http://a/b/c/d;p?q", rel: "..", expected: "http://a/b/" },
+    { base: "http://a/b/c/d;p?q", rel: "../", expected: "http://a/b/" },
+    { base: "http://a/b/c/d;p?q", rel: "../g", expected: "http://a/b/g" },
+    { base: "http://a/b/c/d;p?q", rel: "../..", expected: "http://a/" },
+    { base: "http://a/b/c/d;p?q", rel: "../../", expected: "http://a/" },
+    { base: "http://a/b/c/d;p?q", rel: "../../g", expected: "http://a/g" },
+    // RFC 3986: Abnormal Examples
+    // https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.2
+    { base: "http://a/b/c/d;p?q", rel: "../../../g", expected: "http://a/g" },
+    { base: "http://a/b/c/d;p?q", rel: "../../../../g", expected: "http://a/g" },
+    { base: "http://a/b/c/d;p?q", rel: "/./g", expected: "http://a/g" },
+    { base: "http://a/b/c/d;p?q", rel: "/../g", expected: "http://a/g" },
+    { base: "http://a/b/c/d;p?q", rel: "g.", expected: "http://a/b/c/g." },
+    { base: "http://a/b/c/d;p?q", rel: ".g", expected: "http://a/b/c/.g" },
+    { base: "http://a/b/c/d;p?q", rel: "g..", expected: "http://a/b/c/g.." },
+    { base: "http://a/b/c/d;p?q", rel: "..g", expected: "http://a/b/c/..g" },
+    { base: "http://a/b/c/d;p?q", rel: "./../g", expected: "http://a/b/g" },
+    { base: "http://a/b/c/d;p?q", rel: "./g/.", expected: "http://a/b/c/g/" },
+    { base: "http://a/b/c/d;p?q", rel: "g/./h", expected: "http://a/b/c/g/h" },
+    { base: "http://a/b/c/d;p?q", rel: "g/../h", expected: "http://a/b/c/h" },
+    { base: "http://a/b/c/d;p?q", rel: "g;x=1/./y", expected: "http://a/b/c/g;x=1/y" },
+    { base: "http://a/b/c/d;p?q", rel: "g;x=1/../y", expected: "http://a/b/c/y" },
+    { base: "http://a/b/c/d;p?q", rel: "g?y/./x", expected: "http://a/b/c/g?y/./x" },
+    { base: "http://a/b/c/d;p?q", rel: "g?y/../x", expected: "http://a/b/c/g?y/../x" },
+    { base: "http://a/b/c/d;p?q", rel: "g#s/./x", expected: "http://a/b/c/g#s/./x" },
+    { base: "http://a/b/c/d;p?q", rel: "g#s/../x", expected: "http://a/b/c/g#s/../x" },
+    // Extras.
+    { base: "https://a/b/c/d;p?q", rel: "//g?q", expected: "https://g?q" },
+    { base: "https://a/b/c/d;p?q", rel: "//g#s", expected: "https://g#s" },
+    { base: "https://a/b/c/d;p?q", rel: "//g/d/e/f?y#s", expected: "https://g/d/e/f?y#s" },
+    { base: "https://a/b/c/d;p#s", rel: "?y", expected: "https://a/b/c/d;p?y" },
+    { base: "https://a/b/c/d;p?q#s", rel: "?y", expected: "https://a/b/c/d;p?y" },
+    // Empty path and query but with ForceQuery (issue 46033).
+    { base: "https://a/b/c/d;p?q#s", rel: "?", expected: "https://a/b/c/d;p?" },
+];
+m.test('ResolveReference', function (asserts) {
+    var e_11, _a;
+    var mustParse = url.URL.parse;
+    var opaque = new url.URL({ scheme: "scheme", opaque: "opaque" });
+    try {
+        for (var resolveReferenceTests_1 = __values(resolveReferenceTests), resolveReferenceTests_1_1 = resolveReferenceTests_1.next(); !resolveReferenceTests_1_1.done; resolveReferenceTests_1_1 = resolveReferenceTests_1.next()) {
+            var test_11 = resolveReferenceTests_1_1.value;
+            var base = mustParse(test_11.base);
+            var rel = mustParse(test_11.rel);
+            var url_1 = base.resolveReference(rel);
+            asserts.equal(test_11.expected, url_1.toString(), test_11);
+            // Ensure that new instances are returned.
+            asserts.false(base == url_1, test_11);
+            // Test the convenience wrapper too.
+            url_1 = base.resolveReference(test_11.rel);
+            asserts.equal(test_11.expected, url_1.toString(), test_11);
+            // Ensure Opaque resets the URL.
+            url_1 = base.resolveReference(opaque);
+            asserts.equal(opaque, url_1, test_11);
+        }
+    }
+    catch (e_11_1) { e_11 = { error: e_11_1 }; }
+    finally {
+        try {
+            if (resolveReferenceTests_1_1 && !resolveReferenceTests_1_1.done && (_a = resolveReferenceTests_1.return)) _a.call(resolveReferenceTests_1);
+        }
+        finally { if (e_11) throw e_11.error; }
+    }
+});
+m.test("QueryValues", function (asserts) {
+    var u = url.URL.parse("http://x.com?foo=bar&bar=1&bar=2&baz");
+    var v = u.query();
+    asserts.equal("bar", v.get("foo"));
+    // Case sensitive:
+    asserts.equal(undefined, v.get("Foo"));
+    asserts.equal("1", v.get("bar"));
+    asserts.equal("", v.get("baz"));
+    asserts.true(v.has("foo"));
+    asserts.true(v.has("bar"));
+    asserts.true(v.has("baz"));
+    asserts.false(v.has("noexist"));
+    v.remove("bar");
+    asserts.equal(undefined, v.get("bar"));
+});
+var parseTests = [
+    {
+        query: "a=1",
+        out: new url.Values({ "a": ["1"] }),
+        ok: true,
+    },
+    {
+        query: "a=1&b=2",
+        out: new url.Values({ "a": ["1"], "b": ["2"] }),
+        ok: true,
+    },
+    {
+        query: "a=1&a=2&a=banana",
+        out: new url.Values({ "a": ["1", "2", "banana"] }),
+        ok: true,
+    },
+    {
+        query: "ascii=%3Ckey%3A+0x90%3E",
+        out: new url.Values({ "ascii": ["<key: 0x90>"] }),
+        ok: true,
+    }, {
+        query: "a=1;b=2",
+        out: new url.Values(),
+        ok: false,
+    }, {
+        query: "a;b=1",
+        out: new url.Values(),
+        ok: false,
+    }, {
+        query: "a=%3B",
+        out: new url.Values({ "a": [";"] }),
+        ok: true,
+    },
+    {
+        query: "a%3Bb=1",
+        out: new url.Values({ "a;b": ["1"] }),
+        ok: true,
+    },
+    {
+        query: "a=1&a=2;a=banana",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+    {
+        query: "a;b&c=1",
+        out: new url.Values({ "c": ["1"] }),
+        ok: false,
+    },
+    {
+        query: "a=1&b=2;a=3&c=4",
+        out: new url.Values({ "a": ["1"], "c": ["4"] }),
+        ok: false,
+    },
+    {
+        query: "a=1&b=2;c=3",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+    {
+        query: ";",
+        out: new url.Values(),
+        ok: false,
+    },
+    {
+        query: "a=1;",
+        out: new url.Values(),
+        ok: false,
+    },
+    {
+        query: "a=1&;",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+    {
+        query: ";a=1&b=2",
+        out: new url.Values({ "b": ["2"] }),
+        ok: false,
+    },
+    {
+        query: "a=1&b=2;",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+];
+m.test('ParseQuery', function (asserts) {
+    var e_12, _a;
+    var form;
+    try {
+        for (var parseTests_1 = __values(parseTests), parseTests_1_1 = parseTests_1.next(); !parseTests_1_1.done; parseTests_1_1 = parseTests_1.next()) {
+            var test_12 = parseTests_1_1.value;
+            if (test_12.ok) {
+                form = url.Values.parse(test_12.query);
+            }
+            else {
+                var isthrow = false;
+                try {
+                    url.Values.parse(test_12.query);
+                }
+                catch (_) {
+                    isthrow = true;
+                }
+                asserts.true(isthrow, test_12);
+                form = url.Values.parse(test_12.query, true);
+            }
+            for (var key in test_12.out.values) {
+                if (Object.prototype.hasOwnProperty.call(test_12.out.values, key)) {
+                    var evs = test_12.out.values[key];
+                    var vs = form.values[key];
+                    asserts.true(vs);
+                    asserts.equal(evs.length, vs.length, test_12);
+                    for (var i = 0; i < evs.length; i++) {
+                        asserts.equal(evs[i], vs[i]);
+                    }
+                }
+            }
+        }
+    }
+    catch (e_12_1) { e_12 = { error: e_12_1 }; }
+    finally {
+        try {
+            if (parseTests_1_1 && !parseTests_1_1.done && (_a = parseTests_1.return)) _a.call(parseTests_1);
+        }
+        finally { if (e_12) throw e_12.error; }
+    }
+});

@@ -16,8 +16,20 @@ String.prototype.replaceAll1 = function (search, replacement) {
 }
 function main() {
     {
-        var s = url.resolvePath('a/b', '.')
-        console.log(s)
+        // const u = url.URL.parse("a=1&a=2;a=banana")
+        // console.log(u)
+        const v = url.Values.parse("a=1&a=2;a=banana", true)
+        console.log(v.values)
+        console.log(v.encode())
+        // var base = url.URL.parse('http://foo.com/bar')
+        // var rel = url.URL.parse('..')
+        // console.log(base.toString())
+        // console.log(rel.toString())
+
+        // console.log(base.escapedPath())
+        // console.log(rel.escapedPath())
+        // console.log(url.resolvePath(base.escapedPath(), rel.escapedPath()))
+        // base.resolveReference(rel)
         return
     }
     var opts = {

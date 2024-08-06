@@ -1032,3 +1032,290 @@ m.test('ResolvePath', (asserts) => {
         asserts.equal(test.expected, got)
     }
 })
+
+const resolveReferenceTests: Array<{
+    base: string, rel: string, expected: string
+}> = [
+        // Absolute URL references
+        { base: "http://foo.com?a=b", rel: "https://bar.com/", expected: "https://bar.com/" },
+        { base: "http://foo.com/", rel: "https://bar.com/?a=b", expected: "https://bar.com/?a=b" },
+        { base: "http://foo.com/", rel: "https://bar.com/?", expected: "https://bar.com/?" },
+        { base: "http://foo.com/bar", rel: "mailto:foo@example.com", expected: "mailto:foo@example.com" },
+
+        // Path-absolute references
+        { base: "http://foo.com/bar", rel: "/baz", expected: "http://foo.com/baz" },
+        { base: "http://foo.com/bar?a=b#f", rel: "/baz", expected: "http://foo.com/baz" },
+        { base: "http://foo.com/bar?a=b", rel: "/baz?", expected: "http://foo.com/baz?" },
+        { base: "http://foo.com/bar?a=b", rel: "/baz?c=d", expected: "http://foo.com/baz?c=d" },
+
+        // Multiple slashes
+        { base: "http://foo.com/bar", rel: "http://foo.com//baz", expected: "http://foo.com//baz" },
+        { base: "http://foo.com/bar", rel: "http://foo.com///baz/quux", expected: "http://foo.com///baz/quux" },
+
+        // Scheme-relative
+        { base: "https://foo.com/bar?a=b", rel: "//bar.com/quux", expected: "https://bar.com/quux" },
+
+        // Path-relative references:
+
+        // ... current directory
+        { base: "http://foo.com", rel: ".", expected: "http://foo.com/" },
+        { base: "http://foo.com/bar", rel: ".", expected: "http://foo.com/" },
+        { base: "http://foo.com/bar/", rel: ".", expected: "http://foo.com/bar/" },
+
+        // ... going down
+        { base: "http://foo.com", rel: "bar", expected: "http://foo.com/bar" },
+        { base: "http://foo.com/", rel: "bar", expected: "http://foo.com/bar" },
+        { base: "http://foo.com/bar/baz", rel: "quux", expected: "http://foo.com/bar/quux" },
+
+        // ... going up
+        { base: "http://foo.com/bar/baz", rel: "../quux", expected: "http://foo.com/quux" },
+        { base: "http://foo.com/bar/baz", rel: "../../../../../quux", expected: "http://foo.com/quux" },
+        { base: "http://foo.com/bar", rel: "..", expected: "http://foo.com/" },
+        { base: "http://foo.com/bar/baz", rel: "./..", expected: "http://foo.com/" },
+        // ".." in the middle (issue 3560)
+        { base: "http://foo.com/bar/baz", rel: "quux/dotdot/../tail", expected: "http://foo.com/bar/quux/tail" },
+        { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/../tail", expected: "http://foo.com/bar/quux/tail" },
+        { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/.././tail", expected: "http://foo.com/bar/quux/tail" },
+        { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/./../tail", expected: "http://foo.com/bar/quux/tail" },
+        { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/dotdot/././../../tail", expected: "http://foo.com/bar/quux/tail" },
+        { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/dotdot/./.././../tail", expected: "http://foo.com/bar/quux/tail" },
+        { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/dotdot/dotdot/./../../.././././tail", expected: "http://foo.com/bar/quux/tail" },
+        { base: "http://foo.com/bar/baz", rel: "quux/./dotdot/../dotdot/../dot/./tail/..", expected: "http://foo.com/bar/quux/dot/" },
+
+        // Remove any dot-segments prior to forming the target URI.
+        // https://datatracker.ietf.org/doc/html/rfc3986#section-5.2.4
+        { base: "http://foo.com/dot/./dotdot/../foo/bar", rel: "../baz", expected: "http://foo.com/dot/baz" },
+
+        // Triple dot isn't special
+        { base: "http://foo.com/bar", rel: "...", expected: "http://foo.com/..." },
+
+        // Fragment
+        { base: "http://foo.com/bar", rel: ".#frag", expected: "http://foo.com/#frag" },
+        { base: "http://example.org/", rel: "#!$&%27()*+,;=", expected: "http://example.org/#!$&%27()*+,;=" },
+
+        // Paths with escaping (issue 16947).
+        { base: "http://foo.com/foo%2fbar/", rel: "../baz", expected: "http://foo.com/baz" },
+        { base: "http://foo.com/1/2%2f/3%2f4/5", rel: "../../a/b/c", expected: "http://foo.com/1/a/b/c" },
+        { base: "http://foo.com/1/2/3", rel: "./a%2f../../b/..%2fc", expected: "http://foo.com/1/2/b/..%2fc" },
+        { base: "http://foo.com/1/2%2f/3%2f4/5", rel: "./a%2f../b/../c", expected: "http://foo.com/1/2%2f/3%2f4/a%2f../c" },
+        { base: "http://foo.com/foo%20bar/", rel: "../baz", expected: "http://foo.com/baz" },
+        { base: "http://foo.com/foo", rel: "../bar%2fbaz", expected: "http://foo.com/bar%2fbaz" },
+        { base: "http://foo.com/foo%2dbar/", rel: "./baz-quux", expected: "http://foo.com/foo%2dbar/baz-quux" },
+
+        // RFC 3986: Normal Examples
+        // https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.1
+        { base: "http://a/b/c/d;p?q", rel: "g:h", expected: "g:h" },
+        { base: "http://a/b/c/d;p?q", rel: "g", expected: "http://a/b/c/g" },
+        { base: "http://a/b/c/d;p?q", rel: "./g", expected: "http://a/b/c/g" },
+        { base: "http://a/b/c/d;p?q", rel: "g/", expected: "http://a/b/c/g/" },
+        { base: "http://a/b/c/d;p?q", rel: "/g", expected: "http://a/g" },
+        { base: "http://a/b/c/d;p?q", rel: "//g", expected: "http://g" },
+        { base: "http://a/b/c/d;p?q", rel: "?y", expected: "http://a/b/c/d;p?y" },
+        { base: "http://a/b/c/d;p?q", rel: "g?y", expected: "http://a/b/c/g?y" },
+        { base: "http://a/b/c/d;p?q", rel: "#s", expected: "http://a/b/c/d;p?q#s" },
+        { base: "http://a/b/c/d;p?q", rel: "g#s", expected: "http://a/b/c/g#s" },
+        { base: "http://a/b/c/d;p?q", rel: "g?y#s", expected: "http://a/b/c/g?y#s" },
+        { base: "http://a/b/c/d;p?q", rel: ";x", expected: "http://a/b/c/;x" },
+        { base: "http://a/b/c/d;p?q", rel: "g;x", expected: "http://a/b/c/g;x" },
+        { base: "http://a/b/c/d;p?q", rel: "g;x?y#s", expected: "http://a/b/c/g;x?y#s" },
+        { base: "http://a/b/c/d;p?q", rel: "", expected: "http://a/b/c/d;p?q" },
+        { base: "http://a/b/c/d;p?q", rel: ".", expected: "http://a/b/c/" },
+        { base: "http://a/b/c/d;p?q", rel: "./", expected: "http://a/b/c/" },
+        { base: "http://a/b/c/d;p?q", rel: "..", expected: "http://a/b/" },
+        { base: "http://a/b/c/d;p?q", rel: "../", expected: "http://a/b/" },
+        { base: "http://a/b/c/d;p?q", rel: "../g", expected: "http://a/b/g" },
+        { base: "http://a/b/c/d;p?q", rel: "../..", expected: "http://a/" },
+        { base: "http://a/b/c/d;p?q", rel: "../../", expected: "http://a/" },
+        { base: "http://a/b/c/d;p?q", rel: "../../g", expected: "http://a/g" },
+
+        // RFC 3986: Abnormal Examples
+        // https://datatracker.ietf.org/doc/html/rfc3986#section-5.4.2
+        { base: "http://a/b/c/d;p?q", rel: "../../../g", expected: "http://a/g" },
+        { base: "http://a/b/c/d;p?q", rel: "../../../../g", expected: "http://a/g" },
+        { base: "http://a/b/c/d;p?q", rel: "/./g", expected: "http://a/g" },
+        { base: "http://a/b/c/d;p?q", rel: "/../g", expected: "http://a/g" },
+        { base: "http://a/b/c/d;p?q", rel: "g.", expected: "http://a/b/c/g." },
+        { base: "http://a/b/c/d;p?q", rel: ".g", expected: "http://a/b/c/.g" },
+        { base: "http://a/b/c/d;p?q", rel: "g..", expected: "http://a/b/c/g.." },
+        { base: "http://a/b/c/d;p?q", rel: "..g", expected: "http://a/b/c/..g" },
+        { base: "http://a/b/c/d;p?q", rel: "./../g", expected: "http://a/b/g" },
+        { base: "http://a/b/c/d;p?q", rel: "./g/.", expected: "http://a/b/c/g/" },
+        { base: "http://a/b/c/d;p?q", rel: "g/./h", expected: "http://a/b/c/g/h" },
+        { base: "http://a/b/c/d;p?q", rel: "g/../h", expected: "http://a/b/c/h" },
+        { base: "http://a/b/c/d;p?q", rel: "g;x=1/./y", expected: "http://a/b/c/g;x=1/y" },
+        { base: "http://a/b/c/d;p?q", rel: "g;x=1/../y", expected: "http://a/b/c/y" },
+        { base: "http://a/b/c/d;p?q", rel: "g?y/./x", expected: "http://a/b/c/g?y/./x" },
+        { base: "http://a/b/c/d;p?q", rel: "g?y/../x", expected: "http://a/b/c/g?y/../x" },
+        { base: "http://a/b/c/d;p?q", rel: "g#s/./x", expected: "http://a/b/c/g#s/./x" },
+        { base: "http://a/b/c/d;p?q", rel: "g#s/../x", expected: "http://a/b/c/g#s/../x" },
+
+        // Extras.
+        { base: "https://a/b/c/d;p?q", rel: "//g?q", expected: "https://g?q" },
+        { base: "https://a/b/c/d;p?q", rel: "//g#s", expected: "https://g#s" },
+        { base: "https://a/b/c/d;p?q", rel: "//g/d/e/f?y#s", expected: "https://g/d/e/f?y#s" },
+        { base: "https://a/b/c/d;p#s", rel: "?y", expected: "https://a/b/c/d;p?y" },
+        { base: "https://a/b/c/d;p?q#s", rel: "?y", expected: "https://a/b/c/d;p?y" },
+
+        // Empty path and query but with ForceQuery (issue 46033).
+        { base: "https://a/b/c/d;p?q#s", rel: "?", expected: "https://a/b/c/d;p?" },
+    ]
+m.test('ResolveReference', (asserts) => {
+    const mustParse = url.URL.parse
+    const opaque = new url.URL({ scheme: "scheme", opaque: "opaque" })
+    for (const test of resolveReferenceTests) {
+        const base = mustParse(test.base)
+        const rel = mustParse(test.rel)
+        let url = base.resolveReference(rel)
+        asserts.equal(test.expected, url.toString(), test)
+        // Ensure that new instances are returned.
+
+        asserts.false(base == url, test)
+
+        // Test the convenience wrapper too.
+        url = base.resolveReference(test.rel)
+        asserts.equal(test.expected, url.toString(), test)
+
+        // Ensure Opaque resets the URL.
+        url = base.resolveReference(opaque)
+        asserts.equal(opaque, url, test)
+    }
+})
+m.test("QueryValues", (asserts) => {
+    const u = url.URL.parse("http://x.com?foo=bar&bar=1&bar=2&baz")
+    const v = u.query()
+    asserts.equal("bar", v.get("foo"))
+    // Case sensitive:
+    asserts.equal(undefined, v.get("Foo"))
+    asserts.equal("1", v.get("bar"))
+    asserts.equal("", v.get("baz"))
+    asserts.true(v.has("foo"))
+    asserts.true(v.has("bar"))
+    asserts.true(v.has("baz"))
+
+    asserts.false(v.has("noexist"))
+    v.remove("bar")
+    asserts.equal(undefined, v.get("bar"))
+
+})
+
+interface parseTest {
+    query: string
+    out: url.Values
+    ok: boolean
+}
+
+const parseTests: Array<parseTest> = [
+    {
+        query: "a=1",
+        out: new url.Values({ "a": ["1"] }),
+        ok: true,
+    },
+    {
+        query: "a=1&b=2",
+        out: new url.Values({ "a": ["1"], "b": ["2"] }),
+        ok: true,
+    },
+    {
+        query: "a=1&a=2&a=banana",
+        out: new url.Values({ "a": ["1", "2", "banana"] }),
+        ok: true,
+    },
+    {
+        query: "ascii=%3Ckey%3A+0x90%3E",
+        out: new url.Values({ "ascii": ["<key: 0x90>"] }),
+        ok: true,
+    }, {
+        query: "a=1;b=2",
+        out: new url.Values(),
+        ok: false,
+    }, {
+        query: "a;b=1",
+        out: new url.Values(),
+        ok: false,
+    }, {
+        query: "a=%3B", // hex encoding for semicolon
+        out: new url.Values({ "a": [";"] }),
+        ok: true,
+    },
+    {
+        query: "a%3Bb=1",
+        out: new url.Values({ "a;b": ["1"] }),
+        ok: true,
+    },
+    {
+        query: "a=1&a=2;a=banana",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+    {
+        query: "a;b&c=1",
+        out: new url.Values({ "c": ["1"] }),
+        ok: false,
+    },
+    {
+        query: "a=1&b=2;a=3&c=4",
+        out: new url.Values({ "a": ["1"], "c": ["4"] }),
+        ok: false,
+    },
+    {
+        query: "a=1&b=2;c=3",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+    {
+        query: ";",
+        out: new url.Values(),
+        ok: false,
+    },
+    {
+        query: "a=1;",
+        out: new url.Values(),
+        ok: false,
+    },
+    {
+        query: "a=1&;",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+    {
+        query: ";a=1&b=2",
+        out: new url.Values({ "b": ["2"] }),
+        ok: false,
+    },
+    {
+        query: "a=1&b=2;",
+        out: new url.Values({ "a": ["1"] }),
+        ok: false,
+    },
+]
+m.test('ParseQuery', (asserts) => {
+    let form: url.Values
+    for (const test of parseTests) {
+        if (test.ok) {
+            form = url.Values.parse(test.query)
+        } else {
+            let isthrow = false
+            try {
+                url.Values.parse(test.query)
+            } catch (_) {
+                isthrow = true
+            }
+            asserts.true(isthrow, test)
+
+            form = url.Values.parse(test.query, true)
+        }
+        for (const key in test.out.values) {
+            if (Object.prototype.hasOwnProperty.call(test.out.values, key)) {
+                const evs = test.out.values[key]!
+                const vs = form.values[key]!
+                asserts.true(vs)
+                asserts.equal(evs.length, vs.length, test)
+                for (let i = 0; i < evs.length; i++) {
+                    asserts.equal(evs[i], vs[i])
+
+                }
+            }
+        }
+
+    }
+})

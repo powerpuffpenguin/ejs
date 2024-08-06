@@ -167,6 +167,7 @@ function parseQuery(m: Record<string, Array<string> | undefined>, query: string,
             if (!ignoeInvalid) {
                 throw new Error("invalid semicolon separator in query")
             }
+            continue
         }
 
         i = key.indexOf("=")
@@ -824,7 +825,7 @@ export class URL {
      * To check errors use Values.parse.
      */
     query(ignoeInvalid?: boolean): Values {
-        return Values.parse(this.rawFragment, ignoeInvalid)
+        return Values.parse(this.rawQuery, ignoeInvalid)
     }
     /**
      * Redacted is like String but replaces any password with "xxxxx".

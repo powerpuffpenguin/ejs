@@ -711,11 +711,15 @@ static duk_ret_t resolvePath_impl(duk_context *ctx)
 
         if (elem.len == 2 && !memcmp(elem.str, "..", 2))
         {
+
             // Ignore the leading '/' we already wrote.
             str = dst->str + 1;
             str_len = dst->len - 1;
             index = ppp_c_stirng_last_char_raw(str, str_len, '/');
-            dst->str[0] = '/';
+            if (dst->str[0] != '/')
+            {
+                dst->str[0] = '/';
+            }
             if (index == -1)
             {
                 first = 1;
