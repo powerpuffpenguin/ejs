@@ -792,7 +792,17 @@ export class URL {
      * Any sequences of multiple / characters will be reduced to a single /.
      */
     joinPathArray(elem: Array<string>): URL {
-        elem = [this.escapedPath(), ...elem]
+        switch (elem.length) {
+            case 0:
+                elem = [this.escapedPath()]
+                break;
+            case 1:
+                elem = [this.escapedPath(), elem[0]]
+                break;
+            default:
+                elem = [this.escapedPath(), ...elem]
+                break;
+        }
         let p: string
         if (!elem[0].startsWith("/")) {
             // Return a relative path if u is relative,
@@ -807,7 +817,7 @@ export class URL {
         if (elem[elem.length - 1].endsWith("/") && !p.endsWith("/")) {
             p += "/"
         }
-        const url = new URL().clone()
+        const url = this.clone()
         url._setPath(p)
         return url
     }
@@ -958,4 +968,18 @@ export class URL {
         }
         return buf.toString()
     }
+}
+/**
+ * eturns a URL string with the provided path elements joined to
+ * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+ */
+export function joinPath(base: string, ...elem: Array<string>): string {
+    return URL.parse(base).joinPathArray(elem).toString()
+}
+/**
+ * eturns a URL string with the provided path elements joined to
+ * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+ */
+export function joinPathArray(base: string, elem: Array<string>): string {
+    return URL.parse(base).joinPathArray(elem).toString()
 }

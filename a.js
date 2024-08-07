@@ -16,11 +16,14 @@ String.prototype.replaceAll1 = function (search, replacement) {
 }
 function main() {
     {
-        // const u = url.URL.parse("a=1&a=2;a=banana")
+        console.log(url.joinPath("https://go.googlesource.com/../go"))
+
+
+
         // console.log(u)
-        const v = url.Values.parse("a=1&a=2;a=banana", true)
-        console.log(v.values)
-        console.log(v.encode())
+        // const v = url.Values.parse("a=1&a=2;a=banana", true)
+        // console.log(v.values)
+        // console.log(v.encode())
         // var base = url.URL.parse('http://foo.com/bar')
         // var rel = url.URL.parse('..')
         // console.log(base.toString())

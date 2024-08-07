@@ -1626,3 +1626,280 @@ m.test('ParseErrors', function (assert) {
         finally { if (e_14) throw e_14.error; }
     }
 });
+// Issue 11202
+m.test('StarRequest', function (assert) {
+    var u = url.URL.parse("*");
+    assert.equal("*", u.requestURI());
+});
+var shouldEscapeTests = [
+    // Unreserved characters (§2.3)
+    { in: 'a'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: 'a'.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    { in: 'a'.charCodeAt(0), mode: url.encodeQueryComponent, escape: false },
+    { in: 'a'.charCodeAt(0), mode: url.encodeFragment, escape: false },
+    { in: 'a'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: 'z'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: 'A'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: 'Z'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: '0'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: '9'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: '-'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: '-'.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    { in: '-'.charCodeAt(0), mode: url.encodeQueryComponent, escape: false },
+    { in: '-'.charCodeAt(0), mode: url.encodeFragment, escape: false },
+    { in: '.'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: '_'.charCodeAt(0), mode: url.encodePath, escape: false },
+    { in: '~'.charCodeAt(0), mode: url.encodePath, escape: false },
+    // User information (§3.2.1)
+    { in: ':'.charCodeAt(0), mode: url.encodeUserPassword, escape: true },
+    { in: '/'.charCodeAt(0), mode: url.encodeUserPassword, escape: true },
+    { in: '?'.charCodeAt(0), mode: url.encodeUserPassword, escape: true },
+    { in: '@'.charCodeAt(0), mode: url.encodeUserPassword, escape: true },
+    { in: '$'.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    { in: '&'.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    { in: '+'.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    { in: ','.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    { in: ';'.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    { in: '='.charCodeAt(0), mode: url.encodeUserPassword, escape: false },
+    // Host (IP address, IPv6 address, registered name, port suffix; §3.2.2)
+    { in: '!'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '$'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '&'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '\''.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '('.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: ')'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '*'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '+'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: ','.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: ';'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '='.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: ':'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '['.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: ']'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '0'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '9'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: 'A'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: 'z'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '_'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '-'.charCodeAt(0), mode: url.encodeHost, escape: false },
+    { in: '.'.charCodeAt(0), mode: url.encodeHost, escape: false },
+];
+m.test('ShouldEscape', function (assert) {
+    var e_15, _a;
+    try {
+        for (var shouldEscapeTests_1 = __values(shouldEscapeTests), shouldEscapeTests_1_1 = shouldEscapeTests_1.next(); !shouldEscapeTests_1_1.done; shouldEscapeTests_1_1 = shouldEscapeTests_1.next()) {
+            var test_15 = shouldEscapeTests_1_1.value;
+            assert.equal(test_15.escape, url.shouldEscape(test_15.in, test_15.mode));
+        }
+    }
+    catch (e_15_1) { e_15 = { error: e_15_1 }; }
+    finally {
+        try {
+            if (shouldEscapeTests_1_1 && !shouldEscapeTests_1_1.done && (_a = shouldEscapeTests_1.return)) _a.call(shouldEscapeTests_1);
+        }
+        finally { if (e_15) throw e_15.error; }
+    }
+});
+m.test('URLHostnameAndPort', function (assert) {
+    var e_16, _a;
+    var tests = [
+        { in: "foo.com:80", host: "foo.com", port: "80" },
+        { in: "foo.com", host: "foo.com", port: "" },
+        { in: "foo.com:", host: "foo.com", port: "" },
+        { in: "FOO.COM", host: "FOO.COM", port: "" },
+        { in: "1.2.3.4", host: "1.2.3.4", port: "" },
+        { in: "1.2.3.4:80", host: "1.2.3.4", port: "80" },
+        { in: "[1:2:3:4]", host: "1:2:3:4", port: "" },
+        { in: "[1:2:3:4]:80", host: "1:2:3:4", port: "80" },
+        { in: "[::1]:80", host: "::1", port: "80" },
+        { in: "[::1]", host: "::1", port: "" },
+        { in: "[::1]:", host: "::1", port: "" },
+        { in: "localhost", host: "localhost", port: "" },
+        { in: "localhost:443", host: "localhost", port: "443" },
+        { in: "some.super.long.domain.example.org:8080", host: "some.super.long.domain.example.org", port: "8080" },
+        { in: "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:17000", host: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", port: "17000" },
+        { in: "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]", host: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", port: "" },
+        // Ensure that even when not valid, Host is one of "Hostname",
+        // "Hostname:Port", "[Hostname]" or "[Hostname]:Port".
+        // See https://golang.org/issue/29098.
+        { in: "[google.com]:80", host: "google.com", port: "80" },
+        { in: "google.com]:80", host: "google.com]", port: "80" },
+        { in: "google.com:80_invalid_port", host: "google.com:80_invalid_port", port: "" },
+        { in: "[::1]extra]:80", host: "::1]extra", port: "80" },
+        { in: "google.com]extra:extra", host: "google.com]extra:extra", port: "" },
+    ];
+    try {
+        for (var tests_2 = __values(tests), tests_2_1 = tests_2.next(); !tests_2_1.done; tests_2_1 = tests_2.next()) {
+            var test_16 = tests_2_1.value;
+            var u = new url.URL({ host: test_16.in });
+            assert.equal(test_16.host, u.hostname(), test_16);
+            assert.equal(test_16.port, u.port(), test_16, u);
+        }
+    }
+    catch (e_16_1) { e_16 = { error: e_16_1 }; }
+    finally {
+        try {
+            if (tests_2_1 && !tests_2_1.done && (_a = tests_2.return)) _a.call(tests_2);
+        }
+        finally { if (e_16) throw e_16.error; }
+    }
+});
+m.test('InvalidUserPassword', function (assert) {
+    try {
+        url.URL.parse("http://user^:passwo^rd@foo.com/");
+    }
+    catch (e) {
+        assert.true("".concat(e).indexOf("net/url: invalid userinfo") >= 0);
+        return;
+    }
+    assert.fail("not throw");
+});
+m.test('JoinPath', function (assert) {
+    var e_17, _a;
+    var _b, _c;
+    var tests = [
+        {
+            base: "https://go.googlesource.com",
+            elem: ["go"],
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com/a/b/c",
+            elem: ["../../../go"],
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com/",
+            elem: ["../go"],
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com",
+            elem: ["../go"],
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com",
+            elem: ["../go", "../../go", "../../../go"],
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com/../go",
+            elem: nil,
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com/",
+            elem: ["./go"],
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com//",
+            elem: ["/go"],
+            out: "https://go.googlesource.com/go",
+        },
+        {
+            base: "https://go.googlesource.com//",
+            elem: ["/go", "a", "b", "c"],
+            out: "https://go.googlesource.com/go/a/b/c",
+        },
+        {
+            base: "http://[fe80::1%en0]:8080/",
+            elem: ["/go"],
+            out: '',
+        },
+        {
+            base: "https://go.googlesource.com",
+            elem: ["go/"],
+            out: "https://go.googlesource.com/go/",
+        },
+        {
+            base: "https://go.googlesource.com",
+            elem: ["go//"],
+            out: "https://go.googlesource.com/go/",
+        },
+        {
+            base: "https://go.googlesource.com",
+            elem: nil,
+            out: "https://go.googlesource.com/",
+        },
+        {
+            base: "https://go.googlesource.com/",
+            elem: nil,
+            out: "https://go.googlesource.com/",
+        },
+        {
+            base: "https://go.googlesource.com/a%2fb",
+            elem: ["c"],
+            out: "https://go.googlesource.com/a%2fb/c",
+        },
+        {
+            base: "https://go.googlesource.com/a%2fb",
+            elem: ["c%2fd"],
+            out: "https://go.googlesource.com/a%2fb/c%2fd",
+        },
+        {
+            base: "https://go.googlesource.com/a/b",
+            elem: ["/go"],
+            out: "https://go.googlesource.com/a/b/go",
+        },
+        {
+            base: "/",
+            elem: nil,
+            out: "/",
+        },
+        {
+            base: "a",
+            elem: nil,
+            out: "a",
+        },
+        {
+            base: "a",
+            elem: ["b"],
+            out: "a/b",
+        },
+        {
+            base: "a",
+            elem: ["../b"],
+            out: "b",
+        },
+        {
+            base: "a",
+            elem: ["../../b"],
+            out: "b",
+        },
+        {
+            base: "",
+            elem: ["a"],
+            out: "a",
+        },
+        {
+            base: "",
+            elem: ["../a"],
+            out: "a",
+        },
+    ];
+    try {
+        for (var tests_3 = __values(tests), tests_3_1 = tests_3.next(); !tests_3_1.done; tests_3_1 = tests_3.next()) {
+            var test_17 = tests_3_1.value;
+            if (test_17.out == '') {
+                try {
+                    url.joinPathArray(test_17.base, (_b = test_17.elem) !== null && _b !== void 0 ? _b : []);
+                }
+                catch (_) {
+                    continue;
+                }
+                assert.fail("not throw", test_17);
+            }
+            var out = url.joinPathArray(test_17.base, (_c = test_17.elem) !== null && _c !== void 0 ? _c : []);
+            assert.equal(test_17.out, out, test_17);
+        }
+    }
+    catch (e_17_1) { e_17 = { error: e_17_1 }; }
+    finally {
+        try {
+            if (tests_3_1 && !tests_3_1.done && (_a = tests_3.return)) _a.call(tests_3);
+        }
+        finally { if (e_17) throw e_17.error; }
+    }
+});

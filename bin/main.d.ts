@@ -1946,6 +1946,16 @@ declare module "ejs/net/url" {
         resolveReference(refer: URL | string): URL
         toString(): string
     }
+    /**
+     * eturns a URL string with the provided path elements joined to
+     * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+     */
+    export function joinPath(base: string, ...elem: Array<string>): string
+    /**
+     * eturns a URL string with the provided path elements joined to
+     * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+     */
+    export function joinPathArray(base: string, elem: Array<string>): string
 }
 /**
  * Some tools for synchronization in asynchronous code

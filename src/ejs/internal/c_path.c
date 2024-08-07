@@ -271,7 +271,6 @@ typedef struct
     ppp_c_string_iteratorable_t *raw;
     size_t skip;
     size_t i;
-    uint8_t join;
 } ppp_c_path_iteratorable_state_t;
 
 static void __ppp_c_path_iterator_next(void *p, ppp_c_string_iterator_t *iter)
@@ -287,17 +286,12 @@ static void __ppp_c_path_iterator_next(void *p, ppp_c_string_iterator_t *iter)
         }
     }
     state->raw->next(state->raw->state, iter);
-    if (state->join < 2)
-    {
-        state->join++;
-    }
 }
 static void __ppp_c_path_iterator_reset(void *p)
 {
     ppp_c_path_iteratorable_state_t *state = p;
     state->raw->reset(state->raw->state);
     state->i = 0;
-    state->join = 0;
 }
 
 int ppp_c_path_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *iteratorable)
@@ -308,7 +302,6 @@ int ppp_c_path_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *iterato
         .raw = iteratorable,
         .skip = 0,
         .i = 0,
-        .join = 0,
     };
     iteratorable->reset(iteratorable->state);
     for (iteratorable->next(iteratorable->state, &iter); iter.ok; iteratorable->next(iteratorable->state, &iter))
@@ -338,10 +331,6 @@ int ppp_c_path_join(ppp_c_string_t *output, ppp_c_string_iteratorable_t *iterato
     if (ppp_c_string_join(output, &join_iteratorable, &c, 1))
     {
         return -1;
-    }
-    if (join_state.join < 2)
-    {
-        return 0;
     }
     return ppp_c_path_clean(output);
 }

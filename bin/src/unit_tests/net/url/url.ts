@@ -1510,5 +1510,260 @@ m.test('ParseErrors', (assert) => {
 })
 // Issue 11202
 m.test('StarRequest', (assert) => {
+    const u = url.URL.parse("*")
+    assert.equal("*", u.requestURI())
+})
 
+interface shouldEscapeTest {
+    in: number
+    mode: number
+    escape: boolean
+}
+
+var shouldEscapeTests: Array<shouldEscapeTest> = [
+    // Unreserved characters (§2.3)
+    { in: 'a'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: 'a'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+    { in: 'a'.charCodeAt(0), mode: (url as any).encodeQueryComponent, escape: false },
+    { in: 'a'.charCodeAt(0), mode: (url as any).encodeFragment, escape: false },
+    { in: 'a'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: 'z'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: 'A'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: 'Z'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: '0'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: '9'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: '-'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: '-'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+    { in: '-'.charCodeAt(0), mode: (url as any).encodeQueryComponent, escape: false },
+    { in: '-'.charCodeAt(0), mode: (url as any).encodeFragment, escape: false },
+    { in: '.'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: '_'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+    { in: '~'.charCodeAt(0), mode: (url as any).encodePath, escape: false },
+
+    // User information (§3.2.1)
+    { in: ':'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: true },
+    { in: '/'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: true },
+    { in: '?'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: true },
+    { in: '@'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: true },
+    { in: '$'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+    { in: '&'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+    { in: '+'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+    { in: ','.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+    { in: ';'.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+    { in: '='.charCodeAt(0), mode: (url as any).encodeUserPassword, escape: false },
+
+    // Host (IP address, IPv6 address, registered name, port suffix; §3.2.2)
+    { in: '!'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '$'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '&'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '\''.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '('.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: ')'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '*'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '+'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: ','.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: ';'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '='.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: ':'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '['.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: ']'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '0'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '9'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: 'A'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: 'z'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '_'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '-'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+    { in: '.'.charCodeAt(0), mode: (url as any).encodeHost, escape: false },
+]
+m.test('ShouldEscape', (assert) => {
+    for (const test of shouldEscapeTests) {
+        assert.equal(test.escape, (url as any).shouldEscape(test.in, test.mode))
+    }
+})
+m.test('URLHostnameAndPort', (assert) => {
+    const tests: Array<{
+        in: string // URL.Host field
+        host: string
+        port: string
+    }> = [
+            { in: "foo.com:80", host: "foo.com", port: "80" },
+            { in: "foo.com", host: "foo.com", port: "" },
+            { in: "foo.com:", host: "foo.com", port: "" },
+            { in: "FOO.COM", host: "FOO.COM", port: "" }, // no canonicalization
+            { in: "1.2.3.4", host: "1.2.3.4", port: "" },
+            { in: "1.2.3.4:80", host: "1.2.3.4", port: "80" },
+            { in: "[1:2:3:4]", host: "1:2:3:4", port: "" },
+            { in: "[1:2:3:4]:80", host: "1:2:3:4", port: "80" },
+            { in: "[::1]:80", host: "::1", port: "80" },
+            { in: "[::1]", host: "::1", port: "" },
+            { in: "[::1]:", host: "::1", port: "" },
+            { in: "localhost", host: "localhost", port: "" },
+            { in: "localhost:443", host: "localhost", port: "443" },
+            { in: "some.super.long.domain.example.org:8080", host: "some.super.long.domain.example.org", port: "8080" },
+            { in: "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:17000", host: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", port: "17000" },
+            { in: "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]", host: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", port: "" },
+
+            // Ensure that even when not valid, Host is one of "Hostname",
+            // "Hostname:Port", "[Hostname]" or "[Hostname]:Port".
+            // See https://golang.org/issue/29098.
+            { in: "[google.com]:80", host: "google.com", port: "80" },
+            { in: "google.com]:80", host: "google.com]", port: "80" },
+            { in: "google.com:80_invalid_port", host: "google.com:80_invalid_port", port: "" },
+            { in: "[::1]extra]:80", host: "::1]extra", port: "80" },
+            { in: "google.com]extra:extra", host: "google.com]extra:extra", port: "" },
+        ]
+    for (const test of tests) {
+        const u = new url.URL({ host: test.in })
+        assert.equal(test.host, u.hostname(), test)
+        assert.equal(test.port, u.port(), test, u)
+    }
+})
+m.test('InvalidUserPassword', (assert) => {
+    try {
+        url.URL.parse("http://user^:passwo^rd@foo.com/")
+    } catch (e) {
+        assert.true(`${e}`.indexOf("net/url: invalid userinfo") >= 0)
+        return
+    }
+    assert.fail("not throw")
+})
+m.test('JoinPath', (assert) => {
+    const tests: Array<{
+        base: string
+        elem?: string[]
+        out: string
+    }> = [
+            {
+                base: "https://go.googlesource.com",
+                elem: ["go"],
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com/a/b/c",
+                elem: ["../../../go"],
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com/",
+                elem: ["../go"],
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com",
+                elem: ["../go"],
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com",
+                elem: ["../go", "../../go", "../../../go"],
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com/../go",
+                elem: nil,
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com/",
+                elem: ["./go"],
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com//",
+                elem: ["/go"],
+                out: "https://go.googlesource.com/go",
+            },
+            {
+                base: "https://go.googlesource.com//",
+                elem: ["/go", "a", "b", "c"],
+                out: "https://go.googlesource.com/go/a/b/c",
+            },
+            {
+                base: "http://[fe80::1%en0]:8080/",
+                elem: ["/go"],
+                out: '',
+            },
+            {
+                base: "https://go.googlesource.com",
+                elem: ["go/"],
+                out: "https://go.googlesource.com/go/",
+            },
+            {
+                base: "https://go.googlesource.com",
+                elem: ["go//"],
+                out: "https://go.googlesource.com/go/",
+            },
+            {
+                base: "https://go.googlesource.com",
+                elem: nil,
+                out: "https://go.googlesource.com/",
+            },
+            {
+                base: "https://go.googlesource.com/",
+                elem: nil,
+                out: "https://go.googlesource.com/",
+            },
+            {
+                base: "https://go.googlesource.com/a%2fb",
+                elem: ["c"],
+                out: "https://go.googlesource.com/a%2fb/c",
+            },
+            {
+                base: "https://go.googlesource.com/a%2fb",
+                elem: ["c%2fd"],
+                out: "https://go.googlesource.com/a%2fb/c%2fd",
+            },
+            {
+                base: "https://go.googlesource.com/a/b",
+                elem: ["/go"],
+                out: "https://go.googlesource.com/a/b/go",
+            },
+            {
+                base: "/",
+                elem: nil,
+                out: "/",
+            },
+            {
+                base: "a",
+                elem: nil,
+                out: "a",
+            },
+            {
+                base: "a",
+                elem: ["b"],
+                out: "a/b",
+            },
+            {
+                base: "a",
+                elem: ["../b"],
+                out: "b",
+            },
+            {
+                base: "a",
+                elem: ["../../b"],
+                out: "b",
+            },
+            {
+                base: "",
+                elem: ["a"],
+                out: "a",
+            },
+            {
+                base: "",
+                elem: ["../a"],
+                out: "a",
+            },
+        ]
+    for (const test of tests) {
+        if (test.out == '') {
+            try {
+                url.joinPathArray(test.base, test.elem ?? [])
+            } catch (_) {
+                continue
+            }
+            assert.fail("not throw", test)
+        }
+        const out = url.joinPathArray(test.base, test.elem ?? [])
+        assert.equal(test.out, out, test)
+    }
 })

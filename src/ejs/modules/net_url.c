@@ -781,7 +781,23 @@ static duk_ret_t resolvePath(duk_context *ctx)
     }
     return 1;
 }
+static duk_ret_t shouldEscape(duk_context *ctx)
+{
+    const char c = duk_require_number(ctx, 0);
+    duk_uint8_t mode = duk_require_number(ctx, 1);
+    duk_pop_2(ctx);
 
+    duk_bool_t ok = _should_escape(c, mode);
+    if (ok)
+    {
+        duk_push_true(ctx);
+    }
+    else
+    {
+        duk_push_false(ctx);
+    }
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(net_url)
 {
     duk_eval_lstring(ctx, js_ejs_js_net_url_min_js, js_ejs_js_net_url_min_js_len);
@@ -832,5 +848,24 @@ EJS_SHARED_MODULE__DECLARE(net_url)
         duk_put_prop_lstring(ctx, -2, "resolvePath", 11);
     }
     duk_call(ctx, 3);
+
+    {
+        duk_push_uint(ctx, EJS_NET_URL_encodePath);
+        duk_put_prop_lstring(ctx, -2, "encodePath", 10);
+        duk_push_uint(ctx, EJS_NET_URL_encodePathSegment);
+        duk_put_prop_lstring(ctx, -2, "encodePathSegment", 17);
+        duk_push_uint(ctx, EJS_NET_URL_encodeHost);
+        duk_put_prop_lstring(ctx, -2, "encodeHost", 10);
+        duk_push_uint(ctx, EJS_NET_URL_encodeZone);
+        duk_put_prop_lstring(ctx, -2, "encodeZone", 10);
+        duk_push_uint(ctx, EJS_NET_URL_encodeUserPassword);
+        duk_put_prop_lstring(ctx, -2, "encodeUserPassword", 18);
+        duk_push_uint(ctx, EJS_NET_URL_encodeQueryComponent);
+        duk_put_prop_lstring(ctx, -2, "encodeQueryComponent", 20);
+        duk_push_uint(ctx, EJS_NET_URL_encodeFragment);
+        duk_put_prop_lstring(ctx, -2, "encodeFragment", 14);
+        duk_push_c_lightfunc(ctx, shouldEscape, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "shouldEscape", 12);
+    }
     return 0;
 }
