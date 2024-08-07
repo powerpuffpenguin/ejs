@@ -68,7 +68,8 @@ declare namespace deps {
     function hexEscapeNonASCII(s: string): string
 }
 import { BaseTcpListener } from "ejs/net";
-import { clean } from "ejs/path";
+import { clean, split } from "ejs/path";
+import { URL } from "ejs/net/url";
 export enum Method {
     GET = deps.GET,
     POST = deps.POST,
@@ -174,7 +175,7 @@ export class Server {
         if (!(listener instanceof BaseTcpListener)) {
             throw new Error("listener must instanceof BaseTcpListener")
         }
-        const l = listener.native()
+        const l = (listener as any).native()
         if (!l) {
             throw new Error("listener already closed")
         }
@@ -620,39 +621,45 @@ export function notFoundHandler(): Handler {
 // Setting the Content-Type header to any value, including nil,
 // disables that behavior.
 export function redirect(w: ResponseWriter, r: Request, url: string, code: number) {
-    // if u, err := urlpkg.Parse(url); err == nil {
-    // 	// If url was relative, make its path absolute by
-    // 	// combining with request path.
-    // 	// The client would probably do this for us,
-    // 	// but doing it ourselves is more reliable.
-    // 	// See RFC 7231, section 7.1.2
-    // 	if u.Scheme == "" && u.Host == "" {
-    // 		oldpath := r.URL.Path
-    // 		if oldpath == "" { // should not happen, but avoid a crash if it does
-    // 			oldpath = "/"
-    // 		}
+    try {
+        const u = URL.parse(url)
+        // If url was relative, make its path absolute by
+        // combining with request path.
+        // The client would probably do this for us,
+        // but doing it ourselves is more reliable.
+        // See RFC 7231, section 7.1.2
+        if (u.scheme == "" && u.host == "") {
+            let oldpath = r.uri.path
+            if (oldpath == "") { // should not happen, but avoid a crash if it does
+                oldpath = "/"
+            }
 
-    // 		// no leading http://server
-    // 		if url == "" || url[0] != '/' {
-    // 			// make relative path absolute
-    // 			olddir, _ := path.Split(oldpath)
-    // 			url = olddir + url
-    // 		}
+            // no leading http://server
+            if (url == "" || !url.startsWith('/')) {
+                // make relative path absolute
+                const olddir = split(oldpath)
+                url = olddir[0] + url
+            }
 
-    // 		var query string
-    // 		if i := strings.Index(url, "?"); i != -1 {
-    // 			url, query = url[:i], url[i:]
-    // 		}
+            let query: string
+            const i = url.indexOf("?")
+            if (i >= 0) {
+                query = url.substring(i)
+                url = url.substring(0, i)
+            } else {
+                query = ''
+            }
 
-    // 		// clean up but preserve trailing slash
-    // 		trailing := strings.HasSuffix(url, "/")
-    // 		url = path.Clean(url)
-    // 		if trailing && !strings.HasSuffix(url, "/") {
-    // 			url += "/"
-    // 		}
-    // 		url += query
-    // 	}
-    // }
+            // clean up but preserve trailing slash
+            const trailing = url.endsWith("/")
+            url = clean(url)
+            if (trailing && !url.endsWith("/")) {
+                url += "/"
+            }
+            url += query
+        }
+    } catch (_) {
+    }
 
     const h = w.header()!
 
