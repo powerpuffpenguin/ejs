@@ -8,6 +8,7 @@ var net_server_1 = require("./examples/net_server");
 var net_client_1 = require("./examples/net_client");
 var udp_server_1 = require("./examples/udp_server");
 var udp_client_1 = require("./examples/udp_client");
+var http_server_1 = require("./examples/http_server");
 var root = new flags_1.Command({
     use: "main.js",
     short: "iotjs example and test",
@@ -15,5 +16,5 @@ var root = new flags_1.Command({
         cmd.print();
     },
 });
-root.add(command_1.command, timer_1.command, fibonacci_1.command, net_server_1.command, net_client_1.command, udp_server_1.command, udp_client_1.command);
+root.add(command_1.command, timer_1.command, fibonacci_1.command, net_server_1.command, net_client_1.command, udp_server_1.command, udp_client_1.command, http_server_1.command);
 new flags_1.Parser(root).parse(ejs.args.slice(2));

@@ -9,6 +9,7 @@ import { command as net_server } from "./examples/net_server";
 import { command as net_client } from "./examples/net_client";
 import { command as udp_server } from "./examples/udp_server";
 import { command as udp_client } from "./examples/udp_client";
+import { command as http_server } from "./examples/http_server";
 const root = new Command({
     use: "main.js",
     short: "iotjs example and test",
@@ -24,6 +25,7 @@ root.add(
     net_client,
     udp_server,
     udp_client,
+    http_server,
 )
 
 new Parser(root).parse(ejs.args.slice(2))

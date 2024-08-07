@@ -1650,313 +1650,7 @@ declare module "ejs/net" {
      */
     export function isSupportV4(): boolean
 }
-/**
- * URL processing module ported from golang standard library
- */
-declare module "ejs/net/url" {
-    export class EscapeError extends Error {
-        constructor(message: string, opts?: any)
-    }
-    export class InvalidHostError extends Error {
-        constructor(message: string, opts?: any)
-    }
-    /**
-     * queryUnescape does the inverse transformation of queryEscape,
-     * converting each 3-byte encoded substring of the form "%AB" into the
-     * hex-decoded byte 0xAB.
-     * It returns an error if any % is not followed by two hexadecimal
-     * digits.
-     * @throws EscapeError OsErrror Errror
-     */
-    export function queryUnescape(s: string): string
-    /**
-     * pathUnescape does the inverse transformation of pathEscape,
-     * converting each 3-byte encoded substring of the form "%AB" into the
-     * hex-decoded byte 0xAB. It returns an error if any % is not followed
-     * by two hexadecimal digits.
-     * 
-     * pathUnescape is identical to queryUnescape except that it does not
-     * unescape '+' to ' ' (space).
-     * @throws EscapeError OsErrror Errror
-     */
-    export function pathUnescape(s: string): string
 
-    /**
-     * escapes the string so it can be safely placed
-     * inside a URL query.
-     */
-    export function queryEscape(s: string): string
-    /**
-     * escapes the string so it can be safely placed inside a URL path segment,
-     * replacing special characters (including /) with %XX sequences as needed.
-     */
-    export function pathEscape(s: string): string
-
-    /**
-     * The Userinfo class is an immutable encapsulation of username and
-     * password details for a URL. An existing Userinfo value is guaranteed
-     * to have a username set (potentially empty, as allowed by RFC 2396),
-     * and optionally a password.
-     */
-    export class Userinfo {
-        constructor(readonly username: string, readonly password?: string | null)
-        toString(): string
-    }
-    /**
-     * Values maps a string key to a list of values.
-     * It is typically used for query parameters and form values.
-     * Unlike in the http.Header map, the keys in a Values map
-     * are case-sensitive.
-     */
-    export class Values {
-        /**
-         * Parses the URL-encoded query string and returns
-         * the values specified for each key.
-         * 
-         * Query is expected to be a list of key=value settings separated by ampersands.
-         * A setting without an equals sign is interpreted as a key set to an empty value.
-         * Settings containing a non-URL-encoded semicolon are considered invalid.
-         */
-        static parse(query: string, ignoeInvalid?: boolean): Values
-
-        readonly values: Record<string, Array<string> | undefined>
-        constructor(values?: Record<string, Array<string> | undefined>)
-        /**
-         * Gets the first value associated with the given key.
-         * If there are no values associated with the key, Get returns
-         * undefined. To access multiple values, use the record
-         * directly.
-         */
-        get(key: string): string | undefined
-        /**
-         * Sets the key to value. It replaces any existing values
-         */
-        set(key: string, value: any): void
-        /**
-         * Adds the value to key. It appends to any existing
-         * values associated with key.
-         */
-        add(key: string, value: any): void
-        /**
-         * Deletes the values associated with key.
-         * @param logic If true, just set the property to undefined; if false, delete is called.
-         */
-        remove(key: string, logic?: boolean): void
-        /**
-         * checks whether a given key is set
-         */
-        has(key: string): boolean
-        /**
-         * encodes the values into “URL encoded” form ("bar=baz&foo=quux") sorted by key.
-         */
-        encode(): string
-    }
-    export interface URLOptions {
-        scheme?: string
-        /**
-         * encoded opaque data
-         */
-        opaque?: string
-        /**
-         * username and password information
-         */
-        user?: {
-            username?: string
-            password?: string
-        }
-        /**
-         * host or host:port
-         */
-        host?: string
-        /**
-         * path (relative paths may omit leading slash)
-         */
-        path?: string
-        /**
-         * encoded path hint (see escapedPath method)
-         */
-        rawPath?: string
-        /**
-         * do not emit empty host (authority)
-         */
-        omitHost?: boolean
-        /**
-         * append a query ('?') even if rawQuery is empty
-         */
-        forceQuery?: boolean
-        /**
-         * encoded query values, without '?'
-         */
-        rawQuery?: string
-        /**
-         * fragment for references, without '#'
-         */
-        fragment?: string
-        /**
-         *  encoded fragment hint (see EscapedFragment method)
-         */
-        rawFragment?: string
-    }
-    /**
-     * A URL represents a parsed URL (technically, a URI reference).
-     * 
-     * The general form represented is:
-     * 
-     * [scheme:][//[userinfo@]host][/]path[?query][#fragment]
-     * 
-     * URLs that do not start with a slash after the scheme are interpreted as:
-     * 
-     * scheme:opaque[?query][#fragment]
-     * 
-     * Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
-     * A consequence is that it is impossible to tell which slashes in the Path were
-     * slashes in the raw URL and which were %2f. This distinction is rarely important,
-     * but when it is, the code should use the escapedPath method, which preserves
-     * the original encoding of path.
-     * 
-     * The rawPath field is an optional field which is only set when the default
-     * encoding of path is different from the escaped path. See the escapedPath method
-     * for more details.
-     * 
-     * URL's String method uses the escapedPath method to obtain the path.
-     */
-    export class URL {
-        static parse(rawURL: string, requestURI?: boolean): URL
-        clone(): URL
-        constructor(o?: URLOptions)
-
-        scheme: string
-        /**
-         * encoded opaque data
-         */
-        opaque: string
-        /**
-         * username and password information
-         */
-        user?: Userinfo
-        /**
-         * host or host:port
-         */
-        host: string
-        /**
-         * path (relative paths may omit leading slash)
-         */
-        path: string
-        /**
-         * encoded path hint (see escapedPath method)
-         */
-        rawPath: string
-        /**
-         * do not emit empty host (authority)
-         */
-        omitHost = false
-        /**
-         * append a query ('?') even if rawQuery is empty
-         */
-        forceQuery = false
-        /**
-         * encoded query values, without '?'
-         */
-        rawQuery: string
-        /**
-         * fragment for references, without '#'
-         */
-        fragment: string
-        /**
-         *  encoded fragment hint (see EscapedFragment method)
-         */
-        rawFragment: string
-        /**
-         * EscapedFragment returns the escaped form of URL.fragment.
-         * In general there are multiple possible escaped forms of any fragment.
-         * EscapedFragment returns URL.rawFragment when it is a valid escaping of URL.fragment.
-         * Otherwise escapedFragment ignores URL.rawFragment and computes an escaped
-         * form on its own.
-         * The toString method uses escapedFragment to construct its result.
-         * In general, code should call escapedFragment instead of
-         * reading URL.rawFragment directly.
-         */
-        escapedFragment(): string
-        /**
-         * EscapedPath returns the escaped form of URL.path.
-         * In general there are multiple possible escaped forms of any path.
-         * EscapedPath returns URL.rawPath when it is a valid escaping of URL.path.
-         * Otherwise escapedPath ignores URL.rawPath and computes an escaped
-         * form on its own.
-         * The toString and requestURI methods use escapedPath to construct
-         * their results.
-         * In general, code should call escapedPath instead of
-         * reading URL.rawPath directly.
-         */
-        escapedPath(): string
-        /**
-         * Returns URL.host, stripping any valid port number if present.
-         * 
-         * If the result is enclosed in square brackets, as literal IPv6 addresses are,
-         * the square brackets are removed from the result.
-         */
-        hostname(): string
-        /**
-         * Returns the port part of URL.host, without the leading colon.
-         * 
-         * If URL.host doesn't contain a valid numeric port, Port returns an empty string.
-         */
-        port(): string
-        /**
-         * Reports whether the URL is absolute.
-         * Absolute means that it has a non-empty scheme.
-         */
-        isAbs(): boolean
-        /**
-         * JoinPath returns a new URL with the provided path elements joined to
-         * any existing path and the resulting path cleaned of any ./ or ../ elements.
-         * Any sequences of multiple / characters will be reduced to a single /.
-         */
-        joinPathArray(elem: Array<string>): URL
-        /**
-         * JoinPath returns a new URL with the provided path elements joined to
-         * any existing path and the resulting path cleaned of any ./ or ../ elements.
-         * Any sequences of multiple / characters will be reduced to a single /.
-         */
-        joinPath(...elem: Array<string>): URL
-        /**
-         * Query parses rawQuery and returns the corresponding values.
-         * It silently discards malformed value pairs.
-         * To check errors use Values.parse.
-         */
-        query(ignoeInvalid?: boolean): Values
-        /**
-         * Redacted is like String but replaces any password with "xxxxx".
-         * Only the password in URL.user is redacted.
-         */
-        redacted(): string
-        /**
-         * Returns the encoded path?query or opaque?query
-         * string that would be used in an HTTP request for u.
-         */
-        requestURI(): string
-        /**
-         * Resolves a URI reference to an absolute URI from
-         * an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
-         * may be relative or absolute. ResolveReference always returns a new
-         * URL instance, even if the returned URL is identical to either the
-         * base or reference. If ref is an absolute URL, then ResolveReference
-         * ignores base and returns a copy of ref.
-         */
-        resolveReference(refer: URL | string): URL
-        toString(): string
-    }
-    /**
-     * eturns a URL string with the provided path elements joined to
-     * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
-     */
-    export function joinPath(base: string, ...elem: Array<string>): string
-    /**
-     * eturns a URL string with the provided path elements joined to
-     * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
-     */
-    export function joinPathArray(base: string, elem: Array<string>): string
-}
 /**
  * Some tools for synchronization in asynchronous code
  */
@@ -3877,4 +3571,472 @@ declare module "ejs/os" {
      * @throws PathError
      */
     export function mkdirTemp(opts: MkdirTempOptions): Promise<string>
+}
+/**
+ * URL processing module ported from golang standard library
+ */
+declare module "ejs/net/url" {
+    export class EscapeError extends Error {
+        constructor(message: string, opts?: any)
+    }
+    export class InvalidHostError extends Error {
+        constructor(message: string, opts?: any)
+    }
+    /**
+     * queryUnescape does the inverse transformation of queryEscape,
+     * converting each 3-byte encoded substring of the form "%AB" into the
+     * hex-decoded byte 0xAB.
+     * It returns an error if any % is not followed by two hexadecimal
+     * digits.
+     * @throws EscapeError OsErrror Errror
+     */
+    export function queryUnescape(s: string): string
+    /**
+     * pathUnescape does the inverse transformation of pathEscape,
+     * converting each 3-byte encoded substring of the form "%AB" into the
+     * hex-decoded byte 0xAB. It returns an error if any % is not followed
+     * by two hexadecimal digits.
+     * 
+     * pathUnescape is identical to queryUnescape except that it does not
+     * unescape '+' to ' ' (space).
+     * @throws EscapeError OsErrror Errror
+     */
+    export function pathUnescape(s: string): string
+
+    /**
+     * escapes the string so it can be safely placed
+     * inside a URL query.
+     */
+    export function queryEscape(s: string): string
+    /**
+     * escapes the string so it can be safely placed inside a URL path segment,
+     * replacing special characters (including /) with %XX sequences as needed.
+     */
+    export function pathEscape(s: string): string
+
+    /**
+     * The Userinfo class is an immutable encapsulation of username and
+     * password details for a URL. An existing Userinfo value is guaranteed
+     * to have a username set (potentially empty, as allowed by RFC 2396),
+     * and optionally a password.
+     */
+    export class Userinfo {
+        constructor(readonly username: string, readonly password?: string | null)
+        toString(): string
+    }
+    /**
+     * Values maps a string key to a list of values.
+     * It is typically used for query parameters and form values.
+     * Unlike in the http.Header map, the keys in a Values map
+     * are case-sensitive.
+     */
+    export class Values {
+        /**
+         * Parses the URL-encoded query string and returns
+         * the values specified for each key.
+         * 
+         * Query is expected to be a list of key=value settings separated by ampersands.
+         * A setting without an equals sign is interpreted as a key set to an empty value.
+         * Settings containing a non-URL-encoded semicolon are considered invalid.
+         */
+        static parse(query: string, ignoeInvalid?: boolean): Values
+
+        readonly values: Record<string, Array<string> | undefined>
+        constructor(values?: Record<string, Array<string> | undefined>)
+        /**
+         * Gets the first value associated with the given key.
+         * If there are no values associated with the key, Get returns
+         * undefined. To access multiple values, use the record
+         * directly.
+         */
+        get(key: string): string | undefined
+        /**
+         * Sets the key to value. It replaces any existing values
+         */
+        set(key: string, value: any): void
+        /**
+         * Adds the value to key. It appends to any existing
+         * values associated with key.
+         */
+        add(key: string, value: any): void
+        /**
+         * Deletes the values associated with key.
+         * @param logic If true, just set the property to undefined; if false, delete is called.
+         */
+        remove(key: string, logic?: boolean): void
+        /**
+         * checks whether a given key is set
+         */
+        has(key: string): boolean
+        /**
+         * encodes the values into “URL encoded” form ("bar=baz&foo=quux") sorted by key.
+         */
+        encode(): string
+    }
+    export interface URLOptions {
+        scheme?: string
+        /**
+         * encoded opaque data
+         */
+        opaque?: string
+        /**
+         * username and password information
+         */
+        user?: {
+            username?: string
+            password?: string
+        }
+        /**
+         * host or host:port
+         */
+        host?: string
+        /**
+         * path (relative paths may omit leading slash)
+         */
+        path?: string
+        /**
+         * encoded path hint (see escapedPath method)
+         */
+        rawPath?: string
+        /**
+         * do not emit empty host (authority)
+         */
+        omitHost?: boolean
+        /**
+         * append a query ('?') even if rawQuery is empty
+         */
+        forceQuery?: boolean
+        /**
+         * encoded query values, without '?'
+         */
+        rawQuery?: string
+        /**
+         * fragment for references, without '#'
+         */
+        fragment?: string
+        /**
+         *  encoded fragment hint (see EscapedFragment method)
+         */
+        rawFragment?: string
+    }
+    /**
+     * A URL represents a parsed URL (technically, a URI reference).
+     * 
+     * The general form represented is:
+     * 
+     * [scheme:][//[userinfo@]host][/]path[?query][#fragment]
+     * 
+     * URLs that do not start with a slash after the scheme are interpreted as:
+     * 
+     * scheme:opaque[?query][#fragment]
+     * 
+     * Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
+     * A consequence is that it is impossible to tell which slashes in the Path were
+     * slashes in the raw URL and which were %2f. This distinction is rarely important,
+     * but when it is, the code should use the escapedPath method, which preserves
+     * the original encoding of path.
+     * 
+     * The rawPath field is an optional field which is only set when the default
+     * encoding of path is different from the escaped path. See the escapedPath method
+     * for more details.
+     * 
+     * URL's String method uses the escapedPath method to obtain the path.
+     */
+    export class URL {
+        static parse(rawURL: string, requestURI?: boolean): URL
+        clone(): URL
+        constructor(o?: URLOptions)
+
+        scheme: string
+        /**
+         * encoded opaque data
+         */
+        opaque: string
+        /**
+         * username and password information
+         */
+        user?: Userinfo
+        /**
+         * host or host:port
+         */
+        host: string
+        /**
+         * path (relative paths may omit leading slash)
+         */
+        path: string
+        /**
+         * encoded path hint (see escapedPath method)
+         */
+        rawPath: string
+        /**
+         * do not emit empty host (authority)
+         */
+        omitHost = false
+        /**
+         * append a query ('?') even if rawQuery is empty
+         */
+        forceQuery = false
+        /**
+         * encoded query values, without '?'
+         */
+        rawQuery: string
+        /**
+         * fragment for references, without '#'
+         */
+        fragment: string
+        /**
+         *  encoded fragment hint (see EscapedFragment method)
+         */
+        rawFragment: string
+        /**
+         * EscapedFragment returns the escaped form of URL.fragment.
+         * In general there are multiple possible escaped forms of any fragment.
+         * EscapedFragment returns URL.rawFragment when it is a valid escaping of URL.fragment.
+         * Otherwise escapedFragment ignores URL.rawFragment and computes an escaped
+         * form on its own.
+         * The toString method uses escapedFragment to construct its result.
+         * In general, code should call escapedFragment instead of
+         * reading URL.rawFragment directly.
+         */
+        escapedFragment(): string
+        /**
+         * EscapedPath returns the escaped form of URL.path.
+         * In general there are multiple possible escaped forms of any path.
+         * EscapedPath returns URL.rawPath when it is a valid escaping of URL.path.
+         * Otherwise escapedPath ignores URL.rawPath and computes an escaped
+         * form on its own.
+         * The toString and requestURI methods use escapedPath to construct
+         * their results.
+         * In general, code should call escapedPath instead of
+         * reading URL.rawPath directly.
+         */
+        escapedPath(): string
+        /**
+         * Returns URL.host, stripping any valid port number if present.
+         * 
+         * If the result is enclosed in square brackets, as literal IPv6 addresses are,
+         * the square brackets are removed from the result.
+         */
+        hostname(): string
+        /**
+         * Returns the port part of URL.host, without the leading colon.
+         * 
+         * If URL.host doesn't contain a valid numeric port, Port returns an empty string.
+         */
+        port(): string
+        /**
+         * Reports whether the URL is absolute.
+         * Absolute means that it has a non-empty scheme.
+         */
+        isAbs(): boolean
+        /**
+         * JoinPath returns a new URL with the provided path elements joined to
+         * any existing path and the resulting path cleaned of any ./ or ../ elements.
+         * Any sequences of multiple / characters will be reduced to a single /.
+         */
+        joinPathArray(elem: Array<string>): URL
+        /**
+         * JoinPath returns a new URL with the provided path elements joined to
+         * any existing path and the resulting path cleaned of any ./ or ../ elements.
+         * Any sequences of multiple / characters will be reduced to a single /.
+         */
+        joinPath(...elem: Array<string>): URL
+        /**
+         * Query parses rawQuery and returns the corresponding values.
+         * It silently discards malformed value pairs.
+         * To check errors use Values.parse.
+         */
+        query(ignoeInvalid?: boolean): Values
+        /**
+         * Redacted is like String but replaces any password with "xxxxx".
+         * Only the password in URL.user is redacted.
+         */
+        redacted(): string
+        /**
+         * Returns the encoded path?query or opaque?query
+         * string that would be used in an HTTP request for u.
+         */
+        requestURI(): string
+        /**
+         * Resolves a URI reference to an absolute URI from
+         * an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
+         * may be relative or absolute. ResolveReference always returns a new
+         * URL instance, even if the returned URL is identical to either the
+         * base or reference. If ref is an absolute URL, then ResolveReference
+         * ignores base and returns a copy of ref.
+         */
+        resolveReference(refer: URL | string): URL
+        toString(): string
+    }
+    /**
+     * eturns a URL string with the provided path elements joined to
+     * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+     */
+    export function joinPath(base: string, ...elem: Array<string>): string
+    /**
+     * eturns a URL string with the provided path elements joined to
+     * the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+     */
+    export function joinPathArray(base: string, elem: Array<string>): string
+}
+
+declare module "ejs/net/http" {
+    import { BaseTcpListener } from "ejs/net";
+
+    export enum Method {
+        GET = deps.GET,
+        POST = deps.POST,
+        HEAD = deps.HEAD,
+        PUT = deps.PUT,
+        DELETE = deps.DELETE,
+        OPTIONS = deps.OPTIONS,
+        TRACE = deps.TRACE,
+        CONNECT = deps.CONNECT,
+        PATCH = deps.PATCH,
+    }
+
+    export const StatusContinue = 100 // RFC 9110, 15.2.1
+    export const StatusSwitchingProtocols = 101 // RFC 9110, 15.2.2
+    export const StatusProcessing = 102 // RFC 2518, 10.1
+    export const StatusEarlyHints = 103 // RFC 8297
+
+    export const StatusOK = 200 // RFC 9110, 15.3.1
+    export const StatusCreated = 201 // RFC 9110, 15.3.2
+    export const StatusAccepted = 202 // RFC 9110, 15.3.3
+    export const StatusNonAuthoritativeInfo = 203 // RFC 9110, 15.3.4
+    export const StatusNoContent = 204 // RFC 9110, 15.3.5
+    export const StatusResetContent = 205 // RFC 9110, 15.3.6
+    export const StatusPartialContent = 206 // RFC 9110, 15.3.7
+    export const StatusMultiStatus = 207 // RFC 4918, 11.1
+    export const StatusAlreadyReported = 208 // RFC 5842, 7.1
+    export const StatusIMUsed = 226 // RFC 3229, 10.4.1
+
+    export const StatusMultipleChoices = 300 // RFC 9110, 15.4.1
+    export const StatusMovedPermanently = 301 // RFC 9110, 15.4.2
+    export const StatusFound = 302 // RFC 9110, 15.4.3
+    export const StatusSeeOther = 303 // RFC 9110, 15.4.4
+    export const StatusNotModified = 304 // RFC 9110, 15.4.5
+    export const StatusUseProxy = 305 // RFC 9110, 15.4.6
+    // _                       = 306 // RFC 9110, 15.4.7 (Unused)
+    export const StatusTemporaryRedirect = 307 // RFC 9110, 15.4.8
+    export const StatusPermanentRedirect = 308 // RFC 9110, 15.4.9
+
+    export const StatusBadRequest = 400 // RFC 9110, 15.5.1
+    export const StatusUnauthorized = 401 // RFC 9110, 15.5.2
+    export const StatusPaymentRequired = 402 // RFC 9110, 15.5.3
+    export const StatusForbidden = 403 // RFC 9110, 15.5.4
+    export const StatusNotFound = 404 // RFC 9110, 15.5.5
+    export const StatusMethodNotAllowed = 405 // RFC 9110, 15.5.6
+    export const StatusNotAcceptable = 406 // RFC 9110, 15.5.7
+    export const StatusProxyAuthRequired = 407 // RFC 9110, 15.5.8
+    export const StatusRequestTimeout = 408 // RFC 9110, 15.5.9
+    export const StatusConflict = 409 // RFC 9110, 15.5.10
+    export const StatusGone = 410 // RFC 9110, 15.5.11
+    export const StatusLengthRequired = 411 // RFC 9110, 15.5.12
+    export const StatusPreconditionFailed = 412 // RFC 9110, 15.5.13
+    export const StatusRequestEntityTooLarge = 413 // RFC 9110, 15.5.14
+    export const StatusRequestURITooLong = 414 // RFC 9110, 15.5.15
+    export const StatusUnsupportedMediaType = 415 // RFC 9110, 15.5.16
+    export const StatusRequestedRangeNotSatisfiable = 416 // RFC 9110, 15.5.17
+    export const StatusExpectationFailed = 417 // RFC 9110, 15.5.18
+    export const StatusTeapot = 418 // RFC 9110, 15.5.19 (Unused)
+    export const StatusMisdirectedRequest = 421 // RFC 9110, 15.5.20
+    export const StatusUnprocessableEntity = 422 // RFC 9110, 15.5.21
+    export const StatusLocked = 423 // RFC 4918, 11.3
+    export const StatusFailedDependency = 424 // RFC 4918, 11.4
+    export const StatusTooEarly = 425 // RFC 8470, 5.2.
+    export const StatusUpgradeRequired = 426 // RFC 9110, 15.5.22
+    export const StatusPreconditionRequired = 428 // RFC 6585, 3
+    export const StatusTooManyRequests = 429 // RFC 6585, 4
+    export const StatusRequestHeaderFieldsTooLarge = 431 // RFC 6585, 5
+    export const StatusUnavailableForLegalReasons = 451 // RFC 7725, 3
+
+    export const StatusInternalServerError = 500 // RFC 9110, 15.6.1
+    export const StatusNotImplemented = 501 // RFC 9110, 15.6.2
+    export const StatusBadGateway = 502 // RFC 9110, 15.6.3
+    export const StatusServiceUnavailable = 503 // RFC 9110, 15.6.4
+    export const StatusGatewayTimeout = 504 // RFC 9110, 15.6.5
+    export const StatusHTTPVersionNotSupported = 505 // RFC 9110, 15.6.6
+    export const StatusVariantAlsoNegotiates = 506 // RFC 2295, 8.1
+    export const StatusInsufficientStorage = 507 // RFC 4918, 11.5
+    export const StatusLoopDetected = 508 // RFC 5842, 7.2
+    export const StatusNotExtended = 510 // RFC 2774, 7
+    export const StatusNetworkAuthenticationRequired = 511 // RFC 6585, 6
+
+    export function statusText(code: number): string
+    export const ContentTypeHTML = "text/html; charset=utf-8"
+    export const ContentTypeText = "text/plain; charset=utf-8"
+    export const ContentTypeJSON = "application/json; charset=utf-8"
+    export const ContentTypeJSONP = "application/javascript; charset=utf-8"
+    export const ContentTypeXML = "application/xml; charset=utf-8"
+    export const ContentTypeYAML = "application/yaml; charset=utf-8"
+
+    export class Uri {
+        private constructor()
+        get fragment(): string
+        get host(): string
+        get port(): string
+        get path(): string
+        get query(): string
+        get scheme(): string
+        get userinfo(): string
+        toString(): string
+    }
+    export class Request {
+        private constructor()
+        readonly isValid: boolean
+        readonly host: string
+        readonly uri: Uri
+        readonly method: number
+        readonly methodString?: string
+        header(): Header
+    }
+    export class Header {
+        private constructor()
+        readonly isValid: boolean
+        set(key: string, value?: any): void
+        add(key: string, value?: any): void
+        get(key: string): string
+        remove(key: string): void
+        removeAll(key: string): void
+        clear(): void
+    }
+    export class ResponseWriter {
+        private constructor()
+        close(): void
+
+        header(): Header
+        header(key: string, value?: any): void
+
+        status(code: number): void
+        body(code: number, contentType: string, body: string | Uint8Array): void
+        text(code: number, body: string | Uint8Array): void
+        json(code: number, body: any, replacer?: (number | string)[] | null, space?: string | number): void
+        jsonp(code: number, callback: string, body: any, replacer?: (number | string)[] | null, space?: string | number): void
+    }
+    export interface Handler {
+        serveHTTP(w: ResponseWriter, r: Request): void
+    }
+    export class Server {
+        constructor(readonly listener: BaseTcpListener,
+            h: Handler,
+        )
+        close(): void
+    }
+    export function handlerFunc(f: (w: ResponseWriter, r: Request) => void): Handler
+    export function error(w: ResponseWriter, error: string, code: number): void
+    export function notFound(w: ResponseWriter, r?: Request): void
+    export function notFoundHandler(): Handler
+    export function redirect(w: ResponseWriter, r: Request, url: string, code: number): void
+
+    interface MuxEntry {
+        pattern: string
+        h: Handler
+    }
+    export class ServeMux implements Handler {
+        handler(r: Request): MuxEntry
+        serveHTTP(w: ResponseWriter, r: Request): void
+        handle(pattern: string, handler: Handler): void
+        handle(pattern: string, handler: (w: ResponseWriter, r: Request) => void): void
+    }
 }

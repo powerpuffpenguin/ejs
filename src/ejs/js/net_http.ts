@@ -419,7 +419,7 @@ export class ResponseWriter {
             throw e
         }
     }
-    body(code: number, body: string | Uint8Array, contentType: string) {
+    body(code: number, contentType: string, body: string | Uint8Array) {
         const f = this._flags()
         const r = this._req()
         try {
@@ -438,7 +438,7 @@ export class ResponseWriter {
             throw e
         }
     }
-    text(code: number, body: string) {
+    text(code: number, body: string | Uint8Array) {
         const f = this._flags()
         const r = this._req()
         try {
@@ -571,12 +571,16 @@ export interface Handler {
     serveHTTP(w: ResponseWriter, r: Request): void
 }
 
-interface muxEntry {
+interface MuxEntry {
     pattern: string
     h: Handler
 }
 class HandlerFunc implements Handler {
-    constructor(readonly f: (w: ResponseWriter, r: Request) => void) { }
+    constructor(readonly f: (w: ResponseWriter, r: Request) => void) {
+        if (typeof f !== "function") {
+            throw new Error("http: invalid handler function")
+        }
+    }
     serveHTTP(w: ResponseWriter, r: Request): void {
         const f = this.f
         f(w, r)
@@ -591,17 +595,17 @@ export function handlerFunc(f: (w: ResponseWriter, r: Request) => void): Handler
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
 // The error message should be plain text.
-export function error(w: ResponseWriter, error: string, code: number) {
+export function error(w: ResponseWriter, error: string, code: number): void {
     w.header("X-Content-Type-Options", "nosniff")
     w.text(code, error)
 }
 
 // NotFound replies to the request with an HTTP 404 not found error.
-export function notFound(w: ResponseWriter, r: Request) {
+export function notFound(w: ResponseWriter, r: Request): void {
     w.header("X-Content-Type-Options", "nosniff")
     w.text(StatusNotFound, "404 page not found")
 }
-const _notFoundMuxEntry: muxEntry = {
+const _notFoundMuxEntry: MuxEntry = {
     pattern: '',
     h: handlerFunc(notFound),
 }
@@ -620,7 +624,7 @@ export function notFoundHandler(): Handler {
 // to "text/html; charset=utf-8" and writes a small HTML body.
 // Setting the Content-Type header to any value, including nil,
 // disables that behavior.
-export function redirect(w: ResponseWriter, r: Request, url: string, code: number) {
+export function redirect(w: ResponseWriter, r: Request, url: string, code: number): void {
     try {
         const u = URL.parse(url)
         // If url was relative, make its path absolute by
@@ -776,11 +780,11 @@ export class ServeMux implements Handler {
      *  whether any patterns contain hostnames
      */
     private hosts_ = false
-    private m_?: Record<string, muxEntry>
+    private m_?: Record<string, MuxEntry>
     /**
      *  array of entries sorted from longest to shortest
      */
-    private es_?: Array<muxEntry>
+    private es_?: Array<MuxEntry>
     // shouldRedirectRLocked reports whether the given path and host should be redirected to
     // path+"/". This should happen if a handler is registered for path+"/" but
     // not path -- see comments at ServeMux.
@@ -834,7 +838,7 @@ export class ServeMux implements Handler {
             ok: true,
         }
     }
-    handler(r: Request): muxEntry {
+    handler(r: Request): MuxEntry {
         // CONNECT requests are not canonicalized.
         const uri = r.uri
         if (r.method == Method.CONNECT) {
@@ -875,7 +879,7 @@ export class ServeMux implements Handler {
      * Find a handler on a handler map given a path string.
      * Most-specific (longest) pattern wins.
      */
-    private _match(path: string): muxEntry | undefined {
+    private _match(path: string): MuxEntry | undefined {
         // Check for exact match first.
         const m = this.m_
         if (m) {
@@ -889,7 +893,7 @@ export class ServeMux implements Handler {
         const es = this.es_
         if (es) {
             const length = es.length
-            let e: muxEntry
+            let e: MuxEntry
             for (let i = 0; i < length; i++) {
                 e = es[i]
                 if (path.startsWith(e.pattern)) {
@@ -898,9 +902,9 @@ export class ServeMux implements Handler {
             }
         }
     }
-    private _handler(host: string, path: string): muxEntry {
+    private _handler(host: string, path: string): MuxEntry {
         // Host-specific pattern takes precedence over generic ones
-        let h: muxEntry | undefined
+        let h: MuxEntry | undefined
         if (this.hosts_) {
             h = this._match(host + path)
         }
@@ -922,4 +926,69 @@ export class ServeMux implements Handler {
         const found = this.handler(r)
         found.h.serveHTTP(w, r)
     }
+    handle(pattern: string, handler: Handler | ((w: ResponseWriter, r: Request) => void)): void {
+        const t = typeof handler
+        if (t == "function") {
+            this._handle(pattern, new HandlerFunc(handler as any))
+        }
+        else if (t === "object" && typeof (handler as any).serveHTTP === "function") {
+            this._handle(pattern, (handler as any))
+        } else {
+            throw new Error("http: invalid handler")
+        }
+    }
+    private _handle(pattern: string, handler: Handler) {
+        if (typeof pattern !== "string" || pattern == "") {
+            throw new Error("http: invalid pattern")
+        }
+        let m = this.m_
+        if (m) {
+            if (m[pattern]) {
+                throw new Error("http: multiple registrations for " + pattern)
+            }
+        } else {
+            m = {}
+            this.m_ = m
+        }
+        const e: MuxEntry = { h: handler, pattern: pattern }
+        m[pattern] = e
+        if (pattern.endsWith('/')) {
+            const es = this.es_
+            if (es) {
+                const n = es.length
+                const i = sortSearch(n, (i) => {
+                    return es[i].pattern.length < e.pattern.length
+                })
+                if (n == i) {
+                    es.push(e)
+                } else {
+                    es.splice(i, 0, e)
+                }
+            } else {
+                this.es_ = [e]
+            }
+        }
+        if (!pattern.startsWith('/')) {
+            this.hosts_ = true
+        }
+    }
+}
+function sortSearch(n: number, f: (i: number) => boolean): number {
+    // Define f(-1) == false and f(n) == true.
+    // Invariant: f(i-1) == false, f(j) == true.
+    let i = 0
+    let j = n
+    let h
+    while (i < j) {
+        // h := int(uint(i+j) >> 1) // avoid overflow when computing h
+        h = Math.floor((i + j) / 2)
+        // i ≤ h < j
+        if (!f(h)) {
+            i = h + 1 // preserves f(i-1) == false
+        } else {
+            j = h // preserves f(j) == true
+        }
+    }
+    // i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+    return i
 }
