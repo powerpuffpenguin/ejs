@@ -439,70 +439,16 @@ export class ResponseWriter {
         }
     }
     text(code: number, body: string | Uint8Array) {
-        const f = this._flags()
-        const r = this._req()
-        try {
-            deps.writer_response({
-                f: f,
-                r: r,
-                t: ContentTypeText,
-                code: code,
-                body: body,
-            })
-        } catch (e) {
-            if (f[0]) {
-                f[0] = 0
-                deps.request_free_raw(r)
-            }
-            throw e
-        }
+        this.body(code, ContentTypeText, body)
     }
     json(code: number, body: any, replacer?: (number | string)[] | null, space?: string | number) {
-        const f = this._flags()
-        const r = this._req()
-        try {
-            deps.writer_response({
-                f: f,
-                r: r,
-                t: ContentTypeJSON,
-                code: code,
-                body: JSON.stringify(body, replacer, space),
-            })
-        } catch (e) {
-            if (f[0]) {
-                f[0] = 0
-                deps.request_free_raw(r)
-            }
-            throw e
-        }
+        this.body(code, ContentTypeJSON, JSON.stringify(body, replacer, space))
     }
     jsonp(code: number, callback: string, body: any, replacer?: (number | string)[] | null, space?: string | number) {
-        const f = this._flags()
-        const r = this._req()
-        try {
-            if (callback.length == 0) {
-                deps.writer_response({
-                    f: f,
-                    r: r,
-                    t: ContentTypeJSON,
-                    code: code,
-                    body: JSON.stringify(body, replacer, space),
-                })
-            } else {
-                deps.writer_response({
-                    f: f,
-                    r: r,
-                    t: ContentTypeJSONP,
-                    code: code,
-                    body: `${callback}(${JSON.stringify(body, replacer, space)})`,
-                })
-            }
-        } catch (e) {
-            if (f[0]) {
-                f[0] = 0
-                deps.request_free_raw(r)
-            }
-            throw e
+        if (callback.length == 0) {
+            this.body(code, ContentTypeJSON, JSON.stringify(body, replacer, space))
+        } else {
+            this.body(code, ContentTypeJSONP, `${callback}(${JSON.stringify(body, replacer, space)})`)
         }
     }
     header(key?: string, value?: any): Header | void {
