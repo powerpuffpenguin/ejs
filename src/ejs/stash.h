@@ -39,5 +39,6 @@
 #define EJS_STASH_NET_UDP_CONN "net.udp_conn", 12
 
 #define EJS_STASH_NET_HTTP_SERVER "http.server", 11
+#define EJS_STASH_NET_HTTP_SERVER_CHUNK "http.server.chunk", 17
 
 #endif

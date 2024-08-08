@@ -31,6 +31,28 @@ function main() {
     }
     var mux = new http.ServeMux()
 
+    mux.handle('/', function (w, r) {
+        w.text(http.StatusOK, "cerberus is an idea")
+    })
+    mux.handle('/close', function (w, r) {
+        w.text(http.StatusOK, "closed")
+        l.close()
+    })
+    mux.handle('/chunk', function (w, r) {
+        sync.go(function (co) {
+            var chunk = w.chunk(http.StatusOK)
+            try {
+                for (var i = 0; i < 5; i++) {
+                    var msg = "this is chunk " + i
+                    chunk.chunk(co, msg)
+                }
+            } catch (e) {
+                console.log("err", e.toString())
+            } finally {
+                chunk.close()
+            }
+        })
+    })
     new http.Server(l, mux)
     // new http.Server(l, {
     //     serveHTTP: function (w, r) {

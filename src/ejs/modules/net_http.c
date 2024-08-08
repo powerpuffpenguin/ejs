@@ -686,6 +686,150 @@ static duk_ret_t writer_response(duk_context *ctx)
     flags[0] = 0;
     return 0;
 }
+typedef struct
+{
+    ejs_core_t *core;
+    struct evhttp_request *req;
+    struct evbuffer *databuf;
+} chunk_writer_t;
+static duk_ret_t chunk_writer_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    chunk_writer_t *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        evhttp_send_reply_end(p->req);
+        if (p->databuf)
+        {
+            evbuffer_free(p->databuf);
+        }
+        free(p);
+    }
+    return 0;
+}
+typedef struct
+{
+    chunk_writer_t *writer;
+
+} create_chunk_writer_args_t;
+static duk_ret_t create_chunk_writer_impl(duk_context *ctx)
+{
+    create_chunk_writer_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "r", 1);
+    struct evhttp_request *req = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "code", 4);
+    int code = EJS_REQUIRE_NUMBER_VALUE_DEFAULT(ctx, -1, 200);
+    duk_pop(ctx);
+    ejs_core_t *core = ejs_require_core(ctx);
+
+    args->writer = malloc(sizeof(chunk_writer_t));
+    if (!args->writer)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    args->writer->core = core;
+    args->writer->databuf = 0;
+
+    evhttp_send_reply_start(req, code, _status_text(code));
+    args->writer->req = req;
+
+    duk_push_pointer(ctx, args->writer);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_c_lightfunc(ctx, chunk_writer_finalizer, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->writer = 0;
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_HTTP_SERVER_CHUNK);
+    return 1;
+}
+static duk_ret_t create_chunk_writer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "f", 1);
+    uint8_t *flags = duk_require_buffer_data(ctx, -1, 0);
+    duk_pop(ctx);
+
+    create_chunk_writer_args_t args = {0};
+    if (ejs_pcall_function_n(ctx, create_chunk_writer_impl, &args, 2))
+    {
+        if (args.writer)
+        {
+            if (args.writer->req)
+            {
+                flags[0] = 0;
+                evhttp_send_reply_end(args.writer->req);
+            }
+            free(args.writer);
+        }
+        duk_throw(ctx);
+    }
+    flags[0] = 0;
+    return 1;
+}
+static duk_ret_t close_chunk_writer(duk_context *ctx)
+{
+    chunk_writer_t *p = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_HTTP_SERVER_CHUNK);
+    if (p)
+    {
+        evhttp_send_reply_end(p->req);
+        if (p->databuf)
+        {
+            evbuffer_free(p->databuf);
+        }
+        free(p);
+    }
+    return 0;
+}
+static duk_ret_t write_chunk_writer_cb_impl(duk_context *ctx)
+{
+    chunk_writer_t *p = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    if (ejs_stash_get_pointer(ctx, p, EJS_STASH_NET_HTTP_SERVER_CHUNK))
+    {
+        duk_get_prop_lstring(ctx, -1, "cb", 2);
+        duk_call(ctx, 0);
+    }
+    return 0;
+}
+static void write_chunk_writer_cb(struct evhttp_connection *conn, void *userdata)
+{
+    ejs_call_callback_noresult(
+        ((chunk_writer_t *)userdata)->core->duk,
+        write_chunk_writer_cb_impl, userdata,
+        0);
+}
+static duk_ret_t write_chunk_writer(duk_context *ctx)
+{
+    chunk_writer_t *p = duk_require_pointer(ctx, 0);
+    duk_size_t s_len;
+    const char *s = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &s_len);
+    if (!p->databuf)
+    {
+        p->databuf = evbuffer_new();
+        if (!p->databuf)
+        {
+            duk_pop_2(ctx);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "evbuffer_new fail");
+            duk_throw(ctx);
+        }
+    }
+    if (evbuffer_add(p->databuf, s, s_len) == -1)
+    {
+        duk_pop_2(ctx);
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "evbuffer_add fail");
+        duk_throw(ctx);
+    }
+    evhttp_send_reply_chunk_with_cb(
+        p->req,
+        p->databuf,
+        write_chunk_writer_cb, p);
+    return 0;
+}
+
 static duk_ret_t header_set(duk_context *ctx)
 {
     struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
@@ -998,6 +1142,12 @@ EJS_SHARED_MODULE__DECLARE(net_http)
 
         duk_push_c_lightfunc(ctx, writer_response, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "writer_response", 15);
+        duk_push_c_lightfunc(ctx, create_chunk_writer, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "create_chunk_writer", 19);
+        duk_push_c_lightfunc(ctx, close_chunk_writer, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "close_chunk_writer", 18);
+        duk_push_c_lightfunc(ctx, write_chunk_writer, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "write_chunk_writer", 18);
 
         duk_push_c_lightfunc(ctx, header_set, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "header_set", 10);

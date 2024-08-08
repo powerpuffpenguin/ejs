@@ -63,6 +63,21 @@ declare namespace deps {
     }
     function create_flags(): Uint8Array
     function writer_response(opts: WriterResponseOptions): void
+    class ChunkWriter {
+        readonly __id = 'ChunkWriter'
+        p: unknown
+    }
+    interface CreateChunkWriteOptions {
+        f: Uint8Array
+
+        r: deps.RawRequest
+        code: number
+
+        cb?: () => void
+    }
+    function create_chunk_writer(opts: CreateChunkWriteOptions): ChunkWriter
+    function close_chunk_writer(writer: ChunkWriter): void
+    function write_chunk_writer(writer: unknown, data: string | Uint8Array): void
 
     function html_escape(s: string): string
     function hexEscapeNonASCII(s: string): string
@@ -70,6 +85,7 @@ declare namespace deps {
 import { BaseTcpListener } from "ejs/net";
 import { clean, split } from "ejs/path";
 import { URL } from "ejs/net/url";
+import { parseArgs } from "ejs/sync";
 export enum Method {
     GET = deps.GET,
     POST = deps.POST,
@@ -192,12 +208,13 @@ export class Server {
                 w = new ResponseWriter(req, shared)
                 h.serveHTTP(w, r)
             } catch (e) {
+                throw e
+            } finally {
                 if (w) {
                     w.close()
                 } else {
                     deps.request_free_raw(req)
                 }
-                throw e
             }
         })
         const tls = l.tls
@@ -451,6 +468,26 @@ export class ResponseWriter {
             this.body(code, ContentTypeJSONP, `${callback}(${JSON.stringify(body, replacer, space)})`)
         }
     }
+    chunk(code: number): ChunkWriter {
+        const f = this._flags()
+        const r = this._req()
+        let writer: deps.ChunkWriter
+        const opts: deps.CreateChunkWriteOptions = {
+            f: f,
+            r: r,
+            code: code,
+        }
+        try {
+            writer = deps.create_chunk_writer(opts)
+        } catch (e) {
+            if (f[0]) {
+                f[0] = 0
+                deps.request_free_raw(r)
+            }
+            throw e
+        }
+        return new ChunkWriter(opts, writer)
+    }
     header(key?: string, value?: any): Header | void {
         const r = this._get()
         if ((key === undefined || key === null)) {
@@ -461,6 +498,73 @@ export class ResponseWriter {
             deps.header_set(raw, key, value)
         } else {
             deps.header_set(raw, key, `${value}`)
+        }
+    }
+}
+export class ChunkWriter {
+    private w_?: deps.ChunkWriter
+    private writer_?: deps.ChunkWriter
+    private cb_?: () => void
+    constructor(readonly opts: deps.CreateChunkWriteOptions, writer?: deps.ChunkWriter) {
+        this.w_ = writer
+        this.writer_ = writer
+        opts.cb = () => {
+            const cb = this.cb_
+            if (cb) {
+                this.cb_ = undefined
+                try {
+                    cb()
+                } catch (e) {
+                    if (!this.writer_) {
+                        const w = this.w_
+                        if (w) {
+                            this.w_ = undefined
+                            deps.close_chunk_writer(w)
+                        }
+                    }
+                    throw e
+                }
+            }
+        }
+    }
+    private _chunk(data: string | Uint8Array, cb: () => void) {
+        const writer = this.writer_
+
+        if (!writer) {
+            throw new Error("http: chunk writer closed")
+        }
+        if (this.cb_) {
+            throw new Error("http: chunk writer busy")
+        }
+        try {
+            this.cb_ = cb
+            deps.write_chunk_writer(writer.p, data)
+        } catch (e) {
+            this.cb_ = undefined
+            throw e
+        }
+    }
+    chunk(a: any, b: any) {
+        const { co, cb, opts } = parseArgs<string | Uint8Array, () => void>("ChunkWriter.chunk", a, b)
+        if (co) {
+            co.yield<void>((notify) => {
+                this._chunk(opts!, () => notify.value())
+            })
+        } else if (cb) {
+            this._chunk(opts!, cb)
+        } else {
+            return new Promise<void>((resolve) => {
+                this._chunk(opts!, resolve)
+            })
+        }
+    }
+    close() {
+        const writer = this.writer_
+        if (writer) {
+            this.writer_ = undefined
+            if (!this.cb_) {
+                deps.close_chunk_writer(writer)
+            }
         }
     }
 }
