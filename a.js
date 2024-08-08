@@ -54,8 +54,10 @@ function main() {
         })
     })
     mux.handle('/ws', function (w, r) {
-
         var ws = w.upgrade()
+        if (!ws) {
+            return
+        }
         console.log(ws)
     })
     new http.Server(l, mux)

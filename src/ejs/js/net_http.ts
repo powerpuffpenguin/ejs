@@ -8,10 +8,12 @@ declare namespace deps {
     const TRACE: number
     const CONNECT: number
     const PATCH: number
-
+    class Pointer {
+        readonly __id = "pointer"
+    }
     class Server {
         readonly __id = "Server"
-        p: unknown
+        p: Pointer
     }
     class RawRequest {
         readonly __id = "RawRequest"
@@ -65,7 +67,7 @@ declare namespace deps {
     function writer_response(opts: WriterResponseOptions): void
     class ChunkWriter {
         readonly __id = 'ChunkWriter'
-        p: unknown
+        p: Pointer
     }
     interface CreateChunkWriteOptions {
         f: Uint8Array
@@ -77,12 +79,20 @@ declare namespace deps {
     }
     function create_chunk_writer(opts: CreateChunkWriteOptions): ChunkWriter
     function close_chunk_writer(writer: ChunkWriter): void
-    function write_chunk_writer(writer: unknown, data: string | Uint8Array): void
+    function write_chunk_writer(writer: Pointer, data: string | Uint8Array): void
 
     class WSConn {
         readonly __id = "WSConn"
+        cbm?: (data: string | Uint8Array) => void
+        cbc?: () => void
+        p: Pointer
     }
     function ws_upgrade(f: Uint8Array, r: deps.RawRequest): WSConn | undefined
+    function ws_free(ws: WSConn): void
+    function ws_close(p: Pointer, reason?: number): void
+    function ws_write(p: Pointer, data: Uint8Array | string): void
+    function ws_cbc(p: Pointer, enable: boolean): void
+    function ws_cbm(p: Pointer, enable: boolean): void
 
     function html_escape(s: string): string
     function hexEscapeNonASCII(s: string): string
@@ -505,7 +515,7 @@ export class ResponseWriter {
         }
         return new ChunkWriter(opts, writer)
     }
-    upgrade() {
+    upgrade(): Websocket | undefined {
         const f = this._flags()
         const r = this._req()
         let ws: deps.WSConn | undefined
@@ -532,11 +542,14 @@ export class ResponseWriter {
             }
             throw e
         }
-        if (!ws) {
-            return
+        if (ws) {
+            try {
+                return new Websocket(ws)
+            } catch (e) {
+                deps.ws_free(ws)
+                throw e
+            }
         }
-
-        return ws
     }
 }
 export class ChunkWriter {
@@ -1082,13 +1095,108 @@ function sortSearch(n: number, f: (i: number) => boolean): number {
 }
 
 export class Websocket {
-    constructor(private ws_?: deps.WSConn) { }
+    private ws_?: deps.WSConn
+    constructor(ws: deps.WSConn) {
+        this.ws_ = ws
+        ws.cbc = () => {
+            const f = this.onCloseBind_
+            if (f) {
+                f()
+            }
+        }
+        ws.cbm = (data) => {
+            const f = this.onMessageBind_
+            if (f) {
+                f(data)
+            }
+        }
+    }
+    private _ws(): deps.WSConn {
+        const ws = this.ws_
+        if (!ws) {
+            throw new Error("Websocket already closed")
+        }
+        return ws
+    }
     write(data: string | Uint8Array) {
-
+        const ws = this._ws()
+        deps.ws_write(ws.p, data)
     }
-    close(reason?: number) {
-
+    close(reason = 0) {
+        const ws = this.ws_
+        if (ws) {
+            this.ws_ = undefined
+            try {
+                deps.ws_close(ws.p, reason)
+            } catch (e) {
+                throw e
+            } finally {
+                deps.ws_free(ws)
+            }
+        }
     }
-    onClose?: (this: Websocket) => void
-    onMessage?: (this: Websocket, data: string | Uint8Array) => void
+    private onClose_?: () => void
+    private onCloseBind_?: () => void
+    get onClose(): undefined | (() => void) {
+        return this.onClose_
+    }
+    set onClose(v: undefined | (() => void)) {
+        if (typeof v === "function") {
+            const bind = v.bind(this)
+
+            if (this.onClose_) {
+                this.onClose_ = v
+                this.onCloseBind_ = bind
+            } else {
+                this.onClose_ = v
+                this.onCloseBind_ = bind
+
+                const ws = this.ws_
+                if (ws) {
+                    deps.ws_cbc(ws.p, true)
+                }
+            }
+        } else {
+            if (this.onClose_) {
+                this.onClose_ = undefined
+                this.onCloseBind_ = undefined
+                const ws = this.ws_
+                if (ws) {
+                    deps.ws_cbc(ws.p, false)
+                }
+            }
+        }
+    }
+    private onMessage_?: (data: string | Uint8Array) => void
+    private onMessageBind_?: (data: string | Uint8Array) => void
+    get onMessage(): undefined | ((data: string | Uint8Array) => void) {
+        return this.onMessage_
+    }
+    set onMessage(v: undefined | ((data: string | Uint8Array) => void)) {
+        if (typeof v === "function") {
+            const bind = v.bind(this)
+
+            if (this.onMessage_) {
+                this.onMessage_ = v
+                this.onMessageBind_ = bind
+            } else {
+                this.onMessage_ = v
+                this.onMessageBind_ = bind
+
+                const ws = this.ws_
+                if (ws) {
+                    deps.ws_cbm(ws.p, true)
+                }
+            }
+        } else {
+            if (this.onMessage_) {
+                this.onMessage_ = undefined
+                this.onMessageBind_ = undefined
+                const ws = this.ws_
+                if (ws) {
+                    deps.ws_cbm(ws.p, false)
+                }
+            }
+        }
+    }
 }

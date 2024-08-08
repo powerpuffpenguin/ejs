@@ -842,6 +842,7 @@ static duk_ret_t ws_conn_finalizer(duk_context *ctx)
     if (ws)
     {
         evws_connection_free(ws->ws);
+        free(ws);
     }
     return 0;
 }
@@ -881,6 +882,9 @@ static duk_ret_t ws_upgrade_args(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_c_lightfunc(ctx, ws_conn_finalizer, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
+    args->p = 0;
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_HTTP_WEBSOCKET);
     return 1;
 }
 static duk_ret_t ws_upgrade(duk_context *ctx)
@@ -904,6 +908,40 @@ static duk_ret_t ws_upgrade(duk_context *ctx)
         duk_throw(ctx);
     }
     return 1;
+}
+static duk_ret_t ws_free(duk_context *ctx)
+{
+    ws_conn_t *ws = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_HTTP_WEBSOCKET);
+    if (ws)
+    {
+        evws_connection_free(ws->ws);
+        free(ws);
+    }
+    return 0;
+}
+static duk_ret_t ws_write(duk_context *ctx)
+{
+    ws_conn_t *ws = duk_require_pointer(ctx, 0);
+    if (duk_is_string(ctx, 1))
+    {
+        const uint8_t *s = duk_require_string(ctx, 1);
+        evws_send_text(ws, s);
+    }
+    else
+    {
+        duk_size_t s_len;
+        const uint8_t *s = duk_require_buffer_data(ctx, 1, &s_len);
+        evws_send_binary(ws, s, s_len);
+    }
+    return 0;
+}
+static duk_ret_t ws_close(duk_context *ctx)
+{
+    ws_conn_t *ws = duk_require_pointer(ctx, 0);
+    uint16_t reason = (uint16_t)duk_require_number(ctx, 1);
+    evws_close(ws, reason);
+
+    return 0;
 }
 static duk_ret_t header_set(duk_context *ctx)
 {
@@ -1226,6 +1264,13 @@ EJS_SHARED_MODULE__DECLARE(net_http)
 
         duk_push_c_lightfunc(ctx, ws_upgrade, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_upgrade", 10);
+        duk_push_c_lightfunc(ctx, ws_free, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_free", 7);
+        duk_push_c_lightfunc(ctx, ws_write, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_write", 8);
+        duk_push_c_lightfunc(ctx, ws_close, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_close", 8);
+        
 
         duk_push_c_lightfunc(ctx, header_set, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "header_set", 10);
