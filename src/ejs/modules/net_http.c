@@ -12,6 +12,7 @@
 #include <event2/buffer.h>
 #include <event2/event.h>
 #include <event2/http.h>
+#include <event2/ws.h>
 #include <event2/bufferevent_ssl.h>
 
 typedef struct
@@ -829,7 +830,81 @@ static duk_ret_t write_chunk_writer(duk_context *ctx)
         write_chunk_writer_cb, p);
     return 0;
 }
+typedef struct
+{
+    ejs_core_t *core;
+    struct evws_connection *ws;
+} ws_conn_t;
+static duk_ret_t ws_conn_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    ws_conn_t *ws = duk_get_pointer_default(ctx, -1, 0);
+    if (ws)
+    {
+        evws_connection_free(ws->ws);
+    }
+    return 0;
+}
+static void on_server_ws_msg_cb(struct evws_connection *ws, int type, const unsigned char *data, size_t data_len, void *userdata)
+{
+    puts("on_server_ws_msg_cb");
+}
+typedef struct
+{
+    ws_conn_t *p;
+    uint8_t *flags;
+    struct evhttp_request *req;
+} ws_upgrade_args_t;
+static duk_ret_t ws_upgrade_args(duk_context *ctx)
+{
+    ws_upgrade_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    ejs_core_t *core = ejs_require_core(ctx);
 
+    args->p = malloc(sizeof(ws_conn_t));
+    if (!args->p)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    args->p->core = core;
+    args->p->ws = evws_new_session(args->req, on_server_ws_msg_cb, args->p, 0);
+    if (!args->p->ws)
+    {
+        duk_push_undefined(ctx);
+        return 1;
+    }
+    struct bufferevent *buf = evws_connection_get_bufferevent(args->p->ws);
+    bufferevent_disable(buf, EV_READ);
+
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, args->p);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_c_lightfunc(ctx, ws_conn_finalizer, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    return 1;
+}
+static duk_ret_t ws_upgrade(duk_context *ctx)
+{
+    ws_upgrade_args_t args = {
+        .p = 0,
+        .flags = duk_require_buffer_data(ctx, 0, 0),
+        .req = duk_require_pointer(ctx, 1),
+    };
+    duk_pop_2(ctx);
+    if (ejs_pcall_function(ctx, ws_upgrade_args, &args))
+    {
+        if (args.p)
+        {
+            if (args.p->ws)
+            {
+                evws_connection_free(args.p->ws);
+            }
+            free(args.p);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
 static duk_ret_t header_set(duk_context *ctx)
 {
     struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
@@ -1148,6 +1223,9 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "close_chunk_writer", 18);
         duk_push_c_lightfunc(ctx, write_chunk_writer, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "write_chunk_writer", 18);
+
+        duk_push_c_lightfunc(ctx, ws_upgrade, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_upgrade", 10);
 
         duk_push_c_lightfunc(ctx, header_set, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "header_set", 10);

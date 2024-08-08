@@ -53,6 +53,11 @@ function main() {
             }
         })
     })
+    mux.handle('/ws', function (w, r) {
+
+        var ws = w.upgrade()
+        console.log(ws)
+    })
     new http.Server(l, mux)
     // new http.Server(l, {
     //     serveHTTP: function (w, r) {

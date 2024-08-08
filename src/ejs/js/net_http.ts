@@ -79,6 +79,11 @@ declare namespace deps {
     function close_chunk_writer(writer: ChunkWriter): void
     function write_chunk_writer(writer: unknown, data: string | Uint8Array): void
 
+    class WSConn {
+        readonly __id = "WSConn"
+    }
+    function ws_upgrade(f: Uint8Array, r: deps.RawRequest): WSConn | undefined
+
     function html_escape(s: string): string
     function hexEscapeNonASCII(s: string): string
 }
@@ -419,6 +424,18 @@ export class ResponseWriter {
             }
         }
     }
+    header(key?: string, value?: any): Header | void {
+        const r = this._get()
+        if ((key === undefined || key === null)) {
+            return getRequestOutputHeader(r, this.shared_)
+        }
+        const raw = deps.request_output_header(r)
+        if (typeof value === "string") {
+            deps.header_set(raw, key, value)
+        } else {
+            deps.header_set(raw, key, `${value}`)
+        }
+    }
     status(code: number) {
         const f = this._flags()
         const r = this._req()
@@ -488,17 +505,38 @@ export class ResponseWriter {
         }
         return new ChunkWriter(opts, writer)
     }
-    header(key?: string, value?: any): Header | void {
-        const r = this._get()
-        if ((key === undefined || key === null)) {
-            return getRequestOutputHeader(r, this.shared_)
+    upgrade() {
+        const f = this._flags()
+        const r = this._req()
+        let ws: deps.WSConn | undefined
+        try {
+            ws = deps.ws_upgrade(f, r)
+        } catch (e) {
+            if (f[0]) {
+                this.req_ = undefined
+                try {
+                    deps.writer_response({
+                        f: f,
+                        r: r,
+                        t: ContentTypeText,
+                        code: StatusInternalServerError,
+                        body: `${e}`,
+                    })
+                } catch (_) {
+                    if (f[0]) {
+                        f[0] = 0
+                        deps.request_free_raw(r)
+                    }
+
+                }
+            }
+            throw e
         }
-        const raw = deps.request_output_header(r)
-        if (typeof value === "string") {
-            deps.header_set(raw, key, value)
-        } else {
-            deps.header_set(raw, key, `${value}`)
+        if (!ws) {
+            return
         }
+
+        return ws
     }
 }
 export class ChunkWriter {
@@ -1041,4 +1079,16 @@ function sortSearch(n: number, f: (i: number) => boolean): number {
     }
     // i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
     return i
+}
+
+export class Websocket {
+    constructor(private ws_?: deps.WSConn) { }
+    write(data: string | Uint8Array) {
+
+    }
+    close(reason?: number) {
+
+    }
+    onClose?: (this: Websocket) => void
+    onMessage?: (this: Websocket, data: string | Uint8Array) => void
 }
