@@ -670,7 +670,12 @@ static duk_ret_t writer_response(duk_context *ctx)
             duk_push_error_object(ctx, DUK_ERR_ERROR, "evbuffer_new fail");
             duk_throw(ctx);
         }
-        evbuffer_add(reply, buf, len);
+        if (evbuffer_add(reply, buf, len) == -1)
+        {
+            evbuffer_free(reply);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "evbuffer_add fail");
+            duk_throw(ctx);
+        }
         evhttp_send_reply(req, code, _status_text(code), reply);
         evbuffer_free(reply);
     }
