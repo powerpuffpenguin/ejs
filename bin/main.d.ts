@@ -4013,6 +4013,8 @@ declare module "ejs/net/http" {
         text(code: number, body: string | Uint8Array): void
         json(code: number, body: any, replacer?: (number | string)[] | null, space?: string | number): void
         jsonp(code: number, callback: string, body: any, replacer?: (number | string)[] | null, space?: string | number): void
+
+        upgrade(): Websocket | undefined
     }
     export interface Handler {
         serveHTTP(w: ResponseWriter, r: Request): void
@@ -4038,5 +4040,12 @@ declare module "ejs/net/http" {
         serveHTTP(w: ResponseWriter, r: Request): void
         handle(pattern: string, handler: Handler): void
         handle(pattern: string, handler: (w: ResponseWriter, r: Request) => void): void
+    }
+    export class Websocket {
+        private constructor()
+        write(data: string | Uint8Array): void
+        close(reason = 1000): void
+        onClose?: (this: Websocket) => void
+        onMessage?: (this: Websocket, data: string | Uint8Array) => void
     }
 }
