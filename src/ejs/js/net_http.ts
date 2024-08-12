@@ -88,8 +88,7 @@ declare namespace deps {
         p: Pointer
     }
     function ws_upgrade(f: Uint8Array, r: deps.RawRequest): WSConn | undefined
-    function ws_free(ws: WSConn): void
-    function ws_close(p: Pointer, reason?: number): void
+    function ws_close(p: WSConn, reason?: number): void
     function ws_write(p: Pointer, data: Uint8Array | string): void
     function ws_cbc(p: Pointer, enable: boolean): void
     function ws_cbm(p: Pointer, enable: boolean): void
@@ -546,7 +545,7 @@ export class ResponseWriter {
             try {
                 return new Websocket(ws)
             } catch (e) {
-                deps.ws_free(ws)
+                deps.ws_close(ws, 1011)
                 throw e
             }
         }
@@ -1099,6 +1098,11 @@ export class Websocket {
     constructor(ws: deps.WSConn) {
         this.ws_ = ws
         ws.cbc = () => {
+            const ws = this.ws_
+            if (ws) {
+                this.ws_ = undefined
+            }
+
             const f = this.onCloseBind_
             if (f) {
                 f()
@@ -1122,17 +1126,11 @@ export class Websocket {
         const ws = this._ws()
         deps.ws_write(ws.p, data)
     }
-    close(reason = 0) {
+    close(reason = 1000) {
         const ws = this.ws_
         if (ws) {
             this.ws_ = undefined
-            try {
-                deps.ws_close(ws.p, reason)
-            } catch (e) {
-                throw e
-            } finally {
-                deps.ws_free(ws)
-            }
+            deps.ws_close(ws, reason)
         }
     }
     private onClose_?: () => void

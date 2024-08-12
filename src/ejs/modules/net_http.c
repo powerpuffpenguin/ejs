@@ -830,29 +830,97 @@ static duk_ret_t write_chunk_writer(duk_context *ctx)
         write_chunk_writer_cb, p);
     return 0;
 }
-typedef struct
-{
-    ejs_core_t *core;
-    struct evws_connection *ws;
-} ws_conn_t;
 static duk_ret_t ws_conn_finalizer(duk_context *ctx)
 {
+    puts("ws_conn_finalizer");
     duk_get_prop_lstring(ctx, 0, "p", 1);
-    ws_conn_t *ws = duk_get_pointer_default(ctx, -1, 0);
+    struct evws_connection *ws = duk_get_pointer_default(ctx, -1, 0);
     if (ws)
     {
-        evws_connection_free(ws->ws);
-        free(ws);
+        evws_connection_free(ws);
     }
+    return 0;
+}
+typedef struct
+{
+    int type;
+    const unsigned char *data;
+    size_t data_len;
+    struct evws_connection *ws;
+} on_server_ws_msg_cb_args_t;
+static duk_ret_t on_server_ws_msg_cb_impl(duk_context *ctx)
+{
+    on_server_ws_msg_cb_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+    if (!ejs_stash_get_pointer(ctx, args->ws, EJS_STASH_NET_HTTP_WEBSOCKET))
+    {
+        return 0;
+    }
+    duk_get_prop_lstring(ctx, -1, "cbm", 3);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    if (args->type == WS_TEXT_FRAME)
+    {
+        duk_push_lstring(ctx, args->data, args->data_len);
+    }
+    else
+    {
+        duk_push_external_buffer(ctx);
+        duk_config_buffer(ctx, -1, (void *)args->data, args->data_len);
+    }
+    duk_call(ctx, 1);
     return 0;
 }
 static void on_server_ws_msg_cb(struct evws_connection *ws, int type, const unsigned char *data, size_t data_len, void *userdata)
 {
-    puts("on_server_ws_msg_cb");
+    switch (type)
+    {
+    case WS_TEXT_FRAME:
+    case WS_BINARY_FRAME:
+        if (data_len)
+        {
+            on_server_ws_msg_cb_args_t args = {
+                .type = type,
+                .data = data,
+                .data_len = data_len,
+                .ws = ws,
+            };
+            ejs_call_callback_noresult(
+                ((ejs_core_t *)userdata)->duk,
+                on_server_ws_msg_cb_impl, &args,
+                0);
+        }
+        break;
+    }
+}
+static duk_ret_t on_server_ws_close_cb_impl(duk_context *ctx)
+{
+    struct evws_connection *ws = duk_require_pointer(ctx, -1);
+    if (!ws)
+    {
+        return 0;
+    }
+    if (!ejs_stash_pop_pointer(ctx, ws, EJS_STASH_NET_HTTP_WEBSOCKET))
+    {
+        return 0;
+    }
+    duk_swap_top(ctx, -2);
+    duk_set_finalizer(ctx, -2);
+    duk_get_prop_lstring(ctx, -1, "cbc", 3);
+    duk_call(ctx, 0);
+    return 0;
+}
+static void on_server_ws_close_cb(struct evws_connection *ws, void *userdata)
+{
+    ejs_call_callback_noresult(
+        ((ejs_core_t *)userdata)->duk,
+        on_server_ws_close_cb_impl, ws,
+        0);
 }
 typedef struct
 {
-    ws_conn_t *p;
+    struct evws_connection *ws;
     uint8_t *flags;
     struct evhttp_request *req;
 } ws_upgrade_args_t;
@@ -862,27 +930,21 @@ static duk_ret_t ws_upgrade_args(duk_context *ctx)
     duk_pop(ctx);
     ejs_core_t *core = ejs_require_core(ctx);
 
-    args->p = malloc(sizeof(ws_conn_t));
-    if (!args->p)
-    {
-        ejs_throw_os_errno(ctx);
-    }
-    args->p->core = core;
-    args->p->ws = evws_new_session(args->req, on_server_ws_msg_cb, args->p, 0);
-    if (!args->p->ws)
+    args->ws = evws_new_session(args->req, on_server_ws_msg_cb, core, 0);
+    if (!args->ws)
     {
         duk_push_undefined(ctx);
         return 1;
     }
-    struct bufferevent *buf = evws_connection_get_bufferevent(args->p->ws);
+    struct bufferevent *buf = evws_connection_get_bufferevent(args->ws);
     bufferevent_disable(buf, EV_READ);
 
     duk_push_object(ctx);
-    duk_push_pointer(ctx, args->p);
+    duk_push_pointer(ctx, args->ws);
     duk_put_prop_lstring(ctx, -2, "p", 1);
     duk_push_c_lightfunc(ctx, ws_conn_finalizer, 1, 1, 0);
     duk_set_finalizer(ctx, -2);
-    args->p = 0;
+    args->ws = 0;
 
     ejs_stash_put_pointer(ctx, EJS_STASH_NET_HTTP_WEBSOCKET);
     return 1;
@@ -890,38 +952,24 @@ static duk_ret_t ws_upgrade_args(duk_context *ctx)
 static duk_ret_t ws_upgrade(duk_context *ctx)
 {
     ws_upgrade_args_t args = {
-        .p = 0,
+        .ws = 0,
         .flags = duk_require_buffer_data(ctx, 0, 0),
         .req = duk_require_pointer(ctx, 1),
     };
     duk_pop_2(ctx);
     if (ejs_pcall_function(ctx, ws_upgrade_args, &args))
     {
-        if (args.p)
+        if (args.ws)
         {
-            if (args.p->ws)
-            {
-                evws_connection_free(args.p->ws);
-            }
-            free(args.p);
+            evws_connection_free(args.ws);
         }
         duk_throw(ctx);
     }
     return 1;
 }
-static duk_ret_t ws_free(duk_context *ctx)
-{
-    ws_conn_t *ws = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_HTTP_WEBSOCKET);
-    if (ws)
-    {
-        evws_connection_free(ws->ws);
-        free(ws);
-    }
-    return 0;
-}
 static duk_ret_t ws_write(duk_context *ctx)
 {
-    ws_conn_t *ws = duk_require_pointer(ctx, 0);
+    struct evws_connection *ws = duk_require_pointer(ctx, 0);
     if (duk_is_string(ctx, 1))
     {
         const uint8_t *s = duk_require_string(ctx, 1);
@@ -937,10 +985,40 @@ static duk_ret_t ws_write(duk_context *ctx)
 }
 static duk_ret_t ws_close(duk_context *ctx)
 {
-    ws_conn_t *ws = duk_require_pointer(ctx, 0);
     uint16_t reason = (uint16_t)duk_require_number(ctx, 1);
-    evws_close(ws, reason);
-
+    duk_pop(ctx);
+    struct evws_connection *ws = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_HTTP_WEBSOCKET);
+    if (ws)
+    {
+        evws_close(ws, reason);
+    }
+    return 0;
+}
+static duk_ret_t ws_cbm(duk_context *ctx)
+{
+    struct evws_connection *ws = duk_require_pointer(ctx, 0);
+    if (duk_require_boolean(ctx, 1))
+    {
+        bufferevent_enable(evws_connection_get_bufferevent(ws), EV_READ);
+    }
+    else
+    {
+        bufferevent_disable(evws_connection_get_bufferevent(ws), EV_READ);
+    }
+    return 0;
+}
+static duk_ret_t ws_cbc(duk_context *ctx)
+{
+    struct evws_connection *ws = duk_require_pointer(ctx, 0);
+    if (duk_require_boolean(ctx, 1))
+    {
+        duk_pop(ctx);
+        evws_connection_set_closecb(ws, on_server_ws_close_cb, ejs_require_core(ctx));
+    }
+    else
+    {
+        evws_connection_set_closecb(ws, 0, 0);
+    }
     return 0;
 }
 static duk_ret_t header_set(duk_context *ctx)
@@ -1264,13 +1342,14 @@ EJS_SHARED_MODULE__DECLARE(net_http)
 
         duk_push_c_lightfunc(ctx, ws_upgrade, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_upgrade", 10);
-        duk_push_c_lightfunc(ctx, ws_free, 1, 1, 0);
-        duk_put_prop_lstring(ctx, -2, "ws_free", 7);
         duk_push_c_lightfunc(ctx, ws_write, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_write", 8);
         duk_push_c_lightfunc(ctx, ws_close, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_close", 8);
-        
+        duk_push_c_lightfunc(ctx, ws_cbc, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_cbc", 6);
+        duk_push_c_lightfunc(ctx, ws_cbm, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_cbm", 6);
 
         duk_push_c_lightfunc(ctx, header_set, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "header_set", 10);

@@ -58,7 +58,22 @@ function main() {
         if (!ws) {
             return
         }
+        ws.onClose = function () {
+            console.log("ws close")
+            l.close()
+        }
+        ws.onMessage = function (data) {
+            console.log("ws get:", data)
+            ws.write(data)
+            // setTimeout(function () {
+            //     console.log('0')
+            ws.close()
+            //     console.log("c-----lose ok")
+            // }, 10);
+
+        }
         console.log(ws)
+        ws.write("connect ok")
     })
     new http.Server(l, mux)
     // new http.Server(l, {
