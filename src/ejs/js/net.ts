@@ -1369,10 +1369,10 @@ export class BaseTcpConn implements Conn {
             } else {
                 return
             }
+            this.close()
             if (f) {
                 f(e!)
             }
-            this.close()
         }
     }
     private onError_?: (this: Conn, e: any) => void
