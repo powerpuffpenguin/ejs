@@ -33,4 +33,5 @@ typedef struct
     mbedtls_ssl_config conf;
     mbedtls_x509_crt cacert;
 } tcp_tls_t;
+duk_ret_t __ejs_net_create_tls(duk_context *ctx);
 #endif

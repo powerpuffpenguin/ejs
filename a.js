@@ -13,6 +13,7 @@ function main() {
     var opts = {
         network: 'tcp',
         address: '127.0.0.1:9000',
+        tls: {}
         // sync: true,
         // tls: {
         //     certificate: [
@@ -23,59 +24,65 @@ function main() {
         //     ],
         // },
     }
-    var l = net.listen(opts)
-    if (opts.tls) {
-        console.log("https listen on:", l.addr)
-    } else {
-        console.log("http listen on:", l.addr)
-    }
-    var mux = new http.ServeMux()
+    var client = new http.HttpConn(opts)
+    console.log(client)
+    // client.close()
+    // client.do({}, function (resp, e) {
+    //     console.log(resp, e)
+    // })
+    // var l = net.listen(opts)
+    // if (opts.tls) {
+    //     console.log("https listen on:", l.addr)
+    // } else {
+    //     console.log("http listen on:", l.addr)
+    // }
+    // var mux = new http.ServeMux()
 
-    mux.handle('/', function (w, r) {
-        w.text(http.StatusOK, "cerberus is an idea")
-    })
-    mux.handle('/close', function (w, r) {
-        w.text(http.StatusOK, "closed")
-        l.close()
-    })
-    mux.handle('/chunk', function (w, r) {
-        sync.go(function (co) {
-            var chunk = w.chunk(http.StatusOK)
-            try {
-                for (var i = 0; i < 5; i++) {
-                    var msg = "this is chunk " + i
-                    chunk.chunk(co, msg)
-                }
-            } catch (e) {
-                console.log("err", e.toString())
-            } finally {
-                chunk.close()
-            }
-        })
-    })
-    mux.handle('/ws', function (w, r) {
-        var ws = w.upgrade()
-        if (!ws) {
-            return
-        }
-        ws.onClose = function () {
-            console.log("ws close")
-            l.close()
-        }
-        ws.onMessage = function (data) {
-            console.log("ws get:", data)
-            ws.write(data)
-            // setTimeout(function () {
-            //     console.log('0')
-            ws.close()
-            //     console.log("c-----lose ok")
-            // }, 10);
+    // mux.handle('/', function (w, r) {
+    //     w.text(http.StatusOK, "cerberus is an idea")
+    // })
+    // mux.handle('/close', function (w, r) {
+    //     w.text(http.StatusOK, "closed")
+    //     l.close()
+    // })
+    // mux.handle('/chunk', function (w, r) {
+    //     sync.go(function (co) {
+    //         var chunk = w.chunk(http.StatusOK)
+    //         try {
+    //             for (var i = 0; i < 5; i++) {
+    //                 var msg = "this is chunk " + i
+    //                 chunk.chunk(co, msg)
+    //             }
+    //         } catch (e) {
+    //             console.log("err", e.toString())
+    //         } finally {
+    //             chunk.close()
+    //         }
+    //     })
+    // })
+    // mux.handle('/ws', function (w, r) {
+    //     var ws = w.upgrade()
+    //     if (!ws) {
+    //         return
+    //     }
+    //     ws.onClose = function () {
+    //         console.log("ws close")
+    //         l.close()
+    //     }
+    //     ws.onMessage = function (data) {
+    //         console.log("ws get:", data)
+    //         ws.write(data)
+    //         // setTimeout(function () {
+    //         //     console.log('0')
+    //         ws.close()
+    //         //     console.log("c-----lose ok")
+    //         // }, 10);
 
-        }
-        console.log(ws)
-        ws.write("connect ok")
-    })
-    new http.Server(l, mux)
+    //     }
+    //     console.log(ws)
+    //     ws.write("connect ok")
+    // })
+    // new http.Server(l, mux)
     // new http.Server(l, {
     //     serveHTTP: function (w, r) {
     //         console.log("host:", r.host)

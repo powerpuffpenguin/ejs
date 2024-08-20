@@ -997,6 +997,9 @@ export class Resolver {
         const r = deps.resolver_new(opts)
         this.r_ = r
     }
+    native() {
+        return this.r_
+    }
     get isClosed() {
         return this.r_ ? false : true
     }
@@ -1395,7 +1398,6 @@ export class BaseTcpConn implements Conn {
             this.onError_ = f
         }
     }
-
     get isClosed(): boolean {
         return this.c_ ? false : true
     }

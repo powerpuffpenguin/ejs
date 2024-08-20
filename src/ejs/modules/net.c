@@ -1103,6 +1103,7 @@ static duk_ret_t evconnlistener_tcp_cb_impl(duk_context *ctx)
             BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
         if (!args->bev)
         {
+            bufferevent_mbedtls_dyncontext_free(ssl);
             duk_push_undefined(ctx);
             duk_push_undefined(ctx);
             duk_push_lstring(ctx, "bufferevent_mbedtls_socket_new fail", 35);
@@ -1998,21 +1999,6 @@ static duk_ret_t socket_error(duk_context *ctx)
     return 1;
 }
 
-// static duk_ret_t connect_error_str(duk_context *ctx)
-// {
-//     struct bufferevent *bev = duk_require_pointer(ctx, -1);
-//     int err = bufferevent_socket_get_dns_error(bev);
-//     if (err)
-//     {
-//         duk_push_string(ctx, evutil_gai_strerror(err));
-//     }
-//     else
-//     {
-//         duk_push_string(ctx, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-//     }
-//     return 1;
-// }
-
 typedef struct
 {
     struct bufferevent *bev;
@@ -2076,6 +2062,7 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
             duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
             duk_throw(ctx);
         }
+        args->ssl = 0;
         bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
         bufferevent_enable(args->bev, EV_WRITE);
 
@@ -2115,6 +2102,7 @@ static duk_ret_t tcp_conect_impl(duk_context *ctx)
             duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
             duk_throw(ctx);
         }
+        args->ssl = 0;
         bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
         bufferevent_enable(args->bev, EV_WRITE);
 
@@ -2196,7 +2184,7 @@ static duk_ret_t unix_conect_impl(duk_context *ctx)
         duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
         duk_throw(ctx);
     }
-
+    args->ssl = 0;
     bufferevent_setcb(args->bev, tcp_connection_read_cb, tcp_connection_write_cb, tcp_connection_event_cb, core);
     bufferevent_enable(args->bev, EV_WRITE);
 
@@ -3848,7 +3836,7 @@ static duk_ret_t create_tls_impl(duk_context *ctx)
     args->tls = 0;
     return 1;
 }
-static duk_ret_t create_tls(duk_context *ctx)
+duk_ret_t __ejs_net_create_tls(duk_context *ctx)
 {
     create_tls_args_t args = {0};
     if (ejs_pcall_function_n(ctx, create_tls_impl, &args, 2))
@@ -4212,7 +4200,7 @@ EJS_SHARED_MODULE__DECLARE(net)
         duk_push_c_lightfunc(ctx, support_ipv4, 0, 0, 0);
         duk_put_prop_lstring(ctx, -2, "support_ipv4", 12);
 
-        duk_push_c_lightfunc(ctx, create_tls, 1, 1, 0);
+        duk_push_c_lightfunc(ctx, __ejs_net_create_tls, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "create_tls", 10);
 
         duk_push_c_lightfunc(ctx, mbedtls_debug, 1, 1, 0);

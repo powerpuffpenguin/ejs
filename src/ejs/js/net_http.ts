@@ -95,8 +95,42 @@ declare namespace deps {
 
     function html_escape(s: string): string
     function hexEscapeNonASCII(s: string): string
+
+    interface TlsConfig {
+        /**
+         * @default Tls12
+         */
+        minVersion?: number
+        /**
+         * @default Tls13
+         */
+        maxVersion?: number
+
+        certificate?: Array<string>
+
+        insecure?: boolean
+        debug?: boolean
+    }
+    class Tls {
+        readonly __id = "Tls"
+        p: unknown
+    }
+    function create_tls(config: TlsConfig): Tls
+    class HttpConn {
+        readonly __id = "HttpConn"
+        p: Pointer
+        cb: () => void
+    }
+    interface CreateHttpConnOptions {
+        host: string
+        port: number
+        tls?: unknown
+        resolver: unknown,
+    }
+    function create_http_conn(opts: CreateHttpConnOptions): HttpConn
+    function close_http_conn(c: HttpConn): void
 }
-import { BaseTcpListener } from "ejs/net";
+import { BaseTcpListener, TlsConfig, AbortSignal, Resolver, splitHostPort } from "ejs/net";
 import { clean, split } from "ejs/path";
 import { URL } from "ejs/net/url";
 import { parseArgs } from "ejs/sync";
@@ -1197,4 +1231,131 @@ export class Websocket {
             }
         }
     }
+}
+export interface HttpOptions {
+    /**
+     * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
+     */
+    network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
+
+    /**
+     * If set will use tls connection
+     */
+    tls?: TlsConfig
+
+    resolver?: Resolver
+}
+export class HttpConn {
+    private tls_?: deps.Tls
+    private host_?: string
+    private resolver_?: Resolver
+    private c_?: deps.HttpConn
+    constructor(opts: HttpOptions) {
+        const [host, sport] = splitHostPort(opts.address)
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new Error(`address invalid: ${opts.address}`)
+        }
+
+        let resolver: Resolver | undefined = opts.resolver
+        if (resolver) {
+            if (!(resolver instanceof Resolver)) {
+                throw new Error("resolver must be a Resolver")
+            }
+        } else {
+            resolver = Resolver.getDefault()
+        }
+        this.resolver_ = resolver
+
+        const tlsConfig = opts.tls
+        let tls: any
+        if (tlsConfig) {
+            tls = deps.create_tls(tlsConfig)
+            this.host_ = tlsConfig.serverName ?? opts.address
+            this.tls_ = tls
+        } else {
+            this.host_ = opts.address
+        }
+
+        const c = deps.create_http_conn({
+            host: host,
+            port: port,
+            tls: tls?.p,
+            resolver: (resolver as any).native().p,
+        })
+        this.c_ = c
+        c.cb = () => {
+            console.log("on close")
+            if (this.tls_) {
+                this.tls_ = undefined
+            }
+            if (this.resolver_) {
+                this.resolver_ = undefined
+            }
+            if (this.c_) {
+                this.c_ = undefined
+            }
+        }
+    }
+    close() {
+        const c = this.c_
+        if (c) {
+            this.c_ = undefined
+
+            if (this.tls_) {
+                this.tls_ = undefined
+            }
+            if (this.resolver_) {
+                this.resolver_ = undefined
+            }
+
+            deps.close_http_conn(c)
+        }
+    }
+}
+export class Client {
+    // private conn_?: httpConn
+    // private host_: string
+    // constructor(private readonly opts_: ClientOptions) {
+    //     this.host_ = opts_?.tls?.serverName ?? opts_.address
+    // }
+    // do(opts: RequestOptions, cb: (resp: any, e?: any) => void) {
+    //     return this._do(opts, cb)
+    // }
+    // private _do(opts: RequestOptions, cb: (resp: any, e?: any) => void) {
+    //     const conn = this.conn_
+    //     if (conn) {
+
+    //     } else {
+    //         const opts = this.opts_
+    //         try {
+    //             dial({
+    //                 network: opts.network,
+    //                 address: opts.address,
+    //                 tls: opts.tls,
+    //             }, (c: any, e) => {
+    //                 if (!c) {
+    //                     cb(undefined, e)
+    //                     return
+    //                 }
+    //                 deps.create_http_conn(c.c_)
+    //                 console.log(c)
+    //             })
+    //         } catch (e) {
+    //             throw e
+    //         }
+    //     }
+    // }
+}
+export interface RequestOptions {
+    limit?: number
+    path?: string
+    method?: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+    header?: Record<string, string | Array<string>>
+    body?: string | Uint8Array | ArrayBuffer
+    signal?: AbortSignal
 }

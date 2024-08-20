@@ -1248,6 +1248,128 @@ static duk_ret_t hexEscapeNonASCII(duk_context *ctx)
 
     return 1;
 }
+static duk_ret_t on_http_conn_close_impl(duk_context *ctx)
+{
+    struct evhttp_connection *conn = duk_require_pointer(ctx, 0);
+    if (!ejs_stash_pop_pointer(ctx, conn, EJS_STASH_NET_HTTP_CONN))
+    {
+        return 0;
+    }
+    duk_swap_top(ctx, -2);
+    duk_set_finalizer(ctx, -2);
+
+    duk_get_prop_lstring(ctx, 0, "cb", 2);
+    if (!duk_is_undefined(ctx, -1))
+    {
+        duk_call(ctx, 0);
+    }
+    return 0;
+}
+static void on_http_conn_close(struct evhttp_connection *conn, void *userdata)
+{
+    ejs_call_callback_noresult(((ejs_core_t *)userdata)->duk, on_http_conn_close_impl, conn, 0);
+}
+typedef struct
+{
+    struct evhttp_connection *conn;
+} create_http_conn_args_t;
+static duk_ret_t http_conn_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    struct evhttp_connection *p = duk_require_pointer(ctx, -1);
+    evhttp_connection_free(p);
+    return 0;
+}
+static duk_ret_t create_http_conn_impl(duk_context *ctx)
+{
+    create_http_conn_args_t *args = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "tls", 3);
+    void *tls = duk_get_pointer_default(ctx, -1, 0);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "resolver", 8);
+    void *resolver = duk_get_pointer_default(ctx, -1, 0);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "port", 4);
+    uint16_t port = duk_require_number(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "host", 4);
+    const char *host = duk_require_string(ctx, -1);
+    duk_pop(ctx);
+
+    ejs_core_t *core = ejs_require_core(ctx);
+
+    struct bufferevent *bev = 0;
+    if (tls)
+    {
+        mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(tls);
+        if (!ssl)
+        {
+            duk_push_lstring(ctx, "bufferevent_mbedtls_dyncontext_new fail", 39);
+            duk_throw(ctx);
+        }
+        bev = bufferevent_mbedtls_socket_new(
+            core->base, -1,
+            ssl, BUFFEREVENT_SSL_CONNECTING,
+            BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+        if (!bev)
+        {
+            bufferevent_mbedtls_dyncontext_free(ssl);
+            duk_push_lstring(ctx, "bufferevent_socket_new fail", 27);
+            duk_throw(ctx);
+        }
+    }
+
+    args->conn = evhttp_connection_base_bufferevent_new(core->base, resolver, bev, host, port);
+    if (!args->conn)
+    {
+        if (bev)
+        {
+            bufferevent_free(bev);
+        }
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "evhttp_connection_base_bufferevent_new fail");
+        duk_throw(ctx);
+    }
+    evhttp_connection_set_closecb(args->conn, on_http_conn_close, core);
+
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, args->conn);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    duk_push_c_lightfunc(ctx, http_conn_finalizer, 1, 1, 0);
+    duk_set_finalizer(ctx, -2);
+    args->conn = 0;
+
+    ejs_stash_put_pointer(ctx, EJS_STASH_NET_HTTP_CONN);
+    return 1;
+}
+static duk_ret_t create_http_conn(duk_context *ctx)
+{
+    create_http_conn_args_t args = {
+        .conn = 0,
+    };
+    if (ejs_pcall_function_n(ctx, create_http_conn_impl, &args, 2))
+    {
+        if (args.conn)
+        {
+            evhttp_connection_free(args.conn);
+        }
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t close_http_conn(duk_context *ctx)
+{
+    struct evhttp_connection *conn = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_HTTP_CONN);
+    if (conn)
+    {
+        evhttp_connection_free(conn);
+    }
+    return 0;
+}
 EJS_SHARED_MODULE__DECLARE(net_http)
 {
     /*
@@ -1368,6 +1490,13 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "html_escape", 11);
         duk_push_c_lightfunc(ctx, hexEscapeNonASCII, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "hexEscapeNonASCII", 17);
+
+        duk_push_c_lightfunc(ctx, __ejs_net_create_tls, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "create_tls", 10);
+        duk_push_c_lightfunc(ctx, create_http_conn, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "create_http_conn", 16);
+        duk_push_c_lightfunc(ctx, close_http_conn, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "close_http_conn", 15);
     }
     duk_call(ctx, 3);
     return 0;

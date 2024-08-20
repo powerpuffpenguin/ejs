@@ -1090,6 +1090,7 @@ declare module "ejs/net" {
     export const Tls13 = 304
 
     export interface TlsConfig {
+        serverName?: string
         /**
          * @default Tls12
          */
