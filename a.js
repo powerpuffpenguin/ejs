@@ -9,11 +9,22 @@ var strconv = require("ejs/strconv")
 var hex = require("ejs/encoding/hex")
 var path = require("ejs/path")
 
+function sleep(co, ms) {
+    co.yield(function (notify) {
+        setTimeout(function () {
+            notify.value()
+        }, ms)
+    })
+}
 function main() {
     var opts = {
         network: 'tcp',
         address: '127.0.0.1:9000',
-        tls: {}
+
+        // address: '127.0.0.1:9443',
+        // tls: {
+        //     insecure: true,
+        // },
         // sync: true,
         // tls: {
         //     certificate: [
@@ -24,8 +35,41 @@ function main() {
         //     ],
         // },
     }
+    // opts.address = '127.0.0.1:9443'
+    // // opts.address = 'www.baidu.com:443'
+    // opts.tls = { insecure: true }
+    // http.test()
+
     var client = new http.HttpConn(opts)
-    console.log(client)
+    try {
+        client._do({
+            path: '/abc',
+            method: http.Method.GET
+        }, function (r, e) {
+            client.close()
+            if (e) {
+                console.log("req err:", e.toString())
+                return
+            }
+            console.log('statusCode:', r.statusCode)
+            console.log('status', r.status)
+        })
+    } catch (e) {
+        console.log('err:', e.toString())
+
+        client.close()
+    }
+
+    // var req = http.create_http_request()
+    // sync.go(function (co) {
+    //     http.do_http_request((client.c_.p), req.p, http.Method.GET, '/')
+
+    //     // console.log("sleep")
+    //     // sleep(co, 1000 * 5)
+    // })
+
+
+
     // client.close()
     // client.do({}, function (resp, e) {
     //     console.log(resp, e)

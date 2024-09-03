@@ -1,3 +1,7 @@
+declare namespace __duk {
+    const os: string
+    const arch: string
+}
 declare namespace deps {
     const GET: number
     const POST: number
@@ -8,6 +12,14 @@ declare namespace deps {
     const TRACE: number
     const CONNECT: number
     const PATCH: number
+
+    const HTTP_TIMEOUT: number
+    const HTTP_EOF: number
+    const HTTP_INVALID_HEADER: number
+    const HTTP_BUFFER_ERROR: number
+    const HTTP_REQUEST_CANCEL: number
+    const HTTP_DATA_TOO_LONG: number
+
     class Pointer {
         readonly __id = "pointer"
     }
@@ -119,7 +131,8 @@ declare namespace deps {
     class HttpConn {
         readonly __id = "HttpConn"
         p: Pointer
-        cb: () => void
+        cbc: () => void
+        cb: (err?: number) => void
     }
     interface CreateHttpConnOptions {
         host: string
@@ -129,6 +142,27 @@ declare namespace deps {
     }
     function create_http_conn(opts: CreateHttpConnOptions): HttpConn
     function close_http_conn(c: HttpConn): void
+    class HttpLink {
+        readonly __id = "HttpLink"
+        p: Pointer
+    }
+    function create_http_link(conn: Pointer): HttpLink
+    function close_http_link(link: HttpLink): void
+
+    class HttpRequest {
+        readonly __id = "HttpRequest"
+        p: RawRequest
+    }
+    function create_http_request(link: Pointer): HttpRequest
+    function cancel_request(p: RawRequest): void
+    function close_http_request(req: HttpRequest): void
+    function do_http_request(conn: Pointer,
+        req: HttpRequest,
+        path: string,
+        method: number,
+    ): void
+    function get_response_code(p: RawRequest): number
+    function get_response_code_line(p: RawRequest): string
 }
 import { BaseTcpListener, TlsConfig, AbortSignal, Resolver, splitHostPort } from "ejs/net";
 import { clean, split } from "ejs/path";
@@ -1232,6 +1266,7 @@ export class Websocket {
         }
     }
 }
+export let defaultUserAgent = `ejs-${__duk.os}-${__duk.arch}-client/1.1`
 export interface HttpOptions {
     /**
      * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
@@ -1247,13 +1282,19 @@ export interface HttpOptions {
      */
     tls?: TlsConfig
 
+    /**
+     * dns Resolver
+     */
     resolver?: Resolver
 }
 export class HttpConn {
     private tls_?: deps.Tls
-    private host_?: string
+    private host_: string
     private resolver_?: Resolver
-    private c_?: deps.HttpConn
+    c_?: deps.HttpConn
+    private cb_?: (e?: Error) => void
+    private request_?: deps.HttpRequest
+    private link_?: deps.HttpLink
     constructor(opts: HttpOptions) {
         const [host, sport] = splitHostPort(opts.address)
         const port = parseInt(sport)
@@ -1288,32 +1329,173 @@ export class HttpConn {
             resolver: (resolver as any).native().p,
         })
         this.c_ = c
-        c.cb = () => {
-            console.log("on close")
+        c.cbc = () => {
             if (this.tls_) {
                 this.tls_ = undefined
             }
             if (this.resolver_) {
                 this.resolver_ = undefined
             }
+            // don't set undefined, req cb will used
+            // if (this.link_) {
+            //     this.link_ = undefined
+            // }
             if (this.c_) {
                 this.c_ = undefined
+                const cb = this.cb_
+                if (cb) {
+                    this.cb_ = undefined
+                    this.request_ = undefined
+                    cb(new Error("HTTP_EOF"))
+                }
             }
+        }
+        c.cb = (err) => {
+            this._cb(false, err)
         }
     }
     close() {
         const c = this.c_
         if (c) {
             this.c_ = undefined
-
             if (this.tls_) {
                 this.tls_ = undefined
             }
             if (this.resolver_) {
                 this.resolver_ = undefined
             }
+            if (this.link_) {
+                this.link_ = undefined
+            }
 
             deps.close_http_conn(c)
+            this._cb(true)
+        }
+    }
+    private _cb(closed: boolean, err?: number) {
+        const cb = this.cb_
+        if (!cb) {
+            return
+        }
+        this.cb_ = undefined
+        this.request_ = undefined
+
+        if (closed) {
+            cb(new Error("HttpConn already closed"))
+        } else if (err === undefined) {
+            cb()
+        } else {
+            let e: Error
+            switch (err) {
+                case deps.HTTP_TIMEOUT:
+                    e = new Error('HTTP_TIMEOUT')
+                    break
+                case deps.HTTP_EOF:
+                    e = new Error('HTTP_EOF')
+                    break
+                case deps.HTTP_INVALID_HEADER:
+                    e = new Error('HTTP_INVALID_HEADER')
+                    break
+                case deps.HTTP_BUFFER_ERROR:
+                    e = new Error('HTTP_BUFFER_ERROR')
+                    break
+                case deps.HTTP_REQUEST_CANCEL:
+                    e = new Error('HTTP_REQUEST_CANCEL')
+                    break
+                case deps.HTTP_DATA_TOO_LONG:
+                    e = new Error('HTTP_DATA_TOO_LONG')
+                    break
+                default:
+                    e = new Error("HTTP_UNKNOW_ERROR")
+                    break
+            }
+            cb(e)
+        }
+    }
+    _do(opts: RequestOptions, callback: (r?: Response, e?: any) => void) {
+        const c = this.c_
+        if (!c) {
+            throw new Error("HttpConn already closed")
+        }
+        if (this.cb_) {
+            throw new Error("HttpConn busy")
+        }
+
+        let link = this.link_
+        if (!link) {
+            link = deps.create_http_link(c.p)
+            this.link_ = link
+        }
+        const r = deps.create_http_request(link.p)
+        try {
+            const header = opts.header
+            let host = false
+            let userAgent = false
+            let accept = false
+            let connection = false
+            const h = deps.request_output_header(r.p)
+            if (header) {
+                for (const key in header) {
+                    if (Object.prototype.hasOwnProperty.call(header, key)) {
+                        const v = header[key]
+                        if (Array.isArray(v)) {
+                            if (v.length == 0) {
+                                continue
+                            }
+                            for (let i = 0; i < v.length; i++) {
+                                deps.header_add(h, key, v[i])
+                            }
+                        } else {
+                            deps.header_add(h, key, v)
+                        }
+
+                        const lower = key.toLowerCase()
+                        if (lower === "host") {
+                            host = true
+                        } else if (lower === "user-agent") {
+                            userAgent = true
+                        } else if (lower === "accept") {
+                            accept = true
+                        } else if (lower == "connection") {
+                            connection = true
+                        }
+                    }
+                }
+            }
+            if (!host) {
+                deps.header_add(h, "Host", this.host_)
+            }
+            if (!userAgent) {
+                deps.header_add(h, "User-Agent", defaultUserAgent)
+            }
+            if (!accept) {
+                deps.header_add(h, "Accept", "*/*")
+            }
+            if (!connection) {
+                deps.header_add(h, "Connection", "keep-alive")
+            }
+            const resp = new Response(r)
+            const cb = (e?: Error) => {
+                if (e === undefined) {
+                    callback(resp)
+                    resp.req_ = undefined
+                } else {
+                    callback(undefined, e)
+                }
+            }
+            this.cb_ = cb
+            this.request_ = r
+            deps.do_http_request(
+                c.p,
+                r,
+                opts.path ?? '/',
+                opts.method ?? deps.GET,
+            )
+        } catch (e) {
+            this.cb_ = undefined
+            this.request_ = undefined
+            deps.close_http_request(r)
+            throw e
         }
     }
 }
@@ -1354,8 +1536,25 @@ export class Client {
 export interface RequestOptions {
     limit?: number
     path?: string
-    method?: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+    method?: Method
     header?: Record<string, string | Array<string>>
     body?: string | Uint8Array | ArrayBuffer
     signal?: AbortSignal
+}
+export class Response {
+    constructor(public req_?: deps.HttpRequest) {
+    }
+    private _req() {
+        const req = this.req_
+        if (req) {
+            return req
+        }
+        throw new Error("Response expired")
+    }
+    get statusCode(): number {
+        return deps.get_response_code(this._req().p)
+    }
+    get status(): string {
+        return deps.get_response_code_line(this._req().p)
+    }
 }
