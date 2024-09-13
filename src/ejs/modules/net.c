@@ -1206,7 +1206,7 @@ static void evconnlistener_tcp_cb(struct evconnlistener *listener, evutil_socket
         .bev = NULL,
         .free = FALSE,
     };
-    ejs_call_callback(args.core->duk, evconnlistener_tcp_cb_impl, &args, 0);
+    ejs_call_callback_noresult(args.core->duk, evconnlistener_tcp_cb_impl, &args, 0);
 }
 static duk_ret_t tcp_listen_impl(duk_context *ctx)
 {
