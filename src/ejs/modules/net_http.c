@@ -67,7 +67,7 @@ static void http_handler(struct evhttp_request *req, void *ctx)
         .server = server,
         .req = req,
     };
-    ejs_call_callback(server->core->duk, http_handler_impl, &args, 0);
+    ejs_call_callback_noresult(server->core->duk, http_handler_impl, &args, 0);
 }
 
 static duk_ret_t http_server_finalizer(duk_context *ctx)
@@ -1045,10 +1045,12 @@ static duk_ret_t header_get(duk_context *ctx)
     const char *s = duk_require_string(ctx, 1);
 
     s = evhttp_find_header(headers, s);
-
+    if (!s)
+    {
+        return 0;
+    }
     duk_pop_2(ctx);
     duk_push_string(ctx, s);
-
     return 1;
 }
 static duk_ret_t header_del(duk_context *ctx)
@@ -1473,6 +1475,7 @@ static duk_ret_t create_http_request_impl(duk_context *ctx)
         duk_push_error_object(ctx, DUK_ERR_ERROR, "evhttp_request_new fail");
         duk_throw(ctx);
     }
+    evhttp_request_own(args->req);
     evhttp_request_set_error_cb(args->req, on_http_request_ecb);
 
     duk_push_object(ctx);
@@ -1518,7 +1521,7 @@ static duk_ret_t do_http_request(duk_context *ctx)
 
     duk_get_prop_lstring(ctx, 1, "p", 1);
     struct evhttp_request *req = duk_require_pointer(ctx, -1);
-    duk_set_finalizer(ctx, 1);
+    // duk_set_finalizer(ctx, 1);
     if (evhttp_make_request(conn, req, method, uri))
     {
         duk_push_error_object(ctx, DUK_ERR_ERROR, "evhttp_make_request fail");

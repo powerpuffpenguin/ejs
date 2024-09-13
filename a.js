@@ -41,32 +41,47 @@ function main() {
     // http.test()
 
     var client = new http.HttpConn(opts)
-    try {
-        client._do({
-            path: '/abc',
-            method: http.Method.GET
-        }, function (r, e) {
-            client.close()
-            if (e) {
-                console.log("req err:", e.toString())
-                return
-            }
-            console.log('statusCode:', r.statusCode)
-            console.log('status', r.status)
-        })
-    } catch (e) {
-        console.log('err:', e.toString())
+    // try {
+    //     client.do({
+    //         path: '/abc',
+    //         method: http.Method.GET
+    //     }, function (r, e) {
+    //         client.close()
+    //         if (e) {
+    //             console.log("req err:", e.toString())
+    //             return
+    //         }
+    //         console.log('statusCode:', r.statusCode)
+    //         console.log('status', r.status)
+    //         const header = r.header
+    //         console.log(header.get("Content-Type"))
 
-        client.close()
-    }
+    //     })
+    // } catch (e) {
+    //     console.log('err:', e.toString())
+
+    //     client.close()
+    // }
 
     // var req = http.create_http_request()
-    // sync.go(function (co) {
-    //     http.do_http_request((client.c_.p), req.p, http.Method.GET, '/')
-
-    //     // console.log("sleep")
-    //     // sleep(co, 1000 * 5)
-    // })
+    sync.go(function (co) {
+        try {
+            // const r = client.do(co, {
+            //     path: '/abc',
+            //     method: http.Method.GET
+            // })
+            // console.log('statusCode:', r.statusCode)
+            // console.log('status', r.status)
+            // const header = r.header
+            // console.log(header.get("Content-Type"))
+            console.log('-------0')
+        } catch (e) {
+            console.log('err:', e.toString())
+        } finally {
+            client.close()
+        }
+    })
+    console.log('-------1')
 
 
 

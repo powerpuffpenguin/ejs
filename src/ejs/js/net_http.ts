@@ -43,7 +43,7 @@ declare namespace deps {
 
     function header_set(req: RawHeader, key: string, value: string): void
     function header_add(req: RawHeader, key: string, value: string): void
-    function header_get(req: RawHeader, key: string): string
+    function header_get(req: RawHeader, key: string): string | undefined
     function header_del(req: RawHeader, key: string): void
     function header_del_all(req: RawHeader, key: string): void
     function header_clear(req: RawHeader): void
@@ -716,7 +716,7 @@ export class Header {
             deps.header_add(raw, key, `${value}`)
         }
     }
-    get(key: string): string {
+    get(key: string): string | undefined {
         const raw = this._raw()
         return deps.header_get(raw, key)
     }
@@ -1293,7 +1293,7 @@ export class HttpConn {
     private resolver_?: Resolver
     c_?: deps.HttpConn
     private cb_?: (e?: Error) => void
-    private request_?: deps.HttpRequest
+    protected request_?: deps.HttpRequest
     private link_?: deps.HttpLink
     constructor(opts: HttpOptions) {
         const [host, sport] = splitHostPort(opts.address)
@@ -1412,6 +1412,32 @@ export class HttpConn {
             cb(e)
         }
     }
+    do(a: any, b: any) {
+        const { co, cb, opts } = parseArgs<RequestOptions, (r?: Response, e?: any) => void>("HttpConn do", a, b)
+        if (co) {
+            return co.yield((notify) => {
+                this._do(opts!, (r, e) => {
+                    if (e) {
+                        notify.error(e)
+                    } else {
+                        notify.value(r)
+                    }
+                })
+            })
+        } else if (cb) {
+            this._do(opts!, cb)
+        } else {
+            return new Promise((resolve, reject) => {
+                this._do(opts!, (r, e) => {
+                    if (e) {
+                        reject(e)
+                    } else {
+                        resolve(r)
+                    }
+                })
+            })
+        }
+    }
     _do(opts: RequestOptions, callback: (r?: Response, e?: any) => void) {
         const c = this.c_
         if (!c) {
@@ -1474,11 +1500,10 @@ export class HttpConn {
             if (!connection) {
                 deps.header_add(h, "Connection", "keep-alive")
             }
-            const resp = new Response(r)
+            const resp = Response.create(r)
             const cb = (e?: Error) => {
                 if (e === undefined) {
                     callback(resp)
-                    resp.req_ = undefined
                 } else {
                     callback(undefined, e)
                 }
@@ -1542,19 +1567,40 @@ export interface RequestOptions {
     signal?: AbortSignal
 }
 export class Response {
-    constructor(public req_?: deps.HttpRequest) {
+    static create(req: deps.HttpRequest | undefined): Response {
+        const flags = deps.create_flags()
+        flags[0] = 1
+        return new Response(req, {
+            expired: flags,
+        })
     }
-    private _req() {
-        const req = this.req_
-        if (req) {
-            return req
+    private constructor(private req_: deps.HttpRequest | undefined, private shared_: RequestShared) {
+    }
+    close(): void {
+        const f = this.shared_.expired
+        if (f[0]) {
+            f[0] = 0
+            this.req_ = undefined
+        }
+    }
+    get isValid(): boolean {
+        const f = this.shared_.expired
+        return f[0] ? true : false
+    }
+    private _get(): deps.HttpRequest {
+        const f = this.shared_.expired
+        if (f[0]) {
+            return this.req_!
         }
         throw new Error("Response expired")
     }
     get statusCode(): number {
-        return deps.get_response_code(this._req().p)
+        return deps.get_response_code(this._get().p)
     }
     get status(): string {
-        return deps.get_response_code_line(this._req().p)
+        return deps.get_response_code_line(this._get().p)
+    }
+    get header(): Header {
+        return getRequestInputHeader(this._get().p, this.shared_)
     }
 }
