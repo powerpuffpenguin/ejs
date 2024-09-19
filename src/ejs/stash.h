@@ -41,6 +41,6 @@
 #define EJS_STASH_NET_HTTP_SERVER "http.server", 11
 #define EJS_STASH_NET_HTTP_SERVER_CHUNK "http.server.chunk", 17
 #define EJS_STASH_NET_HTTP_WEBSOCKET "http.ws", 7
-#define EJS_STASH_NET_HTTP_CONN "http.conn", 9
+#define EJS_STASH_NET_HTTP_CLIENT "http.client", 11
 
 #endif

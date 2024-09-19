@@ -128,27 +128,36 @@ declare namespace deps {
         p: unknown
     }
     function create_tls(config: TlsConfig): Tls
-    class HttpClient {
-        readonly __id = "HttpClient"
+    class HttpConn {
+        readonly __id = "HttpConn"
         p: Pointer
         cbc: () => void
         cb: (err?: number) => void
     }
-    interface CreateHttpClientOptions {
+    interface CreateHttpConnOptions {
         host: string
-        port?: number
+        port: number
         tls?: unknown
-        resolver?: unknown,
+        resolver: unknown,
     }
-    function create_http_client(opts: CreateHttpClientOptions): HttpClient
-    function close_http_client(client: HttpClient): void
+    function create_http_conn(opts: CreateHttpConnOptions): HttpConn
+    function close_http_conn(c: HttpConn): void
+    function free_http_conn(c: HttpConn): void
+    class HttpLink {
+        readonly __id = "HttpLink"
+        p: Pointer
+    }
+    function create_http_link(conn: Pointer): HttpLink
+    function close_http_link(link: HttpLink): void
+
     class HttpRequest {
         readonly __id = "HttpRequest"
         p: RawRequest
     }
-    function create_http_request(p: Pointer): HttpRequest
+    function create_http_request(link: Pointer): HttpRequest
+    function cancel_request(p: RawRequest): void
     function close_http_request(req: HttpRequest): void
-    function do_http_request(client: Pointer,
+    function do_http_request(conn: Pointer,
         req: HttpRequest,
         path: string,
         method: number,
@@ -1260,37 +1269,69 @@ export class Websocket {
     }
 }
 export let defaultUserAgent = `ejs-${__duk.os}-${__duk.arch}-client/1.1`
-export interface HttpConnOptions {
-    host?: string
-    ip: string
-    port?: number
-    resolver: Resolver
+export interface HttpOptions {
+    /**
+     * name of the network (for example, "tcp", "tcp4", "tcp6", "unix")
+     */
+    network: string
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
+
+    /**
+     * If set will use tls connection
+     */
     tls?: TlsConfig
+
+    /**
+     * dns Resolver
+     */
+    resolver?: Resolver
 }
 export class HttpConn {
     private tls_?: deps.Tls
-    private resolver_?: Resolver
     private host_: string
-    private c_?: deps.HttpClient
+    private resolver_?: Resolver
+    c_?: deps.HttpConn
+    send_ = false
     private cb_?: (e?: Error) => void
     protected request_?: deps.HttpRequest
-    constructor(opts: HttpConnOptions) {
-        let tls: any
+    private link_?: deps.HttpLink
+    constructor(opts: HttpOptions) {
+        const [host, sport] = splitHostPort(opts.address)
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new Error(`address invalid: ${opts.address}`)
+        }
+
+        let resolver: Resolver | undefined = opts.resolver
+        if (resolver) {
+            if (!(resolver instanceof Resolver)) {
+                throw new Error("resolver must be a Resolver")
+            }
+        } else {
+            resolver = Resolver.getDefault()
+        }
+        this.resolver_ = resolver
+
         const tlsConfig = opts.tls
+        let tls: any
         if (tlsConfig) {
             tls = deps.create_tls(tlsConfig)
-            this.host_ = opts.host ?? tlsConfig.serverName ?? opts.ip
+            this.host_ = tlsConfig.serverName ?? opts.address
             this.tls_ = tls
         } else {
-            this.host_ = opts.host ?? opts.ip
+            this.host_ = opts.address
         }
-        this.resolver_ = opts.resolver
-        const c = deps.create_http_client({
-            host: opts.ip,
-            port: opts.port,
+
+        const c = deps.create_http_conn({
+            host: host,
+            port: port,
             tls: tls?.p,
-            resolver: (opts.resolver as any).native().p,
+            resolver: (resolver as any).native().p,
         })
+        this.c_ = c
         c.cbc = () => {
             if (this.tls_) {
                 this.tls_ = undefined
@@ -1298,6 +1339,10 @@ export class HttpConn {
             if (this.resolver_) {
                 this.resolver_ = undefined
             }
+            // don't set undefined, req cb will used
+            // if (this.link_) {
+            //     this.link_ = undefined
+            // }
             if (this.c_) {
                 this.c_ = undefined
                 const cb = this.cb_
@@ -1311,7 +1356,6 @@ export class HttpConn {
         c.cb = (err) => {
             this._cb(false, err)
         }
-        this.c_ = c
     }
     close() {
         const c = this.c_
@@ -1323,7 +1367,16 @@ export class HttpConn {
             if (this.resolver_) {
                 this.resolver_ = undefined
             }
-            deps.close_http_client(c)
+            if (this.link_) {
+                this.link_ = undefined
+            }
+            console.log("close")
+            if (this.send_) {
+                deps.close_http_conn(c)
+            } else {
+                deps.free_http_conn(c)
+            }
+            console.log("close ok")
             this._cb(true)
         }
     }
@@ -1393,14 +1446,7 @@ export class HttpConn {
             })
         }
     }
-    create() {
-        const c = this.c_
-        if (!c) {
-            throw new Error("HttpConn already closed")
-        }
-        return deps.create_http_request(c.p)
-    }
-    private _do(opts: RequestOptions, callback: (r?: Response, e?: any) => void) {
+    _do(opts: RequestOptions, callback: (r?: Response, e?: any) => void) {
         const c = this.c_
         if (!c) {
             throw new Error("HttpConn already closed")
@@ -1409,7 +1455,12 @@ export class HttpConn {
             throw new Error("HttpConn busy")
         }
 
-        const r = deps.create_http_request(c.p)
+        let link = this.link_
+        if (!link) {
+            link = deps.create_http_link(c.p)
+            this.link_ = link
+        }
+        const r = deps.create_http_request(link.p)
         try {
             const header = opts.header
             let host = false
@@ -1459,6 +1510,7 @@ export class HttpConn {
             }
             const resp = Response.create(r)
             const cb = (e?: Error) => {
+                console.log('------------cb')
                 this.cb_ = undefined
                 this.request_ = undefined
                 if (e === undefined) {
@@ -1482,8 +1534,10 @@ export class HttpConn {
             deps.close_http_request(r)
             throw e
         }
+        this.send_ = true
     }
 }
+
 export interface RequestOptions {
     limit?: number
     path?: string

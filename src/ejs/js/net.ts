@@ -2341,7 +2341,7 @@ function unix_dial(opts: DialOptions, o: TcpDialIPOptions) {
     if (opts.tls) {
         const tlsConfig = opts.tls
         const serverName = tlsConfig.serverName
-        if (typeof tlsConfig.serverName !== "string") {
+        if (typeof serverName !== "string") {
             tlsConfig.serverName = o.ip
         }
         o.tls = tlsConfig

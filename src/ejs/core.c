@@ -451,30 +451,35 @@ static duk_ret_t _ejs_module_destroy(duk_context *ctx)
 {
     duk_push_heap_stash(ctx);
     _ejs_destroy_timer(ctx);
-
     duk_get_prop_lstring(ctx, -1, EJS_STASH_MODULE_DESTROY);
-    if (!duk_is_array(ctx, -1))
+    if (duk_is_array(ctx, -1))
     {
-        return 0;
-    }
-    duk_size_t count = duk_get_length(ctx, -1);
-    if (!count)
-    {
-        return 0;
-    }
-    duk_swap_top(ctx, -2);
-    duk_pop(ctx);
-    for (duk_size_t i = 0; i < count; i++)
-    {
-        duk_get_prop_index(ctx, -1, i);
-        if (!duk_is_function(ctx, -1))
+        duk_size_t count = duk_get_length(ctx, -1);
+        if (count)
         {
+            for (duk_size_t i = 0; i < count; i++)
+            {
+                duk_get_prop_index(ctx, -1, i);
+                if (!duk_is_function(ctx, -1))
+                {
+                    duk_pop(ctx);
+                    continue;
+                }
+                duk_pcall(ctx, 0);
+                duk_pop(ctx);
+            }
             duk_pop(ctx);
-            continue;
         }
-        duk_pcall(ctx, 0);
-        duk_pop(ctx);
     }
+
+    duk_enum(ctx, -1, DUK_ENUM_OWN_PROPERTIES_ONLY);
+    while (duk_next(ctx, -1 /*enum_idx*/, 0 /*get_value*/))
+    {
+        duk_push_undefined(ctx);
+        duk_put_prop(ctx, -4);
+    }
+    duk_pop(ctx);
+    duk_gc(ctx, 0);
     return 0;
 }
 DUK_EXTERNAL void ejs_core_delete(ejs_core_t *core)
@@ -493,7 +498,6 @@ DUK_EXTERNAL void ejs_core_delete(ejs_core_t *core)
         pthread_mutex_destroy(&core->thread_pool->mutex);
         free(core->thread_pool);
     }
-
     if (core->base && (core->flags & 0x1))
     {
         event_base_free(core->base);
