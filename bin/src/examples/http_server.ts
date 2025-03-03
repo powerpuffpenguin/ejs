@@ -117,7 +117,7 @@ services:
     mux.handle('/html', (w, r) => {
         w.body(http.StatusOK,
             http.ContentTypeHTML,
-`<!DOCTYPE html>
+            `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -129,6 +129,24 @@ services:
 </body>
 </html>`,
         )
+    })
+    mux.handle('/ws', (w, r) => {
+        const ws = w.upgrade()
+        if (!ws) {
+            return
+        }
+        ws.onClose = () => {
+            console.log("ws close")
+        }
+        let i = 0
+        ws.onMessage = (data) => {
+            console.log("ws get:", data)
+            ws.write(data)
+            if (i > 10) {
+                ws.close()
+            }
+        }
+        ws.write("connect ok")
     })
     return mux
 }

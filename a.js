@@ -42,8 +42,8 @@ function main(co) {
     // opts.tls = { insecure: true }
     // http.test()
 
-    var client = new http.HttpConn(opts)
-    console.log(client)
+    // var client = new http.HttpConn(opts)
+    // console.log(client)
     // try {
     //     client.do({
     //         path: '/abc',
@@ -92,20 +92,20 @@ function main(co) {
 
     // console.log("close", client)
     // client.close()
-    console.log('------------co0', co)
-    co.yield(function (notify) {
-        console.log('------------co1', co)
-        client.do({
-            path: '/abc',
-            method: http.Method.GET
-        }, function (r, e) {
-            notify.value(r)
-            console.log('--------------------')
-        })
-    })
-    console.log('------------co2', co)
+    // console.log('------------co0', co)
+    // co.yield(function (notify) {
+    //     console.log('------------co1', co)
+    //     client.do({
+    //         path: '/abc',
+    //         method: http.Method.GET
+    //     }, function (r, e) {
+    //         notify.value(r)
+    //         console.log('--------------------')
+    //     })
+    // })
+    // console.log('------------co2', co)
 
-    console.log("close", client)
+    // console.log("close", client)
     // client.close()
 
 
@@ -114,6 +114,7 @@ function main(co) {
     // client.do({}, function (resp, e) {
     //     console.log(resp, e)
     // })
+    // opts.network = "tcp"
     // var l = net.listen(opts)
     // if (opts.tls) {
     //     console.log("https listen on:", l.addr)

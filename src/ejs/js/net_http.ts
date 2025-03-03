@@ -1323,8 +1323,12 @@ export class HttpConn {
             if (this.resolver_) {
                 this.resolver_ = undefined
             }
-            deps.close_http_client(c)
-            this._cb(true)
+            if (this.do_) {
+                this.delayed_ = c
+            } else {
+                deps.close_http_client(c)
+                this._cb(true)
+            }
         }
     }
     private _cb(closed: boolean, err?: number) {
@@ -1367,15 +1371,28 @@ export class HttpConn {
             cb(e)
         }
     }
+    private do_ = 0
+    private delayed_?: deps.HttpClient
     do(a: any, b: any) {
         const { co, cb, opts } = parseArgs<RequestOptions, (r?: Response, e?: any) => void>("HttpConn do", a, b)
         if (co) {
             return co.yield((notify) => {
                 this._do(opts!, (r, e) => {
+                    this.do_++
                     if (e) {
                         notify.error(e)
                     } else {
                         notify.value(r)
+                    }
+                    if (!(--this.do_)) {
+                        const c = this.delayed_
+                        if (c) {
+                            this.delayed_ = undefined
+                            setImmediate(() => {
+                                deps.close_http_client(c)
+                                this._cb(true)
+                            })
+                        }
                     }
                 })
             })
@@ -1408,7 +1425,6 @@ export class HttpConn {
         if (this.cb_) {
             throw new Error("HttpConn busy")
         }
-
         const r = deps.create_http_request(c.p)
         try {
             const header = opts.header

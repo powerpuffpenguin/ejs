@@ -1340,13 +1340,11 @@ static void on_http_request_cb(struct evhttp_request *req, void *userdata)
 {
     if (req)
     {
-        puts("do on_http_request_cb");
         ejs_call_callback_noresult(
             ((http_client_t *)userdata)->core->duk,
             on_http_request_cb_impl,
             userdata,
             0);
-        puts("do on_http_request_cb ok");
     }
 }
 typedef struct
@@ -1456,11 +1454,9 @@ static duk_ret_t create_http_client(duk_context *ctx)
 static duk_ret_t close_http_client(duk_context *ctx)
 {
     http_client_t *client = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_NET_HTTP_CLIENT);
-    printf("http_client_free %x\n", client);
     if (client)
     {
         http_client_free(client);
-        puts("free ok");
     }
     return 0;
 }
