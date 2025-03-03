@@ -157,7 +157,7 @@ declare namespace deps {
     function get_response_code_line(p: RawRequest): string
     function get_response_body(p: RawRequest): Uint8Array
 }
-import { BaseTcpListener, TlsConfig, AbortSignal, Resolver, splitHostPort } from "ejs/net";
+import { BaseTcpListener, TlsConfig, AbortSignal, Resolver, splitHostPort, TcpError } from "ejs/net";
 import { clean, split } from "ejs/path";
 import { URL } from "ejs/net/url";
 import { parseArgs } from "ejs/sync";
@@ -1261,10 +1261,21 @@ export class Websocket {
 }
 export let defaultUserAgent = `ejs-${__duk.os}-${__duk.arch}-client/1.1`
 export interface HttpConnOptions {
+    /**
+     * Default Host set for http header
+     */
     host?: string
-    ip: string
-    port?: number
-    resolver: Resolver
+    /**
+     * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+     */
+    address: string
+    /**
+     * Domain name resolver
+     */
+    resolver?: Resolver
+    /**
+     * tls setting, if it exists, send https request, otherwise send http request
+     */
     tls?: TlsConfig
 }
 export class HttpConn {
@@ -1275,19 +1286,25 @@ export class HttpConn {
     private cb_?: (e?: Error) => void
     protected request_?: deps.HttpRequest
     constructor(opts: HttpConnOptions) {
+        const [ip, sport] = splitHostPort(opts.address)
+        const port = parseInt(sport)
+        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+            throw new TcpError(`dial port invalid: ${opts.address}`)
+        }
+
         let tls: any
         const tlsConfig = opts.tls
         if (tlsConfig) {
             tls = deps.create_tls(tlsConfig)
-            this.host_ = opts.host ?? tlsConfig.serverName ?? opts.ip
+            this.host_ = opts.host ?? tlsConfig.serverName ?? ip
             this.tls_ = tls
         } else {
-            this.host_ = opts.host ?? opts.ip
+            this.host_ = opts.host ?? ip
         }
-        this.resolver_ = opts.resolver
+        this.resolver_ = opts.resolver ?? Resolver.getDefault()
         const c = deps.create_http_client({
-            host: opts.ip,
-            port: opts.port,
+            host: ip,
+            port: port,
             tls: tls?.p,
             resolver: (opts.resolver as any).native().p,
         })
@@ -1409,13 +1426,6 @@ export class HttpConn {
                 })
             })
         }
-    }
-    create() {
-        const c = this.c_
-        if (!c) {
-            throw new Error("HttpConn already closed")
-        }
-        return deps.create_http_request(c.p)
     }
     private _do(opts: RequestOptions, callback: (r?: Response, e?: any) => void) {
         const c = this.c_
@@ -1548,7 +1558,7 @@ export class Response {
         return getRequestInputHeader(this._get().p, this.shared_)
     }
     private buufer_?: Uint8Array
-    get body(): Uint8Array {
+    body(): Uint8Array {
         let buf = this.buufer_
         if (!buf) {
             buf = deps.get_response_body(this._get().p)
@@ -1556,10 +1566,10 @@ export class Response {
         }
         return buf
     }
-    get text(): string {
-        return new TextDecoder().decode(this.body)
+    text(): string {
+        return new TextDecoder().decode(this.body())
     }
-    get json(): string {
-        return JSON.parse(this.text)
+    json<T>(): T {
+        return JSON.parse(this.text())
     }
 }

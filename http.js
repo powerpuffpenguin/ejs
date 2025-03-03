@@ -92,43 +92,41 @@ function runServer(co, tls) {
 function runClient(co) {
     var opts = {
         resolver: net.Resolver.getDefault(),
-        ip: '127.0.0.1',
-        port: 9000,
+        address: 'www.baidu.com:443',
         // tls: {
+        //     // Don't verify certificate
         //     insecure: true,
         // },
-        // tls: {
-        //     certificate: [
-        //         {
-        //             cert: os.readTextFileSync('/home/king/project/docker/development-images/httptest/test.crt'),
-        //             key: os.readTextFileSync('/home/king/project/docker/development-images/httptest/test.key'),
-        //         },
-        //     ],
-        // },
+        tls: {
+            // Load system ca
+            certificate: [
+                os.readTextFile(co, '/etc/ssl/certs/ca-certificates.crt'),
+            ],
+        },
     }
     var client = new http.HttpConn(opts)
     try {
         var r = client.do(co, {
-            path: '/abc',
+            path: '/',
             method: http.Method.GET
         })
         console.log('statusCode:', r.statusCode)
         console.log('status', r.status)
         const header = r.header
         console.log(header.get("Content-length"))
-        console.log(r.text)
+        console.log(r.text())
     } catch (e) {
         console.log('err:', e.toString())
     }
 
-    client.do(co, {
-        path: '/close',
-        method: http.Method.GET
-    })
+    // client.do(co, {
+    //     path: '/close',
+    //     method: http.Method.GET
+    // })
     client.close()
 }
 function main(co) {
-    runServer(co)
+    // runServer(co)
     runClient(co)
 }
 sync.go(function (co) {

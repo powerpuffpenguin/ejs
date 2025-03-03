@@ -1103,7 +1103,7 @@ declare module "ejs/net" {
         /**
          * root ca(x509)
          * 
-         * System ca is loaded by default(linux: /etc/ssl/certs/ca-certificates.crt). If set, system ca will not be loaded.
+         * System ca (linux should load /etc/ssl/certs/ca-certificates.crt)
          */
         certificate?: Array<string>
 
@@ -3883,6 +3883,7 @@ declare module "ejs/net/url" {
 
 declare module "ejs/net/http" {
     import { BaseTcpListener } from "ejs/net";
+    import { YieldContext } from "ejs/sync";
 
     export enum Method {
         GET = deps.GET,
@@ -4048,5 +4049,49 @@ declare module "ejs/net/http" {
         close(reason = 1000): void
         onClose?: (this: Websocket) => void
         onMessage?: (this: Websocket, data: string | Uint8Array) => void
+    }
+    export interface HttpConnOptions {
+        /**
+         * Default Host set for http header
+         */
+        host?: string
+        /**
+         * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+         */
+        address: string
+        /**
+         * Domain name resolver
+         */
+        resolver?: Resolver
+        /**
+         * tls setting, if it exists, send https request, otherwise send http request
+         */
+        tls?: TlsConfig
+    }
+    export interface RequestOptions {
+        limit?: number
+        path?: string
+        method?: Method
+        header?: Record<string, string | Array<string>>
+        body?: string | Uint8Array | ArrayBuffer
+        signal?: AbortSignal
+    }
+    export class Response {
+        private constructor()
+        close(): void
+        readonly isValid: boolean
+        readonly statusCode: number
+        readonly status: string
+        readonly header: Header
+        body(): Uint8Array
+        text(): string
+        json<T>(): T
+    }
+    export class HttpConn {
+        constructor(opts: HttpConnOptions)
+        close(): void
+        do(req: RequestOptions, cb: (resp?: Response, e?: unknown) => void): void
+        do(req: RequestOptions): Promise<Response>
+        do(co: YieldContext, req: RequestOptions): Response
     }
 }
