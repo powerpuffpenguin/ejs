@@ -14,7 +14,9 @@
 #include <event2/http.h>
 #include <event2/ws.h>
 #include <event2/bufferevent_ssl.h>
-
+#ifdef DUK_F_LINUX
+#include <sys/un.h>
+#endif
 typedef struct
 {
     struct evhttp *server;
@@ -1351,6 +1353,33 @@ typedef struct
 {
     http_client_t *client;
 } create_http_client_args_t;
+static void unix_sockaddr_fill(duk_context *ctx, struct sockaddr_un *sin, int *socklen, const uint8_t *address, duk_size_t len)
+{
+    if (len == 0 ||
+        (len == 1 && address[0] == '@'))
+    {
+        duk_push_lstring(ctx, "unix address invalid", 20);
+        duk_throw(ctx);
+    }
+    if (len - 1 > sizeof(sin->sun_path))
+    {
+        duk_push_lstring(ctx, "unix address invalid", 20);
+        duk_throw(ctx);
+    }
+    sin->sun_family = AF_UNIX;
+    memcpy(sin->sun_path, address, len);
+    if (address[0] == '@')
+    {
+        sin->sun_path[0] = 0;
+        *socklen = sizeof(sa_family_t) + len;
+    }
+    else
+    {
+        *socklen = sizeof(struct sockaddr_un);
+    }
+    sin->sun_path[len] = 0;
+}
+
 static duk_ret_t create_http_client_impl(duk_context *ctx)
 {
     create_http_client_args_t *args = duk_require_pointer(ctx, -1);
@@ -1364,13 +1393,13 @@ static duk_ret_t create_http_client_impl(duk_context *ctx)
     void *resolver = duk_get_pointer_default(ctx, -1, 0);
     duk_pop(ctx);
 
-    duk_get_prop_lstring(ctx, 0, "port", 4);
     uint16_t port;
     if (resolver)
     {
+        duk_get_prop_lstring(ctx, 0, "port", 4);
         port = duk_require_number(ctx, -1);
+        duk_pop(ctx);
     }
-    duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "host", 4);
     const char *host = duk_require_string(ctx, -1);

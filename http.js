@@ -18,8 +18,8 @@ function sleep(co, ms) {
 }
 function runServer(co, tls) {
     var l = net.listen({
-        network: 'tcp',
-        address: '127.0.0.1:9000',
+        network: 'unix',
+        address: '@ejs_http',
     })
     if (tls) {
         console.log("https listen on:", l.addr)
@@ -91,18 +91,19 @@ function runServer(co, tls) {
 }
 function runClient(co) {
     var opts = {
-        resolver: net.Resolver.getDefault(),
-        address: 'www.baidu.com:443',
+        // address: 'www.baidu.com:443',
+        network: 'unix',
+        address: '@ejs_http',
         // tls: {
         //     // Don't verify certificate
         //     insecure: true,
         // },
-        tls: {
-            // Load system ca
-            certificate: [
-                os.readTextFile(co, '/etc/ssl/certs/ca-certificates.crt'),
-            ],
-        },
+        // tls: {
+        //     // Load system ca
+        //     certificate: [
+        //         os.readTextFile(co, '/etc/ssl/certs/ca-certificates.crt'),
+        //     ],
+        // },
     }
     var client = new http.HttpConn(opts)
     try {
@@ -119,14 +120,14 @@ function runClient(co) {
         console.log('err:', e.toString())
     }
 
-    // client.do(co, {
-    //     path: '/close',
-    //     method: http.Method.GET
-    // })
+    client.do(co, {
+        path: '/close',
+        method: http.Method.GET
+    })
     client.close()
 }
 function main(co) {
-    // runServer(co)
+    runServer(co)
     runClient(co)
 }
 sync.go(function (co) {

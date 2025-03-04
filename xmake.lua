@@ -8,7 +8,7 @@ set_languages("c99")
 add_requires("mbedtls ~3.6.0")
 
 add_repositories("local-repo third_party_repo")
-add_requires("libevent 2.2.6")
+add_requires("libevent 2.2.7")
 
 
 

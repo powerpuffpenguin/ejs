@@ -1262,13 +1262,18 @@ export class Websocket {
 export let defaultUserAgent = `ejs-${__duk.os}-${__duk.arch}-client/1.1`
 export interface HttpConnOptions {
     /**
-     * Default Host set for http header
+     * name of the network (for example, "tcp", "unix")
+     * @default "tcp"
      */
-    host?: string
+    network?: string
     /**
      * string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
      */
     address: string
+    /**
+     * Default Host set for http header
+     */
+    host?: string
     /**
      * Domain name resolver
      */
@@ -1286,12 +1291,20 @@ export class HttpConn {
     private cb_?: (e?: Error) => void
     protected request_?: deps.HttpRequest
     constructor(opts: HttpConnOptions) {
-        const [ip, sport] = splitHostPort(opts.address)
-        const port = parseInt(sport)
-        if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
-            throw new TcpError(`dial port invalid: ${opts.address}`)
+        let ip: string
+        let port: undefined | number
+        let resolver: undefined | Resolver
+        if (opts.network == "unix") {
+            ip = opts.address
+        } else {
+            const [s, sport] = splitHostPort(opts.address)
+            port = parseInt(sport)
+            if (!Number.isSafeInteger(port) || port < 1 || port > 65535) {
+                throw new TcpError(`dial port invalid: ${opts.address}`)
+            }
+            ip = s
+            resolver = opts.resolver ?? Resolver.getDefault()
         }
-
         let tls: any
         const tlsConfig = opts.tls
         if (tlsConfig) {
@@ -1301,12 +1314,11 @@ export class HttpConn {
         } else {
             this.host_ = opts.host ?? ip
         }
-        this.resolver_ = opts.resolver ?? Resolver.getDefault()
         const c = deps.create_http_client({
             host: ip,
             port: port,
             tls: tls?.p,
-            resolver: (opts.resolver as any).native().p,
+            resolver: resolver ? (resolver as any).native().p : undefined,
         })
         c.cbc = () => {
             if (this.tls_) {
@@ -1329,6 +1341,7 @@ export class HttpConn {
             this._cb(false, err)
         }
         this.c_ = c
+        this.resolver_ = resolver
     }
     close() {
         const c = this.c_
