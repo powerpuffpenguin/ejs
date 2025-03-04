@@ -16,12 +16,9 @@ function sleep(co, ms) {
         }, ms)
     })
 }
-function runServer(co, tls) {
-    var l = net.listen({
-        network: 'unix',
-        address: '@ejs_http',
-    })
-    if (tls) {
+function runServer(co, opts) {
+    var l = net.listen(opts)
+    if (opts.tls) {
         console.log("https listen on:", l.addr)
     } else {
         console.log("http listen on:", l.addr)
@@ -69,7 +66,6 @@ function runServer(co, tls) {
             ws.close()
             //     console.log("c-----lose ok")
             // }, 10);
-
         }
         console.log(ws)
         ws.write("connect ok")
@@ -89,22 +85,24 @@ function runServer(co, tls) {
     //     }
     // })
 }
-function runClient(co) {
-    var opts = {
-        // address: 'www.baidu.com:443',
-        network: 'unix',
-        address: '@ejs_http',
-        // tls: {
-        //     // Don't verify certificate
-        //     insecure: true,
-        // },
-        // tls: {
-        //     // Load system ca
-        //     certificate: [
-        //         os.readTextFile(co, '/etc/ssl/certs/ca-certificates.crt'),
-        //     ],
-        // },
+function runClient(co, opts) {
+    const unix = opts.network == 'unix'
+    if (!unix) {
+        if (ejs.os == "linux") {
+            opts.tls = {
+                // Load system ca
+                certificate: [
+                    RootCertificate.get(co),
+                ],
+            }
+        } else {
+            opts.tls = {
+                // Don't verify certificate
+                insecure: true,
+            }
+        }
     }
+
     var client = new http.HttpConn(opts)
     try {
         var r = client.do(co, {
@@ -120,15 +118,25 @@ function runClient(co) {
         console.log('err:', e.toString())
     }
 
-    client.do(co, {
-        path: '/close',
-        method: http.Method.GET
-    })
+    if (unix) {
+        client.do(co, {
+            path: '/close',
+            method: http.Method.GET
+        })
+    }
     client.close()
 }
 function main(co) {
-    runServer(co)
-    runClient(co)
+    // const opts = {
+    //     network: 'tcp',
+    //     address: 'www.bing.com:443',
+    // }
+    const opts = {
+        network: 'unix',
+        address: '@ejs_http',
+    }
+    runServer(co, opts)
+    runClient(co, opts)
 }
 sync.go(function (co) {
     main(co)
