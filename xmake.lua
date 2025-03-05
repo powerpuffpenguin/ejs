@@ -5,11 +5,11 @@ add_rules("plugin.compile_commands.autoupdate", { outputdir = ".vscode" })
 set_languages("c99")
 
 -- add_requires("libevent ~2.1.12")
-add_requires("mbedtls ~3.6.0")
 
 add_repositories("local-repo third_party_repo")
 add_requires("libevent 2.2.7")
-
+add_requires("libtomcrypt 2024.06.26")
+add_requires("mbedtls ~3.6.0")
 
 
 plat=get_config("plat")
@@ -38,7 +38,7 @@ target("ejs")
     add_defines("_DEFAULT_SOURCE")
      add_defines("_SVID_SOURCE")
     add_syslinks("pthread")
-    add_packages("libevent","mbedtls")
+    add_packages("libevent","mbedtls","libtomcrypt")
 
 target("example_ejs")
     set_kind("binary")
@@ -47,7 +47,7 @@ target("example_ejs")
      if is_mode("debug") then
         add_defines("DEBUG")
     end
-    add_packages("libevent","mbedtls")
+    add_packages("libevent","mbedtls","libtomcrypt")
     add_deps("ejs")
 
 target("ejs_test")
@@ -75,7 +75,7 @@ target("ejs_test")
     add_defines("_DEFAULT_SOURCE")
     add_defines("_SVID_SOURCE")
     add_syslinks("pthread")
-    add_packages("libevent","mbedtls")
+    add_packages("libevent","mbedtls","libtomcrypt")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

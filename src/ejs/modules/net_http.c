@@ -8,6 +8,8 @@
 #include "../internal/sync_evconn_listener.h"
 #include "../internal/utf8.h"
 #include "../internal/strconv.h"
+#include <libtomcrypt/tomcrypt.h>
+#include "../binary.h"
 
 #include <event2/buffer.h>
 #include <event2/event.h>
@@ -1022,6 +1024,55 @@ static duk_ret_t ws_cbc(duk_context *ctx)
     }
     return 0;
 }
+static duk_ret_t ws_key(duk_context *ctx)
+{
+    uint8_t key[16 + 24] = {0};
+    srand((unsigned)time(NULL));
+    for (size_t i = 0; i < 16; i++)
+    {
+        key[i] = rand() % 255;
+    }
+    ejs_get_binary()->base64_std.encode(key + 16, key, 16);
+    duk_push_lstring(ctx, key + 16, 24);
+    return 1;
+}
+static duk_ret_t ws_key_accept(duk_context *ctx)
+{
+    duk_size_t s_len;
+    const char *s = duk_require_lstring(ctx, 0, &s_len);
+    if (s_len != 24)
+    {
+        duk_push_false(ctx);
+        return 1;
+    }
+    duk_size_t accept_len;
+    const char *accept = duk_require_lstring(ctx, 1, &accept_len);
+    if (accept_len != 28)
+    {
+        duk_push_false(ctx);
+        return 1;
+    }
+
+    // key + 258EAFA5-E914-47DA-95CA-C5AB0DC85B11
+    char key[24 + 36] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 53, 56, 69, 65, 70, 65, 53, 45, 69, 57, 49, 52, 45, 52, 55, 68, 65, 45, 57, 53, 67, 65, 45, 67, 53, 65, 66, 48, 68, 67, 56, 53, 66, 49, 49};
+    memcpy(key, s, 24);
+
+    hash_state md;
+    sha1_init(&md);
+    sha1_process(&md, key, 60);
+    sha1_done(&md, key);
+
+    ejs_get_binary()->base64_std.encode(key + 20, key, 20);
+
+    // duk_push_lstring(ctx, key + 20, 28);
+
+    ejs_dump_context_stdout(ctx);
+    if (memcmp(accept, key + 20, 28))
+    {
+        return FALSE;
+    }
+    return 1;
+}
 static duk_ret_t header_set(duk_context *ctx)
 {
     struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
@@ -1702,6 +1753,10 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "ws_cbc", 6);
         duk_push_c_lightfunc(ctx, ws_cbm, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_cbm", 6);
+        duk_push_c_lightfunc(ctx, ws_key, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_key", 6);
+        duk_push_c_lightfunc(ctx, ws_key_accept, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_key_accept", 13);
 
         duk_push_c_lightfunc(ctx, header_set, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "header_set", 10);

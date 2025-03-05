@@ -67,7 +67,6 @@ function runServer(co, opts) {
             //     console.log("c-----lose ok")
             // }, 10);
         }
-        console.log(ws)
         ws.write("connect ok")
     })
     new http.Server(l, mux)
@@ -134,9 +133,19 @@ function main(co) {
     const opts = {
         network: 'unix',
         address: '@ejs_http',
+        // network: 'tcp',
+        // address: '127.0.0.1:9000',
     }
     runServer(co, opts)
-    runClient(co, opts)
+    // runClient(co, opts)
+
+    var c = http.Websocket.connect(co, {
+        network: opts.network,
+        address: opts.address,
+        path: '/ws',
+    })
+    console.log('---------------c', c)
+
 }
 sync.go(function (co) {
     main(co)

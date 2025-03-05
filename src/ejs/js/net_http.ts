@@ -104,6 +104,8 @@ declare namespace deps {
     function ws_write(p: Pointer, data: Uint8Array | string): void
     function ws_cbc(p: Pointer, enable: boolean): void
     function ws_cbm(p: Pointer, enable: boolean): void
+    function ws_key(): string
+    function ws_key_accept(key: string, accept: string): boolean
 
     function html_escape(s: string): string
     function hexEscapeNonASCII(s: string): string
@@ -604,7 +606,7 @@ export class ResponseWriter {
         }
         if (ws) {
             try {
-                return new Websocket(ws)
+                return Websocket.create(ws)
             } catch (e) {
                 deps.ws_close(ws, 1011)
                 throw e
@@ -1153,10 +1155,44 @@ function sortSearch(n: number, f: (i: number) => boolean): number {
     // i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
     return i
 }
-
+export interface WebsocketOptions extends HttpConnOptions {
+    limit?: number
+    path?: string
+    header?: Record<string, string | Array<string>>
+    signal?: AbortSignal
+}
 export class Websocket {
     private ws_?: deps.WSConn
-    constructor(ws: deps.WSConn) {
+    static create(ws: deps.WSConn) {
+        return new Websocket(ws)
+    }
+    static connect(a: any, b: any) {
+        const { co, cb, opts } = parseArgs<WebsocketOptions, (r?: Websocket, e?: any) => void>("HttpConn do", a, b)
+        if (co) {
+            return co.yield((notify) => {
+                HttpConn.connectWebsocket(opts!, (r, e) => {
+                    if (e) {
+                        notify.error(e)
+                    } else {
+                        notify.value(r)
+                    }
+                })
+            })
+        } else if (cb) {
+            HttpConn.connectWebsocket(opts!, cb)
+        } else {
+            return new Promise((resolve, reject) => {
+                HttpConn.connectWebsocket(opts!, (r, e) => {
+                    if (e) {
+                        reject(e)
+                    } else {
+                        resolve(r)
+                    }
+                })
+            })
+        }
+    }
+    private constructor(ws: deps.WSConn) {
         this.ws_ = ws
         ws.cbc = () => {
             const ws = this.ws_
@@ -1407,7 +1443,7 @@ export class HttpConn {
         const { co, cb, opts } = parseArgs<RequestOptions, (r?: Response, e?: any) => void>("HttpConn do", a, b)
         if (co) {
             return co.yield((notify) => {
-                this._do(opts!, (r, e) => {
+                this._do(opts!, undefined, (r, e) => {
                     this.do_++
                     if (e) {
                         notify.error(e)
@@ -1427,10 +1463,10 @@ export class HttpConn {
                 })
             })
         } else if (cb) {
-            this._do(opts!, cb)
+            this._do(opts!, undefined, cb)
         } else {
             return new Promise((resolve, reject) => {
-                this._do(opts!, (r, e) => {
+                this._do(opts!, undefined, (r, e) => {
                     if (e) {
                         reject(e)
                     } else {
@@ -1440,7 +1476,7 @@ export class HttpConn {
             })
         }
     }
-    private _do(opts: RequestOptions, callback: (r?: Response, e?: any) => void) {
+    private _do(opts: RequestOptions, wskey: undefined | string, callback: (r?: Response, e?: any) => void) {
         const c = this.c_
         if (!c) {
             throw new Error("HttpConn already closed")
@@ -1456,11 +1492,47 @@ export class HttpConn {
             let accept = false
             let connection = false
             const h = deps.request_output_header(r.p)
+            let ignore: boolean
             if (header) {
                 for (const key in header) {
                     if (Object.prototype.hasOwnProperty.call(header, key)) {
+                        const lower = key.toLowerCase()
+                        ignore = false
+                        switch (lower) {
+                            case 'host':
+                                host = true
+                                break;
+                            case 'user-agent':
+                                userAgent = true
+                                break
+                            case 'accept':
+                                accept = true
+                                break
+                            case 'connection':
+                                if (wskey !== undefined) {
+                                    ignore = true
+                                } else {
+                                    connection = true
+                                }
+                                break
+                            case 'upgrade':
+                                if (wskey !== undefined) {
+                                    ignore = true
+                                }
+                                break
+                            case 'sec-websocket-version':
+                                if (wskey !== undefined) {
+                                    ignore = true
+                                }
+                                break
+                        }
+                        if (ignore) {
+                            continue
+                        }
+
                         const v = header[key]
-                        if (Array.isArray(v)) {
+                        const isArray = Array.isArray(v)
+                        if (isArray) {
                             if (v.length == 0) {
                                 continue
                             }
@@ -1469,17 +1541,6 @@ export class HttpConn {
                             }
                         } else {
                             deps.header_add(h, key, v)
-                        }
-
-                        const lower = key.toLowerCase()
-                        if (lower === "host") {
-                            host = true
-                        } else if (lower === "user-agent") {
-                            userAgent = true
-                        } else if (lower === "accept") {
-                            accept = true
-                        } else if (lower == "connection") {
-                            connection = true
                         }
                     }
                 }
@@ -1494,8 +1555,18 @@ export class HttpConn {
                 deps.header_add(h, "Accept", "*/*")
             }
             if (!connection) {
-                deps.header_add(h, "Connection", "keep-alive")
+                if (wskey === undefined) {
+                    deps.header_add(h, "Connection", "keep-alive")
+                } else {
+                    deps.header_set(h, "Connection", "Upgrade")
+                }
             }
+            if (wskey !== undefined) {
+                deps.header_set(h, 'Upgrade', 'websocket')
+                deps.header_set(h, 'Sec-WebSocket-Version', '13')
+                deps.header_set(h, 'Sec-WebSocket-Key', wskey)
+            }
+
             const resp = Response.create(r)
             const cb = (e?: Error) => {
                 this.cb_ = undefined
@@ -1520,6 +1591,67 @@ export class HttpConn {
             this.request_ = undefined
             deps.close_http_request(r)
             throw e
+        }
+    }
+    static connectWebsocket(opts: WebsocketOptions, callback?: (r?: Websocket, e?: any) => void) {
+        let client: undefined | HttpConn
+        try {
+            const wskey = deps.ws_key()
+            const o: RequestOptions = {
+                limit: opts.limit,
+                path: opts.path,
+                method: Method.GET,
+                header: opts.header,
+                signal: opts.signal,
+            }
+            client = new HttpConn(opts)
+            client._do(o, wskey, (r, e) => {
+                if (!callback) {
+                    return
+                }
+                if (!r) {
+                    const cb = callback
+                    callback = undefined
+                    client!.close()
+                    cb(undefined, e)
+                    return
+                }
+                try {
+                    if (r.statusCode != 101) {
+                        throw new Error(`websocket connect status: ${r.statusCode}`)
+                    }
+                    const h = r.header;
+                    let v = h.get('Connection')
+                    if (v != 'Upgrade') {
+                        throw new Error(`invalid response header Upgrade: ${v}`)
+                    }
+                    v = h.get('Upgrade')
+                    if (v != 'websocket') {
+                        throw new Error(`invalid response header Upgrade: ${v}`)
+                    }
+                    v = h.get('Sec-WebSocket-Accept')
+                    if (v === undefined || !deps.ws_key_accept(wskey, v)) {
+                        throw new Error(`invalid response header Sec-WebSocket-Accept: ${v}`)
+                    }
+
+                    const cb = callback
+                    cb(r as any)
+                } catch (e) {
+                    const cb = callback
+                    callback = undefined
+                    client!.close()
+                    cb(undefined, e)
+                }
+            })
+        } catch (e) {
+            const cb = callback
+            if (cb) {
+                callback = undefined
+                if (client) {
+                    client.close()
+                }
+                cb(undefined, e)
+            }
         }
     }
 }
