@@ -200,7 +200,7 @@ DUK_EXTERNAL size_t ejs_base64_decode(uint8_t *dst,
                 if (s[j] == 0xff)
                 {
                     // 中途遇到填充 顯然不合法
-                    return 0;
+                    return ret;
                 }
             }
             dst[0] = (s[0] << 2) | (s[1] >> 4);
@@ -222,7 +222,7 @@ DUK_EXTERNAL size_t ejs_base64_decode(uint8_t *dst,
                 {
                     if (src[j] != pading || j < 2) // 不是填充符或在最後兩字節填充
                     {
-                        return 0;
+                        return ret;
                     }
                 }
             }
@@ -231,7 +231,7 @@ DUK_EXTERNAL size_t ejs_base64_decode(uint8_t *dst,
                 dst[0] = (s[0] << 2) | (s[1] >> 4);
                 if (s[3] != 0xff) // 必須連續兩個相同填充
                 {
-                    return 0;
+                    return ret;
                 }
                 ret++;
             }
@@ -256,7 +256,7 @@ DUK_EXTERNAL size_t ejs_base64_decode(uint8_t *dst,
                 s[j] = decode[src[j]];
                 if (s[j] == 0xff)
                 {
-                    return 0;
+                    return ret;
                 }
             }
             switch (src_len)

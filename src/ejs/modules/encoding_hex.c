@@ -98,35 +98,7 @@ static duk_ret_t decodedLen(duk_context *ctx)
     }
     return 1;
 }
-typedef struct
-{
-    const uint8_t *s;
-    duk_size_t s_len;
 
-    uint8_t *p;
-    duk_size_t p_len;
-
-    duk_bool_t uppercase;
-} encodeToString_args_t;
-static duk_ret_t encodeToString_impl(duk_context *ctx)
-{
-    encodeToString_args_t *args = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-
-    args->p = malloc(args->p_len);
-    if (!args->p)
-    {
-        ejs_throw_os_errno(ctx);
-    }
-
-    ppp_encoding_hex_encode(args->p, args->s, args->s_len, args->uppercase ? 1 : 0);
-    duk_push_lstring(ctx, args->p, args->p_len);
-
-    free(args->p);
-    args->p = 0;
-
-    return 1;
-}
 static duk_ret_t encodeToString(duk_context *ctx)
 {
     duk_size_t s_len;
@@ -152,21 +124,9 @@ static duk_ret_t encodeToString(duk_context *ctx)
         ejs_throw_os(ctx, ENOMEM, 0);
     }
 
-    encodeToString_args_t args = {
-        .s = s,
-        .s_len = s_len,
-        .p = 0,
-        .p_len = n,
-        .uppercase = uppercase,
-    };
-    if (ejs_pcall_function(ctx, encodeToString_impl, &args))
-    {
-        if (args.p)
-        {
-            free(args.p);
-        }
-        duk_throw(ctx);
-    }
+    uint8_t *dst = duk_push_buffer(ctx, n, 0);
+    ppp_encoding_hex_encode(dst, s, s_len, uppercase ? 1 : 0);
+    duk_buffer_to_string(ctx, -1);
     return 1;
 }
 static duk_ret_t encode(duk_context *ctx)

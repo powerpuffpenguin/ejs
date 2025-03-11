@@ -139,6 +139,85 @@ namespace ejs {
     export function threadsSet(opts?: ThreadsSetOptions): void
 }
 /**
+ * implements base64 encoding as specified by RFC 4648.
+ */
+declare module "encoding/base64" {
+    /**
+   * base64 encoding
+   */
+    export interface Encoding {
+        /**
+         * Returns the buffer required to encode n bytes in base64
+         */
+        encodedLen(n: number): number
+        /**
+         * Returns the length of the buffer required to decode n length base64
+         */
+        decodedLen(n: number): number
+
+        /**
+         * Write src to dst after base64 encoding
+         * @returns the length of bytes written to dst
+         */
+        encode(dst: Uint8Array | ArrayBuffer, src: string | Uint8Array | ArrayBuffer): number
+        /**
+         * Returns src as a base64-encoded string
+         */
+        encodeToString(src: string | Uint8Array | ArrayBuffer): string
+
+        /**
+         * Decode src as base64
+         * @param dst 
+         * @returns the length of bytes written to dst. If it is less than decodedLen, it means an illegal base64 value was encountered.
+         */
+        decode(dst: Uint8Array | ArrayBuffer, src: string | Uint8Array | ArrayBuffer): number
+    }
+    /**
+     * Returns the buffer required to encode n bytes in base64
+     */
+    export function encodedLen(n: number, padding?: boolean): number
+    /**
+     * Returns the length of the buffer required to decode n length base64
+     */
+    export function decodedLen(n: number, padding?: boolean): number
+    export const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    export const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    /**
+     * Implemented base64 algorithm
+     */
+    export class Base64 implements Encoding {
+        static get std(): Base64
+        static get rawstd(): Base64
+        static get url(): Base64
+        static get rawurl(): Base64
+
+        constructor(encoder: string | Base64, padding?: number | string | Uint8Array)
+        /**
+         * Returns the buffer required to encode n bytes in base64
+         */
+        encodedLen(n: number): number
+        /**
+         * Returns the length of the buffer required to decode n length base64
+         */
+        decodedLen(n: number): number
+        /**
+         * Write src to dst after base64 encoding
+         * @returns the length of bytes written to dst
+         */
+        encode(dst: Uint8Array, src: string | Uint8Array): number
+        /**
+         * Returns src as a base64-encoded string
+         */
+        encodeToString(src: string | Uint8Array): string
+        /**
+         * Decode src as base64
+         * @param dst 
+         * @returns the length of bytes written to dst. If it is less than decodedLen, it means an illegal base64 value was encountered.
+         */
+        decode(dst: Uint8Array, src: string | Uint8Array): number
+    }
+}
+/**
  * most of which are ported from golang
  */
 declare module "ejs/encoding/hex" {
