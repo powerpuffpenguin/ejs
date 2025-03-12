@@ -1,7 +1,6 @@
 #include "modules_shared.h"
 #include "../js/encoding_base64.h"
-#include "../binary.h"
-#include <errno.h>
+
 static duk_size_t encoded_len(duk_size_t n, duk_bool_t padding)
 {
     if (padding)

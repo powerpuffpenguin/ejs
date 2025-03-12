@@ -9,7 +9,6 @@
 #include "../internal/utf8.h"
 #include "../internal/strconv.h"
 #include <libtomcrypt/tomcrypt.h>
-#include "../binary.h"
 
 #include <event2/buffer.h>
 #include <event2/event.h>
@@ -19,6 +18,62 @@
 #ifdef DUK_F_LINUX
 #include <sys/un.h>
 #endif
+
+/**
+ * Perform base64 encoding
+ * @param dst Encoded output target, the caller needs to ensure that it is of sufficient length
+ * @param src Original text to be encoded
+ * @param src_len length of src
+ * @param pading Padding character, if it is 0, no padding will be performed. The standard padding character is '='
+ * @param encode The 64-byte encoding value should be "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" in the standard algorithm
+ */
+static duk_size_t base64_std_encode(uint8_t *dst, const uint8_t *src, duk_size_t src_len)
+{
+    const uint8_t *encode = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const uint8_t pading = '=';
+
+    duk_size_t ret = pading ? ((src_len + 2) / 3 * 4) : (src_len * 8 + 5) / 6;
+    if (ret && dst)
+    {
+        size_t di = 0, si = 0;
+        size_t n = (src_len / 3) * 3;
+        uint32_t val;
+        while (src_len >= 3)
+        {
+            dst[0] = encode[src[0] >> 2];
+            dst[1] = encode[((src[0] & 0x3) << 4) | (src[1] >> 4)];
+            dst[2] = encode[((src[1] & 0xF) << 2) | (src[2] >> 6)];
+            dst[3] = encode[src[2] & 0x3F];
+
+            src_len -= 3;
+            src += 3;
+            dst += 4;
+        }
+        switch (src_len)
+        {
+        case 1:
+            dst[0] = encode[src[0] >> 2];
+            dst[1] = encode[((src[0] & 0x3) << 4)];
+            if (pading)
+            {
+                dst[2] = pading;
+                dst[3] = pading;
+            }
+            break;
+        case 2:
+            dst[0] = encode[src[0] >> 2];
+            dst[1] = encode[((src[0] & 0x3) << 4) | (src[1] >> 4)];
+            dst[2] = encode[((src[1] & 0xF) << 2)];
+            if (pading)
+            {
+                dst[3] = pading;
+            }
+            break;
+        }
+    }
+    return ret;
+}
+
 typedef struct
 {
     struct evhttp *server;
@@ -1032,7 +1087,7 @@ static duk_ret_t ws_key(duk_context *ctx)
     {
         key[i] = rand() % 255;
     }
-    ejs_get_binary()->base64_std.encode(key + 16, key, 16);
+    base64_std_encode(key + 16, key, 16);
     duk_push_lstring(ctx, key + 16, 24);
     return 1;
 }
@@ -1062,11 +1117,11 @@ static duk_ret_t ws_key_accept(duk_context *ctx)
     sha1_process(&md, key, 60);
     sha1_done(&md, key);
 
-    ejs_get_binary()->base64_std.encode(key + 20, key, 20);
+    base64_std_encode(key + 20, key, 20);
 
     // duk_push_lstring(ctx, key + 20, 28);
 
-    ejs_dump_context_stdout(ctx);
+    // ejs_dump_context_stdout(ctx);
     if (memcmp(accept, key + 20, 28))
     {
         return FALSE;

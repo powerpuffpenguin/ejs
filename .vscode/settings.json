@@ -105,6 +105,7 @@
         "modules_declare.h": "c",
         "modules_shared.h": "c",
         "encoding_hex.h": "c",
-        "ws.h": "c"
+        "ws.h": "c",
+        "http.h": "c"
     }
 }
