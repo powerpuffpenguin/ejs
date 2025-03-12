@@ -166,11 +166,18 @@ declare module "encoding/base64" {
         encodeToString(src: string | Uint8Array | ArrayBuffer): string
 
         /**
-         * Decode src as base64
-         * @param dst 
-         * @returns the length of bytes written to dst. If it is less than decodedLen, it means an illegal base64 value was encountered.
+         * Decode src as base64 to dst
+         * @returns the length of bytes written to dst. For illegal base64 values, decoding will be performed until the first illegal value encountered.
+         * You can use encodedLen(result)==src.length to verify that no invalid encoded values ​​were encountered during decoding
          */
-        decode(dst: Uint8Array | ArrayBuffer, src: string | Uint8Array | ArrayBuffer): number
+        decode(dst: Uint8Array, src: string | Uint8Array): number
+
+        /**
+         * Decode src as base64
+         * @returns the length of bytes written to dst. For illegal base64 values, decoding will be performed until the first illegal value encountered.
+         * You can use encodedLen(result.length)==src.length to verify that no invalid encoded values ​​were encountered during decoding
+         */
+        decode(src: string | Uint8Array): Uint8Array
     }
     /**
      * Returns the buffer required to encode n bytes in base64
@@ -210,11 +217,18 @@ declare module "encoding/base64" {
          */
         encodeToString(src: string | Uint8Array): string
         /**
-         * Decode src as base64
-         * @param dst 
-         * @returns the length of bytes written to dst. If it is less than decodedLen, it means an illegal base64 value was encountered.
+         * Decode src as base64 to dst
+         * @returns the length of bytes written to dst. For illegal base64 values, decoding will be performed until the first illegal value encountered.
+         * You can use encodedLen(result)==src.length to verify that no invalid encoded values ​​were encountered during decoding
          */
         decode(dst: Uint8Array, src: string | Uint8Array): number
+
+        /**
+         * Decode src as base64
+         * @returns the length of bytes written to dst. For illegal base64 values, decoding will be performed until the first illegal value encountered.
+         * You can use encodedLen(result.length)==src.length to verify that no invalid encoded values ​​were encountered during decoding
+         */
+        decode(src: string | Uint8Array): Uint8Array
     }
 }
 /**

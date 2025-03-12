@@ -33,11 +33,18 @@ export interface Encoding {
     encodeToString(src: string | Uint8Array): string
 
     /**
-     * Decode src as base64
-     * @param dst 
-     * @returns the length of bytes written to dst. If it is less than decodedLen, it means an illegal base64 value was encountered.
+     * Decode src as base64 to dst
+     * @returns the length of bytes written to dst. For illegal base64 values, decoding will be performed until the first illegal value encountered.
+     * You can use encodedLen(result)==src.length to verify that no invalid encoded values ​​were encountered during decoding
      */
     decode(dst: Uint8Array, src: string | Uint8Array): number
+
+    /**
+     * Decode src as base64
+     * @returns the length of bytes written to dst. For illegal base64 values, decoding will be performed until the first illegal value encountered.
+     * You can use encodedLen(result.length)==src.length to verify that no invalid encoded values ​​were encountered during decoding
+     */
+    decode(src: string | Uint8Array): Uint8Array
 }
 /**
  * Returns the buffer required to encode n bytes in base64
@@ -153,7 +160,18 @@ export class Base64 implements Encoding {
      * @param dst 
      * @returns the length of bytes written to dst. If it is less than decodedLen, it means an illegal base64 value was encountered.
      */
-    decode(dst: Uint8Array, src: string | Uint8Array): number {
+    decode(dst: Uint8Array, src: string | Uint8Array): number;
+    decode(src: string | Uint8Array): Uint8Array
+    decode(dst: any, src?: any): number | Uint8Array {
+        if (src === undefined || src === null) {
+            const n = deps.decodedLen(dst.length, this.padding_ != 0)
+            if (n == 0) {
+                return new Uint8Array()
+            }
+            const buf = new Uint8Array(n)
+            const v = deps.decode(buf, dst, this.decoder_, this.padding_)
+            return n == v ? buf : buf.subarray(0, v)
+        }
         return deps.decode(dst, src, this.decoder_, this.padding_)
     }
 }
