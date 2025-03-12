@@ -141,7 +141,7 @@ namespace ejs {
 /**
  * implements base64 encoding as specified by RFC 4648.
  */
-declare module "encoding/base64" {
+declare module "ejs/encoding/base64" {
     /**
    * base64 encoding
    */
@@ -149,17 +149,22 @@ declare module "encoding/base64" {
         /**
          * Returns the buffer required to encode n bytes in base64
          */
-        encodedLen(n: number): number
+        encodedLen(n: number | string | Uint8Array): number
         /**
          * Returns the length of the buffer required to decode n length base64
          */
-        decodedLen(n: number): number
+        decodedLen(n: number | string | Uint8Array): number
 
         /**
          * Write src to dst after base64 encoding
          * @returns the length of bytes written to dst
          */
         encode(dst: Uint8Array | ArrayBuffer, src: string | Uint8Array | ArrayBuffer): number
+        /**
+         * Encoding src to base64 encoding
+         * @returns the length of bytes written to dst
+         */
+        encode(src: string | Uint8Array): Uint8Array
         /**
          * Returns src as a base64-encoded string
          */
@@ -182,11 +187,11 @@ declare module "encoding/base64" {
     /**
      * Returns the buffer required to encode n bytes in base64
      */
-    export function encodedLen(n: number, padding?: boolean): number
+    export function encodedLen(n: number | string | Uint8Array, padding?: boolean): number
     /**
      * Returns the length of the buffer required to decode n length base64
      */
-    export function decodedLen(n: number, padding?: boolean): number
+    export function decodedLen(n: number | string | Uint8Array, padding?: boolean): number
     export const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
     export const encodeURL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
     /**
@@ -202,16 +207,21 @@ declare module "encoding/base64" {
         /**
          * Returns the buffer required to encode n bytes in base64
          */
-        encodedLen(n: number): number
+        encodedLen(n: number | string | Uint8Array): number
         /**
          * Returns the length of the buffer required to decode n length base64
          */
-        decodedLen(n: number): number
+        decodedLen(n: number | string | Uint8Array): number
         /**
          * Write src to dst after base64 encoding
          * @returns the length of bytes written to dst
          */
         encode(dst: Uint8Array, src: string | Uint8Array): number
+        /**
+         * Encoding src to base64 encoding
+         * @returns the length of bytes written to dst
+         */
+        encode(src: string | Uint8Array): Uint8Array
         /**
          * Returns src as a base64-encoded string
          */

@@ -130,5 +130,23 @@ function createServeMux() {
     mux.handle('/html', function (w, r) {
         w.body(http.StatusOK, http.ContentTypeHTML, "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Document</title>\n</head>\n<body>\n    ok\n</body>\n</html>");
     });
+    mux.handle('/ws', function (w, r) {
+        var ws = w.upgrade();
+        if (!ws) {
+            return;
+        }
+        ws.onClose = function () {
+            console.log("ws close");
+        };
+        var i = 0;
+        ws.onMessage = function (data) {
+            console.log("ws get:", data);
+            ws.write(data);
+            if (i > 10) {
+                ws.close();
+            }
+        };
+        ws.write("connect ok");
+    });
     return mux;
 }

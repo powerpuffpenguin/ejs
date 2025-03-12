@@ -1,11 +1,12 @@
 declare namespace deps {
-    function encodedLen(n: number, padding: boolean): number
-    function decodedLen(n: number, padding: boolean): number
+    function encodedLen(n: number | string | Uint8Array, padding: boolean): number
+    function decodedLen(n: number | string | Uint8Array, padding: boolean): number
 
     function createDecode(encoder: string): Uint8Array
     function createPadding(encode: string, padding: number | string | Uint8Array): number
 
     function encode(dst: Uint8Array, src: string | Uint8Array, encoder: string, padding: number): number
+    function encodeToBuffer(src: string | Uint8Array, encoder: string, padding: number): Uint8Array
     function encodeToString(src: string | Uint8Array, encoder: string, padding: number): string
     function decode(dst: Uint8Array, src: string | Uint8Array, decoder: Uint8Array, padding: number): number
 }
@@ -16,17 +17,23 @@ export interface Encoding {
     /**
      * Returns the buffer required to encode n bytes in base64
      */
-    encodedLen(n: number): number
+    encodedLen(n: number | string | Uint8Array): number
     /**
      * Returns the length of the buffer required to decode n length base64
      */
-    decodedLen(n: number): number
+    decodedLen(n: number | string | Uint8Array): number
 
     /**
      * Write src to dst after base64 encoding
      * @returns the length of bytes written to dst
      */
     encode(dst: Uint8Array, src: string | Uint8Array): number
+    /**
+     * Encoding src to base64 encoding
+     * @returns the length of bytes written to dst
+     */
+    encode(src: string | Uint8Array): Uint8Array
+
     /**
      * Returns src as a base64-encoded string
      */
@@ -49,13 +56,13 @@ export interface Encoding {
 /**
  * Returns the buffer required to encode n bytes in base64
  */
-export function encodedLen(n: number, padding?: boolean): number {
+export function encodedLen(n: number | string | Uint8Array, padding?: boolean): number {
     return deps.encodedLen(n, padding ? true : false)
 }
 /**
  * Returns the length of the buffer required to decode n length base64
  */
-export function decodedLen(n: number, padding?: boolean): number {
+export function decodedLen(n: number | string | Uint8Array, padding?: boolean): number {
     return deps.decodedLen(n, padding ? true : false)
 }
 export const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
@@ -133,20 +140,21 @@ export class Base64 implements Encoding {
     /**
      * Returns the buffer required to encode n bytes in base64
      */
-    encodedLen(n: number): number {
+    encodedLen(n: number | string | Uint8Array): number {
         return deps.encodedLen(n, this.padding_ != 0)
     }
     /**
      * Returns the length of the buffer required to decode n length base64
      */
-    decodedLen(n: number): number {
+    decodedLen(n: number | string | Uint8Array): number {
         return deps.decodedLen(n, this.padding_ != 0)
     }
-    /**
-     * Write src to dst after base64 encoding
-     * @returns the length of bytes written to dst
-     */
-    encode(dst: Uint8Array, src: string | Uint8Array): number {
+    encode(dst: Uint8Array, src: string | Uint8Array): number
+    encode(src: string | Uint8Array): Uint8Array
+    encode(dst: any, src?: any): any {
+        if (src === undefined || src === null) {
+            return deps.encodeToBuffer(dst, this.encoder_, this.padding_)
+        }
         return deps.encode(dst, src, this.encoder_, this.padding_)
     }
     /**
@@ -164,7 +172,7 @@ export class Base64 implements Encoding {
     decode(src: string | Uint8Array): Uint8Array
     decode(dst: any, src?: any): number | Uint8Array {
         if (src === undefined || src === null) {
-            const n = deps.decodedLen(dst.length, this.padding_ != 0)
+            const n = deps.decodedLen(dst, this.padding_ != 0)
             if (n == 0) {
                 return new Uint8Array()
             }

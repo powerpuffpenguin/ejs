@@ -1,6 +1,7 @@
 import "./unicode/utf8";
 
 import "./encoding/hex";
+import "./encoding/base64";
 
 import "./strconv/atob";
 import "./strconv/atoi";

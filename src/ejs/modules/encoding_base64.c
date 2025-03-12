@@ -334,6 +334,25 @@ static duk_ret_t encode(duk_context *ctx)
     duk_push_number(ctx, base64_encode(dst, src, src_len, padding, encode));
     return 1;
 }
+
+static duk_ret_t encodeToBuffer(duk_context *ctx)
+{
+    duk_size_t src_len;
+    const uint8_t *src = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &src_len);
+    const uint8_t *encode = duk_require_lstring(ctx, 1, 0);
+    uint8_t padding = duk_require_number(ctx, 2);
+    duk_pop_n(ctx, 3);
+
+    size_t n = encoded_len(src_len, padding ? 1 : 0);
+    if (n == 0)
+    {
+        duk_push_buffer(ctx, 0, 0);
+        return 1;
+    }
+    uint8_t *dst = duk_push_buffer(ctx, n, 0);
+    base64_encode(dst, src, src_len, padding, encode);
+    return 1;
+}
 static duk_ret_t encodeToString(duk_context *ctx)
 {
     duk_size_t src_len;
@@ -403,7 +422,8 @@ EJS_SHARED_MODULE__DECLARE(encoding_base64)
 
         duk_push_c_lightfunc(ctx, encode, 4, 4, 0);
         duk_put_prop_lstring(ctx, -2, "encode", 6);
-
+        duk_push_c_lightfunc(ctx, encodeToBuffer, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "encodeToBuffer", 14);
         duk_push_c_lightfunc(ctx, encodeToString, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "encodeToString", 14);
 

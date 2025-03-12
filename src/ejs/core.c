@@ -114,14 +114,15 @@ static duk_ret_t native_equal(duk_context *ctx)
     }
 
     duk_pop_2(ctx);
-    if (a_len == b_len && !memcmp(a, b, a_len))
+    if (a_len == b_len)
     {
-        duk_push_true(ctx);
+        if (!a_len || !memcmp(a, b, a_len))
+        {
+            duk_push_true(ctx);
+            return 1;
+        }
     }
-    else
-    {
-        duk_push_false(ctx);
-    }
+    duk_push_false(ctx);
     return 1;
 }
 static duk_ret_t native_copy(duk_context *ctx)
