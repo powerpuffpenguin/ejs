@@ -55,8 +55,8 @@ function runServer(co, opts) {
             return
         }
         ws.onClose = function () {
-            console.log("ws close")
-            l.close()
+            console.log("-------------------ws close")
+            // l.close()
         }
         ws.onMessage = function (data) {
             console.log("ws get:", data)
@@ -67,10 +67,7 @@ function runServer(co, opts) {
             //     console.log("c-----lose ok")
             // }, 10);
         }
-        setTimeout(function () {
-            console.log("write: connect ok")
-            ws.write("connect ok")
-        }, 1000)
+        ws.write("connect ok")
     })
     new http.Server(l, mux)
     // new http.Server(l, {
@@ -148,8 +145,18 @@ function main(co) {
         path: '/ws',
     })
     console.log('---------------c', c)
+    var i = 0
+    c.onClose = function () {
+        console.log("ws remote close")
+    }
     c.onMessage = function (x) {
-        console.log('onMessage', x)
+        console.log('onMessage:', x)
+        if (i < 10) {
+            c.write("message: " + i)
+            i++
+        } else {
+            this.close()
+        }
     }
 }
 sync.go(function (co) {

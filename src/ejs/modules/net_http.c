@@ -10,6 +10,8 @@
 #include "../internal/strconv.h"
 #include <libtomcrypt/tomcrypt.h>
 
+#include "../binary.h"
+
 #include <event2/buffer.h>
 #include <event2/event.h>
 #include <event2/http.h>
@@ -994,6 +996,7 @@ static duk_ret_t ws_upgrade_args(duk_context *ctx)
         duk_push_undefined(ctx);
         return 1;
     }
+    evws_connection_set_closecb(args->ws, on_server_ws_close_cb, core);
     struct bufferevent *buf = evws_connection_get_bufferevent(args->ws);
     bufferevent_disable(buf, EV_READ);
 
@@ -1062,20 +1065,6 @@ static duk_ret_t ws_cbm(duk_context *ctx)
     else
     {
         bufferevent_disable(evws_connection_get_bufferevent(ws), EV_READ);
-    }
-    return 0;
-}
-static duk_ret_t ws_cbc(duk_context *ctx)
-{
-    struct evws_connection *ws = duk_require_pointer(ctx, 0);
-    if (duk_require_boolean(ctx, 1))
-    {
-        duk_pop(ctx);
-        evws_connection_set_closecb(ws, on_server_ws_close_cb, ejs_require_core(ctx));
-    }
-    else
-    {
-        evws_connection_set_closecb(ws, 0, 0);
     }
     return 0;
 }
@@ -1393,9 +1382,15 @@ static duk_ret_t on_http_client_close_impl(duk_context *ctx)
 {
     http_client_t *client = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
-
-    if (!ejs_stash_get_pointer(ctx, client, EJS_STASH_NET_HTTP_CLIENT))
+    if (!ejs_stash_pop_pointer(ctx, client, EJS_STASH_NET_HTTP_CLIENT))
     {
+        return 0;
+    }
+    duk_get_prop_lstring(ctx, -1, "wsc", 3);
+    ejs_dump_context_stdout(ctx);
+    if (!duk_is_undefined(ctx, -1))
+    {
+        duk_call(ctx, 0);
         return 0;
     }
     duk_get_prop_lstring(ctx, -1, "cbc", 3);
@@ -1601,28 +1596,399 @@ static duk_ret_t close_http_client(duk_context *ctx)
     }
     return 0;
 }
-static void ws_evhttp_read_cb(struct bufferevent *bev, void *ctx)
+typedef struct
 {
-    puts("ws_evhttp_read_cb");
-}
-static void ws_evhttp_error_cb(struct bufferevent *bev, short what, void *ctx)
+    const char *err;
+    duk_size_t payload_len;
+    uint8_t *payload;
+    uint8_t opcode;
+} ws_freme_t;
+/**
+ * read websocket frame,
+ * any error return -1, no complete frame raturn 0, else return 1
+ */
+static int ws_evhttp_read_frame(struct bufferevent *bev, ws_freme_t *output)
 {
-    puts("ws_evhttp_error_cb");
-}
-static duk_ret_t ws_client_write(duk_context *ctx)
-{
-    ejs_dump_context_stdout(ctx);
+    output->payload_len = 0;
+    struct evbuffer *buf = bufferevent_get_input(bev);
+    size_t length = evbuffer_get_length(buf);
+    if (length < 2)
+    {
+        return 0;
+    }
+    uint8_t header[8];
+
+    uint8_t fin, opcode;
+    uint64_t payload_len;
+    uint8_t *payload = output->payload;
+    struct evbuffer_ptr pos = {0};
+    if (!payload)
+    {
+        evbuffer_ptr_set(buf, &pos, 0, EVBUFFER_PTR_SET);
+    }
+    while (length > 2)
+    {
+        if (payload)
+        {
+            evbuffer_remove(buf, header, 2);
+        }
+        else
+        {
+            evbuffer_copyout_from(buf, &pos, header, 2);
+            evbuffer_ptr_set(buf, &pos, 2, EVBUFFER_PTR_ADD);
+        }
+        length -= 2;
+        if (header[0] & 0x40)
+        {
+            output->err = "RSV1 set";
+            return -1;
+        }
+        if (header[0] & 0x20)
+        {
+            output->err = "RSV2 set";
+            return -1;
+        }
+        if (header[0] & 0x10)
+        {
+            output->err = "RSV3 set";
+            return -1;
+        }
+        if ((header[1] & 0x80))
+        {
+            output->err = "MASK set";
+            return -1;
+        }
+        fin = header[0] & 0x80;
+        opcode = header[0] & 0xf;
+        payload_len = header[1] & 0x7f;
+        switch (opcode)
+        {
+        case 0x8:
+        case 0x9:
+        case 0xA:
+            if (!fin)
+            {
+                output->err = "control frame do not allow FIN to be 0";
+                return -1;
+            }
+        case 0:
+        case 1:
+        case 2:
+            if (opcode)
+            {
+                output->opcode = opcode;
+            }
+
+            if (payload_len < 126)
+            {
+                if (length < payload_len)
+                {
+                    return 0;
+                }
+                output->payload_len += payload_len;
+
+                if (payload)
+                {
+                    evbuffer_remove(buf, payload, payload_len);
+                    payload += payload_len;
+                }
+                else
+                {
+                    evbuffer_ptr_set(buf, &pos, payload_len, EVBUFFER_PTR_ADD);
+                }
+                length -= payload_len;
+                if (fin)
+                {
+                    return 1;
+                }
+            }
+            else if (payload_len == 126)
+            {
+                if (length < 2)
+                {
+                    return 0;
+                }
+                if (payload)
+                {
+                    evbuffer_remove(buf, header, 2);
+                }
+                else
+                {
+                    evbuffer_copyout_from(buf, &pos, header, 2);
+                    evbuffer_ptr_set(buf, &pos, 2, EVBUFFER_PTR_ADD);
+                }
+                payload_len = ejs_get_binary()->big.uint16(header);
+                if (length < payload_len)
+                {
+                    return 0;
+                }
+                output->payload_len += payload_len;
+
+                if (payload)
+                {
+                    evbuffer_remove(buf, payload, payload_len);
+                    payload += payload_len;
+                }
+                else
+                {
+                    evbuffer_ptr_set(buf, &pos, payload_len, EVBUFFER_PTR_ADD);
+                }
+                length -= payload_len;
+                if (fin)
+                {
+                    return 1;
+                }
+            }
+            else
+            {
+                if (length < 8)
+                {
+                    return 0;
+                }
+                if (payload)
+                {
+                    evbuffer_remove(buf, header, 8);
+                }
+                else
+                {
+                    evbuffer_copyout_from(buf, &pos, header, 8);
+                    evbuffer_ptr_set(buf, &pos, 8, EVBUFFER_PTR_ADD);
+                }
+                payload_len = ejs_get_binary()->big.uint64(header);
+                if (length < payload_len)
+                {
+                    return 0;
+                }
+                output->payload_len += payload_len;
+
+                if (payload)
+                {
+                    evbuffer_remove(buf, payload, payload_len);
+                    payload += payload_len;
+                }
+                else
+                {
+                    evbuffer_ptr_set(buf, &pos, payload_len, EVBUFFER_PTR_ADD);
+                }
+                length -= payload_len;
+                if (fin)
+                {
+                    return 1;
+                }
+            }
+            break;
+        default:
+            output->err = "bad opcode";
+            return -1;
+        }
+    }
     return 0;
 }
+static void ws_evthhp_write_frame(duk_context *ctx, struct bufferevent *bev, uint8_t opcode, const uint8_t *data, duk_size_t data_len)
+{
+    bufferevent_disable(bev, EV_WRITE);
 
+    uint8_t s[2 + 8];
+    s[0] = 0x80 | opcode;
+    uint64_t write = 2 + 4;
+    uint8_t extend_length;
+    if (data_len > 65535)
+    {
+        extend_length = 8;
+        write += 8;
+        s[1] = 0x80 | 127;
+        ejs_get_binary()->big.put_uint64(s + 2, data_len);
+    }
+    else if (data_len > 125)
+    {
+        extend_length = 2;
+        write += 2;
+        s[1] = 0x80 | 126;
+        ejs_get_binary()->big.put_uint16(s + 2, data_len);
+    }
+    else
+    {
+        extend_length = 0;
+        s[1] = 0x80 | data_len;
+    }
+    // expand buffer
+    struct evbuffer *buf = bufferevent_get_output(bev);
+    if (evbuffer_expand(buf, write))
+    {
+        duk_pop_2(ctx);
+        duk_push_lstring(ctx, "evbuffer_expand fail", 20);
+        duk_throw(ctx);
+    }
+
+    // write frame
+    evbuffer_add(buf, s, 2 + extend_length);
+    srand((unsigned)time(NULL));
+    for (size_t i = 0; i < 4; i++)
+    {
+        s[i] = rand() % 255;
+    }
+    evbuffer_add(buf, s, 4);
+
+    uint8_t c;
+    for (size_t i = 0; i < data_len; i++)
+    {
+        c = data[i] ^ s[i % 4];
+        evbuffer_add(buf, &c, 1);
+    }
+    bufferevent_enable(bev, EV_WRITE);
+}
+static duk_ret_t ws_evhttp_read_cb_impl(duk_context *ctx)
+{
+    http_client_t *client = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    if (!ejs_stash_get_pointer(ctx, client, EJS_STASH_NET_HTTP_CLIENT))
+    {
+        return 0;
+    }
+    duk_get_prop_lstring(ctx, -1, "wsm", 3);
+    if (!duk_is_function(ctx, -1))
+    {
+        return 0;
+    }
+    duk_call(ctx, 0);
+    return 0;
+}
+static void ws_evhttp_read_cb(struct bufferevent *bev, void *ctx)
+{
+    if (evbuffer_get_length(bufferevent_get_input(bev)))
+    {
+        http_client_t *client = ctx;
+
+        ejs_call_callback_noresult(client->core->duk,
+                                   ws_evhttp_read_cb_impl,
+                                   client, NULL);
+    }
+}
+
+static duk_ret_t ws_client_write(duk_context *ctx)
+{
+    struct bufferevent *bev = duk_require_pointer(ctx, 0);
+    if (duk_is_string(ctx, 1))
+    {
+        duk_size_t s_len;
+        const uint8_t *s = duk_require_lstring(ctx, 1, &s_len);
+        ws_evthhp_write_frame(ctx, bev, 1, s, s_len);
+    }
+    else
+    {
+        duk_size_t s_len;
+        const uint8_t *s = duk_require_buffer_data(ctx, 1, &s_len);
+        ws_evthhp_write_frame(ctx, bev, 2, s, s_len);
+    }
+    return 0;
+}
+static duk_ret_t ws_client_active(duk_context *ctx)
+{
+    http_client_t *client = duk_require_pointer(ctx, 0);
+    if (!client)
+    {
+        return 0;
+    };
+    struct bufferevent *bev = duk_require_pointer(ctx, 1);
+    if (!bev)
+    {
+        return 0;
+    };
+
+    ws_evhttp_read_cb(bev, client);
+    return 0;
+
+    return 0;
+}
+static duk_ret_t ws_client_read(duk_context *ctx)
+{
+    struct bufferevent *bev = duk_require_pointer(ctx, 0);
+    ws_freme_t frame = {0};
+    int i = ws_evhttp_read_frame(bev, &frame);
+    switch (i)
+    {
+    case -1:
+        duk_push_error_object(ctx, DUK_ERR_ERROR, frame.err);
+        duk_throw(ctx);
+        break;
+    case 0:
+        duk_push_undefined(ctx);
+        return 1;
+    case 1:
+        duk_push_array(ctx);
+        if (frame.payload_len)
+        {
+            frame.err = 0;
+            frame.payload = duk_push_fixed_buffer(ctx, frame.payload_len);
+            if (1 != ws_evhttp_read_frame(bev, &frame))
+            {
+                if (frame.err)
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ws_evhttp_read_frame unexpectedly interrupted: %s", frame.err);
+                }
+                else
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ws_evhttp_read_frame unexpectedly interrupted");
+                }
+                duk_throw(ctx);
+            }
+            duk_push_number(ctx, frame.opcode);
+            duk_put_prop_index(ctx, -3, 0);
+            duk_put_prop_index(ctx, -2, 1);
+        }
+        else
+        {
+            frame.err = 0;
+            frame.payload = (void *)1;
+            if (1 != ws_evhttp_read_frame(bev, &frame))
+            {
+                if (frame.err)
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ws_evhttp_read_frame unexpectedly interrupted: %s", frame.err);
+                }
+                else
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ws_evhttp_read_frame unexpectedly interrupted");
+                }
+                duk_throw(ctx);
+            }
+            duk_push_number(ctx, frame.opcode);
+            duk_put_prop_index(ctx, -2, 0);
+            duk_push_undefined(ctx);
+            duk_put_prop_index(ctx, -2, 1);
+        }
+        return 1;
+    }
+    return 1;
+}
+static duk_ret_t ws_client_pong(duk_context *ctx)
+{
+    struct bufferevent *bev = duk_require_pointer(ctx, 0);
+    const uint8_t *s;
+    duk_size_t s_len;
+    if (duk_is_null_or_undefined(ctx, 1))
+    {
+        s = 0;
+        s_len = 0;
+    }
+    else
+    {
+        s = duk_require_buffer_data(ctx, 1, &s_len);
+    }
+    ws_evthhp_write_frame(ctx, bev, 0xA, s, s_len);
+}
 static duk_ret_t ws_client(duk_context *ctx)
 {
     http_client_t *client = duk_require_pointer(ctx, 0);
     struct bufferevent *bev = evhttp_connection_get_bufferevent(client->conn);
 
+    bufferevent_event_cb event_cb = 0;
+    bufferevent_getcb(bev, 0, 0, &event_cb, 0);
     bufferevent_setcb(bev,
-                      ws_evhttp_read_cb, NULL, ws_evhttp_error_cb,
+                      ws_evhttp_read_cb, NULL, event_cb,
                       client);
+
     bufferevent_disable(bev, EV_READ);
 
     duk_push_object(ctx);
@@ -1636,6 +2002,11 @@ static duk_ret_t ws_client_cbm(duk_context *ctx)
     if (duk_require_boolean(ctx, 1))
     {
         bufferevent_enable(bev, EV_READ);
+        if (evbuffer_get_length(bufferevent_get_input(bev)))
+        {
+            duk_push_true(ctx);
+            return 1;
+        }
     }
     else
     {
@@ -1643,23 +2014,7 @@ static duk_ret_t ws_client_cbm(duk_context *ctx)
     }
     return 0;
 }
-static duk_ret_t ws_client_cbc(duk_context *ctx)
-{
-    http_client_t *client = duk_require_pointer(ctx, 0);
-    struct bufferevent *bev = evhttp_connection_get_bufferevent(client->conn);
-    if (duk_require_boolean(ctx, 1))
-    {
-        bufferevent_setcb(bev,
-                          ws_evhttp_read_cb, NULL, ws_evhttp_error_cb,
-                          client->core);
-    }
-    else
-    {
-        bufferevent_setcb(
-            bev, ws_evhttp_read_cb, NULL, 0, client->core);
-    }
-    return 0;
-}
+
 static duk_ret_t http_request_finalizer(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "p", 1);
@@ -1870,8 +2225,6 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "ws_write", 8);
         duk_push_c_lightfunc(ctx, ws_close, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_close", 8);
-        duk_push_c_lightfunc(ctx, ws_cbc, 2, 2, 0);
-        duk_put_prop_lstring(ctx, -2, "ws_cbc", 6);
         duk_push_c_lightfunc(ctx, ws_cbm, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_cbm", 6);
         duk_push_c_lightfunc(ctx, ws_key, 0, 0, 0);
@@ -1918,12 +2271,16 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "get_response_body", 17);
         duk_push_c_lightfunc(ctx, ws_client, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "ws_client", 9);
-        duk_push_c_lightfunc(ctx, ws_client_cbc, 2, 2, 0);
-        duk_put_prop_lstring(ctx, -2, "ws_client_cbc", 13);
         duk_push_c_lightfunc(ctx, ws_client_cbm, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_client_cbm", 13);
-        duk_push_c_lightfunc(ctx, ws_client_write, 1, 1, 0);
+        duk_push_c_lightfunc(ctx, ws_client_write, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "ws_client_write", 15);
+        duk_push_c_lightfunc(ctx, ws_client_active, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_client_active", 16);
+        duk_push_c_lightfunc(ctx, ws_client_read, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_client_read", 14);
+        duk_push_c_lightfunc(ctx, ws_client_pong, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_client_pong", 14);
     }
     duk_call(ctx, 3);
     return 0;

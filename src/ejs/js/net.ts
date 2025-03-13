@@ -1317,6 +1317,12 @@ export class BaseTcpConn implements Conn {
             this._cbr(r)
         }
         conn.cbe = (what, err) => {
+            const actived = this.actived_
+            if (actived) {
+                this.actived_ = undefined
+                clearImmediate(actived)
+            }
+
             const f = this.onErrorBind_
             const bridge = this.bridge_
             let e: NetError

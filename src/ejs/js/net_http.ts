@@ -102,20 +102,19 @@ declare namespace deps {
     function ws_upgrade(f: Uint8Array, r: deps.RawRequest): WSConn | undefined
     function ws_close(p: WSConn, reason?: number): void
     function ws_write(p: Pointer, data: Uint8Array | string): void
-    function ws_cbc(p: Pointer, enable: boolean): void
     function ws_cbm(p: Pointer, enable: boolean): void
     function ws_key(): string
     function ws_key_accept(key: string, accept: string): boolean
     class WSClient {
         readonly __id = "WSClient"
-        cbm?: (data: string | Uint8Array) => void
-        cbc?: () => void
         p: Pointer
     }
     function ws_client(c: Pointer): WSClient
     function ws_client_write(p: Pointer, data: Uint8Array | string): void
-    function ws_client_cbc(p: Pointer, enable: boolean): void
-    function ws_client_cbm(p: Pointer, enable: boolean): void
+    function ws_client_cbm(ws: Pointer, enable: boolean): undefined | true
+    function ws_client_active(client: Pointer, ws: Pointer): void
+    function ws_client_read(ws: Pointer): [number, Uint8Array | undefined] | undefined
+    function ws_client_pong(ws: Pointer, data: Uint8Array | undefined): void
 
     function html_escape(s: string): string
     function hexEscapeNonASCII(s: string): string
@@ -145,6 +144,9 @@ declare namespace deps {
         p: Pointer
         cbc: () => void
         cb: (err?: number) => void
+
+        wsm?: (data: string | Uint8Array) => void
+        wsc?: () => void
     }
     interface CreateHttpClientOptions {
         host: string
@@ -1235,20 +1237,11 @@ class WebsocketServer {
             } else {
                 this.onClose_ = v
                 this.onCloseBind_ = bind
-
-                const ws = this.ws_
-                if (ws) {
-                    deps.ws_cbc(ws.p, true)
-                }
             }
         } else {
             if (this.onClose_) {
                 this.onClose_ = undefined
                 this.onCloseBind_ = undefined
-                const ws = this.ws_
-                if (ws) {
-                    deps.ws_cbc(ws.p, false)
-                }
             }
         }
     }
@@ -1365,7 +1358,14 @@ class WebsocketClient {
     constructor(client: HttpConn, ws: deps.WSClient) {
         this.client_ = client
         this.ws_ = ws
-        ws.cbc = () => {
+        const c = client.conn()!
+        c.wsc = () => {
+            const actived = this.actived_
+            if (actived) {
+                this.actived_ = undefined
+                clearImmediate(actived)
+            }
+
             const ws = this.ws_
             if (ws) {
                 this.ws_ = undefined
@@ -1378,13 +1378,76 @@ class WebsocketClient {
 
             const f = this.onCloseBind_
             if (f) {
+                this.onCloseBind_ = undefined
                 f()
             }
         }
-        ws.cbm = (data) => {
-            const f = this.onMessageBind_
-            if (f) {
-                f(data)
+        c.wsm = () => {
+            let vals: [number, Uint8Array | undefined] | undefined
+            let data: string | Uint8Array
+            while (true) {
+                const actived = this.actived_
+                if (actived) {
+                    this.actived_ = undefined
+                    clearImmediate(actived)
+                }
+                const f = this.onMessageBind_
+                if (!f) {
+                    break
+                }
+                const ws = this.ws_
+                if (!ws) {
+                    return
+                }
+
+                try {
+                    vals = deps.ws_client_read(ws.p)
+                    if (!vals) {
+                        return
+                    }
+                    switch (vals[0]) {
+                        case 1:
+                            if (vals[1]) {
+                                data = new TextDecoder().decode(vals[1])
+                            } else {
+                                data = ""
+                            }
+                            break;
+                        case 2:
+                            if (vals[1]) {
+                                data = vals[1]
+                            } else {
+                                data = new Uint8Array()
+                            }
+                            break
+                        case 8: // close
+                            break
+                        case 9: // ping
+                            deps.ws_client_pong(ws.p, vals[1]);
+                            return;
+                        // case 10: // pong
+                        default:
+                            return
+                    }
+                } catch (e) {
+                    const c = this.onCloseBind_
+                    if (c) {
+                        this.onCloseBind_ = undefined
+                        c()
+                    }
+                    this.close()
+                    return
+                }
+                if (vals[0] == 8) {
+                    const c = this.onCloseBind_
+                    if (c) {
+                        this.onCloseBind_ = undefined
+                        c()
+                    }
+                    this.close()
+                } else {
+                    f(data!)
+                }
             }
         }
     }
@@ -1410,6 +1473,11 @@ class WebsocketClient {
             this.client_ = undefined
             c.close()
         }
+        const actived = this.actived_
+        if (actived) {
+            this.actived_ = undefined
+            clearImmediate(actived)
+        }
     }
     private onClose_?: () => void
     private onCloseBind_?: () => void
@@ -1418,7 +1486,7 @@ class WebsocketClient {
     }
     setOnClose(ctx: any, v: undefined | (() => void)) {
         if (typeof v === "function") {
-            const bind = v.bind(ctx)
+            const bind = this.ws_ ? v.bind(ctx) : undefined
 
             if (this.onClose_) {
                 this.onClose_ = v
@@ -1427,19 +1495,11 @@ class WebsocketClient {
                 this.onClose_ = v
                 this.onCloseBind_ = bind
 
-                const client = this.client_
-                if (client) {
-                    deps.ws_client_cbc(client.native()!, true)
-                }
             }
         } else {
             if (this.onClose_) {
                 this.onClose_ = undefined
                 this.onCloseBind_ = undefined
-                const client = this.client_
-                if (client) {
-                    deps.ws_client_cbc(client.native()!, false)
-                }
             }
         }
     }
@@ -1450,7 +1510,7 @@ class WebsocketClient {
     }
     setOnMessage(ctx: any, v: undefined | ((data: string | Uint8Array) => void)) {
         if (typeof v === "function") {
-            const bind = v.bind(ctx)
+            const bind = this.ws_ ? v.bind(ctx) : undefined
 
             if (this.onMessage_) {
                 this.onMessage_ = v
@@ -1461,7 +1521,9 @@ class WebsocketClient {
 
                 const ws = this.ws_
                 if (ws) {
-                    deps.ws_client_cbm(ws.p, true)
+                    if (deps.ws_client_cbm(ws.p, true)) {
+                        this._active()
+                    }
                 }
             }
         } else {
@@ -1474,6 +1536,31 @@ class WebsocketClient {
                 }
             }
         }
+    }
+    private actived_?: number
+    private _active() {
+        if (this.actived_) {
+            return
+        }
+        this.actived_ = setImmediate(() => {
+            const c = this.client_
+            if (!c) {
+                return
+            }
+            const ws = this.ws_
+            if (!ws) {
+                return
+            }
+            const actived = this.actived_
+            if (!actived) {
+                return
+            }
+            this.actived_ = undefined
+            const p = c.native()
+            if (p !== undefined) {
+                deps.ws_client_active(p, ws.p)
+            }
+        })
     }
 }
 export class HttpConn {
@@ -1554,8 +1641,14 @@ export class HttpConn {
             }
         }
     }
+    conn() {
+        return this.c_
+    }
     native() {
-        return this.c_?.p
+        const c = this.c_
+        if (c) {
+            return c.p
+        }
     }
     private _cb(closed: boolean, err?: number) {
         const cb = this.cb_
