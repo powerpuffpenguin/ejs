@@ -1363,7 +1363,9 @@ typedef struct
     struct evhttp_connection *conn;
     ejs_core_t *core;
 
+    // 表示请求是否还未完成
     uint8_t send : 1;
+
 } http_client_t;
 static void http_client_free(http_client_t *client)
 {
@@ -1402,7 +1404,9 @@ static duk_ret_t on_http_client_close_impl(duk_context *ctx)
 }
 static void on_http_client_close(struct evhttp_connection *conn, void *userdata)
 {
-    ejs_call_callback_noresult(((http_client_t *)userdata)->core->duk, on_http_client_close_impl, userdata, 0);
+    http_client_t *client = userdata;
+    client->send = 0;
+    ejs_call_callback_noresult(client->core->duk, on_http_client_close_impl, userdata, 0);
 }
 typedef struct
 {
@@ -1446,14 +1450,16 @@ static duk_ret_t on_http_request_cb_impl(duk_context *ctx)
 }
 static void on_http_request_cb(struct evhttp_request *req, void *userdata)
 {
+    http_client_t *client = userdata;
     if (req)
     {
         ejs_call_callback_noresult(
-            ((http_client_t *)userdata)->core->duk,
+            client->core->duk,
             on_http_request_cb_impl,
             userdata,
             0);
     }
+    client->send = 0;
 }
 typedef struct
 {
@@ -1595,6 +1601,65 @@ static duk_ret_t close_http_client(duk_context *ctx)
     }
     return 0;
 }
+static void ws_evhttp_read_cb(struct bufferevent *bev, void *ctx)
+{
+    puts("ws_evhttp_read_cb");
+}
+static void ws_evhttp_error_cb(struct bufferevent *bev, short what, void *ctx)
+{
+    puts("ws_evhttp_error_cb");
+}
+static duk_ret_t ws_client_write(duk_context *ctx)
+{
+    ejs_dump_context_stdout(ctx);
+    return 0;
+}
+
+static duk_ret_t ws_client(duk_context *ctx)
+{
+    http_client_t *client = duk_require_pointer(ctx, 0);
+    struct bufferevent *bev = evhttp_connection_get_bufferevent(client->conn);
+
+    bufferevent_setcb(bev,
+                      ws_evhttp_read_cb, NULL, ws_evhttp_error_cb,
+                      client);
+    bufferevent_disable(bev, EV_READ);
+
+    duk_push_object(ctx);
+    duk_push_pointer(ctx, bev);
+    duk_put_prop_lstring(ctx, -2, "p", 1);
+    return 1;
+}
+static duk_ret_t ws_client_cbm(duk_context *ctx)
+{
+    struct bufferevent *bev = duk_require_pointer(ctx, 0);
+    if (duk_require_boolean(ctx, 1))
+    {
+        bufferevent_enable(bev, EV_READ);
+    }
+    else
+    {
+        bufferevent_disable(bev, EV_READ);
+    }
+    return 0;
+}
+static duk_ret_t ws_client_cbc(duk_context *ctx)
+{
+    http_client_t *client = duk_require_pointer(ctx, 0);
+    struct bufferevent *bev = evhttp_connection_get_bufferevent(client->conn);
+    if (duk_require_boolean(ctx, 1))
+    {
+        bufferevent_setcb(bev,
+                          ws_evhttp_read_cb, NULL, ws_evhttp_error_cb,
+                          client->core);
+    }
+    else
+    {
+        bufferevent_setcb(
+            bev, ws_evhttp_read_cb, NULL, 0, client->core);
+    }
+    return 0;
+}
 static duk_ret_t http_request_finalizer(duk_context *ctx)
 {
     duk_get_prop_lstring(ctx, 0, "p", 1);
@@ -1669,6 +1734,7 @@ static duk_ret_t do_http_request(duk_context *ctx)
         duk_push_error_object(ctx, DUK_ERR_ERROR, "evhttp_make_request fail");
         duk_throw(ctx);
     }
+    client->send = 1;
     return 0;
 }
 static duk_ret_t get_response_code(duk_context *ctx)
@@ -1850,6 +1916,14 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "get_response_code_line", 22);
         duk_push_c_lightfunc(ctx, get_response_body, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "get_response_body", 17);
+        duk_push_c_lightfunc(ctx, ws_client, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_client", 9);
+        duk_push_c_lightfunc(ctx, ws_client_cbc, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_client_cbc", 13);
+        duk_push_c_lightfunc(ctx, ws_client_cbm, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_client_cbm", 13);
+        duk_push_c_lightfunc(ctx, ws_client_write, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "ws_client_write", 15);
     }
     duk_call(ctx, 3);
     return 0;

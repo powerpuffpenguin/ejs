@@ -84,8 +84,9 @@ declare namespace deps {
     function tcp_conn_pop_stash(p: unknown): void
     function tcp_conn_close(c: TcpConn): void
     function tcp_conn_write(c: TcpConn, data: string | Uint8Array | ArrayBuffer): number | undefined
-    function tcp_conn_cb(c: TcpConn, enable: boolean): void
+    function tcp_conn_cb(c: TcpConn, enable: boolean): true | undefined
     function tcp_conn_localAddr(c: TcpConn): [string, number]
+    function tcp_conn_active(c: TcpConn): void
     interface TcpConnectOptions {
         ip: string
         v6: boolean
@@ -1308,6 +1309,11 @@ export class BaseTcpConn implements Conn {
             }
         }
         conn.cbr = (r) => {
+            const actived = this.actived_
+            if (actived) {
+                this.actived_ = undefined
+                clearImmediate(actived)
+            }
             this._cbr(r)
         }
         conn.cbe = (what, err) => {
@@ -1406,6 +1412,11 @@ export class BaseTcpConn implements Conn {
         if (c) {
             this.c_ = undefined
             deps.tcp_conn_close(c)
+        }
+        const actived = this.actived_
+        if (actived) {
+            this.actived_ = undefined
+            clearImmediate(actived)
         }
     }
     private _get(): deps.TcpConn {
@@ -1539,7 +1550,9 @@ export class BaseTcpConn implements Conn {
             }
             const c = this.c_
             if (c && !this.onMessage_) {
-                deps.tcp_conn_cb(c, true)
+                if (deps.tcp_conn_cb(c, true)) {
+                    this._active()
+                }
             }
             this.onReadableBind_ = f.bind(this)
             this.onReadable_ = f
@@ -1575,11 +1588,31 @@ export class BaseTcpConn implements Conn {
             }
             const c = this.c_
             if (c && !this.onReadable_) {
-                deps.tcp_conn_cb(c, true)
+                if (deps.tcp_conn_cb(c, true)) {
+                    this._active()
+                }
             }
             this.onMessageBind_ = f.bind(this)
             this.onMessage_ = f
         }
+    }
+    private actived_?: number
+    private _active() {
+        if (this.actived_) {
+            return
+        }
+        this.actived_ = setImmediate(() => {
+            const c = this.c_
+            if (!c) {
+                return
+            }
+            const actived = this.actived_
+            if (!actived) {
+                return
+            }
+            this.actived_ = undefined
+            deps.tcp_conn_active(c)
+        })
     }
 }
 

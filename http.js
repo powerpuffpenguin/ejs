@@ -67,7 +67,10 @@ function runServer(co, opts) {
             //     console.log("c-----lose ok")
             // }, 10);
         }
-        ws.write("connect ok")
+        setTimeout(function () {
+            console.log("write: connect ok")
+            ws.write("connect ok")
+        }, 1000)
     })
     new http.Server(l, mux)
     // new http.Server(l, {
@@ -145,7 +148,9 @@ function main(co) {
         path: '/ws',
     })
     console.log('---------------c', c)
-
+    c.onMessage = function (x) {
+        console.log('onMessage', x)
+    }
 }
 sync.go(function (co) {
     main(co)

@@ -106,6 +106,16 @@ declare namespace deps {
     function ws_cbm(p: Pointer, enable: boolean): void
     function ws_key(): string
     function ws_key_accept(key: string, accept: string): boolean
+    class WSClient {
+        readonly __id = "WSClient"
+        cbm?: (data: string | Uint8Array) => void
+        cbc?: () => void
+        p: Pointer
+    }
+    function ws_client(c: Pointer): WSClient
+    function ws_client_write(p: Pointer, data: Uint8Array | string): void
+    function ws_client_cbc(p: Pointer, enable: boolean): void
+    function ws_client_cbm(p: Pointer, enable: boolean): void
 
     function html_escape(s: string): string
     function hexEscapeNonASCII(s: string): string
@@ -606,7 +616,7 @@ export class ResponseWriter {
         }
         if (ws) {
             try {
-                return Websocket.create(ws)
+                return Websocket.create(new WebsocketServer(ws))
             } catch (e) {
                 deps.ws_close(ws, 1011)
                 throw e
@@ -1161,38 +1171,18 @@ export interface WebsocketOptions extends HttpConnOptions {
     header?: Record<string, string | Array<string>>
     signal?: AbortSignal
 }
-export class Websocket {
+interface IWebsocket {
+    write(data: string | Uint8Array): void
+    close(reason?: number): void
+    getOnClose(): undefined | (() => void)
+    setOnClose(ctx: any, v: undefined | (() => void)): void
+    onMessage?: (data: string | Uint8Array) => void
+    getOnMessage(): undefined | ((data: string | Uint8Array) => void)
+    setOnMessage(ctx: any, v: undefined | ((data: string | Uint8Array) => void)): void
+}
+class WebsocketServer {
     private ws_?: deps.WSConn
-    static create(ws: deps.WSConn) {
-        return new Websocket(ws)
-    }
-    static connect(a: any, b: any) {
-        const { co, cb, opts } = parseArgs<WebsocketOptions, (r?: Websocket, e?: any) => void>("HttpConn do", a, b)
-        if (co) {
-            return co.yield((notify) => {
-                HttpConn.connectWebsocket(opts!, (r, e) => {
-                    if (e) {
-                        notify.error(e)
-                    } else {
-                        notify.value(r)
-                    }
-                })
-            })
-        } else if (cb) {
-            HttpConn.connectWebsocket(opts!, cb)
-        } else {
-            return new Promise((resolve, reject) => {
-                HttpConn.connectWebsocket(opts!, (r, e) => {
-                    if (e) {
-                        reject(e)
-                    } else {
-                        resolve(r)
-                    }
-                })
-            })
-        }
-    }
-    private constructor(ws: deps.WSConn) {
+    constructor(ws: deps.WSConn) {
         this.ws_ = ws
         ws.cbc = () => {
             const ws = this.ws_
@@ -1232,12 +1222,12 @@ export class Websocket {
     }
     private onClose_?: () => void
     private onCloseBind_?: () => void
-    get onClose(): undefined | (() => void) {
+    getOnClose(): undefined | (() => void) {
         return this.onClose_
     }
-    set onClose(v: undefined | (() => void)) {
+    setOnClose(ctx: any, v: undefined | (() => void)) {
         if (typeof v === "function") {
-            const bind = v.bind(this)
+            const bind = v.bind(ctx)
 
             if (this.onClose_) {
                 this.onClose_ = v
@@ -1264,12 +1254,12 @@ export class Websocket {
     }
     private onMessage_?: (data: string | Uint8Array) => void
     private onMessageBind_?: (data: string | Uint8Array) => void
-    get onMessage(): undefined | ((data: string | Uint8Array) => void) {
+    getOnMessage(): undefined | ((data: string | Uint8Array) => void) {
         return this.onMessage_
     }
-    set onMessage(v: undefined | ((data: string | Uint8Array) => void)) {
+    setOnMessage(ctx: any, v: undefined | ((data: string | Uint8Array) => void)) {
         if (typeof v === "function") {
-            const bind = v.bind(this)
+            const bind = v.bind(ctx)
 
             if (this.onMessage_) {
                 this.onMessage_ = v
@@ -1295,6 +1285,56 @@ export class Websocket {
         }
     }
 }
+export class Websocket {
+    static create(ws: IWebsocket) {
+        return new Websocket(ws)
+    }
+    static connect(a: any, b: any) {
+        const { co, cb, opts } = parseArgs<WebsocketOptions, (r?: Websocket, e?: any) => void>("HttpConn do", a, b)
+        if (co) {
+            return co.yield((notify) => {
+                HttpConn.connectWebsocket(opts!, (r, e) => {
+                    if (e) {
+                        notify.error(e)
+                    } else {
+                        notify.value(r)
+                    }
+                })
+            })
+        } else if (cb) {
+            HttpConn.connectWebsocket(opts!, cb)
+        } else {
+            return new Promise((resolve, reject) => {
+                HttpConn.connectWebsocket(opts!, (r, e) => {
+                    if (e) {
+                        reject(e)
+                    } else {
+                        resolve(r)
+                    }
+                })
+            })
+        }
+    }
+    private constructor(readonly ws: IWebsocket) { }
+    write(data: string | Uint8Array) {
+        this.ws.write(data)
+    }
+    close(reason = 1000) {
+        this.ws.close(reason)
+    }
+    get onClose(): undefined | (() => void) {
+        return this.ws.getOnClose()
+    }
+    set onClose(v: undefined | (() => void)) {
+        this.ws.setOnClose(this, v)
+    }
+    get onMessage(): undefined | ((data: string | Uint8Array) => void) {
+        return this.ws.getOnMessage()
+    }
+    set onMessage(v: undefined | ((data: string | Uint8Array) => void)) {
+        this.ws.setOnMessage(this, v)
+    }
+}
 export let defaultUserAgent = `ejs-${__duk.os}-${__duk.arch}-client/1.1`
 export interface HttpConnOptions {
     /**
@@ -1318,6 +1358,123 @@ export interface HttpConnOptions {
      * tls setting, if it exists, send https request, otherwise send http request
      */
     tls?: TlsConfig
+}
+class WebsocketClient {
+    private ws_?: deps.WSClient
+    private client_?: HttpConn
+    constructor(client: HttpConn, ws: deps.WSClient) {
+        this.client_ = client
+        this.ws_ = ws
+        ws.cbc = () => {
+            const ws = this.ws_
+            if (ws) {
+                this.ws_ = undefined
+            }
+            const client = this.client_
+            if (client) {
+                this.client_ = undefined
+                client.close()
+            }
+
+            const f = this.onCloseBind_
+            if (f) {
+                f()
+            }
+        }
+        ws.cbm = (data) => {
+            const f = this.onMessageBind_
+            if (f) {
+                f(data)
+            }
+        }
+    }
+    private _ws(): deps.WSClient {
+        const ws = this.ws_
+        if (!ws) {
+            throw new Error("Websocket already closed")
+        }
+        return ws
+    }
+    write(data: string | Uint8Array) {
+        const ws = this._ws()
+        deps.ws_client_write(ws.p, data)
+    }
+    close() {
+        const ws = this.ws_
+        if (ws) {
+            this.ws_ = undefined
+            // deps.ws_close(ws, reason)
+        }
+        const c = this.client_
+        if (c) {
+            this.client_ = undefined
+            c.close()
+        }
+    }
+    private onClose_?: () => void
+    private onCloseBind_?: () => void
+    getOnClose(): undefined | (() => void) {
+        return this.onClose_
+    }
+    setOnClose(ctx: any, v: undefined | (() => void)) {
+        if (typeof v === "function") {
+            const bind = v.bind(ctx)
+
+            if (this.onClose_) {
+                this.onClose_ = v
+                this.onCloseBind_ = bind
+            } else {
+                this.onClose_ = v
+                this.onCloseBind_ = bind
+
+                const client = this.client_
+                if (client) {
+                    deps.ws_client_cbc(client.native()!, true)
+                }
+            }
+        } else {
+            if (this.onClose_) {
+                this.onClose_ = undefined
+                this.onCloseBind_ = undefined
+                const client = this.client_
+                if (client) {
+                    deps.ws_client_cbc(client.native()!, false)
+                }
+            }
+        }
+    }
+    private onMessage_?: (data: string | Uint8Array) => void
+    private onMessageBind_?: (data: string | Uint8Array) => void
+    getOnMessage(): undefined | ((data: string | Uint8Array) => void) {
+        return this.onMessage_
+    }
+    setOnMessage(ctx: any, v: undefined | ((data: string | Uint8Array) => void)) {
+        if (typeof v === "function") {
+            const bind = v.bind(ctx)
+
+            if (this.onMessage_) {
+                this.onMessage_ = v
+                this.onMessageBind_ = bind
+            } else {
+                this.onMessage_ = v
+                this.onMessageBind_ = bind
+
+                const ws = this.ws_
+                if (ws) {
+                    deps.ws_client_cbm(ws.p, true)
+                }
+            }
+        } else {
+            if (this.onMessage_) {
+                this.onMessage_ = undefined
+                this.onMessageBind_ = undefined
+                const ws = this.ws_
+                if (ws) {
+                    deps.ws_client_cbm(ws.p, false)
+                }
+            }
+        }
+    }
 }
 export class HttpConn {
     private tls_?: deps.Tls
@@ -1396,6 +1553,9 @@ export class HttpConn {
                 this._cb(true)
             }
         }
+    }
+    native() {
+        return this.c_?.p
     }
     private _cb(closed: boolean, err?: number) {
         const cb = this.cb_
@@ -1633,13 +1793,17 @@ export class HttpConn {
                     if (v === undefined || !deps.ws_key_accept(wskey, v)) {
                         throw new Error(`invalid response header Sec-WebSocket-Accept: ${v}`)
                     }
-
+                    const ws = deps.ws_client(client!.c_!.p)
+                    const c = Websocket.create(new WebsocketClient(client!, ws))
+                    client = undefined
                     const cb = callback
-                    cb(r as any)
+                    cb(c)
                 } catch (e) {
                     const cb = callback
                     callback = undefined
-                    client!.close()
+                    if (client) {
+                        client.close()
+                    }
                     cb(undefined, e)
                 }
             })

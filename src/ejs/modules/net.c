@@ -911,11 +911,14 @@ static duk_ret_t tcp_connection_read_cb_impl(duk_context *ctx)
 }
 static void tcp_connection_read_cb(struct bufferevent *bev, void *ptr)
 {
-    tcp_connection_cb_args_t args = {
-        .core = ptr,
-        .bev = bev,
-    };
-    ejs_call_callback_noresult(args.core->duk, tcp_connection_read_cb_impl, &args, NULL);
+    if (evbuffer_get_length(bufferevent_get_input(bev)))
+    {
+        tcp_connection_cb_args_t args = {
+            .core = ptr,
+            .bev = bev,
+        };
+        ejs_call_callback_noresult(args.core->duk, tcp_connection_read_cb_impl, &args, NULL);
+    }
 }
 
 static duk_ret_t tcp_connection_write_cb_impl(duk_context *ctx)
@@ -1931,6 +1934,17 @@ static duk_ret_t tcp_conn_write(duk_context *ctx)
     duk_push_uint(ctx, data_len);
     return 1;
 }
+static duk_ret_t tcp_conn_active(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, 0, "p", 1);
+    struct bufferevent *bev = duk_get_pointer_default(ctx, -1, 0);
+    if (!bev)
+    {
+        return 0;
+    };
+    tcp_connection_read_cb(bev, ejs_require_core(ctx));
+    return 0;
+}
 static duk_ret_t tcp_conn_cb(duk_context *ctx)
 {
     duk_bool_t enable = duk_require_boolean(ctx, 1);
@@ -1951,6 +1965,11 @@ static duk_ret_t tcp_conn_cb(duk_context *ctx)
     if (enable)
     {
         bufferevent_enable(bev, EV_READ);
+        if (evbuffer_get_length(bufferevent_get_input(bev)))
+        {
+            duk_push_true(ctx);
+            return 1;
+        }
     }
     else
     {
@@ -4142,6 +4161,8 @@ EJS_SHARED_MODULE__DECLARE(net)
         duk_put_prop_lstring(ctx, -2, "tcp_conn_write", 14);
         duk_push_c_lightfunc(ctx, tcp_conn_cb, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_cb", 11);
+        duk_push_c_lightfunc(ctx, tcp_conn_active, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "tcp_conn_active", 15);
         duk_push_c_lightfunc(ctx, tcp_conn_localAddr, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "tcp_conn_localAddr", 18);
 
