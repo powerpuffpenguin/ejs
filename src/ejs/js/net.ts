@@ -1384,10 +1384,35 @@ export class BaseTcpConn implements Conn {
             } else {
                 return
             }
+            const fc = this.onCloseBind_
+            this.onCloseBind_ = undefined
             this.close()
             if (f) {
                 f(e!)
             }
+            if (fc) {
+                fc()
+            }
+        }
+    }
+    private onClose_?: (this: Conn) => void
+    private onCloseBind_?: () => void
+    get onClose(): ((this: Conn) => void) | undefined {
+        return this.onClose_
+    }
+    set onClose(f: (() => void) | undefined) {
+        if (f === undefined || f === null) {
+            this.onClose_ = undefined
+            this.onCloseBind_ = undefined
+        } else {
+            if (f === this.onClose_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new this.bridge_.Error("onClose must be a function")
+            }
+            this.onCloseBind_ = this.c_ ? f.bind(this) : undefined
+            this.onClose_ = f
         }
     }
     private onError_?: (this: Conn, e: any) => void
@@ -1406,7 +1431,7 @@ export class BaseTcpConn implements Conn {
             if (typeof f !== "function") {
                 throw new this.bridge_.Error("onError must be a function")
             }
-            this.onErrorBind_ = f.bind(this)
+            this.onErrorBind_ = this.c_ ? f.bind(this) : undefined
             this.onError_ = f
         }
     }
@@ -1423,6 +1448,11 @@ export class BaseTcpConn implements Conn {
         if (actived) {
             this.actived_ = undefined
             clearImmediate(actived)
+        }
+        const f = this.onCloseBind_
+        if (f) {
+            this.onCloseBind_ = undefined
+            f()
         }
     }
     private _get(): deps.TcpConn {
@@ -1465,7 +1495,7 @@ export class BaseTcpConn implements Conn {
             if (typeof f !== "function") {
                 throw new this.bridge_.Error("onWritable must be a function")
             }
-            this.onWritableBInd_ = f.bind(this)
+            this.onWritableBInd_ = this.c_ ? f.bind(this) : undefined
             this.onWritable_ = f
         }
     }
@@ -1555,12 +1585,13 @@ export class BaseTcpConn implements Conn {
                 throw new this.bridge_.Error("onReadable must be a function")
             }
             const c = this.c_
+            const bind = c ? f.bind(this) : undefined
             if (c && !this.onMessage_) {
                 if (deps.tcp_conn_cb(c, true)) {
                     this._active()
                 }
             }
-            this.onReadableBind_ = f.bind(this)
+            this.onReadableBind_ = bind
             this.onReadable_ = f
 
         }
@@ -1593,12 +1624,13 @@ export class BaseTcpConn implements Conn {
                 throw new this.bridge_.Error("onMessage must be a function")
             }
             const c = this.c_
+            const bind = c ? f.bind(this) : undefined
             if (c && !this.onReadable_) {
                 if (deps.tcp_conn_cb(c, true)) {
                     this._active()
                 }
             }
-            this.onMessageBind_ = f.bind(this)
+            this.onMessageBind_ = bind
             this.onMessage_ = f
         }
     }
@@ -1780,8 +1812,8 @@ export class BaseTcpListener implements Listener {
             if (typeof f !== "function") {
                 throw new this.bridge.Error("onAccept must be a function")
             }
-            const bind = f.bind(this)
             const l = this.l_
+            const bind = l ? f.bind(this) : undefined
             if (l) {
                 deps.tcp_listen_cb(l, true)
             }
@@ -1807,8 +1839,8 @@ export class BaseTcpListener implements Listener {
             if (typeof f !== "function") {
                 throw new this.bridge.Error("onError must be a function")
             }
-            const bind = f.bind(this)
             const l = this.l_
+            const bind = l ? f.bind(this) : undefined
             if (l) {
                 deps.tcp_listen_err(l, true)
             }
@@ -3324,7 +3356,7 @@ export class UdpConn {
                 throw new UdpError("onReadable must be a function")
             }
             const c = this.c_.conn
-            const bind = f.bind(this)
+            const bind = c ? f.bind(this) : undefined
             if (c && !this.onMessage_) {
                 deps.udp_conn_cb(c, true)
             }
@@ -3360,7 +3392,7 @@ export class UdpConn {
                 throw new UdpError("onMessage must be a function")
             }
             const c = this.c_.conn
-            const bind = f.bind(this)
+            const bind = c ? f.bind(this) : undefined
             if (c && !this.onReadable_) {
                 deps.udp_conn_cb(c, true)
             }

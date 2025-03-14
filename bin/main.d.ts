@@ -1345,9 +1345,13 @@ declare module "ejs/net" {
         readonly isClosed: boolean
 
         /**
-         * Close the connection and release resources
+         * There is no need to explicitly call this function unless you want to close the connection immediately
          */
         close(): void
+        /**
+         * Will be called back when the connection is closed
+         */
+        onClose?: (this: BaseTcpConn) => void
         /**
          * Callback when an error occurs
          */
@@ -1930,6 +1934,9 @@ declare module "ejs/sync" {
         cv?: CallbackMap<any, Result>, ce?: CallbackMap<any, any>,
     ): Result | Promise<Result> | void
 }
+/**
+ * Package path implements utility routines for manipulating slash-separated paths. It's ported from golang standard library.
+ */
 declare module "ejs/path" {
     /**
      * Indicates a pattern was malformed.
@@ -2095,6 +2102,9 @@ declare module "ejs/path" {
      */
     export function match(pattern: string | Uint8Array, name: string | Uint8Array): boolean
 }
+/**
+ * Provides operating system-related functions, mainly reading and writing file systems
+ */
 declare module "ejs/os" {
     import { YieldContext } from "ejs/sync";
     export const OsError = ejs.OsError
@@ -3984,6 +3994,9 @@ declare module "ejs/net/url" {
     export function joinPathArray(base: string, elem: Array<string>): string
 }
 
+/**
+ * Wrap the http provided by libevent into js
+ */
 declare module "ejs/net/http" {
     import { BaseTcpListener } from "ejs/net";
     import { YieldContext } from "ejs/sync";
