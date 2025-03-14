@@ -411,7 +411,7 @@ export class Request {
         return Method[v]
     }
 
-    header(): Header {
+    get header(): Header {
         const r = this._get()
         const get = this._getHeader
         return get(r, this.shared_)

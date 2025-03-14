@@ -4105,23 +4105,23 @@ declare module "ejs/net/http" {
         /**
          * The host name the request received
          */
-        readonly host: string
+        get host(): string
         /**
          * The request uri received by the server
          */
-        readonly uri: Uri
+        get uri(): Uri
         /**
          * Returns the internal method enumeration value
          */
-        readonly method: number
+        get method(): number
         /**
          * Returns the standard method string
          */
-        readonly methodString?: string
+        get methodString(): string | undefined
         /**
          * Return http request header
          */
-        header(): Header
+        get header(): Header
     }
     /**
      * Return http request header
@@ -4165,21 +4165,80 @@ declare module "ejs/net/http" {
          */
         forEach(f: (k: string, v: string) => boolean | undefined): void
     }
+    /**
+     * Used by http servers to write responses to requests
+     */
     export class ResponseWriter {
         private constructor()
-        close(): void
+        // close(): void
 
+        /**
+         * Return the header to be responded to
+         */
         header(): Header
+        /**
+         * Syntactic sugar for .header().add(key, value)
+         */
         header(key: string, value?: any): void
 
+        /**
+         * Complete http response with code
+         */
         status(code: number): void
+        /**
+         * Use code to complete the http response and write the body at the same time
+         * @param code http response code
+         * @param contentType content type of body
+         * @param body response body
+         */
         body(code: number, contentType: string, body: string | Uint8Array): void
+        /**
+         * Syntactic sugar for .body(code, ContentTypeText, body)
+         */
         text(code: number, body: string | Uint8Array): void
+        /**
+         * Syntactic sugar for .body(code, ContentTypeJSON, JSON.stringify(body, replacer, space))
+         */
         json(code: number, body: any, replacer?: (number | string)[] | null, space?: string | number): void
+        /**
+         * Syntactic sugar for .body(code, ContentTypeJSONP, `${callback}(${JSON.stringify(body, replacer, space)})`)
+         */
         jsonp(code: number, callback: string, body: any, replacer?: (number | string)[] | null, space?: string | number): void
 
+        /**
+         * Response with code Request to return the body in chunks
+         */
+        chunk(code: number): ChunkWriter
+
+        /**
+         * If the request is a websocket request, return the websocket server implementation, otherwise do nothing and return undefined
+         */
         upgrade(): Websocket | undefined
     }
+    /**
+     * Implement http chunked response
+     */
+    export class ChunkWriter {
+        private constructor()
+        /**
+         * Write a chunked data to the buffer, You need to wait for a write to complete before writing the next chunk
+         * @param data What to write
+         * @param cb Callback after content is written
+         */
+        chunk(data: string | Uint8Array, cb: () => void): void
+        /**
+         * Write a chunked data to the buffer, You need to wait for a write to complete before writing the next chunk
+         * @param co Context used for the coroutine to give up the CPU
+         * @param data What to write
+         */
+        chunk(co: YieldContext, data: string | Uint8Array): void
+        /**
+         * Write a chunked data to the buffer, You need to wait for a write to complete before writing the next chunk
+         * @param data What to write
+         */
+        chunk(data: string | Uint8Array): Promise<void>
+    }
+    
     export interface Handler {
         serveHTTP(w: ResponseWriter, r: Request): void
     }

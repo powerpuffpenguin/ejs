@@ -26,10 +26,10 @@ function runServer(co, opts) {
     var mux = new http.ServeMux()
 
     mux.handle('/', function (w, r) {
-        r.header().forEach(function (k, v) {
+        r.header.forEach(function (k, v) {
             console.log('-------', k, v)
         })
-        console.log(r.header().value('host'))
+        console.log(r.header.value('host'))
         w.text(http.StatusOK, "cerberus is an idea")
     })
     mux.handle('/close', function (w, r) {
@@ -80,7 +80,7 @@ function runServer(co, opts) {
     //         var uri = r.uri
     //         console.log(r.methodString, uri.toString())
     //         console.log(uri.query)
-    //         var h = r.header()
+    //         var h = r.header
     //         console.log("User-Agent:", h.value("user-agent"))
 
     //         w.text(200, "ok\n")
