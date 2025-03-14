@@ -17,6 +17,7 @@
 #include <event2/http.h>
 #include <event2/ws.h>
 #include <event2/bufferevent_ssl.h>
+#include <event2/keyvalq_struct.h>
 #ifdef DUK_F_LINUX
 #include <sys/un.h>
 #endif
@@ -1139,8 +1140,8 @@ static duk_ret_t header_add(duk_context *ctx)
 static duk_ret_t header_get(duk_context *ctx)
 {
     struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
-    const char *s = duk_require_string(ctx, 1);
 
+    const char *s = duk_require_string(ctx, 1);
     s = evhttp_find_header(headers, s);
     if (!s)
     {
@@ -1149,6 +1150,47 @@ static duk_ret_t header_get(duk_context *ctx)
     duk_pop_2(ctx);
     duk_push_string(ctx, s);
     return 1;
+}
+static duk_ret_t header_values(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    const char *key = duk_require_string(ctx, 1);
+    duk_pop_2(ctx);
+
+    duk_uarridx_t i = 0;
+    for (struct evkeyval *kv = headers->tqh_first; kv; kv = kv->next.tqe_next)
+    {
+        if (evutil_ascii_strcasecmp(kv->key, key))
+        {
+            continue;
+        }
+        if (!i)
+        {
+            duk_push_array(ctx);
+        }
+        duk_push_string(ctx, kv->value);
+        duk_put_prop_index(ctx, -2, i++);
+    }
+    return i == 0 ? 0 : 1;
+}
+static duk_ret_t header_foreach(duk_context *ctx)
+{
+    struct evkeyvalq *headers = duk_require_pointer(ctx, 0);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+    for (struct evkeyval *kv = headers->tqh_first; kv; kv = kv->next.tqe_next)
+    {
+        duk_dup_top(ctx);
+        duk_push_string(ctx, kv->key);
+        duk_push_string(ctx, kv->value);
+        duk_call(ctx, 2);
+        if (duk_require_boolean(ctx, -1))
+        {
+            return 0;
+        }
+        duk_pop(ctx);
+    }
+    return 0;
 }
 static duk_ret_t header_del(duk_context *ctx)
 {
@@ -2238,6 +2280,10 @@ EJS_SHARED_MODULE__DECLARE(net_http)
         duk_put_prop_lstring(ctx, -2, "header_add", 10);
         duk_push_c_lightfunc(ctx, header_get, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "header_get", 10);
+        duk_push_c_lightfunc(ctx, header_values, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "header_values", 13);
+        duk_push_c_lightfunc(ctx, header_foreach, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "header_foreach", 14);
         duk_push_c_lightfunc(ctx, header_del, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "header_del", 10);
         duk_push_c_lightfunc(ctx, header_del_all, 2, 2, 0);

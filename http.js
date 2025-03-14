@@ -26,6 +26,10 @@ function runServer(co, opts) {
     var mux = new http.ServeMux()
 
     mux.handle('/', function (w, r) {
+        r.header().forEach(function (k, v) {
+            console.log('-------', k, v)
+        })
+        console.log(r.header().value('host'))
         w.text(http.StatusOK, "cerberus is an idea")
     })
     mux.handle('/close', function (w, r) {
@@ -77,7 +81,7 @@ function runServer(co, opts) {
     //         console.log(r.methodString, uri.toString())
     //         console.log(uri.query)
     //         var h = r.header()
-    //         console.log("User-Agent:", h.get("user-agent"))
+    //         console.log("User-Agent:", h.value("user-agent"))
 
     //         w.text(200, "ok\n")
     //         // w.status(http.StatusNoContent)
@@ -106,12 +110,16 @@ function runClient(co, opts) {
     try {
         var r = client.do(co, {
             path: '/',
-            method: http.Method.GET
+            method: http.Method.GET,
+            header: {
+                ko: ['1', '2'],
+                'Kp tt': ['abc', '2'],
+            }
         })
         console.log('statusCode:', r.statusCode)
         console.log('status', r.status)
         const header = r.header
-        console.log(header.get("Content-length"))
+        console.log(header.value("Content-length"))
         console.log(r.text())
     } catch (e) {
         console.log('err:', e.toString())
@@ -137,27 +145,27 @@ function main(co) {
         // address: '127.0.0.1:9000',
     }
     runServer(co, opts)
-    // runClient(co, opts)
+    runClient(co, opts)
 
-    var c = http.Websocket.connect(co, {
-        network: opts.network,
-        address: opts.address,
-        path: '/ws',
-    })
-    console.log('---------------c', c)
-    var i = 0
-    c.onClose = function () {
-        console.log("ws remote close")
-    }
-    c.onMessage = function (x) {
-        console.log('onMessage:', x)
-        if (i < 10) {
-            c.write("message: " + i)
-            i++
-        } else {
-            this.close()
-        }
-    }
+    // var c = http.Websocket.connect(co, {
+    //     network: opts.network,
+    //     address: opts.address,
+    //     path: '/ws',
+    // })
+    // console.log('---------------c', c)
+    // var i = 0
+    // c.onClose = function () {
+    //     console.log("ws remote close")
+    // }
+    // c.onMessage = function (x) {
+    //     console.log('onMessage:', x)
+    //     if (i < 10) {
+    //         c.write("message: " + i)
+    //         i++
+    //     } else {
+    //         this.close()
+    //     }
+    // }
 }
 sync.go(function (co) {
     main(co)

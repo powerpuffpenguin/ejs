@@ -106,6 +106,7 @@
         "modules_shared.h": "c",
         "encoding_hex.h": "c",
         "ws.h": "c",
-        "http.h": "c"
+        "http.h": "c",
+        "keyvalq_struct.h": "c"
     }
 }

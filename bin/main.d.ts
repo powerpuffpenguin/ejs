@@ -3989,15 +3989,15 @@ declare module "ejs/net/http" {
     import { YieldContext } from "ejs/sync";
 
     export enum Method {
-        GET = deps.GET,
-        POST = deps.POST,
-        HEAD = deps.HEAD,
-        PUT = deps.PUT,
-        DELETE = deps.DELETE,
-        OPTIONS = deps.OPTIONS,
-        TRACE = deps.TRACE,
-        CONNECT = deps.CONNECT,
-        PATCH = deps.PATCH,
+        GET = 1,
+        POST = 2,
+        HEAD = 4,
+        PUT = 8,
+        DELETE = 16,
+        OPTIONS = 32,
+        TRACE = 64,
+        CONNECT = 128,
+        PATCH = 256,
     }
 
     export const StatusContinue = 100 // RFC 9110, 15.2.1
@@ -4068,6 +4068,9 @@ declare module "ejs/net/http" {
     export const StatusNotExtended = 510 // RFC 2774, 7
     export const StatusNetworkAuthenticationRequired = 511 // RFC 6585, 6
 
+    /**
+     * Returns the text description corresponding to the http status code
+     */
     export function statusText(code: number): string
     export const ContentTypeHTML = "text/html; charset=utf-8"
     export const ContentTypeText = "text/plain; charset=utf-8"
@@ -4076,6 +4079,9 @@ declare module "ejs/net/http" {
     export const ContentTypeXML = "application/xml; charset=utf-8"
     export const ContentTypeYAML = "application/yaml; charset=utf-8"
 
+    /**
+     * The request uri received by the server
+     */
     export class Uri {
         private constructor()
         get fragment(): string
@@ -4087,24 +4093,77 @@ declare module "ejs/net/http" {
         get userinfo(): string
         toString(): string
     }
+    /**
+     * The request received by the server
+    */
     export class Request {
         private constructor()
+        /**
+         * Whether the request is valid. If a request expires and continues to call other member functions, an exception will be thrown.
+         */
         readonly isValid: boolean
+        /**
+         * The host name the request received
+         */
         readonly host: string
+        /**
+         * The request uri received by the server
+         */
         readonly uri: Uri
+        /**
+         * Returns the internal method enumeration value
+         */
         readonly method: number
+        /**
+         * Returns the standard method string
+         */
         readonly methodString?: string
+        /**
+         * Return http request header
+         */
         header(): Header
     }
+    /**
+     * Return http request header
+     */
     export class Header {
         private constructor()
+        /**
+         * Whether the header is valid. If a header expires and continues to call other member functions, an exception will be thrown.
+         */
         readonly isValid: boolean
+        /**
+         * set a header 
+         */
         set(key: string, value?: any): void
+        /**
+         * add a heaer 
+         */
         add(key: string, value?: any): void
-        get(key: string): string
+        /**
+         * Returns the value of the first key found
+         */
+        value(key: string): string | undefined
+        /**
+         * Returns all values ​​found for key
+         */
+        values(key: string): Array<string> | undefined
+        /**
+         * Delete the value of the first key found
+         */
         remove(key: string): void
+        /**
+         * Delete the value of all found keys
+         */
         removeAll(key: string): void
+        /**
+         * Clear all headers
+         */
         clear(): void
+        /**
+         * Traverse headers. If true is returned, stop traversing.
+         */
+        forEach(f: (k: string, v: string) => boolean | undefined): void
     }
     export class ResponseWriter {
         private constructor()
@@ -4146,11 +4205,27 @@ declare module "ejs/net/http" {
         handle(pattern: string, handler: Handler): void
         handle(pattern: string, handler: (w: ResponseWriter, r: Request) => void): void
     }
+    /**
+     * Implemented websocket server and client
+     */
     export class Websocket {
         private constructor()
+        /**
+         * Send a text frame or binary frame
+         * @param data What to send
+         */
         write(data: string | Uint8Array): void
-        close(reason = 1000): void
+        /**
+         * There is no need to explicitly call this function unless you want to disconnect immediately.
+         */
+        close(): void
+        /**
+         * When the connection is disconnected, the system will call this function. You don't need to explicitly call this.close() inside
+         */
         onClose?: (this: Websocket) => void
+        /**
+         * This function is called when a text frame or binary frame is received. If it is undefined, receiving data will be paused
+         */
         onMessage?: (this: Websocket, data: string | Uint8Array) => void
     }
     export interface HttpConnOptions {

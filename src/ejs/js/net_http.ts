@@ -44,10 +44,11 @@ declare namespace deps {
     function header_set(req: RawHeader, key: string, value: string): void
     function header_add(req: RawHeader, key: string, value: string): void
     function header_get(req: RawHeader, key: string): string | undefined
+    function header_values(req: RawHeader, key: string): Array<string> | undefined
     function header_del(req: RawHeader, key: string): void
     function header_del_all(req: RawHeader, key: string): void
     function header_clear(req: RawHeader): void
-
+    function header_foreach(req: RawHeader, f: (k: string, v: string) => boolean): void
 
     function request_get_host(req: RawRequest): string
     function request_get_method(req: RawRequest): number
@@ -723,9 +724,13 @@ export class Header {
             deps.header_add(raw, key, `${value}`)
         }
     }
-    get(key: string): string | undefined {
+    value(key: string): string | undefined {
         const raw = this._raw()
         return deps.header_get(raw, key)
+    }
+    values(key: string): Array<string> | undefined {
+        const raw = this._raw()
+        return deps.header_values(raw, key)
     }
     remove(key: string): void {
         const raw = this._raw()
@@ -740,6 +745,15 @@ export class Header {
         if (f[0]) {
             deps.header_clear(this.raw_)
         }
+    }
+    forEach(f: (k: string, v: string) => boolean | undefined): void {
+        const raw = this._raw()
+        if (typeof f !== "function") {
+            throw new Error("f must be a function");
+        }
+        deps.header_foreach(raw, (k, v) => {
+            return f(k, v) ? true : false
+        })
     }
 }
 export interface Handler {
@@ -845,7 +859,7 @@ export function redirect(w: ResponseWriter, r: Request, url: string, code: numbe
     // RFC 7231 notes that a short HTML body is usually included in
     // the response because older user agents may not understand 301/307.
     // Do it only if the request didn't already have a Content-Type header.
-    const hadCT = h.get("Content-Type")
+    const hadCT = h.value("Content-Type")
     h.set("Location", deps.hexEscapeNonASCII(url))
     if (hadCT == "") {
         w.status(code)
@@ -1194,6 +1208,7 @@ class WebsocketServer {
 
             const f = this.onCloseBind_
             if (f) {
+                this.onCloseBind_ = undefined
                 f()
             }
         }
@@ -1220,6 +1235,12 @@ class WebsocketServer {
         if (ws) {
             this.ws_ = undefined
             deps.ws_close(ws, reason)
+
+            const f = this.onCloseBind_
+            if (f) {
+                this.onCloseBind_ = undefined
+                f()
+            }
         }
     }
     private onClose_?: () => void
@@ -1229,7 +1250,7 @@ class WebsocketServer {
     }
     setOnClose(ctx: any, v: undefined | (() => void)) {
         if (typeof v === "function") {
-            const bind = v.bind(ctx)
+            const bind = this.ws_ ? v.bind(ctx) : undefined
 
             if (this.onClose_) {
                 this.onClose_ = v
@@ -1252,7 +1273,7 @@ class WebsocketServer {
     }
     setOnMessage(ctx: any, v: undefined | ((data: string | Uint8Array) => void)) {
         if (typeof v === "function") {
-            const bind = v.bind(ctx)
+            const bind = this.ws_ ? v.bind(ctx) : undefined
 
             if (this.onMessage_) {
                 this.onMessage_ = v
@@ -1366,21 +1387,7 @@ class WebsocketClient {
                 clearImmediate(actived)
             }
 
-            const ws = this.ws_
-            if (ws) {
-                this.ws_ = undefined
-            }
-            const client = this.client_
-            if (client) {
-                this.client_ = undefined
-                client.close()
-            }
-
-            const f = this.onCloseBind_
-            if (f) {
-                this.onCloseBind_ = undefined
-                f()
-            }
+            this.close()
         }
         c.wsm = () => {
             let vals: [number, Uint8Array | undefined] | undefined
@@ -1430,20 +1437,10 @@ class WebsocketClient {
                             return
                     }
                 } catch (e) {
-                    const c = this.onCloseBind_
-                    if (c) {
-                        this.onCloseBind_ = undefined
-                        c()
-                    }
                     this.close()
                     return
                 }
                 if (vals[0] == 8) {
-                    const c = this.onCloseBind_
-                    if (c) {
-                        this.onCloseBind_ = undefined
-                        c()
-                    }
                     this.close()
                 } else {
                     f(data!)
@@ -1463,20 +1460,26 @@ class WebsocketClient {
         deps.ws_client_write(ws.p, data)
     }
     close() {
-        const ws = this.ws_
-        if (ws) {
-            this.ws_ = undefined
-            // deps.ws_close(ws, reason)
-        }
-        const c = this.client_
-        if (c) {
-            this.client_ = undefined
-            c.close()
-        }
         const actived = this.actived_
         if (actived) {
             this.actived_ = undefined
             clearImmediate(actived)
+        }
+        const ws = this.ws_
+        if (ws) {
+            this.ws_ = undefined
+            // deps.ws_close(ws, reason)
+
+            const c = this.client_
+            if (c) {
+                this.client_ = undefined
+                c.close()
+            }
+            const f = this.onCloseBind_
+            if (f) {
+                this.onCloseBind_ = undefined
+                f()
+            }
         }
     }
     private onClose_?: () => void
@@ -1874,15 +1877,15 @@ export class HttpConn {
                         throw new Error(`websocket connect status: ${r.statusCode}`)
                     }
                     const h = r.header;
-                    let v = h.get('Connection')
+                    let v = h.value('Connection')
                     if (v != 'Upgrade') {
                         throw new Error(`invalid response header Upgrade: ${v}`)
                     }
-                    v = h.get('Upgrade')
+                    v = h.value('Upgrade')
                     if (v != 'websocket') {
                         throw new Error(`invalid response header Upgrade: ${v}`)
                     }
-                    v = h.get('Sec-WebSocket-Accept')
+                    v = h.value('Sec-WebSocket-Accept')
                     if (v === undefined || !deps.ws_key_accept(wskey, v)) {
                         throw new Error(`invalid response header Sec-WebSocket-Accept: ${v}`)
                     }
