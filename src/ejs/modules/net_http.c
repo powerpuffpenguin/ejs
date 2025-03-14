@@ -1396,7 +1396,8 @@ typedef struct
 
     // 表示请求是否还未完成
     uint8_t send : 1;
-
+    // 是否是一個 websocket
+    uint8_t websocket : 1;
 } http_client_t;
 static void http_client_free(http_client_t *client)
 {
@@ -1424,6 +1425,7 @@ static duk_ret_t on_http_client_close_impl(duk_context *ctx)
 {
     http_client_t *client = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
+
     if (!ejs_stash_pop_pointer(ctx, client, EJS_STASH_NET_HTTP_CLIENT))
     {
         return 0;
@@ -1435,15 +1437,20 @@ static duk_ret_t on_http_client_close_impl(duk_context *ctx)
         duk_call(ctx, 0);
         return 0;
     }
-    duk_get_prop_lstring(ctx, -1, "cbc", 3);
-    duk_call(ctx, 0);
+    // duk_pop(ctx);
+
+    // duk_get_prop_lstring(ctx, -1, "cbc", 3);
+    // duk_call(ctx, 0);
     return 0;
 }
 static void on_http_client_close(struct evhttp_connection *conn, void *userdata)
 {
     http_client_t *client = userdata;
     client->send = 0;
-    ejs_call_callback_noresult(client->core->duk, on_http_client_close_impl, userdata, 0);
+    if (client->websocket)
+    {
+        ejs_call_callback_noresult(client->core->duk, on_http_client_close_impl, userdata, 0);
+    }
 }
 typedef struct
 {
@@ -2024,6 +2031,7 @@ static duk_ret_t ws_client(duk_context *ctx)
 {
     http_client_t *client = duk_require_pointer(ctx, 0);
     struct bufferevent *bev = evhttp_connection_get_bufferevent(client->conn);
+    client->websocket = 1;
 
     bufferevent_event_cb event_cb = 0;
     bufferevent_getcb(bev, 0, 0, &event_cb, 0);

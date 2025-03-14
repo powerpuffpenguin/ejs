@@ -1181,7 +1181,7 @@ function sortSearch(n: number, f: (i: number) => boolean): number {
     // i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
     return i
 }
-export interface WebsocketOptions extends HttpConnOptions {
+export interface WebsocketOptions extends HttpClientOptions {
     limit?: number
     path?: string
     header?: Record<string, string | Array<string>>
@@ -1307,7 +1307,7 @@ export class Websocket {
         const { co, cb, opts } = parseArgs<WebsocketOptions, (r?: Websocket, e?: any) => void>("HttpConn do", a, b)
         if (co) {
             return co.yield((notify) => {
-                HttpConn.connectWebsocket(opts!, (r, e) => {
+                HttpClient.connectWebsocket(opts!, (r, e) => {
                     if (e) {
                         notify.error(e)
                     } else {
@@ -1316,10 +1316,10 @@ export class Websocket {
                 })
             })
         } else if (cb) {
-            HttpConn.connectWebsocket(opts!, cb)
+            HttpClient.connectWebsocket(opts!, cb)
         } else {
             return new Promise((resolve, reject) => {
-                HttpConn.connectWebsocket(opts!, (r, e) => {
+                HttpClient.connectWebsocket(opts!, (r, e) => {
                     if (e) {
                         reject(e)
                     } else {
@@ -1350,7 +1350,7 @@ export class Websocket {
     }
 }
 export let defaultUserAgent = `ejs-${__duk.os}-${__duk.arch}-client/1.1`
-export interface HttpConnOptions {
+export interface HttpClientOptions {
     /**
      * name of the network (for example, "tcp", "unix")
      * @default "tcp"
@@ -1375,8 +1375,8 @@ export interface HttpConnOptions {
 }
 class WebsocketClient {
     private ws_?: deps.WSClient
-    private client_?: HttpConn
-    constructor(client: HttpConn, ws: deps.WSClient) {
+    private client_?: HttpClient
+    constructor(client: HttpClient, ws: deps.WSClient) {
         this.client_ = client
         this.ws_ = ws
         const c = client.conn()!
@@ -1566,14 +1566,14 @@ class WebsocketClient {
         })
     }
 }
-export class HttpConn {
+export class HttpClient {
     private tls_?: deps.Tls
     private resolver_?: Resolver
     private host_: string
     private c_?: deps.HttpClient
     private cb_?: (e?: Error) => void
     protected request_?: deps.HttpRequest
-    constructor(opts: HttpConnOptions) {
+    constructor(opts: HttpClientOptions) {
         let ip: string
         let port: undefined | number
         let resolver: undefined | Resolver
@@ -1603,23 +1603,23 @@ export class HttpConn {
             tls: tls?.p,
             resolver: resolver ? (resolver as any).native().p : undefined,
         })
-        c.cbc = () => {
-            if (this.tls_) {
-                this.tls_ = undefined
-            }
-            if (this.resolver_) {
-                this.resolver_ = undefined
-            }
-            if (this.c_) {
-                this.c_ = undefined
-                const cb = this.cb_
-                if (cb) {
-                    this.cb_ = undefined
-                    this.request_ = undefined
-                    cb(new Error("HTTP_EOF"))
-                }
-            }
-        }
+        // c.cbc = () => {
+        // if (this.tls_) {
+        //     this.tls_ = undefined
+        // }
+        // if (this.resolver_) {
+        //     this.resolver_ = undefined
+        // }
+        // if (this.c_) {
+        //     this.c_ = undefined
+        //     const cb = this.cb_
+        //     if (cb) {
+        //         this.cb_ = undefined
+        //         this.request_ = undefined
+        //         cb(new Error("HTTP_EOF"))
+        //     }
+        // }
+        // }
         c.cb = (err) => {
             this._cb(false, err)
         }
@@ -1850,7 +1850,7 @@ export class HttpConn {
         }
     }
     static connectWebsocket(opts: WebsocketOptions, callback?: (r?: Websocket, e?: any) => void) {
-        let client: undefined | HttpConn
+        let client: undefined | HttpClient
         try {
             const wskey = deps.ws_key()
             const o: RequestOptions = {
@@ -1860,7 +1860,7 @@ export class HttpConn {
                 header: opts.header,
                 signal: opts.signal,
             }
-            client = new HttpConn(opts)
+            client = new HttpClient(opts)
             client._do(o, wskey, (r, e) => {
                 if (!callback) {
                     return

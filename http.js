@@ -106,7 +106,7 @@ function runClient(co, opts) {
         }
     }
 
-    var client = new http.HttpConn(opts)
+    var client = new http.HttpClient(opts)
     try {
         var r = client.do(co, {
             path: '/',

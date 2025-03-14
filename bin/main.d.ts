@@ -308,11 +308,11 @@ declare module "ejs/encoding/hex" {
 
     /**
      * 
-     * Report whether v is a hexadecimal character
+     * Report whether v is an hexadecimal character
      */
     export function isHex(v: number): boolean
     /**
-     * Reports whether v is a hex-encoded content
+     * Reports whether v is an hex-encoded content
      */
     export function isHex(v: string | Uint8Array): boolean
 }
@@ -4129,15 +4129,15 @@ declare module "ejs/net/http" {
     export class Header {
         private constructor()
         /**
-         * Whether the header is valid. If a header expires and continues to call other member functions, an exception will be thrown.
+         * Whether the header is valid. If an header expires and continues to call other member functions, an exception will be thrown.
          */
         readonly isValid: boolean
         /**
-         * set a header 
+         * set an header 
          */
         set(key: string, value?: any): void
         /**
-         * add a heaer 
+         * add an heaer 
          */
         add(key: string, value?: any): void
         /**
@@ -4237,17 +4237,37 @@ declare module "ejs/net/http" {
          * @param data What to write
          */
         chunk(data: string | Uint8Array): Promise<void>
+        /**
+         * Close the response stream to complete the response
+         */
+        close(): void
     }
-    
+    /**
+     * http handler interface
+     */
     export interface Handler {
         serveHTTP(w: ResponseWriter, r: Request): void
     }
+    /**
+     * http server
+     */
     export class Server {
+        /**
+         * 
+         * @param listener tcp compatible listener
+         * @param h http request handler
+         */
         constructor(readonly listener: BaseTcpListener,
             h: Handler,
         )
+        /**
+         * Stopping the service will not block existing requests
+         */
         close(): void
     }
+    /**
+     * Wrap a function as an handler
+     */
     export function handlerFunc(f: (w: ResponseWriter, r: Request) => void): Handler
     export function error(w: ResponseWriter, error: string, code: number): void
     export function notFound(w: ResponseWriter, r?: Request): void
@@ -4258,16 +4278,41 @@ declare module "ejs/net/http" {
         pattern: string
         h: Handler
     }
+    /**
+     * ServeMux is an HTTP request multiplexer.
+     * It matches the URL of each incoming request against a list of registered
+     * patterns and calls the handler for the pattern that
+     * most closely matches the URL.
+     */
     export class ServeMux implements Handler {
         handler(r: Request): MuxEntry
         serveHTTP(w: ResponseWriter, r: Request): void
         handle(pattern: string, handler: Handler): void
         handle(pattern: string, handler: (w: ResponseWriter, r: Request) => void): void
     }
+    export interface WebsocketOptions extends HttpClientOptions {
+        limit?: number
+        path?: string
+        header?: Record<string, string | Array<string>>
+        signal?: AbortSignal
+    }
     /**
      * Implemented websocket server and client
      */
     export class Websocket {
+        /**
+         * Create an http connection
+         */
+        static connect(opts: WebsocketOptions, cb: (ws?: Websocket, e?: unknown) => void): void
+        /**
+         * Create an http connection
+         */
+        static connect(co: YieldContext, opts: WebsocketOptions): Websocket
+        /**
+         * Create an http connection
+         */
+        static connect(opts: WebsocketOptions): Promise<Websocket>
+
         private constructor()
         /**
          * Send a text frame or binary frame
@@ -4287,7 +4332,51 @@ declare module "ejs/net/http" {
          */
         onMessage?: (this: Websocket, data: string | Uint8Array) => void
     }
-    export interface HttpConnOptions {
+
+    export interface RequestOptions {
+        limit?: number
+        path?: string
+        method?: Method
+        header?: Record<string, string | Array<string>>
+        body?: string | Uint8Array | ArrayBuffer
+        signal?: AbortSignal
+    }
+    export class Response {
+        private constructor()
+        /**
+         * Releases all resources immediately, usually you don't need to explicitly call it
+         */
+        close(): void
+        /**
+         * Is it still valid? If it is invalid, calling other functions will throw an exception.
+         */
+        readonly isValid: boolean
+        /**
+         * http respone code
+         */
+        get statusCode(): number
+        /**
+         * code string name
+         */
+        get status(): string
+        /**
+         * response header
+         */
+        get header(): Header
+        /**
+         * response body
+         */
+        body(): Uint8Array
+        /**
+         * return new TextDecoder().decode(this.body())
+         */
+        text(): string
+        /**
+         * return JSON.parse(this.text())
+         */
+        json<T>(): T
+    }
+    export interface HttpClientOptions {
         /**
          * Default Host set for http header
          */
@@ -4305,30 +4394,26 @@ declare module "ejs/net/http" {
          */
         tls?: TlsConfig
     }
-    export interface RequestOptions {
-        limit?: number
-        path?: string
-        method?: Method
-        header?: Record<string, string | Array<string>>
-        body?: string | Uint8Array | ArrayBuffer
-        signal?: AbortSignal
-    }
-    export class Response {
-        private constructor()
+    /**
+     * An http client. It automatically creates the connection and you don't have to manage the connection
+     */
+    export class HttpClient {
+        constructor(opts: HttpClientOptions)
+        /**
+         * Close the client to release all resources
+         */
         close(): void
-        readonly isValid: boolean
-        readonly statusCode: number
-        readonly status: string
-        readonly header: Header
-        body(): Uint8Array
-        text(): string
-        json<T>(): T
-    }
-    export class HttpConn {
-        constructor(opts: HttpConnOptions)
-        close(): void
+        /**
+         * Send an http request. This will throw an exception if the previous request has not completed yet.
+         */
         do(req: RequestOptions, cb: (resp?: Response, e?: unknown) => void): void
+        /**
+         * Send an http request.
+         */
         do(req: RequestOptions): Promise<Response>
+        /**
+         * Send an http request. This will throw an exception if the previous request has not completed yet.
+         */
         do(co: YieldContext, req: RequestOptions): Response
     }
 }
