@@ -20,11 +20,21 @@ function runServer(co, opts) {
     var l = net.listen(opts)
     console.log("tcp listen on:", l.addr)
     l.onAccept = function (c) {
+        c.onClose = function () {
+            console.log("server: close")
+            l.close()
+        }
         c.write("ok")
+        c.onMessage = function () {
+
+        }
     }
 }
 function runClient(co, opts) {
     var c = new net.dial(co, opts)
+    c.onClose = function () {
+        console.log("client: close")
+    }
     c.onReadable = function (r) {
         console.log("have data:", r.length)
         c.onReadable = undefined
@@ -32,6 +42,7 @@ function runClient(co, opts) {
             console.log('set')
             c.onReadable = function (r) {
                 console.log("repeat have data", r.length)
+                c.close()
             }
         }, 1000)
     }
