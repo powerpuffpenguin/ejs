@@ -8,7 +8,7 @@
 #include "../internal/sync_evconn_listener.h"
 #include "../internal/utf8.h"
 #include "../internal/strconv.h"
-#include <libtomcrypt/tomcrypt.h>
+#include <tomcrypt.h>
 
 #include "../binary.h"
 

@@ -316,6 +316,32 @@ declare module "ejs/encoding/hex" {
      */
     export function isHex(v: string | Uint8Array): boolean
 }
+declare module "ejs/hash" {
+    /**
+     * Common interface for hash algorithms
+     */
+    interface Hash {
+        /**
+         * Returns the final value of the current hash after writing to b, but it does not change the state of the underlying hash
+         */
+        sum(b?: Uint8Array | string): Uint8Array
+
+        /**
+         * reset hash state
+         */
+        reset(): void
+
+        /**
+         * Return hash length
+         */
+        readonly size: number
+
+        /**
+         * Returns the hash block data size. write can receive data of any length, but writing an integer multiple of the block size may be more efficient.
+         */
+        readonly block: number
+    }
+}
 /**
  * UTF8 processing function ported from golang standard library
  */

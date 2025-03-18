@@ -18,9 +18,11 @@ EJS_SHARED_MODULE__DECLARE(test0);
 
 #define EJS_SHARED_MODULE__ENCODING_HEX "ejs/encoding/hex", 16
 EJS_SHARED_MODULE__DECLARE(encoding_hex);
-
 #define EJS_SHARED_MODULE__ENCODING_BASE64 "ejs/encoding/base64", 19
 EJS_SHARED_MODULE__DECLARE(encoding_base64);
+
+#define EJS_SHARED_MODULE__HASH "ejs/hash", 8
+EJS_SHARED_MODULE__DECLARE(hash);
 
 #define EJS_SHARED_MODULE__STRCONC "ejs/strconv", 11
 EJS_SHARED_MODULE__DECLARE(strconv);

@@ -107,6 +107,8 @@
         "encoding_hex.h": "c",
         "ws.h": "c",
         "http.h": "c",
-        "keyvalq_struct.h": "c"
+        "keyvalq_struct.h": "c",
+        "net_http.h": "c",
+        "tomcrypt.h": "c"
     }
 }

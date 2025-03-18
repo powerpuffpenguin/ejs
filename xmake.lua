@@ -4,13 +4,12 @@ add_rules("plugin.compile_commands.autoupdate", { outputdir = ".vscode" })
 
 set_languages("c99")
 
--- add_requires("libevent ~2.1.12")
+-- add_requires("libevent 2.1.12")
 
 add_repositories("local-repo third_party_repo")
 add_requires("libevent 2.2.7")
-add_requires("libtomcrypt 2024.06.26")
+add_requires("libtomcrypt 1.18.2")
 add_requires("mbedtls ~3.6.0")
-
 
 plat=get_config("plat")
 arch=get_config("arch")
