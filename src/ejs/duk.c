@@ -442,7 +442,7 @@ DUK_EXTERNAL void ejs_stash_set_module_destroy(duk_context *ctx)
 }
 DUK_EXTERNAL duk_ret_t ejs_default_finalizer(duk_context *ctx)
 {
-    puts("-------------------------ejs_default_finalizer");
+    // puts("-------------------------ejs_default_finalizer");
     duk_get_prop_lstring(ctx, -1, "p", 1);
     void *p = duk_get_pointer_default(ctx, -1, 0);
     if (p)

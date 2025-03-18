@@ -1,69 +1,138 @@
 declare namespace deps {
-    class desc {
+    class Pointer {
+        readonly __id = "pointer"
+    }
+    class Desc {
         readonly __id = "desc"
     }
-    const chc_desc: desc
-    const whirlpool_desc: desc
+    class HashState {
+        readonly __id = "hash_state"
+        p: Pointer
+    }
 
-    const sha3_512_desc: desc
-    const sha3_384_desc: desc
-    const sha3_256_desc: desc
-    const sha3_224_desc: desc
+    class Hash {
+        desc: Desc
+        hashsum(data?: string | Uint8Array): Uint8Array
+        hashsumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        create(): HashState
+        sum(state: Pointer, data?: string | Uint8Array): Uint8Array
+        sumTo(state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
+    }
 
-    const keccak_512_desc: desc
-    const keccak_384_desc: desc
-    const keccak_256_desc: desc
-    const keccak_224_desc: desc
 
-    const sha512_desc: desc
-    const sha384_desc: desc
-    const sha512_256_desc: desc
-    const sha512_224_desc: desc
-    const sha256_desc: desc
-    const sha224_desc: desc
-    const sha1_desc: desc
+    const sha3_512: Hash
+    const sha3_384: Hash
+    const sha3_256: Hash
+    const sha3_224: Hash
 
-    const blake2s_256_desc: desc
-    const blake2s_224_desc: desc
-    const blake2s_160_desc: desc
-    const blake2s_128_desc: desc
-    const blake2b_512_desc: desc
-    const blake2b_384_desc: desc
-    const blake2b_256_desc: desc
-    const blake2b_160_desc: desc
+    const sha512: Hash
+    const sha384: Hash
+    const sha512_256: Hash
+    const sha512_224: Hash
+    const sha256: Hash
+    const sha224: Hash
+    const sha1: Hash
 
-    const md5_desc: desc
-    const md4_desc: desc
-    const md2_desc: desc
+    const md5: Hash
 
-    const tiger_desc: desc
-    const tiger2_desc: desc
-
-    const rmd128_desc: desc
-    const rmd160_desc: desc
-    const rmd256_desc: desc
-    const rmd320_desc: desc
+    function hashsize(h: Desc): number
+    function blocksize(h: Desc): number
+    function process(h: Desc, state: Pointer, data?: string | Uint8Array): void
+    function reset(h: Desc, state: Pointer): void
+    function done(h: Desc, state: Pointer, data?: string | Uint8Array): Uint8Array
+    function doneTo(h: Desc, state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
 }
-// export const size = deps.size
-// export const block = deps.block
-// export function hash(): hashany {
-//     return new hashany(deps.clone())
-// }
-// class hashany {
-//     readonly size = deps.size
-//     readonly block = deps.block
-//     constructor(private readonly n: deps.native) { }
-//     reset() {
-//         deps.reset(this.n)
-//     }
-//     sum(b?: Uint8Array | string): Uint8Array {
-//         const n = deps.clone(this.n)
-//         if (b && b.length) {
-//             deps.write(n, b)
-//         }
-//         return deps.done(n)
-//     }
-//     write(b: Uint8Array | string): number {
-//         return deps.write(this.n, b)
-//     }
-// }
+export class Hash {
+    private state: deps.HashState
+    protected constructor(private readonly hash: deps.Hash) {
+        this.hashsize = deps.hashsize(this.hash.desc)
+        this.blocksize = deps.blocksize(this.hash.desc)
+        this.state = hash.create()
+    }
+    /**
+     * Bytes of digest
+     */
+    readonly hashsize: number
+    /**
+     * The hash's underlying block size.
+     * The Write method must be able to accept any amount
+     * of data, but it may operate more efficiently if all writes
+     * are a multiple of the block size
+     */
+    readonly blocksize: number
+    /**
+     *  Resets the hash to its initial state.
+     */
+    reset() {
+        deps.reset(this.hash.desc, this.state.p)
+    }
+    /**
+     * Append data to hash
+     */
+    write(data?: string | Uint8Array): void {
+        deps.process(this.hash.desc, this.state.p, data)
+    }
+    /**
+     * Append data to hash and returns the resulting.
+     * It does not change the underlying hash state.
+     */
+    sum(data?: string | Uint8Array): Uint8Array {
+        const hash = this.hash
+        return hash.sum(this.state.p, data)
+    }
+
+    /**
+     * Similar to sum but writes the hash value to dst
+     * @returns hashsize
+     */
+    sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        const hash = this.hash
+        return hash.sumTo(this.state.p, dst, data)
+    }
+
+    /**
+     * Append data to hash and returns the resulting.
+     * Once this function is called, you must call reset to correctly recalculate the hash.
+     */
+    done(data?: string | Uint8Array): Uint8Array {
+        return deps.done(this.hash.desc, this.state.p, data)
+    }
+    /**
+     * Similar to done but writes the hash value to dst
+     * @returns hashsize
+     */
+    doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        return deps.doneTo(this.hash.desc, this.state.p, dst, data)
+    }
+}
+export class MD5 extends Hash {
+    /**
+     * The size of an MD5 checksum in bytes.
+     */
+    static get hashsize(): number {
+        return deps.hashsize(deps.md5.desc)
+    }
+    /**
+     * The blocksize of MD5 in bytes.
+     */
+    static get blocksize(): number {
+        return deps.blocksize(deps.md5.desc)
+    }
+    /**
+     * return MD5 checksum of the data
+     */
+    static sum(data?: string | Uint8Array): Uint8Array {
+        return deps.md5.hashsum(data)
+    }
+    /**
+     * Write MD5 checksum of the data to dst
+     * @returns hashsize
+     */
+    static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        return deps.md5.hashsumTo(dst, data)
+    }
+
+    constructor() {
+        super(deps.md5)
+    }
+}

@@ -317,29 +317,68 @@ declare module "ejs/encoding/hex" {
     export function isHex(v: string | Uint8Array): boolean
 }
 declare module "ejs/hash" {
-    /**
-     * Common interface for hash algorithms
-     */
-    interface Hash {
+    export class Hash {
+        protected constructor()
         /**
-         * Returns the final value of the current hash after writing to b, but it does not change the state of the underlying hash
+         * Bytes of digest
          */
-        sum(b?: Uint8Array | string): Uint8Array
-
+        readonly hashsize: number
         /**
-         * reset hash state
+         * The hash's underlying block size.
+         * The Write method must be able to accept any amount
+         * of data, but it may operate more efficiently if all writes
+         * are a multiple of the block size
+         */
+        readonly blocksize: number
+        /**
+         *  Resets the hash to its initial state.
          */
         reset(): void
+        /**
+         * Append data to hash
+         */
+        write(data?: string | Uint8Array): void
+        /**
+         * Append data to hash and returns the resulting.
+         * It does not change the underlying hash state.
+         */
+        sum(data?: string | Uint8Array): Uint8Array
 
         /**
-         * Return hash length
+         * Similar to sum but writes the hash value to dst
+         * @returns hashsize
          */
-        readonly size: number
+        sumTo(dst: Uint8Array, data?: string | Uint8Array): number
 
         /**
-         * Returns the hash block data size. write can receive data of any length, but writing an integer multiple of the block size may be more efficient.
+         * Append data to hash and returns the resulting.
+         * Once this function is called, you must call reset to correctly recalculate the hash.
          */
-        readonly block: number
+        done(data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to done but writes the hash value to dst
+         * @returns hashsize
+         */
+        doneTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class MD5 extends Hash {
+        /**
+         * The size of an MD5 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of MD5 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return MD5 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write MD5 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
 }
 /**
