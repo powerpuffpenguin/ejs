@@ -380,6 +380,216 @@ declare module "ejs/hash" {
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
+    export class SHA1 extends Hash {
+        /**
+         * The size of an SHA1 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA1 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA1 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA1 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+
+    export class SHA256_224 extends Hash {
+        /**
+         * The size of an SHA256_224 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA256_224 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA256_224 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA256_224 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA256 extends Hash {
+        /**
+         * The size of an SHA256 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA256 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA256 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA256 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA512_224 extends Hash {
+        /**
+         * The size of an SHA512_224 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA512_224 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA512_224 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA512_224 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA512_256 extends Hash {
+        /**
+         * The size of an SHA512_256 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA512_256 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA512_256 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA512_256 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA512_384 extends Hash {
+        /**
+         * The size of an SHA512_384 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA512_384 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA512_384 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA512_384 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA512 extends Hash {
+        /**
+         * The size of an SHA512 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA512 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA512 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA512 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA3_224 extends Hash {
+        /**
+         * The size of an SHA3_224 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA3_224 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA3_224 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA3_224 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA3_256 extends Hash {
+        /**
+         * The size of an SHA3_256 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA3_256 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA3_256 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA3_256 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA3_384 extends Hash {
+        /**
+         * The size of an SHA3_384 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA3_384 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA3_384 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA3_384 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
+    export class SHA3_512 extends Hash {
+        /**
+         * The size of an SHA3_512 checksum in bytes.
+         */
+        static get hashsize(): number
+        /**
+         * The blocksize of SHA3_512 in bytes.
+         */
+        static get blocksize(): number
+        /**
+         * return SHA3_512 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write SHA3_512 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
 }
 /**
  * UTF8 processing function ported from golang standard library

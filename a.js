@@ -10,7 +10,7 @@ var hex = require("ejs/encoding/hex")
 var Base64 = require("ejs/encoding/base64").Base64
 var path = require("ejs/path")
 var hash = require("ejs/hash")
-var MD5 = hash.MD5
+var MD5 = hash.SHA3_512
 console.log(MD5.hashsize, MD5.blocksize)
 console.log(hex.encodeToString(MD5.sum("123")))
 var md5 = new MD5()
