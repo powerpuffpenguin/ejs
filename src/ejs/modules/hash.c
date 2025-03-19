@@ -14,6 +14,58 @@ static duk_ret_t blocksize(duk_context *ctx)
     duk_push_number(ctx, hash->blocksize);
     return 1;
 }
+static void raw_hashinit(duk_context *ctx,
+                         const struct ltc_hash_descriptor *hash, hash_state *state,
+                         const uint8_t *data, const duk_size_t data_len)
+{
+    if (hash->init(state))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s init fail", hash->name);
+        duk_throw(ctx);
+    }
+    if (data_len && hash->process(state, data, data_len))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
+        duk_throw(ctx);
+    }
+}
+static void raw_hashdone(duk_context *ctx,
+                         const struct ltc_hash_descriptor *hash, hash_state *state,
+                         const uint8_t *data, const duk_size_t data_len,
+                         uint8_t *dst)
+{
+    if (data_len && hash->process(state, data, data_len))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
+        duk_throw(ctx);
+    }
+    if (hash->done(state, dst))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
+        duk_throw(ctx);
+    }
+}
+static void raw_hashget(duk_context *ctx,
+                        const struct ltc_hash_descriptor *hash, hash_state *state,
+                        const uint8_t *data, const duk_size_t data_len,
+                        uint8_t *dst)
+{
+    if (hash->init(state))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s init fail", hash->name);
+        duk_throw(ctx);
+    }
+    if (data_len && hash->process(state, data, data_len))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
+        duk_throw(ctx);
+    }
+    if (hash->done(state, dst))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
+        duk_throw(ctx);
+    }
+}
 
 static duk_ret_t hashsum(duk_context *ctx, const struct ltc_hash_descriptor *hash, hash_state *state)
 {
@@ -24,21 +76,7 @@ static duk_ret_t hashsum(duk_context *ctx, const struct ltc_hash_descriptor *has
         s = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &s_len);
     }
     uint8_t *dst = duk_push_fixed_buffer(ctx, hash->hashsize);
-    if (hash->init(state))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s init fail", hash->name);
-        duk_throw(ctx);
-    }
-    if (s_len && hash->process(state, s, s_len))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
-        duk_throw(ctx);
-    }
-    if (hash->done(state, dst))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
-        duk_throw(ctx);
-    }
+    raw_hashget(ctx, hash, state, s, s_len, dst);
     return 1;
 }
 static duk_ret_t hashsum_to(duk_context *ctx, const struct ltc_hash_descriptor *hash, hash_state *state)
@@ -51,29 +89,15 @@ static duk_ret_t hashsum_to(duk_context *ctx, const struct ltc_hash_descriptor *
         duk_throw(ctx);
     }
     duk_push_number(ctx, hash->hashsize);
-    duk_size_t s_len = 0;
-    const uint8_t *s;
 
+    duk_size_t data_len = 0;
+    const uint8_t *data;
     if (!duk_is_null_or_undefined(ctx, 1))
     {
-        s = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &s_len);
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &data_len);
     }
 
-    if (hash->init(state))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s init fail", hash->name);
-        duk_throw(ctx);
-    }
-    if (s_len && hash->process(state, s, s_len))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
-        duk_throw(ctx);
-    }
-    if (hash->done(state, dst))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
-        duk_throw(ctx);
-    }
+    raw_hashget(ctx, hash, state, data, data_len, dst);
     return 1;
 }
 static duk_ret_t create(duk_context *ctx, const struct ltc_hash_descriptor *hash, duk_size_t sz)
@@ -105,9 +129,9 @@ static duk_ret_t process(duk_context *ctx)
     const struct ltc_hash_descriptor *hash = duk_require_pointer(ctx, 0);
     hash_state *state = duk_require_pointer(ctx, 1);
 
-    duk_size_t s_len;
-    const uint8_t *s = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &s_len);
-    if (hash->process(state, s, s_len))
+    duk_size_t data_len;
+    const uint8_t *data = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &data_len);
+    if (hash->process(state, data, data_len))
     {
         duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
         duk_throw(ctx);
@@ -125,27 +149,19 @@ static duk_ret_t reset(duk_context *ctx)
     }
     return 0;
 }
-
 static duk_ret_t sum(duk_context *ctx, const struct ltc_hash_descriptor *hash, hash_state *state, duk_size_t sz)
 {
     const uint8_t *s = duk_require_pointer(ctx, 0);
     uint8_t *dst = duk_push_fixed_buffer(ctx, hash->hashsize);
     memcpy(state, s, sz);
+
+    duk_size_t data_len = 0;
+    const uint8_t *data;
     if (!duk_is_null_or_undefined(ctx, 1))
     {
-        duk_size_t s_len = 0;
-        const uint8_t *s = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &s_len);
-        if (s_len && hash->process(state, s, s_len))
-        {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
-            duk_throw(ctx);
-        }
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &data_len);
     }
-    if (hash->done(state, dst))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
-        duk_throw(ctx);
-    }
+    raw_hashdone(ctx, hash, state, data, data_len, dst);
     return 1;
 }
 static duk_ret_t sum_to(duk_context *ctx, const struct ltc_hash_descriptor *hash, hash_state *state, duk_size_t sz)
@@ -161,21 +177,13 @@ static duk_ret_t sum_to(duk_context *ctx, const struct ltc_hash_descriptor *hash
     duk_push_number(ctx, hash->hashsize);
 
     memcpy(state, s, sz);
+    duk_size_t data_len = 0;
+    const uint8_t *data;
     if (!duk_is_null_or_undefined(ctx, 2))
     {
-        duk_size_t s_len = 0;
-        const uint8_t *s = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &s_len);
-        if (s_len && hash->process(state, s, s_len))
-        {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
-            duk_throw(ctx);
-        }
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &data_len);
     }
-    if (hash->done(state, dst))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
-        duk_throw(ctx);
-    }
+    raw_hashdone(ctx, hash, state, data, data_len, dst);
     return 1;
 }
 static duk_ret_t done(duk_context *ctx)
@@ -183,21 +191,13 @@ static duk_ret_t done(duk_context *ctx)
     const struct ltc_hash_descriptor *hash = duk_require_pointer(ctx, 0);
     hash_state *state = duk_require_pointer(ctx, 1);
     uint8_t *dst = duk_push_fixed_buffer(ctx, hash->hashsize);
+    duk_size_t data_len = 0;
+    const uint8_t *data;
     if (!duk_is_null_or_undefined(ctx, 2))
     {
-        duk_size_t s_len = 0;
-        const uint8_t *s = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &s_len);
-        if (s_len && hash->process(state, s, s_len))
-        {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
-            duk_throw(ctx);
-        }
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &data_len);
     }
-    if (hash->done(state, dst))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
-        duk_throw(ctx);
-    }
+    raw_hashdone(ctx, hash, state, data, data_len, dst);
     return 1;
 }
 static duk_ret_t doneTo(duk_context *ctx)
@@ -212,89 +212,186 @@ static duk_ret_t doneTo(duk_context *ctx)
         duk_throw(ctx);
     }
     duk_push_number(ctx, hash->hashsize);
+
+    duk_size_t data_len = 0;
+    const uint8_t *data;
     if (!duk_is_null_or_undefined(ctx, 3))
     {
-        duk_size_t s_len = 0;
-        const uint8_t *s = EJS_REQUIRE_CONST_LSOURCE(ctx, 3, &s_len);
-        if (s_len && hash->process(state, s, s_len))
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 3, &data_len);
+    }
+    raw_hashdone(ctx, hash, state, data, data_len, dst);
+    return 1;
+}
+static void hmac_init_any(duk_context *ctx,
+                          const struct ltc_hash_descriptor *hash, hash_state *state,
+                          uint8_t *ipad, uint8_t *opad,
+                          const uint8_t *s, const duk_size_t s_len)
+{
+    if (s_len == hash->blocksize)
+    {
+        memcpy(opad, s, s_len);
+    }
+    else if (s_len < hash->blocksize)
+    {
+        if (s_len)
         {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
-            duk_throw(ctx);
+            memcpy(opad, s, s_len);
+            memset(opad + s_len, 0, hash->blocksize - s_len);
+        }
+        else
+        {
+            memset(opad, 0, hash->blocksize);
         }
     }
-    if (hash->done(state, dst))
+    else
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s done fail", hash->name);
+        raw_hashget(ctx, hash, state, s, s_len, opad);
+        if (hash->blocksize > hash->hashsize)
+        {
+            memset(opad + hash->hashsize, 0, hash->blocksize - hash->hashsize);
+        }
+    }
+    for (duk_size_t i = 0; i < hash->blocksize; i++)
+    {
+        ipad[i] = opad[i] ^ 0x36;
+        opad[i] ^= 0x5c;
+    }
+    raw_hashinit(ctx, hash, state, ipad, hash->blocksize);
+}
+static duk_ret_t hmac_any(duk_context *ctx,
+                          const struct ltc_hash_descriptor *hash, hash_state *state,
+                          uint8_t *ipad, uint8_t *opad)
+{
+
+    duk_size_t key_len;
+    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &key_len);
+    duk_size_t data_len = 0;
+    const uint8_t *data;
+    if (!duk_is_null_or_undefined(ctx, 1))
+    {
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &data_len);
+    }
+    uint8_t *dst = duk_push_fixed_buffer(ctx, hash->hashsize);
+
+    hmac_init_any(ctx, hash, state, ipad, opad, key, key_len);
+
+    raw_hashdone(ctx, hash, state, data, data_len, dst);
+
+    raw_hashinit(ctx, hash, state, opad, hash->blocksize);
+
+    raw_hashdone(ctx, hash, state, dst, hash->hashsize, dst);
+    return 1;
+}
+static duk_ret_t hmac_to_any(duk_context *ctx,
+                             const struct ltc_hash_descriptor *hash, hash_state *state,
+                             uint8_t *ipad, uint8_t *opad)
+{
+
+    duk_size_t dst_len;
+    uint8_t *dst = duk_require_buffer_data(ctx, 0, &dst_len);
+    duk_size_t key_len;
+    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+    duk_size_t data_len = 0;
+    const uint8_t *data;
+    if (!duk_is_null_or_undefined(ctx, 2))
+    {
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &data_len);
+    }
+    if (dst_len < hash->hashsize)
+    {
+        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "dst not enough buffer");
         duk_throw(ctx);
     }
+    duk_push_number(ctx, hash->hashsize);
+
+    hmac_init_any(ctx, hash, state, ipad, opad, key, key_len);
+
+    raw_hashdone(ctx, hash, state, data, data_len, dst);
+
+    raw_hashinit(ctx, hash, state, opad, hash->blocksize);
+
+    raw_hashdone(ctx, hash, state, dst, hash->hashsize, dst);
     return 1;
 }
 
-#define EJS_MODULE_HASH_PUSH_RAW(name, desc, hashsum, hashsumTo, create, sum, sumTo) \
-    duk_push_object(ctx);                                                            \
-    duk_push_pointer(ctx, (void *)&desc);                                            \
-    duk_put_prop_lstring(ctx, -2, "desc", 4);                                        \
-    duk_push_c_lightfunc(ctx, hashsum, 1, 1, 0);                                     \
-    duk_put_prop_lstring(ctx, -2, "hashsum", 7);                                     \
-    duk_push_c_lightfunc(ctx, hashsumTo, 2, 2, 0);                                   \
-    duk_put_prop_lstring(ctx, -2, "hashsumTo", 9);                                   \
-    duk_push_c_lightfunc(ctx, create, 1, 1, 0);                                      \
-    duk_put_prop_lstring(ctx, -2, "create", 6);                                      \
-    duk_push_c_lightfunc(ctx, sum, 2, 2, 0);                                         \
-    duk_put_prop_lstring(ctx, -2, "sum", 3);                                         \
-    duk_push_c_lightfunc(ctx, sumTo, 3, 3, 0);                                       \
-    duk_put_prop_lstring(ctx, -2, "sumTo", 5);                                       \
+#define EJS_MODULE_HASH_PUSH_RAW(name, desc)               \
+    duk_push_object(ctx);                                  \
+    duk_push_pointer(ctx, (void *)&desc);                  \
+    duk_put_prop_lstring(ctx, -2, "desc", 4);              \
+    duk_push_c_lightfunc(ctx, hashsum_##name, 1, 1, 0);    \
+    duk_put_prop_lstring(ctx, -2, "hashsum", 7);           \
+    duk_push_c_lightfunc(ctx, hashsum_to_##name, 2, 2, 0); \
+    duk_put_prop_lstring(ctx, -2, "hashsumTo", 9);         \
+    duk_push_c_lightfunc(ctx, create_##name, 1, 1, 0);     \
+    duk_put_prop_lstring(ctx, -2, "create", 6);            \
+    duk_push_c_lightfunc(ctx, sum_##name, 2, 2, 0);        \
+    duk_put_prop_lstring(ctx, -2, "sum", 3);               \
+    duk_push_c_lightfunc(ctx, sum_to_##name, 3, 3, 0);     \
+    duk_put_prop_lstring(ctx, -2, "sumTo", 5);             \
+    duk_push_c_lightfunc(ctx, hmac_##name, 2, 2, 0);       \
+    duk_put_prop_lstring(ctx, -2, "hmac", 4);              \
+    duk_push_c_lightfunc(ctx, hmac_to_##name, 3, 3, 0);    \
+    duk_put_prop_lstring(ctx, -2, "hmacTo", 6);            \
     duk_put_prop_string(ctx, -2, #name)
-#define EJS_MODULE_HASH_PUSH(name) EJS_MODULE_HASH_PUSH_RAW( \
-    name, name##_desc,                                       \
-    hashsum_##name, hashsum_to_##name,                       \
-    create_##name,                                           \
-    sum_##name, sum_to_##name)
+#define EJS_MODULE_HASH_PUSH(name) EJS_MODULE_HASH_PUSH_RAW(name, name##_desc)
 
-#define EJS_MODULE_HASH_DEFAINE_RAW(name, desc, raw_state)   \
-    static duk_ret_t hashsum_##name(duk_context *ctx)        \
-    {                                                        \
-        struct raw_state state;                              \
-        return hashsum(ctx, &desc, (hash_state *)&state);    \
-    }                                                        \
-    static duk_ret_t hashsum_to_##name(duk_context *ctx)     \
-    {                                                        \
-        struct raw_state state;                              \
-        return hashsum_to(ctx, &desc, (hash_state *)&state); \
-    }                                                        \
-    static duk_ret_t create_##name(duk_context *ctx)         \
-    {                                                        \
-        duk_size_t sz = sizeof(struct raw_state);            \
-        return create(ctx, &desc, sz);                       \
-    }                                                        \
-    static duk_ret_t sum_##name(duk_context *ctx)            \
-    {                                                        \
-        struct raw_state state;                              \
-        duk_size_t sz = sizeof(struct raw_state);            \
-        return sum(ctx, &desc, (hash_state *)&state, sz);    \
-    }                                                        \
-    static duk_ret_t sum_to_##name(duk_context *ctx)         \
-    {                                                        \
-        struct raw_state state;                              \
-        duk_size_t sz = sizeof(struct raw_state);            \
-        return sum_to(ctx, &desc, (hash_state *)&state, sz); \
+#define EJS_MODULE_HASH_DEFAINE_RAW(name, desc, raw_state, BLOCKSIZE)               \
+    static duk_ret_t hashsum_##name(duk_context *ctx)                               \
+    {                                                                               \
+        struct raw_state state;                                                     \
+        return hashsum(ctx, &desc, (hash_state *)&state);                           \
+    }                                                                               \
+    static duk_ret_t hashsum_to_##name(duk_context *ctx)                            \
+    {                                                                               \
+        struct raw_state state;                                                     \
+        return hashsum_to(ctx, &desc, (hash_state *)&state);                        \
+    }                                                                               \
+    static duk_ret_t create_##name(duk_context *ctx)                                \
+    {                                                                               \
+        duk_size_t sz = sizeof(struct raw_state);                                   \
+        return create(ctx, &desc, sz);                                              \
+    }                                                                               \
+    static duk_ret_t sum_##name(duk_context *ctx)                                   \
+    {                                                                               \
+        struct raw_state state;                                                     \
+        duk_size_t sz = sizeof(struct raw_state);                                   \
+        return sum(ctx, &desc, (hash_state *)&state, sz);                           \
+    }                                                                               \
+    static duk_ret_t sum_to_##name(duk_context *ctx)                                \
+    {                                                                               \
+        struct raw_state state;                                                     \
+        duk_size_t sz = sizeof(struct raw_state);                                   \
+        return sum_to(ctx, &desc, (hash_state *)&state, sz);                        \
+    }                                                                               \
+    static duk_ret_t hmac_##name(duk_context *ctx)                                  \
+    {                                                                               \
+        struct raw_state state;                                                     \
+        uint8_t s[BLOCKSIZE * 2];                                                   \
+        return hmac_any(ctx, &md5_desc, (hash_state *)&state, s, s + BLOCKSIZE);    \
+    }                                                                               \
+    static duk_ret_t hmac_to_##name(duk_context *ctx)                               \
+    {                                                                               \
+        struct raw_state state;                                                     \
+        uint8_t s[BLOCKSIZE * 2];                                                   \
+        return hmac_to_any(ctx, &md5_desc, (hash_state *)&state, s, s + BLOCKSIZE); \
     }
-#define EJS_MODULE_HASH_DEFAINE(name) EJS_MODULE_HASH_DEFAINE_RAW(name, name##_desc, name##_state)
-#define EJS_MODULE_HASH_DEFAINE_WITH_STATE(name, state) EJS_MODULE_HASH_DEFAINE_RAW(name, name##_desc, state)
 
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_512, sha3_state)
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_384, sha3_state)
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_256, sha3_state)
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_224, sha3_state)
+#define EJS_MODULE_HASH_DEFAINE(name, BLOCKSIZE) EJS_MODULE_HASH_DEFAINE_RAW(name, name##_desc, name##_state, BLOCKSIZE)
+#define EJS_MODULE_HASH_DEFAINE_WITH_STATE(name, state, BLOCKSIZE) EJS_MODULE_HASH_DEFAINE_RAW(name, name##_desc, state, BLOCKSIZE)
 
-EJS_MODULE_HASH_DEFAINE(sha512)
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha384, sha512_state)
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha512_256, sha512_state)
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha512_224, sha512_state)
-EJS_MODULE_HASH_DEFAINE(sha256)
-EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha224, sha256_state)
-EJS_MODULE_HASH_DEFAINE(sha1)
-EJS_MODULE_HASH_DEFAINE(md5)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_512, sha3_state, 72)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_384, sha3_state, 104)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_256, sha3_state, 136)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha3_224, sha3_state, 144)
+
+EJS_MODULE_HASH_DEFAINE(sha512, 128)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha384, sha512_state, 128)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha512_256, sha512_state, 128)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha512_224, sha512_state, 128)
+EJS_MODULE_HASH_DEFAINE(sha256, 64)
+EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha224, sha256_state, 64)
+EJS_MODULE_HASH_DEFAINE(sha1, 64)
+EJS_MODULE_HASH_DEFAINE(md5, 64)
 
 EJS_SHARED_MODULE__DECLARE(hash)
 {
@@ -345,6 +442,5 @@ EJS_SHARED_MODULE__DECLARE(hash)
      */
     duk_call(ctx, 3);
 
-    ejs_stash_set_module_destroy(ctx);
     return 0;
 }

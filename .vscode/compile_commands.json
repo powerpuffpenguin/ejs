@@ -1,11 +1,6 @@
 [
 {
   "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
-  "file": "src/main.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
   "file": "src/duk/duk_module_node.c"
 },
@@ -462,5 +457,10 @@
 {
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/example_ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
   "file": "src/main.c"
 }]

@@ -17,8 +17,10 @@ declare namespace deps {
         create(state?: Pointer): HashState
         sum(state: Pointer, data?: string | Uint8Array): Uint8Array
         sumTo(state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
-    }
 
+        hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
+    }
 
     const sha3_512: Hash
     const sha3_384: Hash
@@ -233,7 +235,18 @@ export class MD5 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.md5.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.md5.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.md5.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.md5))
     }
@@ -264,7 +277,18 @@ export class SHA1 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha1.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha1.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha1.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha1))
     }
@@ -295,7 +319,18 @@ export class SHA256_224 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha224.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha224.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha224.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha224))
     }
@@ -326,7 +361,18 @@ export class SHA256 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha256.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha256.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha256.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha256))
     }
@@ -357,7 +403,18 @@ export class SHA512_224 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha512_224.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha512_224.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha512_224.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha512_224))
     }
@@ -388,7 +445,18 @@ export class SHA512_256 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha512_256.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha512_256.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha512_256.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha512_256))
     }
@@ -419,7 +487,18 @@ export class SHA512_384 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha384.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha384.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha384.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha384))
     }
@@ -450,7 +529,18 @@ export class SHA512 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha512.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha512.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha512.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha512))
     }
@@ -481,7 +571,18 @@ export class SHA3_224 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_224.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha3_224.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha3_224.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha3_224))
     }
@@ -512,7 +613,18 @@ export class SHA3_256 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_256.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha3_256.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha3_256.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha3_256))
     }
@@ -543,7 +655,18 @@ export class SHA3_384 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_384.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha3_384.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha3_384.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha3_384))
     }
@@ -574,8 +697,60 @@ export class SHA3_512 extends Hash {
     static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_512.hashsumTo(dst, data)
     }
-
+    /**
+     * Calculate hmac value and return result
+     */
+    static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array {
+        return deps.sha3_512.hmac(key, data)
+    }
+    /**
+     * Similar to hmac function but writes the result to dst
+     */
+    static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
+        return deps.sha3_512.hmacTo(dst, key, data)
+    }
     constructor() {
         super(new HashDesc(deps.sha3_512))
+    }
+}
+export class HMAC implements AnyHash {
+    private state: deps.HashState
+    constructor(private readonly hash: deps.Hash, opts?: HashDescOptions) {
+        if (opts) {
+            this.state = hash.create(opts.state)
+            this.hashsize = opts.hashsize
+            this.blocksize = opts.blocksize
+        } else {
+            this.state = hash.create()
+            this.hashsize = deps.hashsize(hash.desc)
+            this.blocksize = deps.blocksize(hash.desc)
+        }
+    }
+    clone(): HMAC {
+        return new HMAC(this.hash, {
+            blocksize: this.blocksize,
+            hashsize: this.hashsize,
+            state: this.state.p,
+        })
+    }
+    readonly hashsize: number
+    readonly blocksize: number
+    reset(): void {
+
+    }
+    write(data?: string | Uint8Array): void {
+
+    }
+    sum(data?: string | Uint8Array): Uint8Array {
+        return new Uint8Array()
+    }
+    sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        return 0
+    }
+    done(data?: string | Uint8Array): Uint8Array {
+        return new Uint8Array()
+    }
+    doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        return 0
     }
 }
