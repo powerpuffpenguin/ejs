@@ -42,19 +42,114 @@ declare namespace deps {
     function done(h: Desc, state: Pointer, data?: string | Uint8Array): Uint8Array
     function doneTo(h: Desc, state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
 }
+
+interface AnyHash {
+    clone(): AnyHash
+    readonly hashsize: number
+    readonly blocksize: number
+    reset(): void
+    write(data?: string | Uint8Array): void
+    sum(data?: string | Uint8Array): Uint8Array
+    sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    done(data?: string | Uint8Array): Uint8Array
+    doneTo(dst: Uint8Array, data?: string | Uint8Array): number
+}
+
 export class Hash {
-    private state: deps.HashState
-    protected constructor(private readonly hash: deps.Hash, state?: deps.Pointer) {
-        this.hashsize = deps.hashsize(this.hash.desc)
-        this.blocksize = deps.blocksize(this.hash.desc)
-        this.state = hash.create(state)
-    }
+    protected constructor(private readonly hash: AnyHash) { }
     /**
      * Create a copy of the current state hash
      * @returns A copy of the current state hash
      */
     clone(): Hash {
-        return new Hash(this.hash, this.state.p)
+        return new Hash(this.hash.clone())
+    }
+    /**
+     * Bytes of digest
+     */
+    get hashsize(): number {
+        return this.hash.hashsize
+    }
+    /**
+     * The hash's underlying block size.
+     * The Write method must be able to accept any amount
+     * of data, but it may operate more efficiently if all writes
+     * are a multiple of the block size
+     */
+    get blocksize(): number {
+        return this.hash.blocksize
+    }
+    /**
+     *  Resets the hash to its initial state.
+     */
+    reset(): void {
+        this.hash.reset()
+    }
+    /**
+     * Append data to hash
+     */
+    write(data?: string | Uint8Array): void {
+        this.hash.write(data)
+    }
+    /**
+     * Append data to hash and returns the resulting.
+     * It does not change the underlying hash state.
+     */
+    sum(data?: string | Uint8Array): Uint8Array {
+        return this.hash.sum(data)
+    }
+
+    /**
+     * Similar to sum but writes the hash value to dst
+     * @returns hashsize
+     */
+    sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        return this.hash.sumTo(dst, data)
+    }
+
+    /**
+     * Append data to hash and returns the resulting.
+     * Once this function is called, you must call reset to correctly recalculate the hash.
+     */
+    done(data?: string | Uint8Array): Uint8Array {
+        return this.hash.done(data)
+    }
+    /**
+     * Similar to done but writes the hash value to dst
+     * @returns hashsize
+     */
+    doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        return this.hash.doneTo(dst, data)
+    }
+}
+interface HashDescOptions {
+    state?: deps.Pointer
+    hashsize: number
+    blocksize: number
+}
+export class HashDesc implements AnyHash {
+    private state: deps.HashState
+    constructor(private readonly hash: deps.Hash, opts?: HashDescOptions) {
+        if (opts) {
+            this.state = hash.create(opts.state)
+            this.hashsize = opts.hashsize
+            this.blocksize = opts.blocksize
+        } else {
+            this.state = hash.create()
+            this.hashsize = deps.hashsize(hash.desc)
+            this.blocksize = deps.blocksize(hash.desc)
+        }
+    }
+    /**
+     * Create a copy of the current state hash
+     * @returns A copy of the current state hash
+     */
+    clone(): HashDesc {
+        return new HashDesc(this.hash, {
+            blocksize: this.blocksize,
+            hashsize: this.hashsize,
+            state: this.state.p,
+        })
     }
     /**
      * Bytes of digest
@@ -140,7 +235,7 @@ export class MD5 extends Hash {
     }
 
     constructor() {
-        super(deps.md5)
+        super(new HashDesc(deps.md5))
     }
 }
 export class SHA1 extends Hash {
@@ -171,7 +266,7 @@ export class SHA1 extends Hash {
     }
 
     constructor() {
-        super(deps.sha1)
+        super(new HashDesc(deps.sha1))
     }
 }
 export class SHA256_224 extends Hash {
@@ -202,7 +297,7 @@ export class SHA256_224 extends Hash {
     }
 
     constructor() {
-        super(deps.sha224)
+        super(new HashDesc(deps.sha224))
     }
 }
 export class SHA256 extends Hash {
@@ -233,7 +328,7 @@ export class SHA256 extends Hash {
     }
 
     constructor() {
-        super(deps.sha256)
+        super(new HashDesc(deps.sha256))
     }
 }
 export class SHA512_224 extends Hash {
@@ -264,7 +359,7 @@ export class SHA512_224 extends Hash {
     }
 
     constructor() {
-        super(deps.sha512_224)
+        super(new HashDesc(deps.sha512_224))
     }
 }
 export class SHA512_256 extends Hash {
@@ -295,7 +390,7 @@ export class SHA512_256 extends Hash {
     }
 
     constructor() {
-        super(deps.sha512_256)
+        super(new HashDesc(deps.sha512_256))
     }
 }
 export class SHA512_384 extends Hash {
@@ -326,7 +421,7 @@ export class SHA512_384 extends Hash {
     }
 
     constructor() {
-        super(deps.sha384)
+        super(new HashDesc(deps.sha384))
     }
 }
 export class SHA512 extends Hash {
@@ -357,7 +452,7 @@ export class SHA512 extends Hash {
     }
 
     constructor() {
-        super(deps.sha512)
+        super(new HashDesc(deps.sha512))
     }
 }
 export class SHA3_224 extends Hash {
@@ -388,7 +483,7 @@ export class SHA3_224 extends Hash {
     }
 
     constructor() {
-        super(deps.sha3_224)
+        super(new HashDesc(deps.sha3_224))
     }
 }
 export class SHA3_256 extends Hash {
@@ -419,7 +514,7 @@ export class SHA3_256 extends Hash {
     }
 
     constructor() {
-        super(deps.sha3_256)
+        super(new HashDesc(deps.sha3_256))
     }
 }
 export class SHA3_384 extends Hash {
@@ -450,7 +545,7 @@ export class SHA3_384 extends Hash {
     }
 
     constructor() {
-        super(deps.sha3_384)
+        super(new HashDesc(deps.sha3_384))
     }
 }
 export class SHA3_512 extends Hash {
@@ -481,6 +576,6 @@ export class SHA3_512 extends Hash {
     }
 
     constructor() {
-        super(deps.sha3_512)
+        super(new HashDesc(deps.sha3_512))
     }
 }
