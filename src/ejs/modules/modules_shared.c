@@ -1,5 +1,5 @@
 #include "modules_shared.h"
-
+#include "../binary.h"
 duk_bool_t __ejs_modules_shared_ishex(char c)
 {
     if ('0' <= c && c <= '9')
@@ -103,8 +103,8 @@ uint64_t __ejs_modules_shared_get_hex_uint64(duk_context *ctx, duk_size_t idx)
         duk_push_error_object(ctx, DUK_ERR_ERROR, "hex invalid: %s", s);
         duk_throw(ctx);
     }
-
-    return ppp_encoding_binary_big_endian_uint64(dst);
+    return ejs_get_binary()->little.uint64(dst);
+    // return ppp_encoding_binary_big_endian_uint64(dst);
 }
 int64_t __ejs_modules_shared_get_hex_int64(duk_context *ctx, duk_size_t idx)
 {

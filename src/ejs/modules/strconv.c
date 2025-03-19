@@ -3,6 +3,7 @@
 #include "unicode_utf8.h"
 #include "_append.h"
 #include "../internal/strconv.h"
+#include "../binary.h"
 
 #define EJS_STRCONV_ERROR_NUM 1
 #define EJS_STRCONV_ERROR_SYNTAX 2
@@ -151,7 +152,8 @@ static uint64_t get_format_input(duk_context *ctx)
             duk_push_error_object(ctx, DUK_ERR_ERROR, "hex invalid: %s", s);
             duk_throw(ctx);
         }
-        i = ppp_encoding_binary_big_endian_uint64(dst);
+        // i = ppp_encoding_binary_big_endian_uint64(dst);
+        i = ejs_get_binary()->little.uint64(dst);
     }
     else
     {

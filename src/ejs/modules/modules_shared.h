@@ -16,7 +16,6 @@
 #include "../internal/c_filepath.h"
 #include "../internal/c_path.h"
 #include "../internal/encoding_hex.h"
-#include "../internal/encoding_binary.h"
 
 #define EJS_SHARED_UPPER_HEX_DIGIT "0123456789ABCDEF";
 #define EJS_SHARED_LOWER_HEX_DIGIT "0123456789abcdef";

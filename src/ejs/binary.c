@@ -105,8 +105,8 @@ void __ejs_binary_init(ejs_binary_t *o)
     if (hport == nport)
     {
         // system is big endian
-        big = &o->little;
-        little = &o->big;
+        big = &o->big;
+        little = &o->little;
     }
     else
     {
@@ -128,7 +128,6 @@ void __ejs_binary_init(ejs_binary_t *o)
     little->put_uint32 = little_put_uint32;
     little->uint64 = little_uint64;
     little->put_uint64 = little_put_uint64;
-
 }
 
 DUK_EXTERNAL ejs_binary_t *ejs_get_binary()
