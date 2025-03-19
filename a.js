@@ -10,10 +10,10 @@ var hex = require("ejs/encoding/hex")
 var Base64 = require("ejs/encoding/base64").Base64
 var path = require("ejs/path")
 var hash = require("ejs/hash")
-var MD5 = hash.MD5
-var b = MD5.hmac("test", "ok")
+var Hash = hash.SHA256
+var b = Hash.hmac(new Uint8Array([
+    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+    0x0b, 0x0b, 0x0b, 0x0b,
+]), "Hi There")
 console.log(hex.encodeToString(b))
-console.log(MD5.hmacTo(b, "test", "ok"))
-console.log(hex.encodeToString(b))
-// MD5.sum(new Uint8Array([66, 83, 69, 66, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54, 54,
-// ]))

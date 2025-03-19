@@ -4,6 +4,7 @@ import "./encoding/hex";
 import "./encoding/base64";
 
 import "./hash/hash";
+import "./hash/hmac";
 
 import "./strconv/atob";
 import "./strconv/atoi";

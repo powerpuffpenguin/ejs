@@ -256,13 +256,25 @@ static void hmac_init_any(duk_context *ctx,
         ipad[i] = opad[i] ^ 0x36;
         opad[i] ^= 0x5c;
     }
+    // duk_size_t i;
+    // printf("ipad [");
+    // for (i = 0; i < hash->blocksize; i++)
+    // {
+    //     printf("%d, ", ipad[i]);
+    // }
+    // printf("] %d\nopad [", i);
+    // for (i = 0; i < hash->blocksize; i++)
+    // {
+    //     printf("%d, ", opad[i]);
+    // }
+    // printf("] %d\n", i);
+    // printf("hash: %s\n", hash->name);
     raw_hashinit(ctx, hash, state, ipad, hash->blocksize);
 }
 static duk_ret_t hmac_any(duk_context *ctx,
                           const struct ltc_hash_descriptor *hash, hash_state *state,
                           uint8_t *ipad, uint8_t *opad)
 {
-
     duk_size_t key_len;
     const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &key_len);
     duk_size_t data_len = 0;
@@ -335,45 +347,45 @@ static duk_ret_t hmac_to_any(duk_context *ctx,
     duk_put_prop_string(ctx, -2, #name)
 #define EJS_MODULE_HASH_PUSH(name) EJS_MODULE_HASH_PUSH_RAW(name, name##_desc)
 
-#define EJS_MODULE_HASH_DEFAINE_RAW(name, desc, raw_state, BLOCKSIZE)               \
-    static duk_ret_t hashsum_##name(duk_context *ctx)                               \
-    {                                                                               \
-        struct raw_state state;                                                     \
-        return hashsum(ctx, &desc, (hash_state *)&state);                           \
-    }                                                                               \
-    static duk_ret_t hashsum_to_##name(duk_context *ctx)                            \
-    {                                                                               \
-        struct raw_state state;                                                     \
-        return hashsum_to(ctx, &desc, (hash_state *)&state);                        \
-    }                                                                               \
-    static duk_ret_t create_##name(duk_context *ctx)                                \
-    {                                                                               \
-        duk_size_t sz = sizeof(struct raw_state);                                   \
-        return create(ctx, &desc, sz);                                              \
-    }                                                                               \
-    static duk_ret_t sum_##name(duk_context *ctx)                                   \
-    {                                                                               \
-        struct raw_state state;                                                     \
-        duk_size_t sz = sizeof(struct raw_state);                                   \
-        return sum(ctx, &desc, (hash_state *)&state, sz);                           \
-    }                                                                               \
-    static duk_ret_t sum_to_##name(duk_context *ctx)                                \
-    {                                                                               \
-        struct raw_state state;                                                     \
-        duk_size_t sz = sizeof(struct raw_state);                                   \
-        return sum_to(ctx, &desc, (hash_state *)&state, sz);                        \
-    }                                                                               \
-    static duk_ret_t hmac_##name(duk_context *ctx)                                  \
-    {                                                                               \
-        struct raw_state state;                                                     \
-        uint8_t s[BLOCKSIZE * 2];                                                   \
-        return hmac_any(ctx, &md5_desc, (hash_state *)&state, s, s + BLOCKSIZE);    \
-    }                                                                               \
-    static duk_ret_t hmac_to_##name(duk_context *ctx)                               \
-    {                                                                               \
-        struct raw_state state;                                                     \
-        uint8_t s[BLOCKSIZE * 2];                                                   \
-        return hmac_to_any(ctx, &md5_desc, (hash_state *)&state, s, s + BLOCKSIZE); \
+#define EJS_MODULE_HASH_DEFAINE_RAW(name, desc, raw_state, BLOCKSIZE)           \
+    static duk_ret_t hashsum_##name(duk_context *ctx)                           \
+    {                                                                           \
+        struct raw_state state;                                                 \
+        return hashsum(ctx, &desc, (hash_state *)&state);                       \
+    }                                                                           \
+    static duk_ret_t hashsum_to_##name(duk_context *ctx)                        \
+    {                                                                           \
+        struct raw_state state;                                                 \
+        return hashsum_to(ctx, &desc, (hash_state *)&state);                    \
+    }                                                                           \
+    static duk_ret_t create_##name(duk_context *ctx)                            \
+    {                                                                           \
+        duk_size_t sz = sizeof(struct raw_state);                               \
+        return create(ctx, &desc, sz);                                          \
+    }                                                                           \
+    static duk_ret_t sum_##name(duk_context *ctx)                               \
+    {                                                                           \
+        struct raw_state state;                                                 \
+        duk_size_t sz = sizeof(struct raw_state);                               \
+        return sum(ctx, &desc, (hash_state *)&state, sz);                       \
+    }                                                                           \
+    static duk_ret_t sum_to_##name(duk_context *ctx)                            \
+    {                                                                           \
+        struct raw_state state;                                                 \
+        duk_size_t sz = sizeof(struct raw_state);                               \
+        return sum_to(ctx, &desc, (hash_state *)&state, sz);                    \
+    }                                                                           \
+    static duk_ret_t hmac_##name(duk_context *ctx)                              \
+    {                                                                           \
+        struct raw_state state;                                                 \
+        uint8_t s[BLOCKSIZE * 2];                                               \
+        return hmac_any(ctx, &desc, (hash_state *)&state, s, s + BLOCKSIZE);    \
+    }                                                                           \
+    static duk_ret_t hmac_to_##name(duk_context *ctx)                           \
+    {                                                                           \
+        struct raw_state state;                                                 \
+        uint8_t s[BLOCKSIZE * 2];                                               \
+        return hmac_to_any(ctx, &desc, (hash_state *)&state, s, s + BLOCKSIZE); \
     }
 
 #define EJS_MODULE_HASH_DEFAINE(name, BLOCKSIZE) EJS_MODULE_HASH_DEFAINE_RAW(name, name##_desc, name##_state, BLOCKSIZE)
