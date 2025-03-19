@@ -385,6 +385,16 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA1 extends Hash {
         constructor()
@@ -405,6 +415,16 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
 
     export class SHA256_224 extends Hash {
@@ -426,6 +446,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA256 extends Hash {
         constructor()
@@ -446,6 +475,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512_224 extends Hash {
         constructor()
@@ -466,6 +504,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512_256 extends Hash {
         constructor()
@@ -486,6 +533,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512_384 extends Hash {
         constructor()
@@ -506,6 +562,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512 extends Hash {
         constructor()
@@ -526,6 +591,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_224 extends Hash {
         constructor()
@@ -546,6 +620,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_256 extends Hash {
         constructor()
@@ -566,6 +649,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_384 extends Hash {
         constructor()
@@ -586,6 +678,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_512 extends Hash {
         constructor()
@@ -606,6 +707,15 @@ declare module "ejs/hash" {
          * @returns hashsize
          */
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        /**
+         * Calculate hmac value and return result
+         */
+        static hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
+        /**
+         * Similar to hmac function but writes the result to dst
+         * @returns hashsize
+         */
+        static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
     }
 }
 /**
