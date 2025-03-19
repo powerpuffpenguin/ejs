@@ -3,6 +3,8 @@ import "./unicode/utf8";
 import "./encoding/hex";
 import "./encoding/base64";
 
+import "./hash/md5";
+
 import "./strconv/atob";
 import "./strconv/atoi";
 import "./strconv/itoa";

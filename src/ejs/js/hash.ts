@@ -14,7 +14,7 @@ declare namespace deps {
         desc: Desc
         hashsum(data?: string | Uint8Array): Uint8Array
         hashsumTo(dst: Uint8Array, data?: string | Uint8Array): number
-        create(): HashState
+        create(state?: Pointer): HashState
         sum(state: Pointer, data?: string | Uint8Array): Uint8Array
         sumTo(state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
     }
@@ -44,10 +44,17 @@ declare namespace deps {
 }
 export class Hash {
     private state: deps.HashState
-    protected constructor(private readonly hash: deps.Hash) {
+    protected constructor(private readonly hash: deps.Hash, state?: deps.Pointer) {
         this.hashsize = deps.hashsize(this.hash.desc)
         this.blocksize = deps.blocksize(this.hash.desc)
-        this.state = hash.create()
+        this.state = hash.create(state)
+    }
+    /**
+     * Create a copy of the current state hash
+     * @returns A copy of the current state hash
+     */
+    clone(): Hash {
+        return new Hash(this.hash, this.state.p)
     }
     /**
      * Bytes of digest

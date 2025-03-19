@@ -78,11 +78,20 @@ static duk_ret_t hashsum_to(duk_context *ctx, const struct ltc_hash_descriptor *
 }
 static duk_ret_t create(duk_context *ctx, const struct ltc_hash_descriptor *hash, duk_size_t sz)
 {
-    void *state = ejs_push_finalizer_object(ctx, sz, ejs_default_finalizer);
-    if (hash->init(state))
+    if (duk_is_null_or_undefined(ctx, 0))
     {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "%s init fail", hash->name);
-        duk_throw(ctx);
+        void *state = ejs_push_finalizer_object(ctx, sz, ejs_default_finalizer);
+        if (hash->init(state))
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "%s init fail", hash->name);
+            duk_throw(ctx);
+        }
+    }
+    else
+    {
+        const uint8_t *src = duk_require_pointer(ctx, 0);
+        void *state = ejs_push_finalizer_object(ctx, sz, ejs_default_finalizer);
+        memcpy(state, src, sz);
     }
     return 1;
 }
@@ -229,7 +238,7 @@ static duk_ret_t doneTo(duk_context *ctx)
     duk_put_prop_lstring(ctx, -2, "hashsum", 7);                                     \
     duk_push_c_lightfunc(ctx, hashsumTo, 2, 2, 0);                                   \
     duk_put_prop_lstring(ctx, -2, "hashsumTo", 9);                                   \
-    duk_push_c_lightfunc(ctx, create, 0, 0, 0);                                      \
+    duk_push_c_lightfunc(ctx, create, 1, 1, 0);                                      \
     duk_put_prop_lstring(ctx, -2, "create", 6);                                      \
     duk_push_c_lightfunc(ctx, sum, 2, 2, 0);                                         \
     duk_put_prop_lstring(ctx, -2, "sum", 3);                                         \

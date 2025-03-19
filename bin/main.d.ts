@@ -320,6 +320,11 @@ declare module "ejs/hash" {
     export class Hash {
         protected constructor()
         /**
+         * Create a copy of the current state hash
+         * @returns A copy of the current state hash
+         */
+        clone(): Hash
+        /**
          * Bytes of digest
          */
         readonly hashsize: number
@@ -362,6 +367,7 @@ declare module "ejs/hash" {
         doneTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class MD5 extends Hash {
+        constructor()
         /**
          * The size of an MD5 checksum in bytes.
          */
@@ -381,6 +387,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA1 extends Hash {
+        constructor()
         /**
          * The size of an SHA1 checksum in bytes.
          */
@@ -401,6 +408,7 @@ declare module "ejs/hash" {
     }
 
     export class SHA256_224 extends Hash {
+        constructor()
         /**
          * The size of an SHA256_224 checksum in bytes.
          */
@@ -420,6 +428,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA256 extends Hash {
+        constructor()
         /**
          * The size of an SHA256 checksum in bytes.
          */
@@ -439,6 +448,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512_224 extends Hash {
+        constructor()
         /**
          * The size of an SHA512_224 checksum in bytes.
          */
@@ -458,6 +468,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512_256 extends Hash {
+        constructor()
         /**
          * The size of an SHA512_256 checksum in bytes.
          */
@@ -477,6 +488,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512_384 extends Hash {
+        constructor()
         /**
          * The size of an SHA512_384 checksum in bytes.
          */
@@ -496,6 +508,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA512 extends Hash {
+        constructor()
         /**
          * The size of an SHA512 checksum in bytes.
          */
@@ -515,6 +528,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_224 extends Hash {
+        constructor()
         /**
          * The size of an SHA3_224 checksum in bytes.
          */
@@ -534,6 +548,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_256 extends Hash {
+        constructor()
         /**
          * The size of an SHA3_256 checksum in bytes.
          */
@@ -553,6 +568,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_384 extends Hash {
+        constructor()
         /**
          * The size of an SHA3_384 checksum in bytes.
          */
@@ -572,6 +588,7 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
     export class SHA3_512 extends Hash {
+        constructor()
         /**
          * The size of an SHA3_512 checksum in bytes.
          */
