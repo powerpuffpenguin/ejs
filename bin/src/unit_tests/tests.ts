@@ -3,7 +3,7 @@ import "./unicode/utf8";
 import "./encoding/hex";
 import "./encoding/base64";
 
-import "./hash/md5";
+import "./hash/hash";
 
 import "./strconv/atob";
 import "./strconv/atoi";
