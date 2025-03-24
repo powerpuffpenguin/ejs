@@ -5,6 +5,7 @@ import "./encoding/base64";
 
 import "./hash/hash";
 import "./hash/hmac";
+import "./hash/hash32";
 
 import "./strconv/atob";
 import "./strconv/atoi";
