@@ -261,6 +261,7 @@ declare module "ejs/encoding/hex" {
      * encodedLen(data.byteLength)
      */
     export function encodedLen(data: ejs.BufferData): number
+    export function encodedLen(v: number | string | ejs.BufferData): number
 
     /**
      * Returns the buffer length required to decode n bytes hex
@@ -274,6 +275,7 @@ declare module "ejs/encoding/hex" {
      * decodedLen(data.byteLength)
      */
     export function decodedLen(decoded: ejs.BufferData): number
+    export function decodedLen(v: number | string | ejs.BufferData): number
 
     /**
      * Encodes src into dst. It returns the numberof bytes written to dst, 
