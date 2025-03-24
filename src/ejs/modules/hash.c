@@ -131,7 +131,7 @@ static duk_ret_t process(duk_context *ctx)
 
     duk_size_t data_len;
     const uint8_t *data = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &data_len);
-    if (hash->process(state, data, data_len))
+    if (data_len && hash->process(state, data, data_len))
     {
         duk_push_error_object(ctx, DUK_ERR_ERROR, "%s process fail", hash->name);
         duk_throw(ctx);
@@ -275,8 +275,12 @@ static duk_ret_t hmac_any(duk_context *ctx,
                           const struct ltc_hash_descriptor *hash, hash_state *state,
                           uint8_t *ipad, uint8_t *opad)
 {
-    duk_size_t key_len;
-    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &key_len);
+    duk_size_t key_len = 0;
+    const uint8_t *key;
+    if (!duk_is_null_or_undefined(ctx, 0))
+    {
+        key = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &key_len);
+    }
     duk_size_t data_len = 0;
     const uint8_t *data;
     if (!duk_is_null_or_undefined(ctx, 1))
@@ -301,8 +305,12 @@ static duk_ret_t hmac_to_any(duk_context *ctx,
 
     duk_size_t dst_len;
     uint8_t *dst = duk_require_buffer_data(ctx, 0, &dst_len);
-    duk_size_t key_len;
-    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+    duk_size_t key_len = 0;
+    const uint8_t *key;
+    if (!duk_is_null_or_undefined(ctx, 1))
+    {
+        key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+    }
     duk_size_t data_len = 0;
     const uint8_t *data;
     if (!duk_is_null_or_undefined(ctx, 2))
@@ -497,8 +505,12 @@ static duk_ret_t hmac_done_to_any(duk_context *ctx, const struct ltc_hash_descri
     }                                                                                           \
     static duk_ret_t hmac_init_##name(duk_context *ctx)                                         \
     {                                                                                           \
-        duk_size_t key_len;                                                                     \
-        const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &key_len);                       \
+        duk_size_t key_len = 0;                                                                 \
+        const uint8_t *key;                                                                     \
+        if (!duk_is_null_or_undefined(ctx, 0))                                                  \
+        {                                                                                       \
+            key = EJS_REQUIRE_CONST_LSOURCE(ctx, 0, &key_len);                                  \
+        }                                                                                       \
         duk_size_t sz = sizeof(struct raw_state);                                               \
         uint8_t *p = ejs_push_finalizer_object(ctx, sz + BLOCKSIZE * 2, ejs_default_finalizer); \
         hmac_init_any(ctx, &desc, (hash_state *)p, p + sz, p + sz + BLOCKSIZE, key, key_len);   \

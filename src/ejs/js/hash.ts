@@ -23,7 +23,7 @@ declare namespace deps {
 
         hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
         hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
-        hinit(key: string | Uint8Array): HMAC
+        hinit(key?: string | Uint8Array): HMAC
         hclone(hmac: Pointer): HMAC
         hreset(hmac: Pointer): void
         hsum(state: Pointer, data?: string | Uint8Array): Uint8Array
@@ -262,7 +262,7 @@ export class MD5 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.md5, key))
     }
     constructor() {
@@ -310,7 +310,7 @@ export class SHA1 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha1, key))
     }
     constructor() {
@@ -358,7 +358,7 @@ export class SHA256_224 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha224, key))
     }
     constructor() {
@@ -406,7 +406,7 @@ export class SHA256 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha256, key))
     }
     constructor() {
@@ -454,7 +454,7 @@ export class SHA512_224 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha512_224, key))
     }
     constructor() {
@@ -502,7 +502,7 @@ export class SHA512_256 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha512_256, key))
     }
     constructor() {
@@ -550,7 +550,7 @@ export class SHA512_384 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha384, key))
     }
     constructor() {
@@ -598,7 +598,7 @@ export class SHA512 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha512, key))
     }
     constructor() {
@@ -646,7 +646,7 @@ export class SHA3_224 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha3_224, key))
     }
     constructor() {
@@ -694,7 +694,7 @@ export class SHA3_256 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha3_256, key))
     }
     constructor() {
@@ -742,7 +742,7 @@ export class SHA3_384 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha3_384, key))
     }
     constructor() {
@@ -790,7 +790,7 @@ export class SHA3_512 extends Hash {
     /**
      * Create an HMAC instance
      */
-    static createHMAC(key: string | Uint8Array): Hash {
+    static createHMAC(key?: string | Uint8Array): Hash {
         return new Hash(new HMAC(deps.sha3_512, key))
     }
     constructor() {
@@ -810,7 +810,7 @@ export class HMAC implements AnyHash {
             this.hashsize = opts.hashsize
             this.blocksize = opts.blocksize
         } else {
-            this.hmac = hash.hinit(key!)
+            this.hmac = hash.hinit(key)
             this.hashsize = deps.hashsize(hash.desc)
             this.blocksize = deps.blocksize(hash.desc)
         }
