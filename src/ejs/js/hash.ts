@@ -53,6 +53,10 @@ declare namespace deps {
     function reset(h: Desc, state: Pointer): void
     function done(h: Desc, state: Pointer, data?: string | Uint8Array): Uint8Array
     function doneTo(h: Desc, state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
+
+    function adler32(d: number, data?: string | Uint8Array): number
+    function adler32new(d: number): Uint8Array
+    function adler32copy(d: number, dst: Uint8Array): void
 }
 
 interface AnyHash {
@@ -68,7 +72,7 @@ interface AnyHash {
 }
 
 export class Hash {
-    protected constructor(private readonly hash: AnyHash) { }
+    protected constructor(protected readonly hash: AnyHash) { }
     /**
      * Create a copy of the current state hash
      * @returns A copy of the current state hash
@@ -841,5 +845,96 @@ export class HMAC implements AnyHash {
     }
     doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
         return this.hash.hdoneTo(this.hmac.p, dst, data)
+    }
+}
+interface AnyHash32 extends AnyHash {
+    sum32(data?: string | Uint8Array): number
+    done32(data?: string | Uint8Array): number
+}
+export class Hash32 extends Hash {
+    sum32(data?: string | Uint8Array): number {
+        return (this.hash as AnyHash32).sum32(data)
+    }
+    done32(data?: string | Uint8Array): number {
+        return (this.hash as AnyHash32).done32(data)
+    }
+}
+export class Adler32 extends Hash32 {
+    /**
+     * The size of an Adler32 checksum in bytes.
+     */
+    static readonly hashsize = 4
+    /**
+     * The blocksize of Adler32 in bytes.
+     */
+    static readonly blocksize = 4
+    /**
+     * return Adler32 checksum of the data
+     */
+    static sum32(data?: string | Uint8Array): number {
+        return deps.adler32(1, data)
+    }
+    /**
+     * return Adler32 checksum of the data
+     */
+    static sum(data?: string | Uint8Array): Uint8Array {
+        const val = deps.adler32(1, data)
+        return deps.adler32new(val)
+    }
+    /**
+     * Write Adler32 checksum of the data to dst
+     * @returns hashsize
+     */
+    static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        const val = deps.adler32(1, data)
+        deps.adler32copy(val, dst)
+        return 4
+    }
+    constructor() {
+        super(new adler32(1))
+    }
+}
+
+export class adler32 implements AnyHash {
+    constructor(private state: number) { }
+    clone(): AnyHash {
+        return new adler32(this.state)
+    }
+    readonly hashsize = 4
+    readonly blocksize = 4
+    reset(): void {
+        this.state = 1
+    }
+    write(data?: string | Uint8Array): void {
+        this.state = deps.adler32(this.state, data)
+    }
+    sum32(data?: string | Uint8Array): number {
+        return deps.adler32(this.state, data)
+    }
+    sum(data?: string | Uint8Array): Uint8Array {
+        const val = deps.adler32(this.state, data)
+        return deps.adler32new(val)
+    }
+    sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        const val = deps.adler32(this.state, data)
+        deps.adler32copy(val, dst)
+        return 4
+    }
+    done32(data?: string | Uint8Array): number {
+        const val = deps.adler32(this.state, data)
+        this.state = val
+        return val
+    }
+    done(data?: string | Uint8Array): Uint8Array {
+        const val = deps.adler32(this.state, data)
+        const buf = deps.adler32new(val)
+        this.state = val
+        return buf
+    }
+    doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        const val = deps.adler32(this.state, data)
+        deps.adler32copy(val, dst)
+        this.state = val
+        return 4
     }
 }

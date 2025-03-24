@@ -767,6 +767,42 @@ declare module "ejs/hash" {
          */
         static createHMAC(key?: string | Uint8Array): Hash
     }
+    export class Hash32 extends Hash {
+        protected constructor()
+        /**
+         * Similar to the sum function but the return value is uint32 checksum
+         */
+        sum32(data?: string | Uint8Array): number
+        /**
+         * Similar to the done function but the return value is uint32 checksum
+         */
+        done32(data?: string | Uint8Array): number
+    }
+
+    export class Adler32 extends Hash32 {
+        constructor()
+        /**
+         * The size of an Adler32 checksum in bytes.
+         */
+        static readonly hashsize = 4
+        /**
+         * The blocksize of Adler32 in bytes.
+         */
+        static readonly blocksize = 4
+        /**
+         * return Adler32 checksum of the data
+         */
+        static sum32(data?: string | Uint8Array): number
+        /**
+         * return Adler32 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write Adler32 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
 }
 /**
  * UTF8 processing function ported from golang standard library

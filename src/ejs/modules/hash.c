@@ -567,6 +567,97 @@ EJS_MODULE_HASH_DEFAINE_WITH_STATE(sha224, sha256_state, 64)
 EJS_MODULE_HASH_DEFAINE(sha1, 64)
 EJS_MODULE_HASH_DEFAINE(md5, 64)
 
+static uint32_t __ejs_adler32_update(uint32_t d, const uint8_t *p, duk_size_t p_len)
+{
+    uint32_t s1 = d & 0xffff;
+    uint32_t s2 = d >> 16;
+
+    const uint8_t *q;
+    duk_size_t q_len;
+    duk_size_t i;
+    while (p_len > 0)
+    {
+
+        if (p_len > 5552)
+        {
+            q = p + 5552;
+            q_len = p_len - 5552;
+
+            p_len = 5552;
+        }
+        else
+        {
+            q_len = 0;
+        }
+        while (p_len >= 4)
+        {
+            s1 += (uint32_t)(p[0]);
+            s2 += s1;
+            s1 += (uint32_t)(p[1]);
+            s2 += s1;
+            s1 += (uint32_t)(p[2]);
+            s2 += s1;
+            s1 += (uint32_t)(p[3]);
+            s2 += s1;
+            p += 4;
+            p_len -= 4;
+        }
+        for (i = 0; i < p_len; i++)
+        {
+            s1 += (uint32_t)(p[i]);
+            s2 += s1;
+        }
+
+        s1 %= 65521;
+        s2 %= 65521;
+        p = q;
+        p_len = q_len;
+    }
+    s2 <<= 16;
+    return s2 | s1;
+}
+static duk_ret_t adler32(duk_context *ctx)
+{
+    uint32_t d = duk_require_uint(ctx, 0);
+    duk_size_t data_len = 0;
+    const uint8_t *data;
+    if (!duk_is_null_or_undefined(ctx, 1))
+    {
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &data_len);
+    }
+
+    uint32_t s = __ejs_adler32_update(d, data, data_len);
+    duk_push_number(ctx, s);
+    return 1;
+}
+static duk_ret_t adler32new(duk_context *ctx)
+{
+    uint32_t s = duk_require_uint(ctx, 0);
+    uint8_t *dst = duk_push_fixed_buffer(ctx, 4);
+
+    dst[0] = (uint8_t)(s >> 24);
+    dst[1] = (uint8_t)(s >> 16);
+    dst[2] = (uint8_t)(s >> 8);
+    dst[3] = (uint8_t)(s);
+    return 1;
+}
+static duk_ret_t adler32copy(duk_context *ctx)
+{
+    uint32_t s = duk_require_uint(ctx, 0);
+    duk_size_t dst_len;
+    uint8_t *dst = duk_require_buffer_data(ctx, 1, &dst_len);
+    if (dst_len < 4)
+    {
+        duk_push_error_object(ctx, DUK_ERR_RANGE_ERROR, "dst not enough buffer");
+        duk_throw(ctx);
+    }
+
+    dst[0] = (uint8_t)(s >> 24);
+    dst[1] = (uint8_t)(s >> 16);
+    dst[2] = (uint8_t)(s >> 8);
+    dst[3] = (uint8_t)(s);
+    return 0;
+}
 EJS_SHARED_MODULE__DECLARE(hash)
 {
     /*
@@ -582,7 +673,6 @@ EJS_SHARED_MODULE__DECLARE(hash)
 
     duk_push_object(ctx);
     {
-
         EJS_MODULE_HASH_PUSH(sha3_512);
         EJS_MODULE_HASH_PUSH(sha3_384);
         EJS_MODULE_HASH_PUSH(sha3_256);
@@ -610,6 +700,12 @@ EJS_SHARED_MODULE__DECLARE(hash)
         duk_put_prop_lstring(ctx, -2, "done", 4);
         duk_push_c_lightfunc(ctx, doneTo, 4, 4, 0);
         duk_put_prop_lstring(ctx, -2, "doneTo", 6);
+        duk_push_c_lightfunc(ctx, adler32, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "adler32", 7);
+        duk_push_c_lightfunc(ctx, adler32new, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "adler32new", 10);
+        duk_push_c_lightfunc(ctx, adler32copy, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "adler32copy", 11);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
