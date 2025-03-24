@@ -1,6 +1,216 @@
 [
 {
   "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
+  "file": "src/duk/duk_module_node.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node_ejs.c.o", "src/duk/duk_module_node_ejs.c"],
+  "file": "src/duk/duk_module_node_ejs.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_console.c.o", "src/duk/duk_console.c"],
+  "file": "src/duk/duk_console.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duktape.c.o", "src/duk/duktape.c"],
+  "file": "src/duk/duktape.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk.c.o", "src/ejs/_duk.c"],
+  "file": "src/ejs/_duk.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/core.c.o", "src/ejs/core.c"],
+  "file": "src/ejs/core.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/binary.c.o", "src/ejs/binary.c"],
+  "file": "src/ejs/binary.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/duk.c.o", "src/ejs/duk.c"],
+  "file": "src/ejs/duk.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/error.c.o", "src/ejs/error.c"],
+  "file": "src/ejs/error.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_async.c.o", "src/ejs/_duk_async.c"],
+  "file": "src/ejs/_duk_async.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_helper.c.o", "src/ejs/_duk_helper.c"],
+  "file": "src/ejs/_duk_helper.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_timer.c.o", "src/ejs/_duk_timer.c"],
+  "file": "src/ejs/_duk_timer.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_rand.c.o", "src/ejs/_duk_rand.c"],
+  "file": "src/ejs/_duk_rand.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/strings.c.o", "src/ejs/strings.c"],
+  "file": "src/ejs/strings.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/os.c.o", "src/ejs/modules/os.c"],
+  "file": "src/ejs/modules/os.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/path.c.o", "src/ejs/modules/path.c"],
+  "file": "src/ejs/modules/path.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/_append.c.o", "src/ejs/modules/_append.c"],
+  "file": "src/ejs/modules/_append.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/net_url.c.o", "src/ejs/modules/net_url.c"],
+  "file": "src/ejs/modules/net_url.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/encoding_hex.c.o", "src/ejs/modules/encoding_hex.c"],
+  "file": "src/ejs/modules/encoding_hex.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/sync.c.o", "src/ejs/modules/sync.c"],
+  "file": "src/ejs/modules/sync.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/modules_init.c.o", "src/ejs/modules/modules_init.c"],
+  "file": "src/ejs/modules/modules_init.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/strconv.c.o", "src/ejs/modules/strconv.c"],
+  "file": "src/ejs/modules/strconv.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/unicode_utf8.c.o", "src/ejs/modules/unicode_utf8.c"],
+  "file": "src/ejs/modules/unicode_utf8.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/net.c.o", "src/ejs/modules/net.c"],
+  "file": "src/ejs/modules/net.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/net_http.c.o", "src/ejs/modules/net_http.c"],
+  "file": "src/ejs/modules/net_http.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/hash.c.o", "src/ejs/modules/hash.c"],
+  "file": "src/ejs/modules/hash.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/test0.c.o", "src/ejs/modules/test0.c"],
+  "file": "src/ejs/modules/test0.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/modules_shared.c.o", "src/ejs/modules/modules_shared.c"],
+  "file": "src/ejs/modules/modules_shared.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/encoding_base64.c.o", "src/ejs/modules/encoding_base64.c"],
+  "file": "src/ejs/modules/encoding_base64.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/utf8.c.o", "src/ejs/internal/utf8.c"],
+  "file": "src/ejs/internal/utf8.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/queue.c.o", "src/ejs/internal/queue.c"],
+  "file": "src/ejs/internal/queue.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/loop_buffer.c.o", "src/ejs/internal/loop_buffer.c"],
+  "file": "src/ejs/internal/loop_buffer.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/c_path.c.o", "src/ejs/internal/c_path.c"],
+  "file": "src/ejs/internal/c_path.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/encoding_hex.c.o", "src/ejs/internal/encoding_hex.c"],
+  "file": "src/ejs/internal/encoding_hex.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/c_string.c.o", "src/ejs/internal/c_string.c"],
+  "file": "src/ejs/internal/c_string.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/buffer.c.o", "src/ejs/internal/buffer.c"],
+  "file": "src/ejs/internal/buffer.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/thread_pool.c.o", "src/ejs/internal/thread_pool.c"],
+  "file": "src/ejs/internal/thread_pool.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/list.c.o", "src/ejs/internal/list.c"],
+  "file": "src/ejs/internal/list.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/sync_evconn_listener.c.o", "src/ejs/internal/sync_evconn_listener.c"],
+  "file": "src/ejs/internal/sync_evconn_listener.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/strconv.c.o", "src/ejs/internal/strconv.c"],
+  "file": "src/ejs/internal/strconv.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/c_filepath.c.o", "src/ejs/internal/c_filepath.c"],
+  "file": "src/ejs/internal/c_filepath.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
+  "file": "src/main.c"
+},
+{
+  "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
   "file": "src/duk/duk_module_node.c"
 },
@@ -248,216 +458,6 @@
   "directory": "/home/king/project/cc/ejs",
   "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs_test/linux/x86_64/release/src/main_test.c.o", "src/main_test.c"],
   "file": "src/main_test.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node.c.o", "src/duk/duk_module_node.c"],
-  "file": "src/duk/duk_module_node.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_module_node_ejs.c.o", "src/duk/duk_module_node_ejs.c"],
-  "file": "src/duk/duk_module_node_ejs.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duk_console.c.o", "src/duk/duk_console.c"],
-  "file": "src/duk/duk_console.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/duk/duktape.c.o", "src/duk/duktape.c"],
-  "file": "src/duk/duktape.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk.c.o", "src/ejs/_duk.c"],
-  "file": "src/ejs/_duk.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/core.c.o", "src/ejs/core.c"],
-  "file": "src/ejs/core.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/binary.c.o", "src/ejs/binary.c"],
-  "file": "src/ejs/binary.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/duk.c.o", "src/ejs/duk.c"],
-  "file": "src/ejs/duk.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/error.c.o", "src/ejs/error.c"],
-  "file": "src/ejs/error.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_async.c.o", "src/ejs/_duk_async.c"],
-  "file": "src/ejs/_duk_async.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_helper.c.o", "src/ejs/_duk_helper.c"],
-  "file": "src/ejs/_duk_helper.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_timer.c.o", "src/ejs/_duk_timer.c"],
-  "file": "src/ejs/_duk_timer.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/_duk_rand.c.o", "src/ejs/_duk_rand.c"],
-  "file": "src/ejs/_duk_rand.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/strings.c.o", "src/ejs/strings.c"],
-  "file": "src/ejs/strings.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/os.c.o", "src/ejs/modules/os.c"],
-  "file": "src/ejs/modules/os.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/path.c.o", "src/ejs/modules/path.c"],
-  "file": "src/ejs/modules/path.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/_append.c.o", "src/ejs/modules/_append.c"],
-  "file": "src/ejs/modules/_append.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/net_url.c.o", "src/ejs/modules/net_url.c"],
-  "file": "src/ejs/modules/net_url.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/encoding_hex.c.o", "src/ejs/modules/encoding_hex.c"],
-  "file": "src/ejs/modules/encoding_hex.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/sync.c.o", "src/ejs/modules/sync.c"],
-  "file": "src/ejs/modules/sync.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/modules_init.c.o", "src/ejs/modules/modules_init.c"],
-  "file": "src/ejs/modules/modules_init.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/strconv.c.o", "src/ejs/modules/strconv.c"],
-  "file": "src/ejs/modules/strconv.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/unicode_utf8.c.o", "src/ejs/modules/unicode_utf8.c"],
-  "file": "src/ejs/modules/unicode_utf8.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/net.c.o", "src/ejs/modules/net.c"],
-  "file": "src/ejs/modules/net.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/net_http.c.o", "src/ejs/modules/net_http.c"],
-  "file": "src/ejs/modules/net_http.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/hash.c.o", "src/ejs/modules/hash.c"],
-  "file": "src/ejs/modules/hash.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/test0.c.o", "src/ejs/modules/test0.c"],
-  "file": "src/ejs/modules/test0.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/modules_shared.c.o", "src/ejs/modules/modules_shared.c"],
-  "file": "src/ejs/modules/modules_shared.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/modules/encoding_base64.c.o", "src/ejs/modules/encoding_base64.c"],
-  "file": "src/ejs/modules/encoding_base64.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/utf8.c.o", "src/ejs/internal/utf8.c"],
-  "file": "src/ejs/internal/utf8.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/queue.c.o", "src/ejs/internal/queue.c"],
-  "file": "src/ejs/internal/queue.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/loop_buffer.c.o", "src/ejs/internal/loop_buffer.c"],
-  "file": "src/ejs/internal/loop_buffer.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/c_path.c.o", "src/ejs/internal/c_path.c"],
-  "file": "src/ejs/internal/c_path.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/encoding_hex.c.o", "src/ejs/internal/encoding_hex.c"],
-  "file": "src/ejs/internal/encoding_hex.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/c_string.c.o", "src/ejs/internal/c_string.c"],
-  "file": "src/ejs/internal/c_string.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/buffer.c.o", "src/ejs/internal/buffer.c"],
-  "file": "src/ejs/internal/buffer.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/thread_pool.c.o", "src/ejs/internal/thread_pool.c"],
-  "file": "src/ejs/internal/thread_pool.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/list.c.o", "src/ejs/internal/list.c"],
-  "file": "src/ejs/internal/list.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/sync_evconn_listener.c.o", "src/ejs/internal/sync_evconn_listener.c"],
-  "file": "src/ejs/internal/sync_evconn_listener.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/strconv.c.o", "src/ejs/internal/strconv.c"],
-  "file": "src/ejs/internal/strconv.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/ejs/internal/c_filepath.c.o", "src/ejs/internal/c_filepath.c"],
-  "file": "src/ejs/internal/c_filepath.c"
-},
-{
-  "directory": "/home/king/project/cc/ejs",
-  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-O3", "-std=c99", "-DEJS_CONFIG_OS=\"linux\", 5", "-DEJS_CONFIG_ARCH=\"x86_64\", 6", "-D_XOPEN_SOURCE=700", "-D_DEFAULT_SOURCE", "-D_SVID_SOURCE", "-I", "/home/king/.xmake/packages/l/libevent/2.2.7/435f6458bdb5473687630c17c24f4f21/include", "-I", "/home/king/.xmake/packages/m/mbedtls/v3.6.1/b0ff9764683c4870b7249cf6aa055f73/include", "-I", "/home/king/.xmake/packages/l/libtomcrypt/1.18.2/4e0143c97b65425b855ad5fd03038b6a/include", "-DNDEBUG", "-o", "build/.objs/ejs/linux/x86_64/release/src/main.c.o", "src/main.c"],
-  "file": "src/main.c"
 },
 {
   "directory": "/home/king/project/cc/ejs",

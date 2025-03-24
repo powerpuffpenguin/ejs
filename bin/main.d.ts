@@ -337,12 +337,14 @@ declare module "ejs/hash" {
         readonly blocksize: number
         /**
          *  Resets the hash to its initial state.
+         * @returns self
          */
-        reset(): void
+        reset(): Hash
         /**
          * Append data to hash
+         * @returns self
          */
-        write(data?: string | Uint8Array): void
+        write(data?: string | Uint8Array): Hash
         /**
          * Append data to hash and returns the resulting.
          * It does not change the underlying hash state.

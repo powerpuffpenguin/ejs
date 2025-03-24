@@ -9,7 +9,10 @@ declare namespace deps {
         readonly __id = "hash_state"
         p: Pointer
     }
-
+    class HMAC {
+        readonly __id = "hmac"
+        p: Pointer
+    }
     class Hash {
         desc: Desc
         hashsum(data?: string | Uint8Array): Uint8Array
@@ -20,6 +23,13 @@ declare namespace deps {
 
         hmac(key: string | Uint8Array, data?: string | Uint8Array): Uint8Array
         hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number
+        hinit(key: string | Uint8Array): HMAC
+        hclone(hmac: Pointer): HMAC
+        hreset(hmac: Pointer): void
+        hsum(state: Pointer, data?: string | Uint8Array): Uint8Array
+        hsumTo(state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
+        hdone(state: Pointer, data?: string | Uint8Array): Uint8Array
+        hdoneTo(state: Pointer, dst: Uint8Array, data?: string | Uint8Array): number
     }
 
     const sha3_512: Hash
@@ -84,14 +94,16 @@ export class Hash {
     /**
      *  Resets the hash to its initial state.
      */
-    reset(): void {
+    reset(): Hash {
         this.hash.reset()
+        return this
     }
     /**
      * Append data to hash
      */
-    write(data?: string | Uint8Array): void {
+    write(data?: string | Uint8Array): Hash {
         this.hash.write(data)
+        return this
     }
     /**
      * Append data to hash and returns the resulting.
@@ -129,7 +141,7 @@ interface HashDescOptions {
     hashsize: number
     blocksize: number
 }
-export class HashDesc implements AnyHash {
+class HashDesc implements AnyHash {
     private state: deps.HashState
     constructor(private readonly hash: deps.Hash, opts?: HashDescOptions) {
         if (opts) {
@@ -247,6 +259,12 @@ export class MD5 extends Hash {
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.md5.hmacTo(dst, key, data)
     }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.md5, key))
+    }
     constructor() {
         super(new HashDesc(deps.md5))
     }
@@ -288,6 +306,12 @@ export class SHA1 extends Hash {
      */
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha1.hmacTo(dst, key, data)
+    }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha1, key))
     }
     constructor() {
         super(new HashDesc(deps.sha1))
@@ -331,6 +355,12 @@ export class SHA256_224 extends Hash {
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha224.hmacTo(dst, key, data)
     }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha224, key))
+    }
     constructor() {
         super(new HashDesc(deps.sha224))
     }
@@ -372,6 +402,12 @@ export class SHA256 extends Hash {
      */
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha256.hmacTo(dst, key, data)
+    }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha256, key))
     }
     constructor() {
         super(new HashDesc(deps.sha256))
@@ -415,6 +451,12 @@ export class SHA512_224 extends Hash {
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha512_224.hmacTo(dst, key, data)
     }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha512_224, key))
+    }
     constructor() {
         super(new HashDesc(deps.sha512_224))
     }
@@ -456,6 +498,12 @@ export class SHA512_256 extends Hash {
      */
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha512_256.hmacTo(dst, key, data)
+    }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha512_256, key))
     }
     constructor() {
         super(new HashDesc(deps.sha512_256))
@@ -499,6 +547,12 @@ export class SHA512_384 extends Hash {
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha384.hmacTo(dst, key, data)
     }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha384, key))
+    }
     constructor() {
         super(new HashDesc(deps.sha384))
     }
@@ -540,6 +594,12 @@ export class SHA512 extends Hash {
      */
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha512.hmacTo(dst, key, data)
+    }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha512, key))
     }
     constructor() {
         super(new HashDesc(deps.sha512))
@@ -583,6 +643,12 @@ export class SHA3_224 extends Hash {
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_224.hmacTo(dst, key, data)
     }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha3_224, key))
+    }
     constructor() {
         super(new HashDesc(deps.sha3_224))
     }
@@ -624,6 +690,12 @@ export class SHA3_256 extends Hash {
      */
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_256.hmacTo(dst, key, data)
+    }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha3_256, key))
     }
     constructor() {
         super(new HashDesc(deps.sha3_256))
@@ -667,6 +739,12 @@ export class SHA3_384 extends Hash {
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_384.hmacTo(dst, key, data)
     }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha3_384, key))
+    }
     constructor() {
         super(new HashDesc(deps.sha3_384))
     }
@@ -709,48 +787,59 @@ export class SHA3_512 extends Hash {
     static hmacTo(dst: Uint8Array, key: string | Uint8Array, data?: string | Uint8Array): number {
         return deps.sha3_512.hmacTo(dst, key, data)
     }
+    /**
+     * Create an HMAC instance
+     */
+    static createHMAC(key: string | Uint8Array): Hash {
+        return new Hash(new HMAC(deps.sha3_512, key))
+    }
     constructor() {
         super(new HashDesc(deps.sha3_512))
     }
 }
+interface HMACOptions extends HashDescOptions {
+    hmac: deps.HMAC
+    hashsize: number
+    blocksize: number
+}
 export class HMAC implements AnyHash {
-    private state: deps.HashState
-    constructor(private readonly hash: deps.Hash, opts?: HashDescOptions) {
+    private readonly hmac: deps.HMAC
+    constructor(private readonly hash: deps.Hash, key?: string | Uint8Array, opts?: HMACOptions) {
         if (opts) {
-            this.state = hash.create(opts.state)
+            this.hmac = hash.hclone(opts.hmac.p)
             this.hashsize = opts.hashsize
             this.blocksize = opts.blocksize
         } else {
-            this.state = hash.create()
+            this.hmac = hash.hinit(key!)
             this.hashsize = deps.hashsize(hash.desc)
             this.blocksize = deps.blocksize(hash.desc)
         }
     }
     clone(): HMAC {
-        return new HMAC(this.hash, {
+        return new HMAC(this.hash, undefined, {
             blocksize: this.blocksize,
             hashsize: this.hashsize,
-            state: this.state.p,
+            hmac: this.hmac,
         })
     }
     readonly hashsize: number
     readonly blocksize: number
     reset(): void {
-
+        this.hash.hreset(this.hmac.p)
     }
     write(data?: string | Uint8Array): void {
-
+        deps.process(this.hash.desc, this.hmac.p, data)
     }
     sum(data?: string | Uint8Array): Uint8Array {
-        return new Uint8Array()
+        return this.hash.hsum(this.hmac.p, data)
     }
     sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
-        return 0
+        return this.hash.hsumTo(this.hmac.p, dst, data)
     }
     done(data?: string | Uint8Array): Uint8Array {
-        return new Uint8Array()
+        return this.hash.hdone(this.hmac.p, data)
     }
     doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
-        return 0
+        return this.hash.hdoneTo(this.hmac.p, dst, data)
     }
 }

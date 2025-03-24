@@ -10,10 +10,23 @@ var hex = require("ejs/encoding/hex")
 var Base64 = require("ejs/encoding/base64").Base64
 var path = require("ejs/path")
 var hash = require("ejs/hash")
-var Hash = hash.SHA256
-var b = Hash.hmac(new Uint8Array([
+var Hash = hash.MD5
+var key = new Uint8Array([
     0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
     0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
     0x0b, 0x0b, 0x0b, 0x0b,
-]), "Hi There")
+])
+var data = "Hi There"
+var b = Hash.hmac(key, data)
+console.log(hex.encodeToString(b))
+var h = Hash.createHMAC(key)
+b = h.sum(data)
+console.log(hex.encodeToString(b))
+h.write(data)
+b = h.sum()
+console.log(hex.encodeToString(b))
+b = h.clone().sum()
+console.log(hex.encodeToString(b))
+h.reset()
+b = h.sum(data)
 console.log(hex.encodeToString(b))
