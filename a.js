@@ -11,5 +11,13 @@ var Base64 = require("ejs/encoding/base64").Base64
 var path = require("ejs/path")
 var hash = require("ejs/hash")
 var Hash32 = hash.Adler32
-console.log(Hash32.sum32("61"))
-console.log(hex.encodeToString(Hash32.sum("61")))
+// console.log(Hash32.sum32("61"))
+// console.log(hex.encodeToString(Hash32.sum("61")))
+
+// console.log(ejs.isBufferData(new Int8Array()))
+
+os.writeFile({
+    name: "a.txt"
+}, function (e) {
+    console.log("write", e)
+})
