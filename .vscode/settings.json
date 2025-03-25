@@ -111,6 +111,7 @@
         "net_http.h": "c",
         "tomcrypt.h": "c",
         "encoding_base64.h": "c",
-        "binary.h": "c"
+        "binary.h": "c",
+        "encoding_binary.h": "c"
     }
 }

@@ -5,6 +5,7 @@ void __ejs_modules_init(duk_context *ctx)
 {
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__TEST0, test0);
 
+    EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__ENCODING_BINARY, encoding_binary);
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__ENCODING_HEX, encoding_hex);
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__ENCODING_BASE64, encoding_base64);
 

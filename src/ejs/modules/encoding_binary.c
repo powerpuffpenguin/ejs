@@ -1,5 +1,5 @@
 #include "modules_shared.h"
-#include "../js/binary.h"
+#include "../js/encoding_binary.h"
 #include "../binary.h"
 #include "../internal/strconv.h"
 #include "./strconv.h"
@@ -226,13 +226,13 @@ static duk_ret_t nput64(duk_context *ctx)
     return 0;
 }
 
-EJS_SHARED_MODULE__DECLARE(binary)
+EJS_SHARED_MODULE__DECLARE(encoding_binary)
 {
     /*
      *  Entry stack: [ require exports ]
      */
 
-    duk_eval_lstring(ctx, js_ejs_js_binary_min_js, js_ejs_js_binary_min_js_len);
+    duk_eval_lstring(ctx, js_ejs_js_encoding_binary_min_js, js_ejs_js_encoding_binary_min_js_len);
     duk_swap_top(ctx, -2);
 
     duk_push_heap_stash(ctx);

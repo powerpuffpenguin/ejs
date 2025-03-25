@@ -143,7 +143,7 @@ namespace ejs {
     function threadsSet(opts?: ThreadsSetOptions): void
 }
 
-declare module "ejs/binary" {
+declare module "ejs/encoding/binary" {
     /**
      * A ByteOrder specifies how to convert Uint8Array into
      * 16-, 32-, or 64-bit unsigned integers.
