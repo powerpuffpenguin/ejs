@@ -59,6 +59,10 @@
 #define EJS_OS_LINUX
 #endif
 
+#define EJS_MIN_INT8 -128
+#define EJS_MAX_INT8 127
+#define EJS_MAX_UINT8 255
+
 #define EJS_MIN_INT16 -32768
 #define EJS_MAX_INT16 32767
 #define EJS_MAX_UINT16 65535

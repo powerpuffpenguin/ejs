@@ -142,29 +142,269 @@ namespace ejs {
      */
     function threadsSet(opts?: ThreadsSetOptions): void
 }
-
+/**
+ * Provides direct encoding support for binary data
+ */
 declare module "ejs/encoding/binary" {
     /**
      * A ByteOrder specifies how to convert Uint8Array into
      * 16-, 32-, or 64-bit unsigned integers.
      */
     export interface ByteOrder {
-        uint16(b: ejs.BufferData, byteOffset: number): number
-        uint32(b: ejs.BufferData, byteOffset: number): number
-        uint64(b: ejs.BufferData, byteOffset: number): number | string
-        putUint16(dst: ejs.BufferData, byteOffset: number, val: number): void
-        putUint32(dst: ejs.BufferData, byteOffset: number, val: number): void
-        putUint64(dst: ejs.BufferData, byteOffset: number, val: number | string): void
-
-        int16(b: ejs.BufferData, byteOffset: number): number
-        int32(b: ejs.BufferData, byteOffset: number): number
-        int64(b: ejs.BufferData, byteOffset: number): number | string
-        putInt16(dst: ejs.BufferData, byteOffset: number, val: number): void
-        putInt32(dst: ejs.BufferData, byteOffset: number, val: number): void
-        putInt64(dst: ejs.BufferData, byteOffset: number, val: number | string): void
+        /**
+         * Gets the Uint8 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         */
+        getUint8(buffer: ejs.BufferData, byteOffset: number): number
+        /**
+         * Gets the Uint16 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getUint16(buffer: ejs.BufferData, byteOffset: number): number
+        /**
+         * Gets the Uint32 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getUint32(buffer: ejs.BufferData, byteOffset: number): number
+        /**
+         * Gets the Uint64 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         * @returns If it is within a safe integer that can be represented by js, number is returned. Otherwise, it is returned in the form of a string.
+         */
+        getUint64(buffer: ejs.BufferData, byteOffset: number): number | string
+        /**
+         * Stores an Uint8 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,8) is automatically used to convert it to a number.
+         */
+        setUint8(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
+        /**
+         * Stores an Uint16 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,16) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setUint16(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
+        /**
+         * Stores an Uint32 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,32) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setUint32(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
+        /**
+         * Stores an Uint16 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,64) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setUint64(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
+        /**
+         * Gets the Int8 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         */
+        getInt8(buffer: ejs.BufferData, byteOffset: number): number
+        /**
+         * Gets the Int16 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getInt16(buffer: ejs.BufferData, byteOffset: number): number
+        /**
+         * Gets the Int32 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getInt32(buffer: ejs.BufferData, byteOffset: number): number
+        /**
+         * Gets the Int64 value at the specified byte offset from the start of the buffer. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param buffer The buffer to read from
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         * @returns If it is within a safe integer that can be represented by js, number is returned. Otherwise, it is returned in the form of a string.
+         */
+        getInt64(buffer: ejs.BufferData, byteOffset: number): number | string
+        /**
+         * Stores an Int8 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,8) is automatically used to convert it to a number.
+         */
+        setInt8(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
+        /**
+         * Stores an Int16 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,16) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setInt16(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
+        /**
+         * Stores an Int32 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,32) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setInt32(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
+        /**
+         * Stores an Int64 value at the specified byte offset from the start of the buffer.
+         * @param buffer The buffer to write to
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,64) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setInt64(buffer: ejs.BufferData, byteOffset: number, value: number | string): void
     }
     export const LittleEndian: ByteOrder
     export const BigEndian: ByteOrder
+
+    /**
+     * Binary encode raw buffer
+     */
+    export class DataView {
+        constructor(buffer: ejs.BufferData)
+        /**
+         * underlying raw buffer
+         */
+        readonly buffer: ejs.BufferData
+        /**
+         * The length in bytes of the buffer.
+         */
+        readonly byteLength: number
+        /**
+         * Gets the Uint8 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         */
+        getUint8(byteOffset: number): number
+        /**
+         * Gets the Uint16 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getUint16(byteOffset: number, littleEndian?: boolean): number
+        /**
+         * Gets the Uint32 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getUint32(byteOffset: number, littleEndian?: boolean): number
+        /**
+         * Gets the Uint64 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         * @returns If it is within a safe integer that can be represented by js, number is returned. Otherwise, it is returned in the form of a string.
+         */
+        getUint64(byteOffset: number, littleEndian?: boolean): number | string
+        /**
+         * Stores an Uint8 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,8) is automatically used to convert it to a number.
+         */
+        setUint8(byteOffset: number, value: number | string): void
+        /**
+         * Stores an Uint16 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,16) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setUint16(byteOffset: number, value: number | string, littleEndian?: boolean): void
+        /**
+         * Stores an Uint32 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,32) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setUint32(byteOffset: number, value: number | string, littleEndian?: boolean): void
+        /**
+         * Stores an Uint16 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseUint(value,0,64) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setUint64(byteOffset: number, value: number | string, littleEndian?: boolean): void
+        /**
+         * Gets the Int8 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         */
+        getInt8(byteOffset: number): number
+        /**
+         * Gets the Int16 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getInt16(byteOffset: number, littleEndian?: boolean): number
+        /**
+         * Gets the Int32 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         */
+        getInt32(byteOffset: number, littleEndian?: boolean): number
+        /**
+         * Gets the Int64 value at the specified byte offset from the start of the view. There is
+         * no alignment constraint; multi-byte values may be fetched from any offset.
+         * @param byteOffset The place in the buffer at which the value should be retrieved.
+         * @param littleEndian If false or undefined, a big-endian value should be read.
+         * @returns If it is within a safe integer that can be represented by js, number is returned. Otherwise, it is returned in the form of a string.
+         */
+        getInt64(byteOffset: number, littleEndian?: boolean): number | string
+        /**
+         * Stores an Int8 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,8) is automatically used to convert it to a number.
+         */
+        setInt8(byteOffset: number, value: number | string): void
+        /**
+         * Stores an Int16 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,16) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setInt16(byteOffset: number, value: number | string, littleEndian?: boolean): void
+        /**
+         * Stores an Int32 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,32) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setInt32(byteOffset: number, value: number | string, littleEndian?: boolean): void
+        /**
+         * Stores an Int64 value at the specified byte offset from the start of the view.
+         * @param byteOffset The place in the buffer at which the value should be set.
+         * @param value The value to set. If a string is passed in, strconv.parseInt(value,0,64) is automatically used to convert it to a number.
+         * @param littleEndian If false or undefined, a big-endian value should be written.
+         */
+        setInt64(byteOffset: number, value: number | string, littleEndian?: boolean): void
+    }
 }
 /**
  * implements base64 encoding as specified by RFC 4648.
