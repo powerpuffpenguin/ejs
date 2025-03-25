@@ -7,7 +7,9 @@
 
 #define EJS_STRCONV_ERROR_NUM 1
 #define EJS_STRCONV_ERROR_SYNTAX 2
+#ifndef EJS_STRCONV_ERROR_RANGE
 #define EJS_STRCONV_ERROR_RANGE 3
+#endif
 #define EJS_STRCONV_ERROR_BASE 4
 #define EJS_STRCONV_ERROR_BIT_SIZE 5
 
@@ -216,7 +218,7 @@ static duk_ret_t formatInt(duk_context *ctx)
     }
     ppp_strconv_format_bits_a_t a;
     size_t n = sizeof(a.a);
-    ppp_strconv_format_bits(0, &a, i, base, i < 0, 0);
+    ppp_strconv_format_bits(0, &a, i, base, i < 0 ? 1 : 0, 0);
     if (a.i < n)
     {
         duk_push_lstring(ctx, a.a + a.i, n - a.i);
@@ -348,7 +350,7 @@ static duk_ret_t appendInt_impl(duk_context *ctx, duk_bool_t hex)
     }
     ppp_strconv_format_bits_a_t a;
     size_t n = sizeof(a.a);
-    ppp_strconv_format_bits(0, &a, i, base, i < 0, 0);
+    ppp_strconv_format_bits(0, &a, i, base, i < 0 ? 1 : 0, 0);
     if (a.i < n)
     {
         return append_raw(ctx, buf, buf_len, buf_cap, a.a + a.i, n - a.i);
@@ -430,7 +432,7 @@ static duk_bool_t underscoreOK(const uint8_t *s, size_t s_len)
     return saw != '_' ? 1 : 0;
 }
 
-static uint64_t _parseUint(
+uint64_t __ejs_private_parse_uint(
     duk_context *ctx,
     const uint8_t *s, size_t s_len,
     int base, int bitSize,
@@ -785,7 +787,7 @@ static uint64_t _parseUint(
     }
     return n;
 }
-static int64_t _parseInt(
+int64_t __ejs_private_parse_int(
     duk_context *ctx,
     const uint8_t *s, size_t s_len,
     int base, int bitSize)
@@ -805,7 +807,7 @@ static int64_t _parseInt(
     }
 
     // Convert unsigned and check range.
-    uint64_t un = _parseUint(ctx, s, s_len, base, bitSize, 0);
+    uint64_t un = __ejs_private_parse_uint(ctx, s, s_len, base, bitSize, 0);
     if (bitSize == 0)
     {
         bitSize = 63;
@@ -871,7 +873,7 @@ static duk_ret_t parseInt(duk_context *ctx)
             EJS_STRCONV_ERROR_SYNTAX,
             0, 0);
     }
-    int64_t v = _parseInt(ctx, s, s_len, base, bitSize);
+    int64_t v = __ejs_private_parse_int(ctx, s, s_len, base, bitSize);
     if (to_string &&
         (v > EJS_SHARED_MODULE__MAX_SAFE_INTEGER || v < EJS_SHARED_MODULE__MIN_SAFE_INTEGER))
     {
@@ -928,7 +930,7 @@ static duk_ret_t parseUint(duk_context *ctx)
             0, 0);
     }
 
-    uint64_t v = _parseUint(ctx, s, s_len, base, bitSize, 1);
+    uint64_t v = __ejs_private_parse_uint(ctx, s, s_len, base, bitSize, 1);
     if (to_string && v > EJS_SHARED_MODULE__MAX_SAFE_INTEGER)
     {
         char s[21] = {0};

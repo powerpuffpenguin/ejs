@@ -16,8 +16,4 @@ var Hash32 = hash.Adler32
 
 // console.log(ejs.isBufferData(new Int8Array()))
 
-os.writeFile({
-    name: "a.txt"
-}, function (e) {
-    console.log("write", e)
-})
+console.log(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)

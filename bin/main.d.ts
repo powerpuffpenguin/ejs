@@ -142,6 +142,30 @@ namespace ejs {
      */
     function threadsSet(opts?: ThreadsSetOptions): void
 }
+
+declare module "ejs/binary" {
+    /**
+     * A ByteOrder specifies how to convert Uint8Array into
+     * 16-, 32-, or 64-bit unsigned integers.
+     */
+    export interface ByteOrder {
+        uint16(b: ejs.BufferData, byteOffset: number): number
+        uint32(b: ejs.BufferData, byteOffset: number): number
+        uint64(b: ejs.BufferData, byteOffset: number): number | string
+        putUint16(dst: ejs.BufferData, byteOffset: number, val: number): void
+        putUint32(dst: ejs.BufferData, byteOffset: number, val: number): void
+        putUint64(dst: ejs.BufferData, byteOffset: number, val: number | string): void
+
+        int16(b: ejs.BufferData, byteOffset: number): number
+        int32(b: ejs.BufferData, byteOffset: number): number
+        int64(b: ejs.BufferData, byteOffset: number): number | string
+        putInt16(dst: ejs.BufferData, byteOffset: number, val: number): void
+        putInt32(dst: ejs.BufferData, byteOffset: number, val: number): void
+        putInt64(dst: ejs.BufferData, byteOffset: number, val: number | string): void
+    }
+    export const LittleEndian: ByteOrder
+    export const BigEndian: ByteOrder
+}
 /**
  * implements base64 encoding as specified by RFC 4648.
  */

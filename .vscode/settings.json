@@ -109,6 +109,8 @@
         "http.h": "c",
         "keyvalq_struct.h": "c",
         "net_http.h": "c",
-        "tomcrypt.h": "c"
+        "tomcrypt.h": "c",
+        "encoding_base64.h": "c",
+        "binary.h": "c"
     }
 }

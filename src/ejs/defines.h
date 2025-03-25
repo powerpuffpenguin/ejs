@@ -59,6 +59,21 @@
 #define EJS_OS_LINUX
 #endif
 
+#define EJS_MIN_INT16 -32768
+#define EJS_MAX_INT16 32767
+#define EJS_MAX_UINT16 65535
+
+#define EJS_MIN_INT32 -2147483648
+#define EJS_MAX_INT32 2147483647
+#define EJS_MAX_UINT32 4294967295
+
+#define EJS_MIN_INT64 -9223372036854775808L
+#define EJS_MAX_INT64 9223372036854775807L
+#define EJS_MAX_UINT64 18446744073709551615UL
+
+#define EJS_MIN_SAFE_INTEGER -9007199254740991
+#define EJS_MAX_SAFE_INTEGER 9007199254740991
+
 #define EJS_BOOL_VALUE_DEFAULT(ctx, idx, def) (duk_is_null_or_undefined(ctx, idx) ? (def) : (duk_is_boolean(ctx, idx) ? duk_require_boolean(ctx, idx) : duk_to_boolean(ctx, idx)))
 #define EJS_BOOL_VALUE(ctx, idx) EJS_BOOL_VALUE_DEFAULT(ctx, idx, 0)
 

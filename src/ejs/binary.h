@@ -13,9 +13,9 @@ extern "C"
      */
     typedef struct
     {
-        uint16_t (*uint16)(uint8_t *b);
-        uint32_t (*uint32)(uint8_t *b);
-        uint64_t (*uint64)(uint8_t *b);
+        uint16_t (*uint16)(const uint8_t *b);
+        uint32_t (*uint32)(const uint8_t *b);
+        uint64_t (*uint64)(const uint8_t *b);
         void (*put_uint16)(uint8_t *b, uint16_t v);
         void (*put_uint32)(uint8_t *b, uint32_t v);
         void (*put_uint64)(uint8_t *b, uint64_t v);

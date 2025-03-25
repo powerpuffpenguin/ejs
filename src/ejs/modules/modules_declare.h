@@ -16,6 +16,9 @@
 #define EJS_SHARED_MODULE__TEST0 "ejs/test0", 9
 EJS_SHARED_MODULE__DECLARE(test0);
 
+#define EJS_SHARED_MODULE__BINARY "ejs/binary", 10
+EJS_SHARED_MODULE__DECLARE(binary);
+
 #define EJS_SHARED_MODULE__ENCODING_HEX "ejs/encoding/hex", 16
 EJS_SHARED_MODULE__DECLARE(encoding_hex);
 #define EJS_SHARED_MODULE__ENCODING_BASE64 "ejs/encoding/base64", 19

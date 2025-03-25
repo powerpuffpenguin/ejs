@@ -3,12 +3,12 @@
 ejs_binary_t __ejs_binary_cache = {0};
 uint8_t __ejs_binary_cache_init = 0;
 
-static uint16_t big_uint16(uint8_t *b)
+static uint16_t big_uint16(const uint8_t *b)
 {
     return (uint16_t)(b[1]) |
            ((uint16_t)(b[0]) << 8);
 }
-static uint16_t little_uint16(uint8_t *b)
+static uint16_t little_uint16(const uint8_t *b)
 {
     return ((uint16_t)(b[1]) << 8) |
            (uint16_t)(b[0]);
@@ -23,14 +23,14 @@ static void little_put_uint16(uint8_t *b, uint16_t v)
     b[1] = (uint8_t)(v >> 8);
     b[0] = (uint8_t)(v);
 }
-static uint32_t big_uint32(uint8_t *b)
+static uint32_t big_uint32(const uint8_t *b)
 {
     return (uint32_t)(b[3]) |
            ((uint32_t)(b[2]) << 8) |
            ((uint32_t)(b[1]) << 16) |
            ((uint32_t)(b[0]) << 24);
 }
-static uint32_t little_uint32(uint8_t *b)
+static uint32_t little_uint32(const uint8_t *b)
 {
     return ((uint32_t)(b[3]) << 24) |
            ((uint32_t)(b[2]) << 16) |
@@ -51,7 +51,7 @@ static void little_put_uint32(uint8_t *b, uint32_t v)
     b[1] = (uint8_t)(v >> 8);
     b[0] = (uint8_t)(v);
 }
-static uint64_t big_uint64(uint8_t *b)
+static uint64_t big_uint64(const uint8_t *b)
 {
     return (uint64_t)(b[7]) |
            ((uint64_t)(b[6]) << 8) |
@@ -62,7 +62,7 @@ static uint64_t big_uint64(uint8_t *b)
            ((uint64_t)(b[1]) << 48) |
            ((uint64_t)(b[0]) << 56);
 }
-static uint64_t little_uint64(uint8_t *b)
+static uint64_t little_uint64(const uint8_t *b)
 {
     return ((uint64_t)(b[7]) << 56) |
            ((uint64_t)(b[6]) << 48) |
