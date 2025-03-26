@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("./unicode/utf8");
 require("./encoding/hex");
 require("./encoding/base64");
+require("./encoding/binary");
 require("./hash/hash");
 require("./hash/hmac");
 require("./hash/hash32");

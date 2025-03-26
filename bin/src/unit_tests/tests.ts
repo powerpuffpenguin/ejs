@@ -2,6 +2,7 @@ import "./unicode/utf8";
 
 import "./encoding/hex";
 import "./encoding/base64";
+import "./encoding/binary";
 
 import "./hash/hash";
 import "./hash/hmac";

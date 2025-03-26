@@ -105,16 +105,17 @@ void __ejs_binary_init(ejs_binary_t *o)
     if (hport == nport)
     {
         // system is big endian
-        big = &o->big;
-        little = &o->little;
+        little = &o->big;
+        big = &o->little;
     }
     else
     {
         // system is little endian
-        little = &o->big;
-        big = &o->little;
+        big = &o->big;
+        little = &o->little;
     }
 
+    // Set the default implementation function on little-endian systems
     big->uint16 = big_uint16;
     big->put_uint16 = big_put_uint16;
     big->uint32 = big_uint32;

@@ -155,7 +155,7 @@ static uint64_t get_format_input(duk_context *ctx)
             duk_throw(ctx);
         }
         // i = ppp_encoding_binary_big_endian_uint64(dst);
-        i = ejs_get_binary()->little.uint64(dst);
+        i = ejs_get_binary()->big.uint64(dst);
     }
     else
     {
