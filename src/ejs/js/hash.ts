@@ -57,6 +57,12 @@ declare namespace deps {
     function adler32(d: number, data?: string | Uint8Array): number
     function adler32new(d: number): Uint8Array
     function adler32copy(d: number, dst: Uint8Array): void
+
+    function crc32update(d: number, data?: string | Uint8Array): number
+    function crc32finish(d: number, data?: string | Uint8Array): number
+    function crc32new(d: number): Uint8Array
+    function crc32copy(d: number, dst: Uint8Array): void
+
 }
 
 interface AnyHash {
@@ -934,6 +940,84 @@ export class adler32 implements AnyHash {
     doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
         const val = deps.adler32(this.state, data)
         deps.adler32copy(val, dst)
+        this.state = val
+        return 4
+    }
+}
+export class CRC32 extends Hash32 {
+    /**
+     * The size of an CRC32 checksum in bytes.
+     */
+    static readonly hashsize = 4
+    /**
+     * The blocksize of CRC32 in bytes.
+     */
+    static readonly blocksize = 1
+    /**
+     * return CRC32 checksum of the data
+     */
+    static sum32(data?: string | Uint8Array): number {
+        return deps.crc32finish(4294967295, data)
+    }
+    /**
+     * return CRC32 checksum of the data
+     */
+    static sum(data?: string | Uint8Array): Uint8Array {
+        const val = deps.crc32finish(4294967295, data)
+        return deps.crc32new(val)
+    }
+    /**
+     * Write CRC32 checksum of the data to dst
+     * @returns hashsize
+     */
+    static sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        const val = deps.crc32finish(4294967295, data)
+        deps.crc32copy(val, dst)
+        return 4
+    }
+    constructor() {
+        super(new crc32(4294967295))
+    }
+}
+export class crc32 implements AnyHash {
+    constructor(private state: number) { }
+    clone(): AnyHash {
+        return new crc32(this.state)
+    }
+    readonly hashsize = 4
+    readonly blocksize = 1
+    reset(): void {
+        this.state = 4294967295
+    }
+    write(data?: string | Uint8Array): void {
+        this.state = deps.crc32update(this.state, data)
+    }
+    sum32(data?: string | Uint8Array): number {
+        return deps.crc32finish(this.state, data)
+    }
+    sum(data?: string | Uint8Array): Uint8Array {
+        const val = deps.crc32finish(this.state, data)
+        return deps.crc32new(val)
+    }
+    sumTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        const val = deps.crc32finish(this.state, data)
+        deps.crc32copy(val, dst)
+        return 4
+    }
+    done32(data?: string | Uint8Array): number {
+        const val = deps.crc32finish(this.state, data)
+        this.state = val
+        return val
+    }
+    done(data?: string | Uint8Array): Uint8Array {
+        const val = deps.crc32finish(this.state, data)
+        const buf = deps.crc32new(val)
+        this.state = val
+        return buf
+    }
+    doneTo(dst: Uint8Array, data?: string | Uint8Array): number {
+        const val = deps.crc32finish(this.state, data)
+        deps.crc32copy(val, dst)
         this.state = val
         return 4
     }

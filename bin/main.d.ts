@@ -1074,6 +1074,33 @@ declare module "ejs/hash" {
          */
         static sumTo(dst: ejs.BufferData, data?: string | ejs.BufferData): number
     }
+    /**
+     * CRC-32 using the IEEE polynomial.
+     */
+    export class CRC32 extends Hash32 {
+        constructor()
+        /**
+         * The size of an CRC32 checksum in bytes.
+         */
+        static readonly hashsize = 4
+        /**
+         * The blocksize of CRC32 in bytes.
+         */
+        static readonly blocksize = 1
+        /**
+         * return CRC32 checksum of the data
+         */
+        static sum32(data?: string | Uint8Array): number
+        /**
+         * return CRC32 checksum of the data
+         */
+        static sum(data?: string | Uint8Array): Uint8Array
+        /**
+         * Write CRC32 checksum of the data to dst
+         * @returns hashsize
+         */
+        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+    }
 }
 
 /**

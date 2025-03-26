@@ -658,6 +658,45 @@ static duk_ret_t adler32copy(duk_context *ctx)
     dst[3] = (uint8_t)(s);
     return 0;
 }
+static duk_ret_t crc32update(duk_context *ctx)
+{
+    uint32_t d = duk_require_uint(ctx, 0);
+    duk_size_t data_len = 0;
+    const uint8_t *data;
+    if (!duk_is_null_or_undefined(ctx, 1))
+    {
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &data_len);
+    }
+
+    crc32_state s = {.crc = d};
+    if (data_len)
+    {
+        crc32_update(&s, data, data_len);
+    }
+    duk_push_number(ctx, s.crc);
+    return 1;
+}
+
+static duk_ret_t crc32finish(duk_context *ctx)
+{
+    uint32_t d = duk_require_uint(ctx, 0);
+    duk_size_t data_len = 0;
+    const uint8_t *data;
+    if (!duk_is_null_or_undefined(ctx, 1))
+    {
+        data = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &data_len);
+    }
+
+    crc32_state s = {.crc = d};
+    if (data_len)
+    {
+        crc32_update(&s, data, data_len);
+    }
+    s.crc ^= 0xffffffffUL;
+    duk_push_number(ctx, s.crc);
+    return 1;
+}
+
 EJS_SHARED_MODULE__DECLARE(hash)
 {
     /*
@@ -706,6 +745,14 @@ EJS_SHARED_MODULE__DECLARE(hash)
         duk_put_prop_lstring(ctx, -2, "adler32new", 10);
         duk_push_c_lightfunc(ctx, adler32copy, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "adler32copy", 11);
+        duk_push_c_lightfunc(ctx, crc32update, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "crc32update", 11);
+        duk_push_c_lightfunc(ctx, crc32finish, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "crc32finish", 11);
+        duk_push_c_lightfunc(ctx, adler32new, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "crc32new", 8);
+        duk_push_c_lightfunc(ctx, adler32copy, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "crc32copy", 9);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
