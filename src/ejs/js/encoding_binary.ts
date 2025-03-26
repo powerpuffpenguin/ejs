@@ -104,7 +104,7 @@ export class DataView {
         return deps.nget32(littleEndian ? false : true, false, this.buffer, byteOffset)
     }
     getUint64(byteOffset: number, littleEndian?: boolean): number | string {
-        return deps.nget32(littleEndian ? false : true, false, this.buffer, byteOffset)
+        return deps.nget64(littleEndian ? false : true, false, this.buffer, byteOffset)
     }
     setUint8(byteOffset: number, val: number | string): void {
         deps.nput8(false, this.buffer, byteOffset, val)
