@@ -491,11 +491,23 @@ class Test64 {
                 expect2 = this.big2
             }
             view.setInt(0 * n, -1, little)
+            view.setInt(1 * n, "-9007199254740992", little)
+            assert.equal("-9007199254740992", view.getInt(1 * n, little), `${tag} int`)
+            view.setInt(1 * n, "-9223372036854775808", little)
+            assert.equal("-9223372036854775808", view.getInt(1 * n, little), `${tag} int`)
+            view.setInt(1 * n, "9007199254740992", little)
+            assert.equal("9007199254740992", view.getInt(1 * n, little), `${tag} int`)
+            view.setInt(1 * n, "9223372036854775807", little)
+            assert.equal("9223372036854775807", view.getInt(1 * n, little), `${tag} int`)
             view.setInt(1 * n, -9007199254740991, little)
             view.setInt(2 * n, -9007199254740990, little)
             view.setInt(3 * n, 0, little)
 
             view.setUint(5 * n, 1, little)
+            view.setUint(6 * n, "9007199254740992", little)
+            assert.equal("9007199254740992", view.getUint(6 * n, little), `${tag} uint`)
+            view.setUint(6 * n, "18446744073709551615", little)
+            assert.equal("18446744073709551615", view.getUint(6 * n, little), `${tag} uint`)
             view.setUint(6 * n, 9007199254740990, little)
             view.setUint(7 * n, 9007199254740991, little)
             view.setUint(8 * n, 0, little)
