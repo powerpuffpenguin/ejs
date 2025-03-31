@@ -743,7 +743,7 @@ EJS_SHARED_MODULE__DECLARE(hash)
         duk_put_prop_lstring(ctx, -2, "adler32", 7);
         duk_push_c_lightfunc(ctx, adler32new, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "adler32new", 10);
-        duk_push_c_lightfunc(ctx, adler32copy, 3, 3, 0);
+        duk_push_c_lightfunc(ctx, adler32copy, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "adler32copy", 11);
         duk_push_c_lightfunc(ctx, crc32update, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "crc32update", 11);
@@ -751,7 +751,7 @@ EJS_SHARED_MODULE__DECLARE(hash)
         duk_put_prop_lstring(ctx, -2, "crc32finish", 11);
         duk_push_c_lightfunc(ctx, adler32new, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "crc32new", 8);
-        duk_push_c_lightfunc(ctx, adler32copy, 1, 1, 0);
+        duk_push_c_lightfunc(ctx, adler32copy, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "crc32copy", 9);
     }
     /*
