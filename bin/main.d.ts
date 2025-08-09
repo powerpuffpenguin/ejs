@@ -1103,10 +1103,179 @@ declare module "ejs/hash" {
     }
 }
 /**
- * Implemented AES encryption and decryption
+ * Some encryption algorithms
  */
-declare module "ejs/crypto/aes" {
+declare module "ejs/crypto" {
+    /**
+     * Implemented AES encryption and decryption algorithm
+     * 
+     * @remarks
+     * Either key length 16, 24, or 32 bytes to select AES-128, AES-192, or AES-256
+     */
+    export class AES {
+        private constructor()
+        /**
+         * returns the cipher's block size.
+         */
+        readonly blocksize = 16
+        /**
+         * Encrypt plaintext using ECB mode
+         * @param key AES key
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        static encryptECB(key: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using ECB mode
+         * @param key AES key
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        static encryptECBTo(key: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using ECB mode
+         * @param key AES key
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        static decryptECB(key: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using ECB mode
+         * @param key AES key
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        static decryptECBTo(key: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        /**
+         * 
+         * @param key AES key
+         * @returns ECB
+         */
+        static ecb(key: string | Uint8Array): ECB
 
+        /**
+         * Encrypt plaintext using ECB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        static encryptCBC(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using ECB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        static encryptCBCTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using ECB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        static decryptCBC(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using ECB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        static decryptCBCTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        /**
+         * 
+         * @param key AES key
+         * @param iv initialization vector
+         * @returns ECB
+         */
+        static cbc(key: string | Uint8Array, iv: string | Uint8Array): CBC
+    }
+    /**
+     * The most basic ECB encryption mode.
+     * @remarks
+     * In ECB mode, the plaintext and ciphertext must be integer multiples of blocksize.
+     */
+    export class ECB {
+        private constructor()
+        /**
+         * returns the cipher's block size.
+         */
+        readonly blocksize: number
+        /**
+         * Encrypt plaintext using ECB mode
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        encrypt(plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using ECB mode
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using ECB mode
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        decrypt(ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using ECB mode
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+    }
+
+    /**
+     * The most basic CBC encryption mode.
+     * @remarks
+     * In CBC mode, the plaintext and ciphertext must be integer multiples of blocksize.
+     * 
+     * The same instance can only be used as an encryptor or a decryptor. Do not mix them up, otherwise you will not get the correct result.
+     */
+    export class CBC {
+        private constructor()
+        /**
+         * returns the cipher's block size.
+         */
+        readonly blocksize: number
+        /**
+         * Encrypt plaintext using CBC mode
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        encrypt(plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using CBC mode
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using CBC mode
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        decrypt(ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using CBC mode
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+    }
 }
 /**
  * UTF8 processing function ported from golang standard library

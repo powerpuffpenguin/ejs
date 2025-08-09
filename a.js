@@ -14,27 +14,30 @@ var hash = require("ejs/hash")
 var crypto = require("ejs/crypto")
 var AES = crypto.AES
 var key = hash.MD5.sum("ok")
+var iv = hash.MD5.sum("iv")
 
-var plaintext = new Uint8Array(32 + 2)
+var plaintext = new Uint8Array(32)
 for (var i = 0; i < plaintext.length; i++) {
     plaintext[i] = i
 }
 var s = hex.encodeToString(plaintext)
 console.log(s)
-var ciphertext = AES.encryptECB(key, plaintext)
+var ciphertext = AES.encryptCBC(key, iv, plaintext)
 console.log(hex.encodeToString(ciphertext))
-var output = AES.decryptECB(key, ciphertext)
-console.log(hex.encodeToString(output))
+var output = AES.decryptCBC(key, iv, ciphertext)
+console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
 console.log('-----------')
-const ecb = AES.ecb(key)
-ciphertext = ecb.encrypt(plaintext.subarray(16))
+const enc = AES.cbc(key, iv)
+const dec = AES.cbc(key, iv)
+
+ciphertext = enc.encrypt(plaintext.subarray(0, 16))
 console.log(hex.encodeToString(ciphertext))
-output = ecb.decrypt(ciphertext)
+output = dec.decrypt(ciphertext)
 console.log(hex.encodeToString(output))
 console.log('----------')
-ciphertext = ecb.encrypt(plaintext.subarray(0, 16))
+ciphertext = enc.encrypt(plaintext.subarray(16))
 console.log(hex.encodeToString(ciphertext))
-output = ecb.decrypt(ciphertext)
+output = dec.decrypt(ciphertext)
 console.log(hex.encodeToString(output))
 
 // var Hash32 = hash.CRC32
