@@ -1102,7 +1102,12 @@ declare module "ejs/hash" {
         static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
     }
 }
+/**
+ * Implemented AES encryption and decryption
+ */
+declare module "ejs/crypto/aes" {
 
+}
 /**
  * UTF8 processing function ported from golang standard library
  */

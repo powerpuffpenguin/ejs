@@ -10,6 +10,7 @@ void __ejs_modules_init(duk_context *ctx)
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__ENCODING_BASE64, encoding_base64);
 
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__HASH, hash);
+    EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__CRYPTO, crypto);
 
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__UNICODE_UTF8, unicode_utf8);
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__STRCONC, strconv);

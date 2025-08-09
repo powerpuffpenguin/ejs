@@ -11,10 +11,24 @@ var binary = require("ejs/encoding/binary")
 var Base64 = require("ejs/encoding/base64").Base64
 var path = require("ejs/path")
 var hash = require("ejs/hash")
-var Hash32 = hash.CRC32
-console.log(Hash32.sum32("abc"))
-console.log(hex.encodeToString(Hash32.sum("abc")))
-var h = new Hash32()
-h.write("a")
-console.log(h.sum32("bc"))
-console.log(hex.encodeToString(h.sum("bc")))
+var crypto = require("ejs/crypto")
+var AES = crypto.AES
+var key = hash.MD5.sum("ok")
+
+var plaintext = new Uint8Array(32 + 2)
+for (var i = 0; i < plaintext.length; i++) {
+    plaintext[i] = i
+}
+console.log(plaintext)
+var ciphertext = new Uint8Array(plaintext.byteLength)
+console.log(ciphertext)
+console.log(AES.ecbEncryptTo(key, ciphertext, plaintext))
+console.log(ciphertext)
+console.log(hex.encodeToString(AES.ecbEncrypt(key, plaintext)))
+// var Hash32 = hash.CRC32
+// console.log(Hash32.sum32("abc"))
+// console.log(hex.encodeToString(Hash32.sum("abc")))
+// var h = new Hash32()
+// h.write("a")
+// console.log(h.sum32("bc"))
+// console.log(hex.encodeToString(h.sum("bc")))

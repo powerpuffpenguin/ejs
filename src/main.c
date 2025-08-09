@@ -4,6 +4,7 @@
 #include <event2/event.h>
 #include "ejs/core.h"
 #include <mbedtls/psa_util.h>
+#include <tomcrypt.h>
 
 static duk_ret_t native_debug_init(duk_context *ctx)
 {
@@ -72,6 +73,8 @@ int main(int argc, const char **argv)
     duk_pop(ctx);
 
     int ret = 0;
+    // Register the symmetric encryption algorithms to be supported
+    register_cipher(&aes_desc);
     // Initialize mbedtls
     psa_crypto_init();
     // When SIGPIPE is encountered during network communication,

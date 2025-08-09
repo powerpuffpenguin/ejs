@@ -27,6 +27,9 @@ EJS_SHARED_MODULE__DECLARE(encoding_base64);
 #define EJS_SHARED_MODULE__HASH "ejs/hash", 8
 EJS_SHARED_MODULE__DECLARE(hash);
 
+#define EJS_SHARED_MODULE__CRYPTO "ejs/crypto", 10
+EJS_SHARED_MODULE__DECLARE(crypto);
+
 #define EJS_SHARED_MODULE__STRCONC "ejs/strconv", 11
 EJS_SHARED_MODULE__DECLARE(strconv);
 

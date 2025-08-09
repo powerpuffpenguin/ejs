@@ -112,6 +112,8 @@
         "tomcrypt.h": "c",
         "encoding_base64.h": "c",
         "binary.h": "c",
-        "encoding_binary.h": "c"
+        "encoding_binary.h": "c",
+        "hash.h": "c",
+        "crypto.h": "c"
     }
 }
