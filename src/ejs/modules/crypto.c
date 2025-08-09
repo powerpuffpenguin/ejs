@@ -161,7 +161,7 @@ static duk_ret_t state_block(
             duk_throw(ctx);
         }
 
-        if (f(input, output, input_len, &state) != CRYPT_OK)
+        if (f(input, output, input_len, state) != CRYPT_OK)
         {
             done(state);
             duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_decrypt fail", tag);
