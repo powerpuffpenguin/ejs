@@ -1,22 +1,19 @@
 #include "modules_shared.h"
 #include <tomcrypt.h>
 #include "../js/crypto.h"
-static duk_ret_t ecb_block(duk_context *ctx, duk_bool_t dec)
+typedef int (*state_block_func)(const unsigned char *input, unsigned char *output, unsigned long len, void *state);
+static duk_ret_t state_stream(
+    duk_context *ctx,
+    duk_bool_t fill,
+    state_block_func f,
+    const char *errtag)
 {
-    int cipher = duk_require_uint(ctx, 0);
-    if (cipher_is_valid(cipher) != CRYPT_OK)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
-        duk_throw(ctx);
-    }
+    void *state = duk_require_pointer(ctx, 0);
+    duk_size_t block_length = duk_require_uint(ctx, 1);
 
-    duk_size_t block_length = cipher_descriptor[cipher].block_length;
-
-    duk_size_t key_len = 0;
-    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
     duk_size_t input_len = 0;
     const uint8_t *input = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &input_len);
-    if (input_len % block_length)
+    if (!fill && input_len % block_length)
     {
         duk_push_error_object(ctx, DUK_ERR_ERROR, "input not full blocks");
         duk_throw(ctx);
@@ -27,31 +24,12 @@ static duk_ret_t ecb_block(duk_context *ctx, duk_bool_t dec)
         uint8_t *output = duk_push_fixed_buffer(ctx, input_len);
         if (input_len > 0)
         {
-            symmetric_ECB state;
-            if (ecb_start(cipher, key, key_len, 0, &state) != CRYPT_OK)
+
+            if (f(input, output, input_len, state) != CRYPT_OK)
             {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_start fail");
+                duk_push_error_object(ctx, DUK_ERR_ERROR, errtag);
                 duk_throw(ctx);
             }
-            if (dec)
-            {
-                if (ecb_decrypt(input, output, input_len, &state) != CRYPT_OK)
-                {
-                    ecb_done(&state);
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_decrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-            else
-            {
-                if (ecb_encrypt(input, output, input_len, &state) != CRYPT_OK)
-                {
-                    ecb_done(&state);
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_encrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-            ecb_done(&state);
         }
         return 1;
     }
@@ -65,31 +43,12 @@ static duk_ret_t ecb_block(duk_context *ctx, duk_bool_t dec)
     }
     if (input_len > 0)
     {
-        symmetric_ECB state;
-        if (ecb_start(cipher, key, key_len, 0, &state) != CRYPT_OK)
+
+        if (f(input, output, input_len, state) != CRYPT_OK)
         {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_start fail");
+            duk_push_error_object(ctx, DUK_ERR_ERROR, errtag);
             duk_throw(ctx);
         }
-        if (dec)
-        {
-            if (ecb_decrypt(input, output, input_len, &state) != CRYPT_OK)
-            {
-                ecb_done(&state);
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_decrypt fail");
-                duk_throw(ctx);
-            }
-        }
-        else
-        {
-            if (ecb_encrypt(input, output, input_len, &state) != CRYPT_OK)
-            {
-                ecb_done(&state);
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_encrypt fail");
-                duk_throw(ctx);
-            }
-        }
-        ecb_done(&state);
 
         duk_pop_3(ctx);
         duk_push_number(ctx, input_len);
@@ -101,13 +60,188 @@ static duk_ret_t ecb_block(duk_context *ctx, duk_bool_t dec)
     }
     return 1;
 }
+
+typedef int (*state_start_func)(int cipher, const unsigned char *key, int keylen, int num_rounds, void *state);
+typedef int (*state_start_iv_func)(int cipher, const unsigned char *IV, const unsigned char *key, int keylen, int num_rounds, void *state);
+typedef int (*state_done_func)(void *state);
+
+static duk_ret_t state_block(
+    duk_context *ctx,
+    const char *tag,
+    duk_bool_t fill,
+    state_start_func start,
+    state_start_iv_func start_iv,
+    state_block_func f,
+    state_done_func done,
+    void *state)
+{
+    int cipher = duk_require_uint(ctx, 0);
+    if (cipher_is_valid(cipher) != CRYPT_OK)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
+        duk_throw(ctx);
+    }
+
+    duk_size_t block_length = cipher_descriptor[cipher].block_length;
+
+    duk_size_t key_len = 0;
+    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+    duk_idx_t idx = 2;
+    const uint8_t *iv;
+    if (start_iv)
+    {
+        duk_size_t iv_len = 0;
+        iv = EJS_REQUIRE_CONST_LSOURCE(ctx, idx, &iv_len);
+        if (iv_len < block_length)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "iv length must equal block size");
+            duk_throw(ctx);
+        }
+        ++idx;
+    }
+
+    duk_size_t input_len = 0;
+    const uint8_t *input = EJS_REQUIRE_CONST_LSOURCE(ctx, idx, &input_len);
+    if (!fill && input_len % block_length)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "input not full blocks");
+        duk_throw(ctx);
+    }
+    ++idx;
+    if (duk_is_undefined(ctx, idx))
+    {
+        uint8_t *output = duk_push_fixed_buffer(ctx, input_len);
+        if (input_len > 0)
+        {
+            if (start)
+            {
+                if (start(cipher, key, key_len, 0, state) != CRYPT_OK)
+                {
+                    duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
+                    duk_throw(ctx);
+                }
+            }
+            else if (start_iv(cipher, iv, key, key_len, 0, state) != CRYPT_OK)
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
+                duk_throw(ctx);
+            }
+
+            if (f(input, output, input_len, state) != CRYPT_OK)
+            {
+                done(state);
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_decrypt fail", tag);
+                duk_throw(ctx);
+            }
+
+            done(state);
+        }
+        return 1;
+    }
+    duk_size_t output_len = 0;
+    uint8_t *output = duk_require_buffer_data(ctx, idx, &output_len);
+    if (output_len < input_len)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "output smaller than input");
+        duk_throw(ctx);
+    }
+    if (input_len > 0)
+    {
+        if (start)
+        {
+            if (start(cipher, key, key_len, 0, state) != CRYPT_OK)
+            {
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
+                duk_throw(ctx);
+            }
+        }
+        else if (start_iv(cipher, iv, key, key_len, 0, state) != CRYPT_OK)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
+            duk_throw(ctx);
+        }
+
+        if (f(input, output, input_len, &state) != CRYPT_OK)
+        {
+            done(state);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_decrypt fail", tag);
+            duk_throw(ctx);
+        }
+
+        done(state);
+
+        duk_pop_3(ctx);
+        duk_push_number(ctx, input_len);
+    }
+    else
+    {
+        duk_pop_3(ctx);
+        duk_push_number(ctx, 0);
+    }
+    return 1;
+}
+static duk_ret_t state_new(
+    duk_context *ctx,
+    state_start_func start,
+    state_start_iv_func start_iv,
+    duk_size_t sz,
+    duk_c_function finalizer,
+    const char *errtag)
+{
+    int cipher = duk_require_uint(ctx, 0);
+    if (cipher_is_valid(cipher) != CRYPT_OK)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
+        duk_throw(ctx);
+    }
+    duk_size_t block_length = cipher_descriptor[cipher].block_length;
+
+    duk_size_t key_len = 0;
+    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+
+    uint8_t *p;
+    if (start_iv)
+    {
+        duk_size_t iv_len = 0;
+        const uint8_t *iv = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &iv_len);
+        if (iv_len < block_length)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "iv length must equal block size");
+            duk_throw(ctx);
+        }
+
+        p = ejs_push_finalizer_object(ctx, sz + 1, finalizer);
+        if (start_iv(cipher, iv, key, key_len, 0, p) != CRYPT_OK)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, errtag);
+            duk_throw(ctx);
+        }
+    }
+    else
+    {
+        p = ejs_push_finalizer_object(ctx, sz + 1, finalizer);
+        if (start(cipher, key, key_len, 0, p) != CRYPT_OK)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, errtag);
+            duk_throw(ctx);
+        }
+    }
+    p[sz] = 1;
+
+    duk_push_uint(ctx, block_length);
+    duk_put_prop_lstring(ctx, -2, "blocksize", 9);
+    return 1;
+}
+
 static duk_ret_t enc_ecb_block(duk_context *ctx)
 {
-    return ecb_block(ctx, 0);
+    symmetric_ECB state;
+    return state_block(ctx, "ecb", 0, (state_start_func)ecb_start, 0, (state_block_func)ecb_encrypt, (state_done_func)ecb_done, &state);
 }
 static duk_ret_t dec_ecb_block(duk_context *ctx)
 {
-    return ecb_block(ctx, 1);
+    symmetric_ECB state;
+    return state_block(ctx, "ecb", 0, (state_start_func)ecb_start, 0, (state_block_func)ecb_decrypt, (state_done_func)ecb_done, &state);
 }
 static duk_ret_t ecb_finalizer(duk_context *ctx)
 {
@@ -126,227 +260,27 @@ static duk_ret_t ecb_finalizer(duk_context *ctx)
 }
 static duk_ret_t ecb(duk_context *ctx)
 {
-    int cipher = duk_require_uint(ctx, 0);
-    if (cipher_is_valid(cipher) != CRYPT_OK)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
-        duk_throw(ctx);
-    }
-    duk_size_t block_length = cipher_descriptor[cipher].block_length;
-
-    duk_size_t key_len = 0;
-    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
-
-    uint8_t *p = ejs_push_finalizer_object(ctx, sizeof(symmetric_ECB) + 1, ecb_finalizer);
-    if (ecb_start(cipher, key, key_len, 0, (symmetric_ECB *)p) != CRYPT_OK)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_start fail");
-        duk_throw(ctx);
-    }
-    p[sizeof(symmetric_ECB)] = 1;
-
-    duk_push_uint(ctx, block_length);
-    duk_put_prop_lstring(ctx, -2, "blocksize", 9);
-    return 1;
+    return state_new(ctx, (state_start_func)ecb_start, 0, sizeof(symmetric_ECB), ecb_finalizer, "ecb_start fail");
 }
-static duk_ret_t ecb_stream(duk_context *ctx, duk_bool_t dec)
-{
-    symmetric_ECB *state = duk_require_pointer(ctx, 0);
-    duk_size_t block_length = duk_require_uint(ctx, 1);
 
-    duk_size_t input_len = 0;
-    const uint8_t *input = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &input_len);
-    if (input_len % block_length)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "input not full blocks");
-        duk_throw(ctx);
-    }
-
-    if (duk_is_undefined(ctx, 3))
-    {
-        uint8_t *output = duk_push_fixed_buffer(ctx, input_len);
-        if (input_len > 0)
-        {
-            if (dec)
-            {
-                if (ecb_decrypt(input, output, input_len, state) != CRYPT_OK)
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_decrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-            else
-            {
-                if (ecb_encrypt(input, output, input_len, state) != CRYPT_OK)
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_encrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-        }
-        return 1;
-    }
-
-    duk_size_t output_len = 0;
-    uint8_t *output = duk_require_buffer_data(ctx, 3, &output_len);
-    if (output_len < input_len)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "output smaller than input");
-        duk_throw(ctx);
-    }
-    if (input_len > 0)
-    {
-        if (dec)
-        {
-            if (ecb_decrypt(input, output, input_len, state) != CRYPT_OK)
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_decrypt fail");
-                duk_throw(ctx);
-            }
-        }
-        else
-        {
-            if (ecb_encrypt(input, output, input_len, state) != CRYPT_OK)
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "ecb_encrypt fail");
-                duk_throw(ctx);
-            }
-        }
-
-        duk_pop_3(ctx);
-        duk_push_number(ctx, input_len);
-    }
-    else
-    {
-        duk_pop_3(ctx);
-        duk_push_number(ctx, 0);
-    }
-    return 1;
-}
 static duk_ret_t enc_ecb(duk_context *ctx)
 {
-    return ecb_stream(ctx, 0);
+    return state_stream(ctx, 0, (state_block_func)ecb_encrypt, "ecb_encrypt fail");
 }
 static duk_ret_t dec_ecb(duk_context *ctx)
 {
-    return ecb_stream(ctx, 1);
+    return state_stream(ctx, 0, (state_block_func)ecb_decrypt, "ecb_decrypt fail");
 }
 
-static duk_ret_t cbc_block(duk_context *ctx, duk_bool_t dec)
-{
-    int cipher = duk_require_uint(ctx, 0);
-    if (cipher_is_valid(cipher) != CRYPT_OK)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
-        duk_throw(ctx);
-    }
-
-    duk_size_t block_length = cipher_descriptor[cipher].block_length;
-
-    duk_size_t key_len = 0;
-    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
-    duk_size_t iv_len = 0;
-    const uint8_t *iv = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &iv_len);
-    if (iv_len < block_length)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "iv length must equal block size");
-        duk_throw(ctx);
-    }
-
-    duk_size_t input_len = 0;
-    const uint8_t *input = EJS_REQUIRE_CONST_LSOURCE(ctx, 3, &input_len);
-    if (input_len % block_length)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "input not full blocks");
-        duk_throw(ctx);
-    }
-
-    if (duk_is_undefined(ctx, 4))
-    {
-        uint8_t *output = duk_push_fixed_buffer(ctx, input_len);
-        if (input_len > 0)
-        {
-            symmetric_CBC state;
-            if (cbc_start(cipher, iv, key, key_len, 0, &state) != CRYPT_OK)
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_start fail");
-                duk_throw(ctx);
-            }
-            if (dec)
-            {
-                if (cbc_decrypt(input, output, input_len, &state) != CRYPT_OK)
-                {
-                    cbc_done(&state);
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_decrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-            else
-            {
-                if (cbc_encrypt(input, output, input_len, &state) != CRYPT_OK)
-                {
-                    cbc_done(&state);
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_encrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-            cbc_done(&state);
-        }
-        return 1;
-    }
-
-    duk_size_t output_len = 0;
-    uint8_t *output = duk_require_buffer_data(ctx, 4, &output_len);
-    if (output_len < input_len)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "output smaller than input");
-        duk_throw(ctx);
-    }
-    if (input_len > 0)
-    {
-        symmetric_CBC state;
-        if (cbc_start(cipher, iv, key, key_len, 0, &state) != CRYPT_OK)
-        {
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_start fail");
-            duk_throw(ctx);
-        }
-        if (dec)
-        {
-            if (cbc_decrypt(input, output, input_len, &state) != CRYPT_OK)
-            {
-                cbc_done(&state);
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_decrypt fail");
-                duk_throw(ctx);
-            }
-        }
-        else
-        {
-            if (cbc_encrypt(input, output, input_len, &state) != CRYPT_OK)
-            {
-                cbc_done(&state);
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_encrypt fail");
-                duk_throw(ctx);
-            }
-        }
-        cbc_done(&state);
-
-        duk_pop_3(ctx);
-        duk_push_number(ctx, input_len);
-    }
-    else
-    {
-        duk_pop_3(ctx);
-        duk_push_number(ctx, 0);
-    }
-    return 1;
-}
 static duk_ret_t enc_cbc_block(duk_context *ctx)
 {
-    return cbc_block(ctx, 0);
+    symmetric_CBC state;
+    return state_block(ctx, "cbc", 0, 0, (state_start_iv_func)cbc_start, (state_block_func)cbc_encrypt, (state_done_func)cbc_done, &state);
 }
 static duk_ret_t dec_cbc_block(duk_context *ctx)
 {
-    return cbc_block(ctx, 1);
+    symmetric_CBC state;
+    return state_block(ctx, "cbc", 0, 0, (state_start_iv_func)cbc_start, (state_block_func)cbc_decrypt, (state_done_func)cbc_done, &state);
 }
 static duk_ret_t cbc_finalizer(duk_context *ctx)
 {
@@ -365,112 +299,16 @@ static duk_ret_t cbc_finalizer(duk_context *ctx)
 }
 static duk_ret_t cbc(duk_context *ctx)
 {
-    int cipher = duk_require_uint(ctx, 0);
-    if (cipher_is_valid(cipher) != CRYPT_OK)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
-        duk_throw(ctx);
-    }
-    duk_size_t block_length = cipher_descriptor[cipher].block_length;
-
-    duk_size_t key_len = 0;
-    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
-    duk_size_t iv_len = 0;
-    const uint8_t *iv = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &iv_len);
-
-    uint8_t *p = ejs_push_finalizer_object(ctx, sizeof(symmetric_CBC) + 1, cbc_finalizer);
-    if (cbc_start(cipher, iv, key, key_len, 0, (symmetric_CBC *)p) != CRYPT_OK)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_start fail");
-        duk_throw(ctx);
-    }
-    p[sizeof(symmetric_CBC)] = 1;
-
-    duk_push_uint(ctx, block_length);
-    duk_put_prop_lstring(ctx, -2, "blocksize", 9);
-    return 1;
+    return state_new(ctx, 0, (state_start_iv_func)cbc_start, sizeof(symmetric_CBC), cbc_finalizer, "cbc_start fail");
 }
-static duk_ret_t cbc_stream(duk_context *ctx, duk_bool_t dec)
-{
-    symmetric_CBC *state = duk_require_pointer(ctx, 0);
-    duk_size_t block_length = duk_require_uint(ctx, 1);
 
-    duk_size_t input_len = 0;
-    const uint8_t *input = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &input_len);
-    if (input_len % block_length)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "input not full blocks");
-        duk_throw(ctx);
-    }
-
-    if (duk_is_undefined(ctx, 3))
-    {
-        uint8_t *output = duk_push_fixed_buffer(ctx, input_len);
-        if (input_len > 0)
-        {
-            if (dec)
-            {
-                if (cbc_decrypt(input, output, input_len, state) != CRYPT_OK)
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_decrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-            else
-            {
-                if (cbc_encrypt(input, output, input_len, state) != CRYPT_OK)
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_encrypt fail");
-                    duk_throw(ctx);
-                }
-            }
-        }
-        return 1;
-    }
-
-    duk_size_t output_len = 0;
-    uint8_t *output = duk_require_buffer_data(ctx, 3, &output_len);
-    if (output_len < input_len)
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "output smaller than input");
-        duk_throw(ctx);
-    }
-    if (input_len > 0)
-    {
-        if (dec)
-        {
-            if (cbc_decrypt(input, output, input_len, state) != CRYPT_OK)
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_decrypt fail");
-                duk_throw(ctx);
-            }
-        }
-        else
-        {
-            if (cbc_encrypt(input, output, input_len, state) != CRYPT_OK)
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "cbc_encrypt fail");
-                duk_throw(ctx);
-            }
-        }
-
-        duk_pop_3(ctx);
-        duk_push_number(ctx, input_len);
-    }
-    else
-    {
-        duk_pop_3(ctx);
-        duk_push_number(ctx, 0);
-    }
-    return 1;
-}
 static duk_ret_t enc_cbc(duk_context *ctx)
 {
-    return cbc_stream(ctx, 0);
+    return state_stream(ctx, 0, (state_block_func)cbc_encrypt, "cbc_encrypt fail");
 }
 static duk_ret_t dec_cbc(duk_context *ctx)
 {
-    return cbc_stream(ctx, 1);
+    return state_stream(ctx, 0, (state_block_func)cbc_decrypt, "cbc_decrypt fail");
 }
 
 EJS_SHARED_MODULE__DECLARE(crypto)
@@ -518,6 +356,5 @@ EJS_SHARED_MODULE__DECLARE(crypto)
      *  Entry stack: [ require init_f exports ejs deps ]
      */
     duk_call(ctx, 3);
-
     return 0;
 }
