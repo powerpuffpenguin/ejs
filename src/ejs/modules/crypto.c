@@ -330,6 +330,44 @@ static duk_ret_t dec_cfb(duk_context *ctx)
 {
     return state_stream(ctx, 1, (state_block_func)cfb_decrypt, "cfb_decrypt fail");
 }
+
+static duk_ret_t enc_ofb_block(duk_context *ctx)
+{
+    symmetric_OFB state;
+    return state_block(ctx, "ofb", 1, 0, (state_start_iv_func)ofb_start, (state_block_func)ofb_encrypt, (state_done_func)ofb_done, &state);
+}
+static duk_ret_t dec_ofb_block(duk_context *ctx)
+{
+    symmetric_OFB state;
+    return state_block(ctx, "ofb", 1, 0, (state_start_iv_func)ofb_start, (state_block_func)ofb_decrypt, (state_done_func)ofb_done, &state);
+}
+static duk_ret_t ofb_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    uint8_t *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        if (p[sizeof(symmetric_OFB)])
+        {
+            ofb_done((symmetric_OFB *)p);
+        }
+        free(p);
+    }
+    return 0;
+}
+static duk_ret_t ofb(duk_context *ctx)
+{
+    return state_new(ctx, 0, (state_start_iv_func)ofb_start, sizeof(symmetric_OFB), ofb_finalizer, "ofb_start fail");
+}
+
+static duk_ret_t enc_ofb(duk_context *ctx)
+{
+    return state_stream(ctx, 1, (state_block_func)ofb_encrypt, "ofb_encrypt fail");
+}
+static duk_ret_t dec_ofb(duk_context *ctx)
+{
+    return state_stream(ctx, 1, (state_block_func)ofb_decrypt, "ofb_decrypt fail");
+}
 EJS_SHARED_MODULE__DECLARE(crypto)
 {
     /*
@@ -380,6 +418,17 @@ EJS_SHARED_MODULE__DECLARE(crypto)
         duk_put_prop_lstring(ctx, -2, "enc_cfb", 7);
         duk_push_c_lightfunc(ctx, dec_cfb, 4, 4, 0);
         duk_put_prop_lstring(ctx, -2, "dec_cfb", 7);
+
+        duk_push_c_lightfunc(ctx, enc_ofb_block, 5, 5, 0);
+        duk_put_prop_lstring(ctx, -2, "enc_ofb_block", 13);
+        duk_push_c_lightfunc(ctx, dec_ofb_block, 5, 5, 0);
+        duk_put_prop_lstring(ctx, -2, "dec_ofb_block", 13);
+        duk_push_c_lightfunc(ctx, ofb, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "ofb", 3);
+        duk_push_c_lightfunc(ctx, enc_ofb, 4, 4, 0);
+        duk_put_prop_lstring(ctx, -2, "enc_ofb", 7);
+        duk_push_c_lightfunc(ctx, dec_ofb, 4, 4, 0);
+        duk_put_prop_lstring(ctx, -2, "dec_ofb", 7);
     }
 
     /*

@@ -22,13 +22,13 @@ for (var i = 0; i < plaintext.length; i++) {
 }
 var s = hex.encodeToString(plaintext)
 console.log(s)
-var ciphertext = AES.encryptCFB(key, iv, plaintext)
+var ciphertext = AES.encryptOFB(key, iv, plaintext)
 console.log(hex.encodeToString(ciphertext))
-var output = AES.decryptCFB(key, iv, ciphertext)
+var output = AES.decryptOFB(key, iv, ciphertext)
 console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
 console.log('-----------')
-const enc = AES.cfb(key, iv)
-const dec = AES.cfb(key, iv)
+const enc = AES.ofb(key, iv)
+const dec = AES.ofb(key, iv)
 
 ciphertext = enc.encrypt(plaintext.subarray(0, 16))
 console.log(hex.encodeToString(ciphertext))
