@@ -1156,7 +1156,7 @@ declare module "ejs/crypto" {
         static ecb(key: string | Uint8Array): ECB
 
         /**
-         * Encrypt plaintext using ECB mode
+         * Encrypt plaintext using CBC mode
          * @param key AES key
          * @param iv initialization vector
          * @param plaintext data to be encrypted
@@ -1164,7 +1164,7 @@ declare module "ejs/crypto" {
          */
         static encryptCBC(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
         /**
-         * Encrypt plaintext using ECB mode
+         * Encrypt plaintext using CBC mode
          * @param key AES key
          * @param iv initialization vector
          * @param ciphertext encrypted data
@@ -1173,7 +1173,7 @@ declare module "ejs/crypto" {
          */
         static encryptCBCTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
         /**
-         * Decrypt ciphertext using ECB mode
+         * Decrypt ciphertext using CBC mode
          * @param key AES key
          * @param iv initialization vector
          * @param ciphertext data to be decrypted
@@ -1181,7 +1181,7 @@ declare module "ejs/crypto" {
          */
         static decryptCBC(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
         /**
-         * Decrypt ciphertext using ECB mode
+         * Decrypt ciphertext using CBC mode
          * @param key AES key
          * @param iv initialization vector
          * @param plaintext decrypted data
@@ -1193,9 +1193,51 @@ declare module "ejs/crypto" {
          * 
          * @param key AES key
          * @param iv initialization vector
-         * @returns ECB
+         * @returns CBC
          */
         static cbc(key: string | Uint8Array, iv: string | Uint8Array): CBC
+
+        /**
+         * Encrypt plaintext using CFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        static encryptCFB(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using CFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        static encryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using CFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        static decryptCFB(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using CFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        static decryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        /**
+         * 
+         * @param key AES key
+         * @param iv initialization vector
+         * @returns CFB
+         */
+        static cfb(key: string | Uint8Array, iv: string | Uint8Array): CFB
     }
     /**
      * The most basic ECB encryption mode.
@@ -1237,7 +1279,7 @@ declare module "ejs/crypto" {
     }
 
     /**
-     * The most basic CBC encryption mode.
+     * The CBC encryption mode.
      * @remarks
      * In CBC mode, the plaintext and ciphertext must be integer multiples of blocksize.
      * 
@@ -1270,6 +1312,47 @@ declare module "ejs/crypto" {
         decrypt(ciphertext: Uint8Array): Uint8Array
         /**
          * Decrypt ciphertext using CBC mode
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+    }
+
+    /**
+     * The CFB encryption mode.
+     * @remarks
+     * CFB mode does not require padding or alignment and is data flow friendly.
+     * 
+     * The same instance can only be used as an encryptor or a decryptor. Do not mix them up, otherwise you will not get the correct result.
+     */
+    export class CFB {
+        private constructor()
+        /**
+         * returns the cipher's block size.
+         */
+        readonly blocksize: number
+        /**
+         * Encrypt plaintext using CFB mode
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        encrypt(plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using CFB mode
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using CFB mode
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        decrypt(ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using CFB mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext

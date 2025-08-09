@@ -113,15 +113,7 @@ static duk_ret_t state_block(
         uint8_t *output = duk_push_fixed_buffer(ctx, input_len);
         if (input_len > 0)
         {
-            if (start)
-            {
-                if (start(cipher, key, key_len, 0, state) != CRYPT_OK)
-                {
-                    duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
-                    duk_throw(ctx);
-                }
-            }
-            else if (start_iv(cipher, iv, key, key_len, 0, state) != CRYPT_OK)
+            if ((start ? start(cipher, key, key_len, 0, state) : start_iv(cipher, iv, key, key_len, 0, state)) != CRYPT_OK)
             {
                 duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
                 duk_throw(ctx);
@@ -147,15 +139,7 @@ static duk_ret_t state_block(
     }
     if (input_len > 0)
     {
-        if (start)
-        {
-            if (start(cipher, key, key_len, 0, state) != CRYPT_OK)
-            {
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
-                duk_throw(ctx);
-            }
-        }
-        else if (start_iv(cipher, iv, key, key_len, 0, state) != CRYPT_OK)
+        if ((start ? start(cipher, key, key_len, 0, state) : start_iv(cipher, iv, key, key_len, 0, state)) != CRYPT_OK)
         {
             duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
             duk_throw(ctx);
@@ -251,7 +235,6 @@ static duk_ret_t ecb_finalizer(duk_context *ctx)
     {
         if (p[sizeof(symmetric_ECB)])
         {
-            p[sizeof(symmetric_ECB)] = 0;
             ecb_done((symmetric_ECB *)p);
         }
         free(p);
@@ -290,7 +273,6 @@ static duk_ret_t cbc_finalizer(duk_context *ctx)
     {
         if (p[sizeof(symmetric_CBC)])
         {
-            p[sizeof(symmetric_CBC)] = 0;
             cbc_done((symmetric_CBC *)p);
         }
         free(p);
@@ -311,6 +293,43 @@ static duk_ret_t dec_cbc(duk_context *ctx)
     return state_stream(ctx, 0, (state_block_func)cbc_decrypt, "cbc_decrypt fail");
 }
 
+static duk_ret_t enc_cfb_block(duk_context *ctx)
+{
+    symmetric_CFB state;
+    return state_block(ctx, "cfb", 1, 0, (state_start_iv_func)cfb_start, (state_block_func)cfb_encrypt, (state_done_func)cfb_done, &state);
+}
+static duk_ret_t dec_cfb_block(duk_context *ctx)
+{
+    symmetric_CFB state;
+    return state_block(ctx, "cfb", 1, 0, (state_start_iv_func)cfb_start, (state_block_func)cfb_decrypt, (state_done_func)cfb_done, &state);
+}
+static duk_ret_t cfb_finalizer(duk_context *ctx)
+{
+    duk_get_prop_lstring(ctx, -1, "p", 1);
+    uint8_t *p = duk_get_pointer_default(ctx, -1, 0);
+    if (p)
+    {
+        if (p[sizeof(symmetric_CFB)])
+        {
+            cfb_done((symmetric_CFB *)p);
+        }
+        free(p);
+    }
+    return 0;
+}
+static duk_ret_t cfb(duk_context *ctx)
+{
+    return state_new(ctx, 0, (state_start_iv_func)cfb_start, sizeof(symmetric_CFB), cfb_finalizer, "cfb_start fail");
+}
+
+static duk_ret_t enc_cfb(duk_context *ctx)
+{
+    return state_stream(ctx, 1, (state_block_func)cfb_encrypt, "cfb_encrypt fail");
+}
+static duk_ret_t dec_cfb(duk_context *ctx)
+{
+    return state_stream(ctx, 1, (state_block_func)cfb_decrypt, "cfb_decrypt fail");
+}
 EJS_SHARED_MODULE__DECLARE(crypto)
 {
     /*
@@ -350,6 +369,17 @@ EJS_SHARED_MODULE__DECLARE(crypto)
         duk_put_prop_lstring(ctx, -2, "enc_cbc", 7);
         duk_push_c_lightfunc(ctx, dec_cbc, 4, 4, 0);
         duk_put_prop_lstring(ctx, -2, "dec_cbc", 7);
+
+        duk_push_c_lightfunc(ctx, enc_cfb_block, 5, 5, 0);
+        duk_put_prop_lstring(ctx, -2, "enc_cfb_block", 13);
+        duk_push_c_lightfunc(ctx, dec_cfb_block, 5, 5, 0);
+        duk_put_prop_lstring(ctx, -2, "dec_cfb_block", 13);
+        duk_push_c_lightfunc(ctx, cfb, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "cfb", 3);
+        duk_push_c_lightfunc(ctx, enc_cfb, 4, 4, 0);
+        duk_put_prop_lstring(ctx, -2, "enc_cfb", 7);
+        duk_push_c_lightfunc(ctx, dec_cfb, 4, 4, 0);
+        duk_put_prop_lstring(ctx, -2, "dec_cfb", 7);
     }
 
     /*

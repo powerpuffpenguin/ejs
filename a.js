@@ -16,19 +16,19 @@ var AES = crypto.AES
 var key = hash.MD5.sum("ok")
 var iv = hash.MD5.sum("iv")
 
-var plaintext = new Uint8Array(32)
+var plaintext = new Uint8Array(32 + 2)
 for (var i = 0; i < plaintext.length; i++) {
     plaintext[i] = i
 }
 var s = hex.encodeToString(plaintext)
 console.log(s)
-var ciphertext = AES.encryptCBC(key, iv, plaintext)
+var ciphertext = AES.encryptCFB(key, iv, plaintext)
 console.log(hex.encodeToString(ciphertext))
-var output = AES.decryptCBC(key, iv, ciphertext)
+var output = AES.decryptCFB(key, iv, ciphertext)
 console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
 console.log('-----------')
-const enc = AES.cbc(key, iv)
-const dec = AES.cbc(key, iv)
+const enc = AES.cfb(key, iv)
+const dec = AES.cfb(key, iv)
 
 ciphertext = enc.encrypt(plaintext.subarray(0, 16))
 console.log(hex.encodeToString(ciphertext))

@@ -14,6 +14,11 @@ declare namespace deps {
         readonly p: Pointer
         readonly blocksize: number
     }
+    class CFB {
+        readonly __id = "CFB"
+        readonly p: Pointer
+        readonly blocksize: number
+    }
 
     function enc_ecb_block(cipher: number, key: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
     function enc_ecb_block(cipher: number, key: string | Uint8Array, plaintext: string | Uint8Array, ciphertext: Uint8Array): number
@@ -34,6 +39,16 @@ declare namespace deps {
     function enc_cbc(state: Pointer, blocksize: number, plaintext: string | Uint8Array, ciphertext: Uint8Array): number
     function dec_cbc(state: Pointer, blocksize: number, ciphertext: Uint8Array): Uint8Array
     function dec_cbc(state: Pointer, blocksize: number, ciphertext: Uint8Array, plaintext: Uint8Array): number
+
+    function enc_cfb_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+    function enc_cfb_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array, ciphertext: Uint8Array): number
+    function dec_cfb_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+    function dec_cfb_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: Uint8Array): number
+    function cfb(cipher: number, key: string | Uint8Array, iv: string | Uint8Array): CFB
+    function enc_cfb(state: Pointer, blocksize: number, plaintext: string | Uint8Array): Uint8Array
+    function enc_cfb(state: Pointer, blocksize: number, plaintext: string | Uint8Array, ciphertext: Uint8Array): number
+    function dec_cfb(state: Pointer, blocksize: number, ciphertext: Uint8Array): Uint8Array
+    function dec_cfb(state: Pointer, blocksize: number, ciphertext: Uint8Array, plaintext: Uint8Array): number
 }
 /**
  * Implemented AES encryption and decryption algorithm
@@ -95,7 +110,7 @@ export class AES {
     }
 
     /**
-     * Encrypt plaintext using ECB mode
+     * Encrypt plaintext using CBC mode
      * @param key AES key
      * @param iv initialization vector
      * @param plaintext data to be encrypted
@@ -105,7 +120,7 @@ export class AES {
         return deps.enc_cbc_block(deps.AES, key, iv, plaintext)
     }
     /**
-     * Encrypt plaintext using ECB mode
+     * Encrypt plaintext using CBC mode
      * @param key AES key
      * @param iv initialization vector
      * @param ciphertext encrypted data
@@ -116,7 +131,7 @@ export class AES {
         return deps.enc_cbc_block(deps.AES, key, iv, plaintext, ciphertext)
     }
     /**
-     * Decrypt ciphertext using ECB mode
+     * Decrypt ciphertext using CBC mode
      * @param key AES key
      * @param iv initialization vector
      * @param ciphertext data to be decrypted
@@ -126,7 +141,7 @@ export class AES {
         return deps.dec_cbc_block(deps.AES, key, iv, ciphertext)
     }
     /**
-     * Decrypt ciphertext using ECB mode
+     * Decrypt ciphertext using CBC mode
      * @param key AES key
      * @param iv initialization vector
      * @param plaintext decrypted data
@@ -140,10 +155,62 @@ export class AES {
      * 
      * @param key AES key
      * @param iv initialization vector
-     * @returns ECB
+     * @returns CBC
      */
     static cbc(key: string | Uint8Array, iv: string | Uint8Array): CBC {
         return new CBC(deps.cbc(deps.AES, key, iv))
+    }
+
+    /**
+     * Encrypt plaintext using CFB mode
+     * @param key AES key
+     * @param iv initialization vector
+     * @param plaintext data to be encrypted
+     * @returns encrypted data
+     */
+    static encryptCFB(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array {
+        return deps.enc_cfb_block(deps.AES, key, iv, plaintext)
+    }
+    /**
+     * Encrypt plaintext using CFB mode
+     * @param key AES key
+     * @param iv initialization vector
+     * @param ciphertext encrypted data
+     * @param plaintext data to be encrypted
+     * @returns The length in bytes of the output ciphertext
+     */
+    static encryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number {
+        return deps.enc_cfb_block(deps.AES, key, iv, plaintext, ciphertext)
+    }
+    /**
+     * Decrypt ciphertext using CFB mode
+     * @param key AES key
+     * @param iv initialization vector
+     * @param ciphertext data to be decrypted
+     * @returns decrypted data
+     */
+    static decryptCFB(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array {
+        return deps.dec_cfb_block(deps.AES, key, iv, ciphertext)
+    }
+    /**
+     * Decrypt ciphertext using CFB mode
+     * @param key AES key
+     * @param iv initialization vector
+     * @param plaintext decrypted data
+     * @param ciphertext data to be decrypted
+     * @returns The length in bytes of the output plaintext
+     */
+    static decryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number {
+        return deps.dec_cfb_block(deps.AES, key, iv, ciphertext, plaintext)
+    }
+    /**
+     * 
+     * @param key AES key
+     * @param iv initialization vector
+     * @returns CFB
+     */
+    static cfb(key: string | Uint8Array, iv: string | Uint8Array): CFB {
+        return new CFB(deps.cfb(deps.AES, key, iv))
     }
 }
 /**
@@ -200,7 +267,7 @@ export class ECB {
 }
 
 /**
- * The most basic CBC encryption mode.
+ * The CBC encryption mode.
  * @remarks
  * In CBC mode, the plaintext and ciphertext must be integer multiples of blocksize.
  * 
@@ -251,5 +318,60 @@ export class CBC {
     decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number {
         const state = this.state
         return deps.dec_cbc(state.p, state.blocksize, ciphertext, plaintext)
+    }
+}
+
+/**
+ * The CFB encryption mode.
+ * @remarks
+ * CFB mode does not require padding or alignment and is data flow friendly.
+ * 
+ * The same instance can only be used as an encryptor or a decryptor. Do not mix them up, otherwise you will not get the correct result.
+ */
+export class CFB {
+    constructor(readonly state: deps.CFB) { }
+    /**
+     * returns the cipher's block size.
+     */
+    get blocksize(): number {
+        return this.state.blocksize
+    }
+    /**
+     * Encrypt plaintext using CFB mode
+     * @param plaintext data to be encrypted
+     * @returns encrypted data
+     */
+    encrypt(plaintext: string | Uint8Array): Uint8Array {
+        const state = this.state
+        return deps.enc_cfb(state.p, state.blocksize, plaintext)
+    }
+    /**
+     * Encrypt plaintext using CFB mode
+     * @param ciphertext encrypted data
+     * @param plaintext data to be encrypted
+     * @returns The length in bytes of the output ciphertext
+     */
+    encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number {
+        const state = this.state
+        return deps.enc_cfb(state.p, state.blocksize, plaintext, ciphertext)
+    }
+    /**
+     * Decrypt ciphertext using CFB mode
+     * @param ciphertext data to be decrypted
+     * @returns decrypted data
+     */
+    decrypt(ciphertext: Uint8Array): Uint8Array {
+        const state = this.state
+        return deps.dec_cfb(state.p, state.blocksize, ciphertext)
+    }
+    /**
+     * Decrypt ciphertext using CFB mode
+     * @param plaintext decrypted data
+     * @param ciphertext data to be decrypted
+     * @returns The length in bytes of the output plaintext
+     */
+    decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number {
+        const state = this.state
+        return deps.dec_cfb(state.p, state.blocksize, ciphertext, plaintext)
     }
 }
