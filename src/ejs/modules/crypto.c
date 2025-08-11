@@ -192,12 +192,10 @@ static duk_ret_t state_block(
 
         done(state);
 
-        duk_pop_3(ctx);
         duk_push_number(ctx, input_len);
     }
     else
     {
-        duk_pop_3(ctx);
         duk_push_number(ctx, 0);
     }
     return 1;
@@ -494,6 +492,242 @@ static duk_ret_t dec_ctr(duk_context *ctx)
 {
     return state_stream(ctx, 1, (state_block_func)ctr_decrypt, "ctr_decrypt fail");
 }
+static duk_ret_t enc_gcm_block(duk_context *ctx)
+{
+    int cipher = duk_require_uint(ctx, 0);
+    if (cipher_is_valid(cipher) != CRYPT_OK)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
+        duk_throw(ctx);
+    }
+
+    duk_size_t key_len = 0;
+    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+    duk_size_t iv_len = 0;
+    const uint8_t *iv = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &iv_len);
+    if (iv_len < 12)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm iv must be exactly 12 bytes long according to NIST SP 800-38D.");
+        duk_throw(ctx);
+    }
+    const uint8_t *adata = 0;
+    duk_size_t adata_len = 0;
+    if (!duk_is_null_or_undefined(ctx, 3))
+    {
+        adata = EJS_REQUIRE_CONST_LSOURCE(ctx, 3, &adata_len);
+    }
+    duk_size_t plaintext_len = 0;
+    const uint8_t *plaintext = EJS_REQUIRE_CONST_LSOURCE(ctx, 4, &plaintext_len);
+    if (duk_is_undefined(ctx, 5))
+    {
+        uint8_t *ciphertext = duk_push_fixed_buffer(ctx, plaintext_len + 16);
+        unsigned long taglen = 16;
+        if (gcm_memory(cipher,
+                       key, key_len,
+                       iv, 12,
+                       adata, adata_len,
+                       (uint8_t *)plaintext, plaintext_len,
+                       ciphertext,
+                       ciphertext + plaintext_len, &taglen,
+                       GCM_ENCRYPT))
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm_encrypt fail");
+            duk_throw(ctx);
+        }
+        return 1;
+    }
+    duk_size_t ciphertext_len = 0;
+    uint8_t *ciphertext = duk_require_buffer_data(ctx, 5, &ciphertext_len);
+
+    uint8_t *tag;
+    if (duk_is_null_or_undefined(ctx, 6))
+    {
+        duk_size_t len = plaintext_len + 16;
+        if (ciphertext_len < len)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "ciphertext smaller than plaintext+16");
+            duk_throw(ctx);
+        }
+        tag = ciphertext + plaintext_len;
+
+        duk_push_number(ctx, len);
+    }
+    else
+    {
+        if (ciphertext_len < plaintext_len)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "ciphertext smaller than plaintext");
+            duk_throw(ctx);
+        }
+        duk_size_t tag_len = 0;
+        tag = duk_require_buffer_data(ctx, 6, &tag_len);
+        if (tag_len < 16)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "tag smaller than 16");
+            duk_throw(ctx);
+        }
+
+        duk_push_number(ctx, plaintext_len);
+    }
+    unsigned long taglen = 16;
+    if (gcm_memory(cipher,
+                   key, key_len,
+                   iv, 12,
+                   adata, adata_len,
+                   (uint8_t *)plaintext, plaintext_len,
+                   ciphertext,
+                   tag, &taglen,
+                   GCM_ENCRYPT))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm_encrypt fail");
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t dec_gcm_block(duk_context *ctx)
+{
+    int cipher = duk_require_uint(ctx, 0);
+    if (cipher_is_valid(cipher) != CRYPT_OK)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
+        duk_throw(ctx);
+    }
+
+    duk_size_t key_len = 0;
+    const uint8_t *key = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+    duk_size_t iv_len = 0;
+    const uint8_t *iv = EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &iv_len);
+    if (iv_len < 12)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm iv must be exactly 12 bytes long according to NIST SP 800-38D.");
+        duk_throw(ctx);
+    }
+    const uint8_t *adata = 0;
+    duk_size_t adata_len = 0;
+    if (!duk_is_null_or_undefined(ctx, 3))
+    {
+        adata = EJS_REQUIRE_CONST_LSOURCE(ctx, 3, &adata_len);
+    }
+    duk_size_t ciphertext_len = 0;
+    const uint8_t *ciphertext = EJS_REQUIRE_CONST_LSOURCE(ctx, 4, &ciphertext_len);
+    const uint8_t *tag = 0;
+    if (!duk_is_null_or_undefined(ctx, 5))
+    {
+        duk_size_t tag_len = 0;
+        tag = EJS_REQUIRE_CONST_LSOURCE(ctx, 5, &tag_len);
+        if (tag_len < 16)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm tag must be exactly 16 bytes");
+            duk_throw(ctx);
+        }
+    }
+    else if (ciphertext_len < 16)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm tag must be exactly 16 bytes");
+        duk_throw(ctx);
+    }
+    else
+    {
+        ciphertext_len -= 16;
+        tag = ciphertext + ciphertext_len;
+    }
+
+    if (duk_is_undefined(ctx, 6))
+    {
+        uint8_t *plaintext = duk_push_fixed_buffer(ctx, ciphertext_len);
+        unsigned long taglen = 16;
+        if (gcm_memory(cipher,
+                       key, key_len,
+                       iv, 12,
+                       adata, adata_len,
+                       plaintext, ciphertext_len,
+                       (uint8_t *)ciphertext,
+                       (uint8_t *)tag, &taglen,
+                       GCM_DECRYPT))
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm_decrypt fail");
+            duk_throw(ctx);
+        }
+        return 1;
+    }
+    duk_size_t plaintext_len = 0;
+    uint8_t *plaintext = duk_require_buffer_data(ctx, 6, &plaintext_len);
+    if (plaintext_len < ciphertext_len)
+    {
+        if (tag == ciphertext + ciphertext_len)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "plaintext smaller than ciphertext-16");
+        }
+        else
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "plaintext smaller than ciphertext");
+        }
+        duk_throw(ctx);
+    }
+    unsigned long taglen = 16;
+    if (gcm_memory(cipher,
+                   key, key_len,
+                   iv, 12,
+                   adata, adata_len,
+                   plaintext, plaintext_len,
+                   (uint8_t *)ciphertext,
+                   (uint8_t *)tag, &taglen,
+                   GCM_DECRYPT))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm_encrypt fail");
+        duk_throw(ctx);
+    }
+    return 1;
+}
+static duk_ret_t gcm(duk_context *ctx)
+{
+    int cipher = duk_require_uint(ctx, 0);
+    if (cipher_is_valid(cipher) != CRYPT_OK)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "cipher invalid");
+        duk_throw(ctx);
+    }
+    duk_push_object(ctx);
+    duk_swap_top(ctx, 0);
+    duk_put_prop_lstring(ctx, 0, "cipher", 6);
+
+    if (duk_is_null_or_undefined(ctx, 3))
+    {
+        duk_pop(ctx);
+    }
+    else if (duk_is_string(ctx, 3) || duk_is_buffer_data(ctx, 3))
+    {
+        duk_put_prop_lstring(ctx, 0, "adata", 5);
+    }
+    else
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "adata invalid");
+        duk_throw(ctx);
+    }
+    duk_size_t iv_len;
+    EJS_REQUIRE_CONST_LSOURCE(ctx, 2, &iv_len);
+    if (iv_len < 12)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm iv must be exactly 12 bytes long according to NIST SP 800-38D.");
+        duk_throw(ctx);
+    }
+    duk_put_prop_lstring(ctx, 0, "iv", 2);
+
+    duk_size_t key_len;
+    EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &key_len);
+    switch (key_len)
+    {
+    case 16:
+    case 24:
+    case 32:
+        duk_put_prop_lstring(ctx, 0, "key", 3);
+        break;
+    default:
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "key invalid");
+        duk_throw(ctx);
+    }
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(crypto)
 {
     /*
@@ -575,6 +809,14 @@ EJS_SHARED_MODULE__DECLARE(crypto)
         duk_put_prop_lstring(ctx, -2, "enc_ctr", 7);
         duk_push_c_lightfunc(ctx, dec_ctr, 3, 3, 0);
         duk_put_prop_lstring(ctx, -2, "dec_ctr", 7);
+
+        duk_push_c_lightfunc(ctx, enc_gcm_block, 7, 7, 0);
+        duk_put_prop_lstring(ctx, -2, "enc_gcm_block", 13);
+        duk_push_c_lightfunc(ctx, dec_gcm_block, 7, 7, 0);
+        duk_put_prop_lstring(ctx, -2, "dec_gcm_block", 13);
+
+        duk_push_c_lightfunc(ctx, gcm, 4, 4, 0);
+        duk_put_prop_lstring(ctx, -2, "gcm", 3);
     }
 
     /*

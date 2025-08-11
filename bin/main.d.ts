@@ -1126,14 +1126,14 @@ declare module "ejs/crypto" {
         readonly blocksize = 16
         /**
          * Encrypt plaintext using ECB mode
-         * @param key AES key
+        * @param key AES key
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
         static encryptECB(key: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
         /**
          * Encrypt plaintext using ECB mode
-         * @param key AES key
+        * @param key AES key
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
@@ -1141,14 +1141,14 @@ declare module "ejs/crypto" {
         static encryptECBTo(key: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
         /**
          * Decrypt ciphertext using ECB mode
-         * @param key AES key
+        * @param key AES key
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
         static decryptECB(key: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
         /**
          * Decrypt ciphertext using ECB mode
-         * @param key AES key
+        * @param key AES key
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
@@ -1156,14 +1156,14 @@ declare module "ejs/crypto" {
         static decryptECBTo(key: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
         /**
          * 
-         * @param key AES key
+        * @param key AES key
          * @returns ECB
          */
         static ecb(key: string | Uint8Array): ECB
 
         /**
          * Encrypt plaintext using CBC mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param plaintext data to be encrypted
          * @returns encrypted data
@@ -1171,7 +1171,7 @@ declare module "ejs/crypto" {
         static encryptCBC(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
         /**
          * Encrypt plaintext using CBC mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
@@ -1180,7 +1180,7 @@ declare module "ejs/crypto" {
         static encryptCBCTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
         /**
          * Decrypt ciphertext using CBC mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param ciphertext data to be decrypted
          * @returns decrypted data
@@ -1188,7 +1188,7 @@ declare module "ejs/crypto" {
         static decryptCBC(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
         /**
          * Decrypt ciphertext using CBC mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
@@ -1197,7 +1197,7 @@ declare module "ejs/crypto" {
         static decryptCBCTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
         /**
          * 
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @returns CBC
          */
@@ -1205,7 +1205,7 @@ declare module "ejs/crypto" {
 
         /**
          * Encrypt plaintext using CFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param plaintext data to be encrypted
          * @returns encrypted data
@@ -1213,7 +1213,7 @@ declare module "ejs/crypto" {
         static encryptCFB(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
         /**
          * Encrypt plaintext using CFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
@@ -1222,7 +1222,7 @@ declare module "ejs/crypto" {
         static encryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
         /**
          * Decrypt ciphertext using CFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param ciphertext data to be decrypted
          * @returns decrypted data
@@ -1230,7 +1230,7 @@ declare module "ejs/crypto" {
         static decryptCFB(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
         /**
          * Decrypt ciphertext using CFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
@@ -1239,7 +1239,7 @@ declare module "ejs/crypto" {
         static decryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
         /**
          * 
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @returns CFB
          */
@@ -1248,7 +1248,7 @@ declare module "ejs/crypto" {
 
         /**
          * Encrypt plaintext using OFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param plaintext data to be encrypted
          * @returns encrypted data
@@ -1256,7 +1256,7 @@ declare module "ejs/crypto" {
         static encryptOFB(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
         /**
          * Encrypt plaintext using OFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
@@ -1265,7 +1265,7 @@ declare module "ejs/crypto" {
         static encryptOFBTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
         /**
          * Decrypt ciphertext using OFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param ciphertext data to be decrypted
          * @returns decrypted data
@@ -1273,7 +1273,7 @@ declare module "ejs/crypto" {
         static decryptOFB(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
         /**
          * Decrypt ciphertext using OFB mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
@@ -1282,7 +1282,7 @@ declare module "ejs/crypto" {
         static decryptOFBTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
         /**
          * 
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @returns OFB
          */
@@ -1290,7 +1290,7 @@ declare module "ejs/crypto" {
 
         /**
          * Encrypt plaintext using CTR mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param mode CTR Mode
          * @param plaintext data to be encrypted
@@ -1299,7 +1299,7 @@ declare module "ejs/crypto" {
         static encryptCTR(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, plaintext: string | Uint8Array): Uint8Array
         /**
          * Encrypt plaintext using CTR mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param mode CTR Mode
          * @param ciphertext encrypted data
@@ -1309,7 +1309,7 @@ declare module "ejs/crypto" {
         static encryptCTRTo(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
         /**
          * Decrypt ciphertext using CTR mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param mode CTR Mode
          * @param ciphertext data to be decrypted
@@ -1318,7 +1318,7 @@ declare module "ejs/crypto" {
         static decryptCTR(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, ciphertext: Uint8Array): Uint8Array
         /**
          * Decrypt ciphertext using CTR mode
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @param mode CTR Mode
          * @param plaintext decrypted data
@@ -1328,11 +1328,61 @@ declare module "ejs/crypto" {
         static decryptCTRTo(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, plaintext: Uint8Array, ciphertext: Uint8Array): number
         /**
          * 
-         * @param key AES key
+        * @param key AES key
          * @param iv initialization vector
          * @returns OFB
          */
         static ctr(key: string | Uint8Array, iv: string | Uint8Array, mode: number): CTR
+
+        /**
+        * Encrypt plaintext using GCM mode
+        * @remarks
+        * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+        * @param key AES key
+        * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+        * @param adata Optional additional authentication data
+        * @param plaintext data to be encrypted
+        * @returns encrypted data
+        */
+        static encryptGCM(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: string | Uint8Array): Uint8Array
+        /**
+        * Encrypt plaintext using GCM mode
+        * @remarks
+        * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+        * @param key AES key
+        * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+        * @param adata Optional additional authentication data
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @param tag If set, the signature will be output to the tag instead of being added to the end of the ciphertext
+         * @returns The length in bytes of the output ciphertext
+         */
+        static encryptGCMTo(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, plaintext: string | Uint8Array, tag?: Uint8Array): number
+        /**
+        * Decrypt ciphertext using GCM mode
+        * @remarks
+        * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+        * @param key AES key
+        * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+        * @param adata Optional additional authentication data
+         * @param ciphertext data to be decrypted
+         * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
+         * @returns decrypted data
+         */
+        static decryptGCM(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, tag?: Uint8Array | null): Uint8Array
+        /**
+        * Decrypt ciphertext using GCM mode
+        * @remarks
+        * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+        * @param key AES key
+        * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+        * @param adata Optional additional authentication data
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
+         * @returns The length in bytes of the output plaintext
+         */
+        static decryptGCMTo(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: Uint8Array, ciphertext: Uint8Array, tag?: Uint8Array | null): number
     }
     /**
      * The most basic ECB encryption mode.
@@ -1523,6 +1573,49 @@ declare module "ejs/crypto" {
          * @returns The length in bytes of the output plaintext
          */
         decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+    }
+    /**
+     * The GCM encryption mode.
+     * @remarks
+     * CTR mode does not require padding or alignment and is data flow friendly.
+     * 
+     */
+    export class GCM {
+        private constructor()
+        /**
+        * Encrypt plaintext using GCM mode
+        * @remarks
+        * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+        * @param plaintext data to be encrypted
+        * @returns encrypted data
+        */
+        encrypt(plaintext: string | Uint8Array): Uint8Array
+        /**
+        * Encrypt plaintext using GCM mode
+        * @remarks
+        * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @param tag If set, the signature will be output to the tag instead of being added to the end of the ciphertext
+         * @returns The length in bytes of the output ciphertext
+         */
+        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array, tag?: Uint8Array): number
+        /**
+        * Decrypt ciphertext using GCM mode
+        * @remarks
+        * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+         * @param ciphertext data to be decrypted
+         * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
+         * @returns decrypted data
+         */
+        decrypt(ciphertext: Uint8Array, tag?: Uint8Array | null): Uint8Array
+        /**
+         * Decrypt ciphertext using CTR mode
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array, tag?: Uint8Array | null): number
     }
 }
 /**

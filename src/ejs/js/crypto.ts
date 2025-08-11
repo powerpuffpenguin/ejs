@@ -30,6 +30,13 @@ declare namespace deps {
     const BIG_ENDIAN: number
     const LITTLE_ENDIAN_RFC3686: number
     const BIG_ENDIAN_RFC3686: number
+    class GCM {
+        readonly __id = "GCM"
+        cipher: number
+        key: string | Uint8Array
+        iv: string | Uint8Array
+        adata?: string | Uint8Array | null
+    }
 
     function enc_ecb_block(cipher: number, key: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
     function enc_ecb_block(cipher: number, key: string | Uint8Array, plaintext: string | Uint8Array, ciphertext: Uint8Array): number
@@ -81,6 +88,11 @@ declare namespace deps {
     function dec_ctr(state: Pointer, ciphertext: Uint8Array): Uint8Array
     function dec_ctr(state: Pointer, ciphertext: Uint8Array, plaintext: Uint8Array): number
 
+    function enc_gcm_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: string | Uint8Array): Uint8Array
+    function enc_gcm_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: string | Uint8Array, ciphertext: Uint8Array, tag?: Uint8Array | null): number
+    function dec_gcm_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, tag: Uint8Array | null | undefined): Uint8Array
+    function dec_gcm_block(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, tag: Uint8Array | null | undefined, plaintext: Uint8Array): number
+    function gcm(cipher: number, key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined): GCM
 }
 export enum CTRMode {
     LITTLE_ENDIAN = deps.LITTLE_ENDIAN,
@@ -358,6 +370,73 @@ export class AES {
     static ctr(key: string | Uint8Array, iv: string | Uint8Array, mode: number): CTR {
         return new CTR(deps.ctr(deps.AES, key, iv, mode))
     }
+
+    /**
+    * Encrypt plaintext using GCM mode
+    * @remarks
+    * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+    * @param key AES key
+    * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+    * @param adata Optional additional authentication data
+    * @param plaintext data to be encrypted
+    * @returns encrypted data
+    */
+    static encryptGCM(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: string | Uint8Array): Uint8Array {
+        return deps.enc_gcm_block(deps.AES, key, iv, adata, plaintext)
+    }
+    /**
+    * Encrypt plaintext using GCM mode
+    * @remarks
+    * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+     * @param key AES key
+    * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+    * @param adata Optional additional authentication data
+     * @param ciphertext encrypted data
+     * @param plaintext data to be encrypted
+     * @param tag If set, the signature will be output to the tag instead of being added to the end of the ciphertext
+     * @returns The length in bytes of the output ciphertext
+     */
+    static encryptGCMTo(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, plaintext: string | Uint8Array, tag?: Uint8Array): number {
+        return deps.enc_gcm_block(deps.AES, key, iv, adata, plaintext, ciphertext, tag)
+    }
+    /**
+    * Decrypt ciphertext using GCM mode
+    * @remarks
+    * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+     * @param key AES key
+    * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+    * @param adata Optional additional authentication data
+     * @param ciphertext data to be decrypted
+     * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
+     * @returns decrypted data
+     */
+    static decryptGCM(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, tag?: Uint8Array | null): Uint8Array {
+        return deps.dec_gcm_block(deps.AES, key, iv, adata, ciphertext, tag)
+    }
+    /**
+    * Decrypt ciphertext using GCM mode
+    * @remarks
+    * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+     * @param key AES key
+    * @param iv Only the first 12 bytes are valid. GCM IV must be exactly 12 bytes long according to NIST SP 800-38D
+    * @param adata Optional additional authentication data
+     * @param plaintext decrypted data
+     * @param ciphertext data to be decrypted
+     * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
+     * @returns The length in bytes of the output plaintext
+     */
+    static decryptGCMTo(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: Uint8Array, ciphertext: Uint8Array, tag?: Uint8Array | null): number {
+        return deps.dec_gcm_block(deps.AES, key, iv, adata, ciphertext, tag, plaintext)
+    }
+    /**
+     * 
+     * @param key AES key
+     * @param iv initialization vector
+     * @returns gcm
+     */
+    static gcm(key: string | Uint8Array, iv: string | Uint8Array, adata?: string | Uint8Array | null) {
+        return new GCM(deps.gcm(deps.AES, key, iv, adata))
+    }
 }
 /**
  * The most basic ECB encryption mode.
@@ -599,5 +678,60 @@ export class CTR {
      */
     decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number {
         return deps.dec_ctr(this.state.p, ciphertext, plaintext)
+    }
+}
+/**
+ * The GCM encryption mode.
+ * @remarks
+ * CTR mode does not require padding or alignment and is data flow friendly.
+ * 
+ */
+export class GCM {
+    constructor(readonly state: deps.GCM) { }
+    /**
+    * Encrypt plaintext using GCM mode
+    * @remarks
+    * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+    * @param plaintext data to be encrypted
+    * @returns encrypted data
+    */
+    encrypt(plaintext: string | Uint8Array): Uint8Array {
+        const state = this.state
+        return deps.enc_gcm_block(state.cipher, state.key, state.iv, state.adata, plaintext)
+    }
+    /**
+    * Encrypt plaintext using GCM mode
+    * @remarks
+    * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+     * @param ciphertext encrypted data
+     * @param plaintext data to be encrypted
+     * @param tag If set, the signature will be output to the tag instead of being added to the end of the ciphertext
+     * @returns The length in bytes of the output ciphertext
+     */
+    encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array, tag?: Uint8Array): number {
+        const state = this.state
+        return deps.enc_gcm_block(state.cipher, state.key, state.iv, state.adata, plaintext, ciphertext, tag)
+    }
+    /**
+    * Decrypt ciphertext using GCM mode
+    * @remarks
+    * The ciphertext will have a 16-byte signature at the end compared to the plaintext
+     * @param ciphertext data to be decrypted
+     * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
+     * @returns decrypted data
+     */
+    decrypt(ciphertext: Uint8Array, tag?: Uint8Array | null): Uint8Array {
+        const state = this.state
+        return deps.dec_gcm_block(state.cipher, state.key, state.iv, state.adata, ciphertext, tag)
+    }
+    /**
+     * Decrypt ciphertext using CTR mode
+     * @param plaintext decrypted data
+     * @param ciphertext data to be decrypted
+     * @returns The length in bytes of the output plaintext
+     */
+    decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array, tag?: Uint8Array | null): number {
+        const state = this.state
+        return deps.dec_gcm_block(state.cipher, state.key, state.iv, state.adata, ciphertext, tag, plaintext)
     }
 }
