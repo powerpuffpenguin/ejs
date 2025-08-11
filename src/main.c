@@ -67,6 +67,7 @@ int main(int argc, const char **argv)
     {
         puts(duk_safe_to_string(ctx, -1));
         duk_destroy_heap(ctx);
+        libevent_global_shutdown();
         return err;
     }
     ejs_core_t *core = duk_require_pointer(ctx, -1);

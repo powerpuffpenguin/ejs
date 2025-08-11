@@ -2,6 +2,17 @@ namespace globalThis {
     function setImmediate(cb: (...arguments: Array<any>) => void, ...arguments: Array<any>): number
     function clearImmediate(timer: number): void
 }
+declare namespace Duktape {
+    const version: number
+    const env: string
+
+    export class Thread {
+        constructor(yielder: (v?: any) => void);
+        static resume<T>(t: Thread, v?: any): T
+        static yield<T>(v?: any): T
+    }
+}
+
 namespace ejs {
     type BufferData = Uint8Array | Uint16Array | Uint32Array |
         Uint8ClampedArray |
@@ -18,7 +29,11 @@ namespace ejs {
     /**
      * script version
      */
-    const version: string
+    const version: number
+    /**
+     * gcc version
+     */
+    const gcc: string | undefined
     /**
      * is the target platform system 32 bit or 64 bit?
      */

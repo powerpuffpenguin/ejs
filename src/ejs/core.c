@@ -14,10 +14,6 @@
 #include <event2/event.h>
 #include "../duk/duk_module_node.h"
 
-DUK_EXTERNAL const char *ejs_version()
-{
-    return "v0.0.1";
-}
 static BOOL check_module_name(const char *name, duk_size_t *len)
 {
     if (!name)
@@ -279,8 +275,12 @@ static duk_ret_t ejs_core_new_impl(duk_context *ctx)
         duk_push_number(ctx, sizeof(void *) * 8);
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_BITS);
 
-        duk_push_string(ctx, ejs_version());
+        duk_push_uint(ctx, EJS_STASH_EJS_VERSION_VALUE);
         duk_put_prop_lstring(ctx, -2, EJS_STASH_EJS_VERSION);
+#if defined(__GNUC__) && defined(__GNUC_MINOR__)
+        duk_push_sprintf(ctx, "%d.%d", __GNUC__, __GNUC_MINOR__);
+        duk_put_prop_lstring(ctx, -2, "gcc", 3);
+#endif
 
         duk_push_c_lightfunc(ctx, native_exit, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "exit", 4);

@@ -4,6 +4,9 @@
 #define EJS_STASH_EJS "ejs", 3
 #define EJS_STASH_EJS_ARGS "args", 4
 #define EJS_STASH_EJS_OS "os", 2
+#ifndef EJS_STASH_EJS_VERSION_VALUE
+#define EJS_STASH_EJS_VERSION_VALUE 1
+#endif
 #define EJS_STASH_EJS_VERSION "version", 7
 #define EJS_STASH_EJS_ARCH "arch", 4
 #define EJS_STASH_EJS_BITS "bits", 4
