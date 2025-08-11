@@ -1106,6 +1106,12 @@ declare module "ejs/hash" {
  * Some encryption algorithms
  */
 declare module "ejs/crypto" {
+    export enum CTRMode {
+        LITTLE_ENDIAN = deps.LITTLE_ENDIAN,
+        BIG_ENDIAN = deps.BIG_ENDIAN,
+        LITTLE_ENDIAN_RFC3686 = deps.LITTLE_ENDIAN_RFC3686,
+        BIG_ENDIAN_RFC3686 = deps.BIG_ENDIAN_RFC3686,
+    }
     /**
      * Implemented AES encryption and decryption algorithm
      * 
@@ -1238,6 +1244,95 @@ declare module "ejs/crypto" {
          * @returns CFB
          */
         static cfb(key: string | Uint8Array, iv: string | Uint8Array): CFB
+
+
+        /**
+         * Encrypt plaintext using OFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        static encryptOFB(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using OFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        static encryptOFBTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using OFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        static decryptOFB(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using OFB mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        static decryptOFBTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        /**
+         * 
+         * @param key AES key
+         * @param iv initialization vector
+         * @returns OFB
+         */
+        static ofb(key: string | Uint8Array, iv: string | Uint8Array): OFB
+
+        /**
+         * Encrypt plaintext using CTR mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param mode CTR Mode
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        static encryptCTR(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using CTR mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param mode CTR Mode
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        static encryptCTRTo(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using CTR mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param mode CTR Mode
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        static decryptCTR(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using CTR mode
+         * @param key AES key
+         * @param iv initialization vector
+         * @param mode CTR Mode
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        static decryptCTRTo(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        /**
+         * 
+         * @param key AES key
+         * @param iv initialization vector
+         * @returns OFB
+         */
+        static ctr(key: string | Uint8Array, iv: string | Uint8Array, mode: number): CTR
     }
     /**
      * The most basic ECB encryption mode.
@@ -1329,10 +1424,6 @@ declare module "ejs/crypto" {
     export class CFB {
         private constructor()
         /**
-         * returns the cipher's block size.
-         */
-        readonly blocksize: number
-        /**
          * Encrypt plaintext using CFB mode
          * @param plaintext data to be encrypted
          * @returns encrypted data
@@ -1353,6 +1444,80 @@ declare module "ejs/crypto" {
         decrypt(ciphertext: Uint8Array): Uint8Array
         /**
          * Decrypt ciphertext using CFB mode
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+    }
+
+    /**
+     * The CFB encryption mode.
+     * @remarks
+     * CFB mode does not require padding or alignment and is data flow friendly.
+     * 
+     * The same instance can only be used as an encryptor or a decryptor. Do not mix them up, otherwise you will not get the correct result.
+     */
+    export class OFB {
+        private constructor()
+        /**
+         * Encrypt plaintext using OFB mode
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        encrypt(plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using OFB mode
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using OFB mode
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        decrypt(ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using OFB mode
+         * @param plaintext decrypted data
+         * @param ciphertext data to be decrypted
+         * @returns The length in bytes of the output plaintext
+         */
+        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+    }
+
+    /**
+     * The CTR encryption mode.
+     * @remarks
+     * CTR mode does not require padding or alignment and is data flow friendly.
+     * 
+     * The same instance can only be used as an encryptor or a decryptor. Do not mix them up, otherwise you will not get the correct result.
+     */
+    export class CTR {
+        private constructor()
+        /**
+         * Encrypt plaintext using CTR mode
+         * @param plaintext data to be encrypted
+         * @returns encrypted data
+         */
+        encrypt(plaintext: string | Uint8Array): Uint8Array
+        /**
+         * Encrypt plaintext using CTR mode
+         * @param ciphertext encrypted data
+         * @param plaintext data to be encrypted
+         * @returns The length in bytes of the output ciphertext
+         */
+        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        /**
+         * Decrypt ciphertext using CTR mode
+         * @param ciphertext data to be decrypted
+         * @returns decrypted data
+         */
+        decrypt(ciphertext: Uint8Array): Uint8Array
+        /**
+         * Decrypt ciphertext using CTR mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext

@@ -16,29 +16,164 @@ var AES = crypto.AES
 var key = hash.MD5.sum("ok")
 var iv = hash.MD5.sum("iv")
 
-var plaintext = new Uint8Array(32 + 2)
-for (var i = 0; i < plaintext.length; i++) {
-    plaintext[i] = i
-}
-var s = hex.encodeToString(plaintext)
-console.log(s)
-var ciphertext = AES.encryptOFB(key, iv, plaintext)
-console.log(hex.encodeToString(ciphertext))
-var output = AES.decryptOFB(key, iv, ciphertext)
-console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
-console.log('-----------')
-const enc = AES.ofb(key, iv)
-const dec = AES.ofb(key, iv)
 
-ciphertext = enc.encrypt(plaintext.subarray(0, 16))
-console.log(hex.encodeToString(ciphertext))
-output = dec.decrypt(ciphertext)
-console.log(hex.encodeToString(output))
-console.log('----------')
-ciphertext = enc.encrypt(plaintext.subarray(16))
-console.log(hex.encodeToString(ciphertext))
-output = dec.decrypt(ciphertext)
-console.log(hex.encodeToString(output))
+function ECB() {
+    console.log('--------------ECB')
+    var plaintext = new Uint8Array(32)
+    for (var i = 0; i < plaintext.length; i++) {
+        plaintext[i] = i
+    }
+    var s = hex.encodeToString(plaintext)
+    console.log(s)
+    var ciphertext = AES.encryptECB(key, plaintext)
+    console.log(hex.encodeToString(ciphertext))
+    var output = AES.decryptECB(key, ciphertext)
+    console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
+    console.log('-----------')
+    const enc = AES.ecb(key)
+    const dec = enc
+
+    ciphertext = enc.encrypt(plaintext.subarray(0, 16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+    console.log('----------')
+    ciphertext = enc.encrypt(plaintext.subarray(16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+}
+function CBC() {
+    console.log('--------------CBC')
+    var plaintext = new Uint8Array(32)
+    for (var i = 0; i < plaintext.length; i++) {
+        plaintext[i] = i
+    }
+    var s = hex.encodeToString(plaintext)
+    console.log(s)
+    var ciphertext = AES.encryptCBC(key, iv, plaintext)
+    console.log(hex.encodeToString(ciphertext))
+    var output = AES.decryptCBC(key, iv, ciphertext)
+    console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
+    console.log('-----------')
+    const enc = AES.cbc(key, iv)
+    const dec = AES.cbc(key, iv)
+
+    ciphertext = enc.encrypt(plaintext.subarray(0, 16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+    console.log('----------')
+    ciphertext = enc.encrypt(plaintext.subarray(16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+}
+function CFB() {
+    console.log('--------------CFB')
+    var plaintext = new Uint8Array(32)
+    for (var i = 0; i < plaintext.length; i++) {
+        plaintext[i] = i
+    }
+    var s = hex.encodeToString(plaintext)
+    console.log(s)
+    var ciphertext = AES.encryptCFB(key, iv, plaintext)
+    console.log(hex.encodeToString(ciphertext))
+    var output = AES.decryptCFB(key, iv, ciphertext)
+    console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
+    console.log('-----------')
+    const enc = AES.cfb(key, iv)
+    const dec = AES.cfb(key, iv)
+
+    ciphertext = enc.encrypt(plaintext.subarray(0, 16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+    console.log('----------')
+    ciphertext = enc.encrypt(plaintext.subarray(16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+}
+function OFB() {
+    console.log('--------------OFB')
+    var plaintext = new Uint8Array(32)
+    for (var i = 0; i < plaintext.length; i++) {
+        plaintext[i] = i
+    }
+    var s = hex.encodeToString(plaintext)
+    console.log(s)
+    var ciphertext = AES.encryptOFB(key, iv, plaintext)
+    console.log(hex.encodeToString(ciphertext))
+    var output = AES.decryptOFB(key, iv, ciphertext)
+    console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
+    console.log('-----------')
+    const enc = AES.ofb(key, iv)
+    const dec = AES.ofb(key, iv)
+
+    ciphertext = enc.encrypt(plaintext.subarray(0, 16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+    console.log('----------')
+    ciphertext = enc.encrypt(plaintext.subarray(16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+}
+function CTR() {
+    console.log('--------------CTR')
+    var mode = crypto.CTRMode.LITTLE_ENDIAN
+    var plaintext = new Uint8Array(32)
+    for (var i = 0; i < plaintext.length; i++) {
+        plaintext[i] = i
+    }
+    var s = hex.encodeToString(plaintext)
+    console.log(s)
+    var ciphertext = AES.encryptCTR(key, iv, mode, plaintext)
+    console.log(hex.encodeToString(ciphertext))
+    var output = AES.decryptCTR(key, iv, mode, ciphertext)
+    console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
+    console.log('-----------')
+    const enc = AES.ctr(key, iv, mode)
+    const dec = AES.ctr(key, iv, mode)
+
+    ciphertext = enc.encrypt(plaintext.subarray(0, 16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+    console.log('----------')
+    ciphertext = enc.encrypt(plaintext.subarray(16))
+    console.log(hex.encodeToString(ciphertext))
+    output = dec.decrypt(ciphertext)
+    console.log(hex.encodeToString(output))
+}
+ECB()
+CBC()
+CFB()
+OFB()
+CTR()
+// var s = hex.encodeToString(plaintext)
+// console.log(s)
+// var ciphertext = AES.encryptOFB(key, iv, plaintext)
+// console.log(hex.encodeToString(ciphertext))
+// var output = AES.decryptOFB(key, iv, ciphertext)
+// console.log(hex.encodeToString(output), hex.encodeToString(output) == s)
+// console.log('-----------')
+// const enc = AES.ofb(key, iv)
+// const dec = AES.ofb(key, iv)
+
+// ciphertext = enc.encrypt(plaintext.subarray(0, 16))
+// console.log(hex.encodeToString(ciphertext))
+// output = dec.decrypt(ciphertext)
+// console.log(hex.encodeToString(output))
+// console.log('----------')
+// ciphertext = enc.encrypt(plaintext.subarray(16))
+// console.log(hex.encodeToString(ciphertext))
+// output = dec.decrypt(ciphertext)
+// console.log(hex.encodeToString(output))
+
+
 
 // var Hash32 = hash.CRC32
 // console.log(Hash32.sum32("abc"))
