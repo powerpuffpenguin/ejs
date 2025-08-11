@@ -191,3 +191,4 @@ function GCM() {
 // h.write("a")
 // console.log(h.sum32("bc"))
 // console.log(hex.encodeToString(h.sum("bc")))
+
