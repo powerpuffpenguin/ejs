@@ -1398,6 +1398,14 @@ declare module "ejs/crypto" {
          * @returns The length in bytes of the output plaintext
          */
         static decryptGCMTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, adata: string | ejs.BufferData | null | undefined, plaintext: ejs.BufferData, ciphertext: ejs.BufferData, tag?: ejs.BufferData | null): number
+
+        /**
+         * 
+         * @param key AES key
+         * @param iv initialization vector
+         * @returns gcm
+         */
+        static gcm(key: string | Uint8Array, iv: string | ejs.BufferData, adata?: string | ejs.BufferData | null): GCM
     }
     /**
      * The most basic ECB encryption mode.

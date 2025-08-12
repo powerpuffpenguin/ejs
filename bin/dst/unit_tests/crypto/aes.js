@@ -41,6 +41,8 @@ var hex = __importStar(require("ejs/encoding/hex"));
 var m = unit_1.test.module("ejs/crypto/AES");
 function generateKey(bits, seed) {
     switch (bits) {
+        case 12:
+            return hash_1.MD5.sum(seed).subarray(0, 12);
         case 16:
             return hash_1.MD5.sum(seed);
         case 24:
@@ -363,5 +365,84 @@ m.test('CTR', function (assert) {
             }
             finally { if (e_3) throw e_3.error; }
         }
+    }
+});
+m.test('GCM', function (assert) {
+    var e_4, _a;
+    var iv = generateKey(12, 'The gcm iv length needs to be >= 12, but it should be fixed at 12 for performance and security reasons. This implementation will only take the first 12 bytes if it exceeds 12.');
+    try {
+        for (var _b = __values([
+            {
+                adata: null,
+                expects: [
+                    'd28e50fe9a5f0e5940e8b8bdd9fdbeb8ccca4ae80c02dd1cfd67345c4f06c05db18157663fcfad0b9878adbb6df6767cad20',
+                    '81a296b8c388208caa2e65add8af6e2f56e07ca2c944491885e267eabd387ec58ac7083d698ab72d7fb18016333e6f0196ef',
+                    'f010c7ecc4a63f8fd4377eda1d8af0d368a933fdba7f2ed72132b28e9230e291bcf7a1868ed03e67998792b2768c011c9652',
+                ]
+            },
+            {
+                adata: 'any bytes',
+                expects: [
+                    'd28e50fe9a5f0e5940e8b8bdd9fdbeb8ccca4ae80c02dd1cfd67345c4f06c05db181b6071376557e273713294443c2fd5786',
+                    '81a296b8c388208caa2e65add8af6e2f56e07ca2c944491885e267eabd387ec58ac79b40eca09bbd295d91fef16e85167879',
+                    'f010c7ecc4a63f8fd4377eda1d8af0d368a933fdba7f2ed72132b28e9230e291bcf793983b82d745a7a86b1fa20b2940bcde',
+                ]
+            },
+        ]), _c = _b.next(); !_c.done; _c = _b.next()) {
+            var _d = _c.value, adata = _d.adata, expects = _d.expects;
+            for (var i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                var expect = expects[i];
+                var source = new Uint8Array(32 + 2);
+                for (var i_6 = 0; i_6 < source.length; i_6++) {
+                    source[i_6] = i_6 + 1;
+                }
+                // auto buffer
+                var ciphertext = crypto_1.AES.encryptGCM(key, iv, adata, source);
+                assert.equal(expect, hex.encodeToString(ciphertext));
+                var plaintext = crypto_1.AES.decryptGCM(key, iv, adata, ciphertext);
+                assert.equal(source, plaintext);
+                var enc = crypto_1.AES.gcm(key, iv, adata);
+                var dec = enc;
+                ciphertext = enc.encrypt(source);
+                assert.equal(expect, hex.encodeToString(ciphertext));
+                plaintext = dec.decrypt(ciphertext);
+                assert.equal(source, plaintext);
+                // to
+                ciphertext = new Uint8Array(source.byteLength + 16);
+                assert.equal(ciphertext.byteLength, crypto_1.AES.encryptGCMTo(key, iv, adata, ciphertext, source));
+                assert.equal(expect, hex.encodeToString(ciphertext));
+                plaintext = new Uint8Array(ciphertext.byteLength - 16);
+                assert.equal(plaintext.byteLength, crypto_1.AES.decryptGCMTo(key, iv, adata, plaintext, ciphertext));
+                assert.equal(source, plaintext);
+                ciphertext = new Uint8Array(source.byteLength);
+                var tag = new Uint8Array(16);
+                assert.equal(ciphertext.byteLength, crypto_1.AES.encryptGCMTo(key, iv, adata, ciphertext, source, tag));
+                assert.equal(expect, hex.encodeToString(ciphertext) + hex.encodeToString(tag));
+                plaintext = new Uint8Array(ciphertext.byteLength);
+                assert.equal(plaintext.byteLength, crypto_1.AES.decryptGCMTo(key, iv, adata, plaintext, ciphertext, tag));
+                assert.equal(source, plaintext);
+                ciphertext = new Uint8Array(source.byteLength + 16);
+                assert.equal(ciphertext.byteLength, enc.encryptTo(ciphertext, source));
+                assert.equal(expect, hex.encodeToString(ciphertext));
+                plaintext = new Uint8Array(ciphertext.byteLength - 16);
+                assert.equal(plaintext.byteLength, dec.decryptTo(plaintext, ciphertext));
+                assert.equal(source, plaintext);
+                ciphertext = new Uint8Array(source.byteLength);
+                tag = new Uint8Array(16);
+                assert.equal(ciphertext.byteLength, enc.encryptTo(ciphertext, source, tag));
+                assert.equal(expect, hex.encodeToString(ciphertext) + hex.encodeToString(tag));
+                plaintext = new Uint8Array(ciphertext.byteLength);
+                assert.equal(plaintext.byteLength, dec.decryptTo(plaintext, ciphertext, tag));
+                assert.equal(source, plaintext);
+            }
+        }
+    }
+    catch (e_4_1) { e_4 = { error: e_4_1 }; }
+    finally {
+        try {
+            if (_c && !_c.done && (_a = _b.return)) _a.call(_b);
+        }
+        finally { if (e_4) throw e_4.error; }
     }
 });

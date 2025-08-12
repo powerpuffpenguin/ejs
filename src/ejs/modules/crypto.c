@@ -664,6 +664,7 @@ static duk_ret_t dec_gcm_block(duk_context *ctx)
         }
         return 1;
     }
+
     duk_size_t plaintext_len = 0;
     uint8_t *plaintext = duk_require_buffer_data(ctx, 6, &plaintext_len);
     if (plaintext_len < ciphertext_len)
@@ -691,6 +692,7 @@ static duk_ret_t dec_gcm_block(duk_context *ctx)
         duk_push_error_object(ctx, DUK_ERR_ERROR, "gcm_encrypt fail");
         duk_throw(ctx);
     }
+    duk_push_number(ctx, plaintext_len);
     return 1;
 }
 static duk_ret_t gcm(duk_context *ctx)

@@ -7,6 +7,8 @@ import * as hex from "ejs/encoding/hex";
 const m = test.module("ejs/crypto/AES")
 function generateKey(bits: number, seed: string): Uint8Array {
     switch (bits) {
+        case 12:
+            return MD5.sum(seed).subarray(0, 12)
         case 16:
             return MD5.sum(seed)
         case 24:
@@ -325,4 +327,85 @@ m.test('CTR', (assert) => {
         }
 
     }
+})
+
+m.test('GCM', (assert) => {
+    const iv = generateKey(12, 'The gcm iv length needs to be >= 12, but it should be fixed at 12 for performance and security reasons. This implementation will only take the first 12 bytes if it exceeds 12.')
+    for (const { adata, expects } of
+        [
+            {
+                adata: null,
+                expects: [
+                    'd28e50fe9a5f0e5940e8b8bdd9fdbeb8ccca4ae80c02dd1cfd67345c4f06c05db18157663fcfad0b9878adbb6df6767cad20',
+                    '81a296b8c388208caa2e65add8af6e2f56e07ca2c944491885e267eabd387ec58ac7083d698ab72d7fb18016333e6f0196ef',
+                    'f010c7ecc4a63f8fd4377eda1d8af0d368a933fdba7f2ed72132b28e9230e291bcf7a1868ed03e67998792b2768c011c9652',
+                ]
+            },
+            {
+                adata: 'any bytes',
+                expects: [
+                    'd28e50fe9a5f0e5940e8b8bdd9fdbeb8ccca4ae80c02dd1cfd67345c4f06c05db181b6071376557e273713294443c2fd5786',
+                    '81a296b8c388208caa2e65add8af6e2f56e07ca2c944491885e267eabd387ec58ac79b40eca09bbd295d91fef16e85167879',
+                    'f010c7ecc4a63f8fd4377eda1d8af0d368a933fdba7f2ed72132b28e9230e291bcf793983b82d745a7a86b1fa20b2940bcde',
+                ]
+            },
+        ]
+    ) {
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i]
+            const expect = expects[i]
+            const source = new Uint8Array(32 + 2)
+            for (let i = 0; i < source.length; i++) {
+                source[i] = i + 1
+            }
+
+            // auto buffer
+            let ciphertext = AES.encryptGCM(key, iv, adata, source)
+            assert.equal(expect, hex.encodeToString(ciphertext))
+            let plaintext = AES.decryptGCM(key, iv, adata, ciphertext)
+            assert.equal(source, plaintext)
+
+            const enc = AES.gcm(key, iv, adata)
+            const dec = enc
+            ciphertext = enc.encrypt(source)
+            assert.equal(expect, hex.encodeToString(ciphertext))
+            plaintext = dec.decrypt(ciphertext)
+            assert.equal(source, plaintext)
+
+            // to
+            ciphertext = new Uint8Array(source.byteLength + 16)
+            assert.equal(ciphertext.byteLength, AES.encryptGCMTo(key, iv, adata, ciphertext, source))
+            assert.equal(expect, hex.encodeToString(ciphertext))
+            plaintext = new Uint8Array(ciphertext.byteLength - 16)
+            assert.equal(plaintext.byteLength, AES.decryptGCMTo(key, iv, adata, plaintext, ciphertext))
+            assert.equal(source, plaintext)
+
+            ciphertext = new Uint8Array(source.byteLength)
+            let tag = new Uint8Array(16)
+            assert.equal(ciphertext.byteLength, AES.encryptGCMTo(key, iv, adata, ciphertext, source, tag))
+            assert.equal(expect, hex.encodeToString(ciphertext) + hex.encodeToString(tag))
+            plaintext = new Uint8Array(ciphertext.byteLength)
+            assert.equal(plaintext.byteLength, AES.decryptGCMTo(key, iv, adata, plaintext, ciphertext, tag))
+            assert.equal(source, plaintext)
+
+
+
+            ciphertext = new Uint8Array(source.byteLength + 16)
+            assert.equal(ciphertext.byteLength, enc.encryptTo(ciphertext, source))
+            assert.equal(expect, hex.encodeToString(ciphertext))
+            plaintext = new Uint8Array(ciphertext.byteLength - 16)
+            assert.equal(plaintext.byteLength, dec.decryptTo(plaintext, ciphertext))
+            assert.equal(source, plaintext)
+
+            ciphertext = new Uint8Array(source.byteLength)
+            tag = new Uint8Array(16)
+            assert.equal(ciphertext.byteLength, enc.encryptTo(ciphertext, source, tag))
+            assert.equal(expect, hex.encodeToString(ciphertext) + hex.encodeToString(tag))
+            plaintext = new Uint8Array(ciphertext.byteLength)
+            assert.equal(plaintext.byteLength, dec.decryptTo(plaintext, ciphertext, tag))
+            assert.equal(source, plaintext)
+        }
+    }
+
+
 })
