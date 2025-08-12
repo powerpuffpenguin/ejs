@@ -591,7 +591,6 @@ static duk_ret_t validOptionalPort(duk_context *ctx)
 {
     duk_size_t s_len;
     const char *s = duk_require_lstring(ctx, 0, &s_len);
-    duk_pop(ctx);
     if (s_len == 0)
     {
         duk_push_true(ctx);
