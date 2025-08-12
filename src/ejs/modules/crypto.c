@@ -113,6 +113,7 @@ static duk_ret_t state_block(
     }
     else if (start_ctr)
     {
+
         duk_size_t iv_len = 0;
         iv = EJS_REQUIRE_CONST_LSOURCE(ctx, idx, &iv_len);
         if (iv_len < block_length)
@@ -177,7 +178,20 @@ static duk_ret_t state_block(
     }
     if (input_len > 0)
     {
-        if ((start ? start(cipher, key, key_len, 0, state) : start_iv(cipher, iv, key, key_len, 0, state)) != CRYPT_OK)
+        int ret;
+        if (start)
+        {
+            ret = start(cipher, key, key_len, 0, state);
+        }
+        else if (start_iv)
+        {
+            ret = start_iv(cipher, iv, key, key_len, 0, state);
+        }
+        else
+        {
+            ret = start_ctr(cipher, iv, key, key_len, 0, mode, state);
+        }
+        if (ret != CRYPT_OK)
         {
             duk_push_error_object(ctx, DUK_ERR_ERROR, "%s_start fail", tag);
             duk_throw(ctx);
@@ -454,14 +468,14 @@ static duk_ret_t enc_ctr_block(duk_context *ctx)
     symmetric_CTR state;
     return state_block(ctx, "ctr", 1,
                        0, 0, ctr_start,
-                       (state_block_func)ctr_encrypt, (state_done_func)ofb_done, &state);
+                       (state_block_func)ctr_encrypt, (state_done_func)ctr_done, &state);
 }
 static duk_ret_t dec_ctr_block(duk_context *ctx)
 {
     symmetric_CTR state;
     return state_block(ctx, "ctr", 1,
                        0, 0, ctr_start,
-                       (state_block_func)ctr_decrypt, (state_done_func)ofb_done, &state);
+                       (state_block_func)ctr_decrypt, (state_done_func)ctr_done, &state);
 }
 static duk_ret_t ctr_finalizer(duk_context *ctx)
 {

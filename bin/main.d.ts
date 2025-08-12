@@ -1105,16 +1105,16 @@ declare module "ejs/hash" {
         /**
          * return CRC32 checksum of the data
          */
-        static sum32(data?: string | Uint8Array): number
+        static sum32(data?: string | ejs.BufferData): number
         /**
          * return CRC32 checksum of the data
          */
-        static sum(data?: string | Uint8Array): Uint8Array
+        static sum(data?: string | ejs.BufferData): Uint8Array
         /**
          * Write CRC32 checksum of the data to dst
          * @returns hashsize
          */
-        static sumTo(dst: Uint8Array, data?: string | Uint8Array): number
+        static sumTo(dst: ejs.BufferData, data?: string | ejs.BufferData): number
     }
 }
 /**
@@ -1145,7 +1145,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        static encryptECB(key: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        static encryptECB(key: string | ejs.BufferData, plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using ECB mode
         * @param key AES key
@@ -1153,14 +1153,14 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        static encryptECBTo(key: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        static encryptECBTo(key: string | ejs.BufferData, ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using ECB mode
         * @param key AES key
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        static decryptECB(key: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        static decryptECB(key: string | ejs.BufferData, ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using ECB mode
         * @param key AES key
@@ -1168,13 +1168,13 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        static decryptECBTo(key: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        static decryptECBTo(key: string | ejs.BufferData, plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
         /**
          * 
         * @param key AES key
          * @returns ECB
          */
-        static ecb(key: string | Uint8Array): ECB
+        static ecb(key: string | ejs.BufferData): ECB
 
         /**
          * Encrypt plaintext using CBC mode
@@ -1183,7 +1183,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        static encryptCBC(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        static encryptCBC(key: string | ejs.BufferData, iv: string | ejs.BufferData, plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using CBC mode
         * @param key AES key
@@ -1192,7 +1192,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        static encryptCBCTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        static encryptCBCTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using CBC mode
         * @param key AES key
@@ -1200,7 +1200,7 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        static decryptCBC(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        static decryptCBC(key: string | ejs.BufferData, iv: string | ejs.BufferData, ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using CBC mode
         * @param key AES key
@@ -1209,14 +1209,14 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        static decryptCBCTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        static decryptCBCTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
         /**
          * 
         * @param key AES key
          * @param iv initialization vector
          * @returns CBC
          */
-        static cbc(key: string | Uint8Array, iv: string | Uint8Array): CBC
+        static cbc(key: string | ejs.BufferData, iv: string | ejs.BufferData): CBC
 
         /**
          * Encrypt plaintext using CFB mode
@@ -1225,7 +1225,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        static encryptCFB(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        static encryptCFB(key: string | ejs.BufferData, iv: string | ejs.BufferData, plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using CFB mode
         * @param key AES key
@@ -1234,7 +1234,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        static encryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        static encryptCFBTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using CFB mode
         * @param key AES key
@@ -1242,7 +1242,7 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        static decryptCFB(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        static decryptCFB(key: string | ejs.BufferData, iv: string | ejs.BufferData, ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using CFB mode
         * @param key AES key
@@ -1251,14 +1251,14 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        static decryptCFBTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        static decryptCFBTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
         /**
          * 
         * @param key AES key
          * @param iv initialization vector
          * @returns CFB
          */
-        static cfb(key: string | Uint8Array, iv: string | Uint8Array): CFB
+        static cfb(key: string | ejs.BufferData, iv: string | ejs.BufferData): CFB
 
 
         /**
@@ -1268,7 +1268,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        static encryptOFB(key: string | Uint8Array, iv: string | Uint8Array, plaintext: string | Uint8Array): Uint8Array
+        static encryptOFB(key: string | ejs.BufferData, iv: string | ejs.BufferData, plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using OFB mode
         * @param key AES key
@@ -1277,7 +1277,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        static encryptOFBTo(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        static encryptOFBTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using OFB mode
         * @param key AES key
@@ -1285,7 +1285,7 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        static decryptOFB(key: string | Uint8Array, iv: string | Uint8Array, ciphertext: Uint8Array): Uint8Array
+        static decryptOFB(key: string | ejs.BufferData, iv: string | ejs.BufferData, ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using OFB mode
         * @param key AES key
@@ -1294,14 +1294,14 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        static decryptOFBTo(key: string | Uint8Array, iv: string | Uint8Array, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        static decryptOFBTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
         /**
          * 
         * @param key AES key
          * @param iv initialization vector
          * @returns OFB
          */
-        static ofb(key: string | Uint8Array, iv: string | Uint8Array): OFB
+        static ofb(key: string | ejs.BufferData, iv: string | ejs.BufferData): OFB
 
         /**
          * Encrypt plaintext using CTR mode
@@ -1311,7 +1311,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        static encryptCTR(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, plaintext: string | Uint8Array): Uint8Array
+        static encryptCTR(key: string | ejs.BufferData, iv: string | ejs.BufferData, mode: CTRMode, plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using CTR mode
         * @param key AES key
@@ -1321,7 +1321,7 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        static encryptCTRTo(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        static encryptCTRTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, mode: CTRMode, ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using CTR mode
         * @param key AES key
@@ -1330,7 +1330,7 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        static decryptCTR(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, ciphertext: Uint8Array): Uint8Array
+        static decryptCTR(key: string | ejs.BufferData, iv: string | ejs.BufferData, mode: CTRMode, ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using CTR mode
         * @param key AES key
@@ -1340,14 +1340,14 @@ declare module "ejs/crypto" {
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        static decryptCTRTo(key: string | Uint8Array, iv: string | Uint8Array, mode: CTRMode, plaintext: Uint8Array, ciphertext: Uint8Array): number
+        static decryptCTRTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, mode: CTRMode, plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
         /**
          * 
         * @param key AES key
          * @param iv initialization vector
          * @returns OFB
          */
-        static ctr(key: string | Uint8Array, iv: string | Uint8Array, mode: number): CTR
+        static ctr(key: string | ejs.BufferData, iv: string | ejs.BufferData, mode: CTRMode): CTR
 
         /**
         * Encrypt plaintext using GCM mode
@@ -1359,7 +1359,7 @@ declare module "ejs/crypto" {
         * @param plaintext data to be encrypted
         * @returns encrypted data
         */
-        static encryptGCM(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: string | Uint8Array): Uint8Array
+        static encryptGCM(key: string | ejs.BufferData, iv: string | ejs.BufferData, adata: string | ejs.BufferData | null | undefined, plaintext: string | ejs.BufferData): Uint8Array
         /**
         * Encrypt plaintext using GCM mode
         * @remarks
@@ -1372,7 +1372,7 @@ declare module "ejs/crypto" {
          * @param tag If set, the signature will be output to the tag instead of being added to the end of the ciphertext
          * @returns The length in bytes of the output ciphertext
          */
-        static encryptGCMTo(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, plaintext: string | Uint8Array, tag?: Uint8Array): number
+        static encryptGCMTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, adata: string | ejs.BufferData | null | undefined, ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData, tag?: ejs.BufferData): number
         /**
         * Decrypt ciphertext using GCM mode
         * @remarks
@@ -1384,7 +1384,7 @@ declare module "ejs/crypto" {
          * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
          * @returns decrypted data
          */
-        static decryptGCM(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, ciphertext: Uint8Array, tag?: Uint8Array | null): Uint8Array
+        static decryptGCM(key: string | ejs.BufferData, iv: string | ejs.BufferData, adata: string | Uint8Array | null | undefined, ciphertext: ejs.BufferData, tag?: ejs.BufferData | null): Uint8Array
         /**
         * Decrypt ciphertext using GCM mode
         * @remarks
@@ -1397,7 +1397,7 @@ declare module "ejs/crypto" {
          * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
          * @returns The length in bytes of the output plaintext
          */
-        static decryptGCMTo(key: string | Uint8Array, iv: string | Uint8Array, adata: string | Uint8Array | null | undefined, plaintext: Uint8Array, ciphertext: Uint8Array, tag?: Uint8Array | null): number
+        static decryptGCMTo(key: string | ejs.BufferData, iv: string | ejs.BufferData, adata: string | ejs.BufferData | null | undefined, plaintext: ejs.BufferData, ciphertext: ejs.BufferData, tag?: ejs.BufferData | null): number
     }
     /**
      * The most basic ECB encryption mode.
@@ -1415,27 +1415,27 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        encrypt(plaintext: string | Uint8Array): Uint8Array
+        encrypt(plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using ECB mode
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        encryptTo(ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using ECB mode
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        decrypt(ciphertext: Uint8Array): Uint8Array
+        decrypt(ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using ECB mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+        decryptTo(plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
     }
 
     /**
@@ -1456,27 +1456,27 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        encrypt(plaintext: string | Uint8Array): Uint8Array
+        encrypt(plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using CBC mode
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        encryptTo(ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using CBC mode
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        decrypt(ciphertext: Uint8Array): Uint8Array
+        decrypt(ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using CBC mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+        decryptTo(plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
     }
 
     /**
@@ -1493,27 +1493,27 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        encrypt(plaintext: string | Uint8Array): Uint8Array
+        encrypt(plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using CFB mode
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        encryptTo(ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using CFB mode
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        decrypt(ciphertext: Uint8Array): Uint8Array
+        decrypt(ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using CFB mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+        decryptTo(plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
     }
 
     /**
@@ -1530,27 +1530,27 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        encrypt(plaintext: string | Uint8Array): Uint8Array
+        encrypt(plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using OFB mode
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        encryptTo(ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using OFB mode
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        decrypt(ciphertext: Uint8Array): Uint8Array
+        decrypt(ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using OFB mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+        decryptTo(plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
     }
 
     /**
@@ -1567,27 +1567,27 @@ declare module "ejs/crypto" {
          * @param plaintext data to be encrypted
          * @returns encrypted data
          */
-        encrypt(plaintext: string | Uint8Array): Uint8Array
+        encrypt(plaintext: string | ejs.BufferData): Uint8Array
         /**
          * Encrypt plaintext using CTR mode
          * @param ciphertext encrypted data
          * @param plaintext data to be encrypted
          * @returns The length in bytes of the output ciphertext
          */
-        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array): number
+        encryptTo(ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData): number
         /**
          * Decrypt ciphertext using CTR mode
          * @param ciphertext data to be decrypted
          * @returns decrypted data
          */
-        decrypt(ciphertext: Uint8Array): Uint8Array
+        decrypt(ciphertext: ejs.BufferData): Uint8Array
         /**
          * Decrypt ciphertext using CTR mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array): number
+        decryptTo(plaintext: ejs.BufferData, ciphertext: ejs.BufferData): number
     }
     /**
      * The GCM encryption mode.
@@ -1604,7 +1604,7 @@ declare module "ejs/crypto" {
         * @param plaintext data to be encrypted
         * @returns encrypted data
         */
-        encrypt(plaintext: string | Uint8Array): Uint8Array
+        encrypt(plaintext: string | ejs.BufferData): Uint8Array
         /**
         * Encrypt plaintext using GCM mode
         * @remarks
@@ -1614,7 +1614,7 @@ declare module "ejs/crypto" {
          * @param tag If set, the signature will be output to the tag instead of being added to the end of the ciphertext
          * @returns The length in bytes of the output ciphertext
          */
-        encryptTo(ciphertext: Uint8Array, plaintext: string | Uint8Array, tag?: Uint8Array): number
+        encryptTo(ciphertext: ejs.BufferData, plaintext: string | ejs.BufferData, tag?: ejs.BufferData): number
         /**
         * Decrypt ciphertext using GCM mode
         * @remarks
@@ -1623,14 +1623,14 @@ declare module "ejs/crypto" {
          * @param tag If set, the signature will be from the tag instead of from end of the ciphertext
          * @returns decrypted data
          */
-        decrypt(ciphertext: Uint8Array, tag?: Uint8Array | null): Uint8Array
+        decrypt(ciphertext: ejs.BufferData, tag?: ejs.BufferData | null): Uint8Array
         /**
          * Decrypt ciphertext using CTR mode
          * @param plaintext decrypted data
          * @param ciphertext data to be decrypted
          * @returns The length in bytes of the output plaintext
          */
-        decryptTo(plaintext: Uint8Array, ciphertext: Uint8Array, tag?: Uint8Array | null): number
+        decryptTo(plaintext: ejs.BufferData, ciphertext: ejs.BufferData, tag?: ejs.BufferData | null): number
     }
 }
 /**

@@ -8,6 +8,8 @@ import "./hash/hash";
 import "./hash/hmac";
 import "./hash/hash32";
 
+import "./crypto/aes";
+
 import "./strconv/atob";
 import "./strconv/atoi";
 import "./strconv/itoa";
@@ -18,5 +20,6 @@ import "./path/match";
 
 import "./net/url/url";
 import "./net/ip";
+
 
 

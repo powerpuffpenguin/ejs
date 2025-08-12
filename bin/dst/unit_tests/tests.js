@@ -7,6 +7,7 @@ require("./encoding/binary");
 require("./hash/hash");
 require("./hash/hmac");
 require("./hash/hash32");
+require("./crypto/aes");
 require("./strconv/atob");
 require("./strconv/atoi");
 require("./strconv/itoa");
