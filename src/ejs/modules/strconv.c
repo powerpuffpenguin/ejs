@@ -1091,7 +1091,7 @@ static uint8_t *appendBytes(
     const uint8_t *s, duk_size_t s_len)
 {
     duk_size_t len = *p_len;
-    duk_size_t cap = ppp_c_string_grow_calculate(*p_cap, len, 2);
+    duk_size_t cap = ppp_c_string_grow_calculate(*p_cap, len, s_len);
     if (cap)
     {
         void *p = duk_push_fixed_buffer(ctx, cap);
