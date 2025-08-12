@@ -320,7 +320,6 @@ static duk_ret_t _unescape(duk_context *ctx)
                 {
                     s_len = 3;
                 }
-                duk_pop(ctx);
                 duk_get_prop_lstring(ctx, 0, "escape", 6);
                 duk_push_lstring(ctx, s, s_len);
                 duk_new(ctx, 1);
@@ -336,7 +335,6 @@ static duk_ret_t _unescape(duk_context *ctx)
                 __ejs_modules_shared_unhex(s[i + 1], 0) < 8 &&
                 memcmp(s + i, "%25", 3))
             {
-                duk_pop(ctx);
                 duk_get_prop_lstring(ctx, 0, "escape", 6);
                 duk_push_lstring(ctx, s + i, 3);
                 duk_new(ctx, 1);
@@ -356,7 +354,6 @@ static duk_ret_t _unescape(duk_context *ctx)
                     v != ' ' &&
                     _should_escape(v, EJS_NET_URL_encodeHost))
                 {
-                    duk_pop(ctx);
                     duk_get_prop_lstring(ctx, 0, "escape", 6);
                     duk_push_lstring(ctx, s + i, 3);
                     duk_new(ctx, 1);
@@ -374,7 +371,6 @@ static duk_ret_t _unescape(duk_context *ctx)
                 s[i] < 0x80 &&
                 _should_escape(s[i], mode))
             {
-                duk_pop(ctx);
                 duk_get_prop_lstring(ctx, 0, "host", 4);
                 duk_push_lstring(ctx, s + i, 1);
                 duk_new(ctx, 1);
@@ -388,8 +384,6 @@ static duk_ret_t _unescape(duk_context *ctx)
     {
         return 1;
     }
-
-    duk_pop_2(ctx);
 
     _unescape_impl_args_t args = {
         s : s,
