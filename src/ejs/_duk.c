@@ -557,7 +557,7 @@ void _ejs_init_extras(duk_context *ctx)
     _ejs_init_timer(ctx);
 
     // es6 shim
-    duk_eval_lstring(ctx, (const char *)js_ejs_js_es6_shim_min_js, js_ejs_js_es6_shim_min_js_len);
+    duk_eval_lstring(ctx, js_ejs_js_es6_shim_min_js, js_ejs_js_es6_shim_min_js_len);
     duk_push_global_object(ctx);
     duk_call(ctx, 1);
     duk_pop(ctx);

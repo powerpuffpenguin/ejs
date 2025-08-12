@@ -21,12 +21,13 @@ target("ejs")
     add_files("src/ejs/modules/*.c")
     add_files("src/ejs/internal/*.c")
     add_files("src/main.c")
-    add_cflags("-O2")
     if not is_arch("x86_64") then
         add_ldflags("-static", {force = true})
     end
      if is_mode("debug") then
         add_defines("DEBUG")
+    else 
+        add_cflags("-O2")
     end
     if plat ~= nil then 
         add_defines('EJS_CONFIG_OS="'..plat..'", '..plat:len())
@@ -45,9 +46,10 @@ target("example_ejs")
     set_kind("binary")
     set_basename("ejs")
     add_files("src/main.c")
-    add_cflags("-O2")
      if is_mode("debug") then
         add_defines("DEBUG")
+    else
+        add_cflags("-O2")
     end
     add_packages("libevent","mbedtls","libtomcrypt")
     add_deps("ejs")
@@ -62,12 +64,13 @@ target("ejs_test")
     add_files("src/ejs_test/*.c")
     add_files("src/cutest/CuTest.c")
     add_files("src/main_test.c")
-    add_cflags("-O2")
     if not is_arch("x86_64") then
         add_ldflags("-static", {force = true})
     end
      if is_mode("debug") then
         add_defines("DEBUG")
+    else
+        add_cflags("-O2")
     end
     if plat ~= nil then 
         add_defines('EJS_CONFIG_OS="'..plat..'", '..plat:len())
