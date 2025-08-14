@@ -78,7 +78,11 @@ static void fork_child_throw_os_sync(duk_context *ctx, int *chan, int err)
     close(chan[EJS_OS_EXEC_CHILD_READ]);
     chan[EJS_OS_EXEC_CHILD_READ] = -1;
 }
-static duk_ret_t fork_child_sync(duk_context *ctx)
+
+/**
+ * The child process prepares the environment and executes
+ */
+static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 {
     int *chan = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
@@ -183,6 +187,169 @@ static duk_ret_t fork_child_sync(duk_context *ctx)
     fork_child_throw_os_sync(ctx, chan, err);
     return 0;
 }
+/**
+ * The child process code after fork
+ */
+static void fork_child_sync(
+    duk_context *ctx,
+    pid_t pid, int *chan)
+{
+    close(chan[EJS_OS_EXEC_PARENT_WRITE]);
+    close(chan[EJS_OS_EXEC_PARENT_READ]);
+
+    // child
+    duk_push_c_lightfunc(ctx, fork_child_sync_impl, 2, 2, 0);
+    duk_swap_top(ctx, -3);
+    duk_swap_top(ctx, -2);
+    duk_pcall(ctx, 2);
+    if (chan[EJS_OS_EXEC_CHILD_READ] != -1)
+    {
+        close(chan[EJS_OS_EXEC_CHILD_READ]);
+    }
+    if (chan[EJS_OS_EXEC_CHILD_WRITE] != -1)
+    {
+        if (duk_is_type_error(ctx, -1))
+        {
+            duk_get_prop_lstring(ctx, -1, "message", 7);
+            duk_size_t s_len;
+            const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
+            send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_TYPE, 0, s, s_len);
+        }
+        else if (duk_is_error(ctx, -1))
+        {
+            duk_get_prop_lstring(ctx, -1, "message", 7);
+            duk_size_t s_len;
+            const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
+            send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, s, s_len);
+        }
+        else
+        {
+            send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, "unknow error", 12);
+        }
+        close(chan[EJS_OS_EXEC_CHILD_WRITE]);
+    }
+}
+
+/**
+ * The parent process obtains the child process preparation information from the pipe
+ */
+static void fork_parent_read_sync(
+    duk_context *ctx,
+    pid_t pid, int *chan,
+    uint8_t *header, duk_bool_t first)
+{
+    if (first)
+    {
+        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], header, 17))
+        {
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+            duk_throw(ctx);
+        }
+    }
+    else if (read(chan[EJS_OS_EXEC_PARENT_READ], header, 1) != 1)
+    {
+        return;
+    }
+    else if (read_full(chan[EJS_OS_EXEC_PARENT_READ], header + 1, 16))
+    {
+        kill(pid, SIGKILL);
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+        duk_throw(ctx);
+    }
+
+    switch (header[0])
+    {
+    case EJS_OS_EXEC_FORK_ERR:
+    case EJS_OS_EXEC_FORK_TYPE:
+    {
+        duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
+        uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
+        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
+        {
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "read pipe fail");
+            duk_throw(ctx);
+        }
+        buf[buf_len] = 0;
+        duk_push_error_object(ctx, header[0] == EJS_OS_EXEC_FORK_ERR ? DUK_ERR_ERROR : DUK_ERR_TYPE_ERROR, buf);
+        duk_throw(ctx);
+        return;
+    }
+    case EJS_OS_EXEC_FORK_OS:
+    {
+        duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
+        uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
+        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
+        {
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+            duk_throw(ctx);
+        }
+        buf[buf_len] = 0;
+        ejs_throw_os(ctx, ejs_get_binary()->little.uint64(header + 1), buf);
+        return;
+    }
+    case EJS_OS_EXEC_FORK_OK:
+        if (first)
+        {
+            if (send_all(chan[EJS_OS_EXEC_PARENT_WRITE], header, 17))
+            {
+                kill(pid, SIGKILL);
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "init write pipe fail");
+                duk_throw(ctx);
+            }
+            return;
+        }
+        break;
+    }
+    kill(pid, SIGKILL);
+    duk_push_error_object(ctx, DUK_ERR_ERROR, "read unknow data from pipe");
+    duk_throw(ctx);
+}
+
+/**
+ * Parent process code after fork
+ */
+static void fork_parent_sync_impl(
+    duk_context *ctx,
+    pid_t pid, int *chan)
+{
+    // parent
+    close(chan[EJS_OS_EXEC_CHILD_WRITE]);
+    chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+    close(chan[EJS_OS_EXEC_CHILD_READ]);
+    chan[EJS_OS_EXEC_CHILD_READ] = -1;
+
+    // wait child ready
+    uint8_t header[17];
+    fork_parent_read_sync(ctx, pid, chan, header, 1);
+    close(chan[EJS_OS_EXEC_PARENT_WRITE]);
+    chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
+    // wait child start
+    fork_parent_read_sync(ctx, pid, chan, header, 0);
+    close(chan[EJS_OS_EXEC_PARENT_READ]);
+    chan[EJS_OS_EXEC_PARENT_READ] = -1;
+
+    // wait child exit
+    int status;
+    if (waitpid(pid, &status, 0) == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    if (WIFEXITED(status))
+    {
+        // get exit code
+        int exit_code = WEXITSTATUS(status);
+        duk_push_object(ctx);
+        duk_push_int(ctx, exit_code);
+        duk_put_prop_lstring(ctx, -2, "exit", 4);
+    }
+    else
+    {
+        ejs_throw_os_errno(ctx);
+    }
+}
 static duk_ret_t run_sync_impl(duk_context *ctx)
 {
     int *chan = duk_require_pointer(ctx, -1);
@@ -215,178 +382,19 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
         ejs_throw_os_errno(ctx);
     }
 
-    int pid = fork();
+    pid_t pid = fork();
     if (pid < 0)
     {
         ejs_throw_os_errno(ctx);
     }
     else if (pid == 0)
     {
-        close(chan[EJS_OS_EXEC_PARENT_WRITE]);
-        close(chan[EJS_OS_EXEC_PARENT_READ]);
-
-        // child
-        duk_push_c_lightfunc(ctx, fork_child_sync, 2, 2, 0);
-        duk_swap_top(ctx, -3);
-        duk_swap_top(ctx, -2);
-        duk_pcall(ctx, 2);
-        if (chan[EJS_OS_EXEC_CHILD_READ] != -1)
-        {
-            close(chan[EJS_OS_EXEC_CHILD_READ]);
-        }
-        if (chan[EJS_OS_EXEC_CHILD_WRITE] != -1)
-        {
-            if (duk_is_type_error(ctx, -1))
-            {
-                duk_get_prop_lstring(ctx, -1, "message", 7);
-                duk_size_t s_len;
-                const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
-                send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_TYPE, 0, s, s_len);
-            }
-            else if (duk_is_error(ctx, -1))
-            {
-                duk_get_prop_lstring(ctx, -1, "message", 7);
-                duk_size_t s_len;
-                const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
-                send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, s, s_len);
-            }
-            else
-            {
-                send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, "unknow error", 12);
-            }
-            close(chan[EJS_OS_EXEC_CHILD_WRITE]);
-        }
+        fork_child_sync(ctx, pid, chan);
         exit(EXIT_FAILURE);
-    }
-    // parent
-    close(chan[EJS_OS_EXEC_CHILD_WRITE]);
-    chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
-    close(chan[EJS_OS_EXEC_CHILD_READ]);
-    chan[EJS_OS_EXEC_CHILD_READ] = -1;
-
-    // wait ready
-    uint8_t header[17];
-    if (read_full(chan[EJS_OS_EXEC_PARENT_READ], header, 17))
-    {
-        kill(pid, SIGKILL);
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
-        duk_throw(ctx);
-    }
-    switch (header[0])
-    {
-    case EJS_OS_EXEC_FORK_ERR:
-    case EJS_OS_EXEC_FORK_TYPE:
-    {
-        duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
-        uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
-        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
-        {
-            kill(pid, SIGKILL);
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "read pipe fail");
-            duk_throw(ctx);
-        }
-        buf[buf_len] = 0;
-        duk_push_error_object(ctx, header[0] == EJS_OS_EXEC_FORK_ERR ? DUK_ERR_ERROR : DUK_ERR_TYPE_ERROR, buf);
-        duk_throw(ctx);
-    }
-    break;
-    case EJS_OS_EXEC_FORK_OS:
-    {
-        duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
-        uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
-        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
-        {
-            kill(pid, SIGKILL);
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
-            duk_throw(ctx);
-        }
-        buf[buf_len] = 0;
-        ejs_throw_os(ctx, ejs_get_binary()->little.uint64(header + 1), buf);
-    }
-    break;
-    case EJS_OS_EXEC_FORK_OK:
-        if (send_all(chan[EJS_OS_EXEC_PARENT_WRITE], header, 17))
-        {
-            kill(pid, SIGKILL);
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "init write pipe fail");
-            duk_throw(ctx);
-        }
-        close(chan[EJS_OS_EXEC_PARENT_WRITE]);
-        chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
-        break;
-    default:
-        kill(pid, SIGKILL);
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "read unknow data from pipe");
-        duk_throw(ctx);
-    }
-
-    // wait start
-    if (read(chan[EJS_OS_EXEC_PARENT_READ], &header, 1) == 1)
-    {
-        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], &header[1], 16))
-        {
-            kill(pid, SIGKILL);
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
-            duk_throw(ctx);
-        }
-        switch (header[0])
-        {
-        case EJS_OS_EXEC_FORK_ERR:
-        case EJS_OS_EXEC_FORK_TYPE:
-        {
-            duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
-            uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
-            if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
-            {
-                kill(pid, SIGKILL);
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "read pipe fail");
-                duk_throw(ctx);
-            }
-            buf[buf_len] = 0;
-            duk_push_error_object(ctx, header[0] == EJS_OS_EXEC_FORK_ERR ? DUK_ERR_ERROR : DUK_ERR_TYPE_ERROR, buf);
-            duk_throw(ctx);
-        }
-        break;
-        case EJS_OS_EXEC_FORK_OS:
-        {
-            duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
-            uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
-            if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
-            {
-                kill(pid, SIGKILL);
-                duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
-                duk_throw(ctx);
-            }
-            buf[buf_len] = 0;
-            ejs_throw_os(ctx, ejs_get_binary()->little.uint64(header + 1), buf);
-        }
-        break;
-        default:
-            kill(pid, SIGKILL);
-            duk_push_error_object(ctx, DUK_ERR_ERROR, "read unknow data from pipe");
-            duk_throw(ctx);
-        }
-    }
-
-
-    // wait child exit
-    int status;
-    if (waitpid(pid, &status, 0) == -1)
-    {
-        ejs_throw_os_errno(ctx);
-    }
-
-    if (WIFEXITED(status))
-    {
-        // 5. 使用 WEXITSTATUS 巨集獲取退出碼
-        int exit_code = WEXITSTATUS(status);
-        duk_push_object(ctx);
-        duk_push_int(ctx, exit_code);
-        duk_put_prop_lstring(ctx, -2, "exit", 4);
     }
     else
     {
-        ejs_throw_os_errno(ctx);
+        fork_parent_sync_impl(ctx, pid, chan);
     }
     return 1;
 }

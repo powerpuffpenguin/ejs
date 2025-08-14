@@ -22,8 +22,8 @@ var exec = require("ejs/os/exec")
 //     stdout: 1,
 //     // workdir: '/home/12'
 // }))
-console.log(exec.runSync('/bin/sleep', {
-    args: ['5'],
+console.log(exec.runSync('ls', {
+    args: ['b.js'],
     env: {
         "KO": 123,
         "XX": true,
