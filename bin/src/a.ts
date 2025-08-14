@@ -3,7 +3,6 @@ import * as sync from "ejs/sync";
 
 // Start a coroutine
 sync.go((co) => {
-    
     // Create a temporary file
     const f = os.File.createTemp(co, "ejs_temp_*")
     const name = f.name()

@@ -37,7 +37,7 @@ target("ejs")
     end
     add_defines("_XOPEN_SOURCE=700")
     add_defines("_DEFAULT_SOURCE")
-     add_defines("_SVID_SOURCE")
+    add_defines("_SVID_SOURCE")
     add_syslinks("pthread")
     add_packages("libevent","mbedtls","libtomcrypt")
     

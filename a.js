@@ -22,13 +22,13 @@ var exec = require("ejs/os/exec")
 //     stdout: 1,
 //     // workdir: '/home/12'
 // }))
-console.log(exec.runSync('ls', {
-    args: ['b.js'],
+console.log(exec.runSync('./build/linux/x86_64/release/ejs', {
+    args: ['/home/king/project/cc/ejs/b.js'],
     env: {
         "KO": 123,
         "XX": true,
     },
     stdin: 2,
-    // workdir: '/home/12',
+    workdir: '/home/',
     write: "console.log(123)\n"
 }))

@@ -1,5 +1,6 @@
 declare namespace deps {
     interface RunOption {
+        path: string
         name: string
         /**
          * Startup parameters
@@ -22,6 +23,7 @@ declare namespace deps {
          */
         write?: string | Uint8Array
     }
+    function lookpath_sync(clean: boolean, name: string): string
     function run_sync(opts: RunOption): any
 }
 
@@ -85,6 +87,7 @@ function envstring(keys: Record<string, any>): Array<Array<string>> | undefined 
     }
     return arrs.length ? arrs : undefined
 }
+
 /**
  * Run a child process and wait it exit
  * @throws OsError
@@ -103,10 +106,12 @@ export function runSync(name: string, args?: Array<string>, workdir?: string): R
 export function runSync(name: string, opts?: RunSyncOption | Array<string>, workdir?: string): RunSyncResult {
     if (opts) {
         return Array.isArray(opts) ? deps.run_sync({
+            path: deps.lookpath_sync((workdir && typeof workdir === "string") ? true : false, name),
             name: name,
             args: opts,
             workdir: workdir,
         }) : deps.run_sync({
+            path: deps.lookpath_sync((opts.workdir && typeof opts.workdir === "string") ? true : false, name),
             name: name,
             args: opts.args,
             env: opts.env ? envstring(opts.env) : undefined,
@@ -120,6 +125,7 @@ export function runSync(name: string, opts?: RunSyncOption | Array<string>, work
         })
     }
     return deps.run_sync({
+        path: deps.lookpath_sync(false, name),
         name: name,
     })
 }

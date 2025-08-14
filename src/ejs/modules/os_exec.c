@@ -9,6 +9,8 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include "../binary.h"
+#include "../internal/c_string.h"
+#include <sys/stat.h>
 
 #define EJS_OS_EXEC_REDIRECT_IGNORE 1
 #define EJS_OS_EXEC_REDIRECT_PIPE 2
@@ -85,6 +87,10 @@ static void fork_child_throw_os_sync(duk_context *ctx, int *chan, int err)
 static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 {
     int *chan = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "path", 4);
+    const char *path = duk_require_string(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "name", 4);
@@ -171,19 +177,18 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
     close(chan[EJS_OS_EXEC_CHILD_READ]);
     chan[EJS_OS_EXEC_CHILD_READ] = -1;
 
-    int ret;
     if (argv)
     {
-        execve(name, argv, environ);
+        execve(path, argv, environ);
     }
     else
     {
         char *const argv[] = {name, 0};
-        execve(name, argv, environ);
+        execve(path, argv, environ);
     }
 
     int err = errno;
-    duk_push_sprintf(ctx, "%s: %s", strerror(err), name);
+    duk_push_sprintf(ctx, "%s: %s", strerror(err), path);
     fork_child_throw_os_sync(ctx, chan, err);
     return 0;
 }
@@ -416,6 +421,70 @@ static duk_ret_t run_sync(duk_context *ctx)
     }
     return 1;
 }
+
+static duk_ret_t lookpath_sync(duk_context *ctx)
+{
+    duk_bool_t clean = duk_require_boolean(ctx, 0);
+    const uint8_t *name = duk_require_string(ctx, 1);
+    if (ejs_filepath_is_abs(ctx, -1))
+    {
+        return 1;
+    }
+    struct stat info;
+    if (!stat(name, &info) && S_ISREG(info.st_mode))
+    {
+        if (clean)
+        {
+            ejs_filepath_abs(ctx, -1);
+        }
+        return 1;
+    }
+
+    uint8_t *s = getenv("PATH");
+    uint8_t path[MAXPATHLEN] = {0};
+    duk_size_t len;
+    duk_size_t i;
+    duk_size_t name_len;
+    duk_require_lstring(ctx, -1, &name_len);
+    while (s[0])
+    {
+#ifdef EJS_OS_WINDOWS
+        for (i = 0; s[i] && s[i] != ';'; i++)
+#else
+        for (i = 0; s[i] && s[i] != ':'; i++)
+#endif
+        {
+        }
+        if (i != 0)
+        {
+            len = i + 1 + name_len;
+            if (len < MAXPATHLEN)
+            {
+                memcpy(path, s, i);
+                path[i] = PPP_FILEPATH_SEPARATOR;
+                memcpy(path + i + 1, name, name_len);
+                path[len] = 0;
+
+                if (!stat(path, &info) && S_ISREG(info.st_mode))
+                {
+                    duk_push_lstring(ctx, path, len);
+                    if (!ejs_filepath_is_abs(ctx, -1))
+                    {
+                        ejs_filepath_abs(ctx, -1);
+                    }
+                    return 1;
+                }
+            }
+        }
+        if (!s[i])
+        {
+            break;
+        }
+        s += i + 1;
+    }
+    ejs_throw_os_format(ctx, ENOENT, "%s: %s", strerror(ENOENT), name);
+    return 1;
+}
 EJS_SHARED_MODULE__DECLARE(os_exec)
 {
     /*
@@ -431,6 +500,9 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
 
     duk_push_object(ctx);
     {
+        duk_push_c_lightfunc(ctx, lookpath_sync, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "lookpath_sync", 13);
+
         duk_push_c_lightfunc(ctx, run_sync, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "run_sync", 8);
     }
