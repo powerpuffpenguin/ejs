@@ -27,7 +27,7 @@ target("ejs")
      if is_mode("debug") then
         add_defines("DEBUG")
     else 
-        add_cflags("-O2")
+        -- add_cflags("-O2")
     end
     if plat ~= nil then 
         add_defines('EJS_CONFIG_OS="'..plat..'", '..plat:len())
@@ -49,7 +49,7 @@ target("example_ejs")
      if is_mode("debug") then
         add_defines("DEBUG")
     else
-        add_cflags("-O2")
+        -- add_cflags("-O2")
     end
     add_packages("libevent","mbedtls","libtomcrypt")
     add_deps("ejs")
@@ -70,7 +70,7 @@ target("ejs_test")
      if is_mode("debug") then
         add_defines("DEBUG")
     else
-        add_cflags("-O2")
+        -- add_cflags("-O2")
     end
     if plat ~= nil then 
         add_defines('EJS_CONFIG_OS="'..plat..'", '..plat:len())

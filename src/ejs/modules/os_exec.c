@@ -1,0 +1,434 @@
+#include "modules_shared.h"
+#include "../js/os_exec.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/epoll.h>
+#include "../binary.h"
+
+#define EJS_OS_EXEC_REDIRECT_IGNORE 1
+#define EJS_OS_EXEC_REDIRECT_PIPE 2
+
+#define EJS_OS_EXEC_CHILD_READ 0
+#define EJS_OS_EXEC_PARENT_WRITE 1
+#define EJS_OS_EXEC_PARENT_READ 2
+#define EJS_OS_EXEC_CHILD_WRITE 3
+
+#define EJS_OS_EXEC_FORK_OK 0
+#define EJS_OS_EXEC_FORK_ERR 1
+#define EJS_OS_EXEC_FORK_TYPE 2
+#define EJS_OS_EXEC_FORK_OS 3
+
+extern char **environ;
+
+static duk_bool_t send_all(int fd, const void *buf, duk_size_t buf_len)
+{
+    ssize_t written;
+    while (buf_len)
+    {
+        written = write(fd, buf, buf_len);
+        if (written < 0)
+        {
+            return -1;
+        }
+        buf += written;
+        buf_len -= written;
+    }
+    return 0;
+}
+static int send_message(int fd, uint8_t t, int err, const void *buf, duk_size_t buf_len)
+{
+    char b[1 + 8 + 8];
+    b[0] = t;
+    ejs_get_binary()->little.put_uint64(b + 1, (uint64_t)err);
+    ejs_get_binary()->little.put_uint64(b + 1 + 8, (uint64_t)buf_len);
+    if (send_all(fd, b, 1 + 8 + 8))
+    {
+        return -1;
+    }
+    return send_all(fd, buf, buf_len);
+}
+static int read_full(int fd, void *buf, duk_size_t buf_len)
+{
+    ssize_t n;
+    while (buf_len)
+    {
+        n = read(fd, buf, buf_len);
+        if (n < 1)
+        {
+            return -1;
+        }
+        buf += n;
+        buf_len -= n;
+    }
+    return 0;
+}
+
+static void fork_child_throw_os_sync(duk_context *ctx, int *chan, int err)
+{
+    duk_size_t buf_len = 0;
+    const uint8_t *buf = duk_require_lstring(ctx, -1, &buf_len);
+    send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_OS, err, buf, buf_len);
+    close(chan[EJS_OS_EXEC_CHILD_WRITE]);
+    chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+    close(chan[EJS_OS_EXEC_CHILD_READ]);
+    chan[EJS_OS_EXEC_CHILD_READ] = -1;
+}
+static duk_ret_t fork_child_sync(duk_context *ctx)
+{
+    int *chan = duk_require_pointer(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "name", 4);
+    char *name = (char *)duk_require_string(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "workdir", 7);
+    if (!duk_is_null_or_undefined(ctx, -1))
+    {
+        const char *workdir = duk_require_string(ctx, -1);
+        if (chdir(workdir) == -1)
+        {
+            int err = errno;
+            duk_push_sprintf(ctx, "%s: %s", strerror(err), workdir);
+            fork_child_throw_os_sync(ctx, chan, err);
+            return 0;
+        }
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "env", 3);
+    if (duk_is_array(ctx, -1))
+    {
+        const uint8_t *key;
+        const uint8_t *value;
+        duk_size_t count = duk_get_length(ctx, -1);
+        for (duk_size_t i = 0; i < count; i++)
+        {
+            duk_get_prop_index(ctx, -1, i);
+
+            duk_get_prop_index(ctx, -1, 0);
+            key = duk_require_string(ctx, -1);
+            duk_pop(ctx);
+            duk_get_prop_index(ctx, -1, 1);
+            value = duk_require_string(ctx, -1);
+
+            duk_pop_2(ctx);
+
+            if (setenv(key, value, 1))
+            {
+                int err = errno;
+                duk_push_sprintf(ctx, "%s: %s=%s\n", strerror(err), key, value);
+                fork_child_throw_os_sync(ctx, chan, err);
+                return 0;
+            }
+        }
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "args", 4);
+    char **argv = 0;
+    if (duk_is_array(ctx, -1))
+    {
+        duk_size_t n = duk_get_length(ctx, -1);
+        if (n)
+        {
+            argv = malloc(sizeof(char *) * (n + 2));
+            if (!argv)
+            {
+                int err = errno;
+                duk_push_string(ctx, strerror(err));
+                fork_child_throw_os_sync(ctx, chan, err);
+                return 0;
+            }
+            argv[0] = name;
+            for (duk_size_t i = 0; i < n; i++)
+            {
+                duk_get_prop_index(ctx, -1, i);
+                argv[i + 1] = (char *)duk_require_string(ctx, -1);
+                duk_pop(ctx);
+            }
+            argv[n + 1] = 0;
+        }
+    }
+    duk_pop(ctx);
+
+    // Notify the parent process that it is ready
+    uint8_t header[17] = {0};
+    send_all(chan[EJS_OS_EXEC_CHILD_WRITE], header, sizeof(header));
+    // close(chan[EJS_OS_EXEC_CHILD_WRITE]);
+    // chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+
+    read_full(chan[EJS_OS_EXEC_CHILD_READ], header, sizeof(header));
+    close(chan[EJS_OS_EXEC_CHILD_READ]);
+    chan[EJS_OS_EXEC_CHILD_READ] = -1;
+
+    int ret;
+    if (argv)
+    {
+        execve(name, argv, environ);
+    }
+    else
+    {
+        char *const argv[] = {name, 0};
+        execve(name, argv, environ);
+    }
+
+    int err = errno;
+    duk_push_sprintf(ctx, "%s: %s", strerror(err), name);
+    fork_child_throw_os_sync(ctx, chan, err);
+    return 0;
+}
+static duk_ret_t run_sync_impl(duk_context *ctx)
+{
+    int *chan = duk_require_pointer(ctx, -1);
+    if (pipe(chan) == -1)
+    {
+        chan[0] = -1;
+        chan[1] = -1;
+        ejs_throw_os_errno(ctx);
+    }
+    if (fcntl(chan[0], F_SETFD, fcntl(chan[0], F_GETFD) | FD_CLOEXEC) == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    if (fcntl(chan[1], F_SETFD, fcntl(chan[1], F_GETFD) | FD_CLOEXEC) == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    if (pipe(chan + 2) == -1)
+    {
+        chan[2] = -1;
+        chan[3] = -1;
+        ejs_throw_os_errno(ctx);
+    }
+    if (fcntl(chan[2], F_SETFD, fcntl(chan[2], F_GETFD) | FD_CLOEXEC) == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    if (fcntl(chan[3], F_SETFD, fcntl(chan[3], F_GETFD) | FD_CLOEXEC) == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+
+    int pid = fork();
+    if (pid < 0)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    else if (pid == 0)
+    {
+        close(chan[EJS_OS_EXEC_PARENT_WRITE]);
+        close(chan[EJS_OS_EXEC_PARENT_READ]);
+
+        // child
+        duk_push_c_lightfunc(ctx, fork_child_sync, 2, 2, 0);
+        duk_swap_top(ctx, -3);
+        duk_swap_top(ctx, -2);
+        duk_pcall(ctx, 2);
+        if (chan[EJS_OS_EXEC_CHILD_READ] != -1)
+        {
+            close(chan[EJS_OS_EXEC_CHILD_READ]);
+        }
+        if (chan[EJS_OS_EXEC_CHILD_WRITE] != -1)
+        {
+            if (duk_is_type_error(ctx, -1))
+            {
+                duk_get_prop_lstring(ctx, -1, "message", 7);
+                duk_size_t s_len;
+                const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
+                send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_TYPE, 0, s, s_len);
+            }
+            else if (duk_is_error(ctx, -1))
+            {
+                duk_get_prop_lstring(ctx, -1, "message", 7);
+                duk_size_t s_len;
+                const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
+                send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, s, s_len);
+            }
+            else
+            {
+                send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, "unknow error", 12);
+            }
+            close(chan[EJS_OS_EXEC_CHILD_WRITE]);
+        }
+        exit(EXIT_FAILURE);
+    }
+    // parent
+    close(chan[EJS_OS_EXEC_CHILD_WRITE]);
+    chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+    close(chan[EJS_OS_EXEC_CHILD_READ]);
+    chan[EJS_OS_EXEC_CHILD_READ] = -1;
+
+    // wait ready
+    uint8_t header[17];
+    if (read_full(chan[EJS_OS_EXEC_PARENT_READ], header, 17))
+    {
+        kill(pid, SIGKILL);
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+        duk_throw(ctx);
+    }
+    switch (header[0])
+    {
+    case EJS_OS_EXEC_FORK_ERR:
+    case EJS_OS_EXEC_FORK_TYPE:
+    {
+        duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
+        uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
+        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
+        {
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "read pipe fail");
+            duk_throw(ctx);
+        }
+        buf[buf_len] = 0;
+        duk_push_error_object(ctx, header[0] == EJS_OS_EXEC_FORK_ERR ? DUK_ERR_ERROR : DUK_ERR_TYPE_ERROR, buf);
+        duk_throw(ctx);
+    }
+    break;
+    case EJS_OS_EXEC_FORK_OS:
+    {
+        duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
+        uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
+        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
+        {
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+            duk_throw(ctx);
+        }
+        buf[buf_len] = 0;
+        ejs_throw_os(ctx, ejs_get_binary()->little.uint64(header + 1), buf);
+    }
+    break;
+    case EJS_OS_EXEC_FORK_OK:
+        if (send_all(chan[EJS_OS_EXEC_PARENT_WRITE], header, 17))
+        {
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "init write pipe fail");
+            duk_throw(ctx);
+        }
+        close(chan[EJS_OS_EXEC_PARENT_WRITE]);
+        chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
+        break;
+    default:
+        kill(pid, SIGKILL);
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "read unknow data from pipe");
+        duk_throw(ctx);
+    }
+
+    // wait start
+    if (read(chan[EJS_OS_EXEC_PARENT_READ], &header, 1) == 1)
+    {
+        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], &header[1], 16))
+        {
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+            duk_throw(ctx);
+        }
+        switch (header[0])
+        {
+        case EJS_OS_EXEC_FORK_ERR:
+        case EJS_OS_EXEC_FORK_TYPE:
+        {
+            duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
+            uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
+            if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
+            {
+                kill(pid, SIGKILL);
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "read pipe fail");
+                duk_throw(ctx);
+            }
+            buf[buf_len] = 0;
+            duk_push_error_object(ctx, header[0] == EJS_OS_EXEC_FORK_ERR ? DUK_ERR_ERROR : DUK_ERR_TYPE_ERROR, buf);
+            duk_throw(ctx);
+        }
+        break;
+        case EJS_OS_EXEC_FORK_OS:
+        {
+            duk_size_t buf_len = ejs_get_binary()->little.uint64(header + 1 + 8);
+            uint8_t *buf = duk_push_fixed_buffer(ctx, buf_len + 1);
+            if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
+            {
+                kill(pid, SIGKILL);
+                duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+                duk_throw(ctx);
+            }
+            buf[buf_len] = 0;
+            ejs_throw_os(ctx, ejs_get_binary()->little.uint64(header + 1), buf);
+        }
+        break;
+        default:
+            kill(pid, SIGKILL);
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "read unknow data from pipe");
+            duk_throw(ctx);
+        }
+    }
+
+
+    // wait child exit
+    int status;
+    if (waitpid(pid, &status, 0) == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+
+    if (WIFEXITED(status))
+    {
+        // 5. 使用 WEXITSTATUS 巨集獲取退出碼
+        int exit_code = WEXITSTATUS(status);
+        duk_push_object(ctx);
+        duk_push_int(ctx, exit_code);
+        duk_put_prop_lstring(ctx, -2, "exit", 4);
+    }
+    else
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    return 1;
+}
+static duk_ret_t run_sync(duk_context *ctx)
+{
+    int chan[4] = {-1, -1, -1, -1};
+    int err = ejs_pcall_function_n(ctx, run_sync_impl, &chan, 2);
+    for (int i = 0; i < 4; i++)
+    {
+        if (chan[i] != -1)
+        {
+            close(chan[i]);
+        }
+    }
+
+    if (err)
+    {
+        duk_throw(ctx);
+    }
+    return 1;
+}
+EJS_SHARED_MODULE__DECLARE(os_exec)
+{
+    /*
+     *  Entry stack: [ require exports ]
+     */
+    duk_eval_lstring(ctx, js_ejs_js_os_exec_min_js, js_ejs_js_os_exec_min_js_len);
+    duk_swap_top(ctx, -2);
+
+    duk_push_heap_stash(ctx);
+    duk_get_prop_lstring(ctx, -1, EJS_STASH_EJS);
+    duk_swap_top(ctx, -2);
+    duk_pop(ctx);
+
+    duk_push_object(ctx);
+    {
+        duk_push_c_lightfunc(ctx, run_sync, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "run_sync", 8);
+    }
+    /*
+     *  Entry stack: [ require init_f exports ejs deps ]
+     */
+    duk_call(ctx, 3);
+    return 0;
+}

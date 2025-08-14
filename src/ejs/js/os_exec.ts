@@ -1,0 +1,125 @@
+declare namespace deps {
+    interface RunOption {
+        name: string
+        /**
+         * Startup parameters
+         */
+        args?: Array<string>
+        /**
+         * Environment variables
+         */
+        env?: Array<Array<string>>
+        /**
+         * Work Path
+         */
+        workdir?: string
+
+        stdout?: Redirect
+        stderr?: Redirect
+        stdin?: Redirect
+        /**
+         * When stdin is a pipe, the contents to be written to the child process
+         */
+        write?: string | Uint8Array
+    }
+    function run_sync(opts: RunOption): any
+}
+
+export enum Redirect {
+    /**
+     * Inherited from the parent process
+     */
+    inherit = 0,
+    /**
+     * Ignore input and output
+     */
+    ignore = 1,
+    /**
+     * Read and write progress in the parent process
+     */
+    pipe = 2,
+}
+export interface RunSyncOption {
+    /**
+     * Startup parameters
+     */
+    args?: Array<string>
+    /**
+     * Environment variables
+     */
+    env?: Record<string, any>
+    /**
+     * Work Path
+     */
+    workdir?: string
+
+    stdout?: Redirect
+    stderr?: Redirect
+    stdin?: Redirect
+    /**
+     * Automatically write to stdin after startup
+     */
+    write?: string | Uint8Array
+}
+export interface RunSyncResult {
+    /**
+     * Exit Code
+     */
+    exit: number
+    /**
+     * When started with stdout as 'pipe', return stdout to this
+     */
+    stdout?: Uint8Array
+    /**
+     * When started with stderr as 'pipe', return stdout to this
+     */
+    stderr?: Uint8Array
+}
+function envstring(keys: Record<string, any>): Array<Array<string>> | undefined {
+    const arrs = new Array<Array<string>>()
+    for (const key in keys) {
+        if (Object.prototype.hasOwnProperty.call(keys, key)) {
+            const val = keys[key]
+            arrs.push([key, `${val}`])
+        }
+    }
+    return arrs.length ? arrs : undefined
+}
+/**
+ * Run a child process and wait it exit
+ * @throws OsError
+ * @param name Program to start
+ * @param opts Additional options
+ */
+export function runSync(name: string, opts?: RunSyncOption): RunSyncResult
+/**
+ * Run a child process and wait it exit
+ * @throws OsError
+ * @param name Program to start
+ * @param args Startup parameters
+ * @param workdir Work Path
+ */
+export function runSync(name: string, args?: Array<string>, workdir?: string): RunSyncResult
+export function runSync(name: string, opts?: RunSyncOption | Array<string>, workdir?: string): RunSyncResult {
+    if (opts) {
+        return Array.isArray(opts) ? deps.run_sync({
+            name: name,
+            args: opts,
+            workdir: workdir,
+        }) : deps.run_sync({
+            name: name,
+            args: opts.args,
+            env: opts.env ? envstring(opts.env) : undefined,
+            workdir: opts.workdir,
+
+            stdout: opts.stdout,
+            stderr: opts.stderr,
+            stdin: opts.stdin,
+
+            write: opts.write,
+        })
+    }
+    return deps.run_sync({
+        name: name,
+    })
+}

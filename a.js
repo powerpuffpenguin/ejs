@@ -12,18 +12,23 @@
 // var path = require("ejs/path")
 // var hash = require("ejs/hash")
 // var crypto = require("ejs/crypto")
-// var AES = crypto.AES
-// var key = hash.MD5.sum("ok")
-// var iv = hash.MD5.sum("iv")
-// console.log('----------------ok')
-
-
-console.log(Number.MAX_SAFE_INTEGER)
-console.log(Number.MIN_SAFE_INTEGER)
-console.log(Number.EPSILON)
-console.log(Number.parseInt)
-console.log(Number.parseFloat)
-console.log(Number.isFinite)
-console.log(Number.isInteger)
-console.log(Number.isSafeInteger)
-console.log(Number.isNaN)
+var exec = require("ejs/os/exec")
+// console.log(exec.runSync('./build/linux/x86_64/release/ejs', {
+//     args: ['b.js'],
+//     env: {
+//         "KO": 123,
+//         "XX": true,
+//     },
+//     stdout: 1,
+//     // workdir: '/home/12'
+// }))
+console.log(exec.runSync('/bin/sleep', {
+    args: ['5'],
+    env: {
+        "KO": 123,
+        "XX": true,
+    },
+    stdin: 2,
+    // workdir: '/home/12',
+    write: "console.log(123)\n"
+}))

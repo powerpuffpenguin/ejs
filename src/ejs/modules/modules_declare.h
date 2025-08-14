@@ -45,6 +45,9 @@ EJS_SHARED_MODULE__DECLARE(path);
 #define EJS_SHARED_MODULE__OS "ejs/os", 6
 EJS_SHARED_MODULE__DECLARE(os);
 
+#define EJS_SHARED_MODULE__OS_EXEC "ejs/os/exec", 11
+EJS_SHARED_MODULE__DECLARE(os_exec);
+
 #define EJS_SHARED_MODULE__NET "ejs/net", 7
 EJS_SHARED_MODULE__DECLARE(net);
 #define EJS_SHARED_MODULE__NET_URL "ejs/net/url", 11
