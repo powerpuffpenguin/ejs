@@ -40,6 +40,11 @@ export enum Redirect {
      * Read and write progress in the parent process
      */
     pipe = 2,
+
+    /**
+     * Only valid for sync's stdout/stderr, outputting string instead of Uint8Array
+     */
+    text = 3,
 }
 export interface RunSyncOption {
     /**
