@@ -70,6 +70,9 @@ static int read_full(int fd, void *buf, duk_size_t buf_len)
     return 0;
 }
 
+/**
+ * ... string => throw
+ */
 static void fork_child_throw_os_sync(duk_context *ctx, int *chan, int err)
 {
     duk_size_t buf_len = 0;
@@ -80,7 +83,66 @@ static void fork_child_throw_os_sync(duk_context *ctx, int *chan, int err)
     close(chan[EJS_OS_EXEC_CHILD_READ]);
     chan[EJS_OS_EXEC_CHILD_READ] = -1;
 }
+static int fork_child_sync_dup2(duk_context *ctx, int *chan, int *pfd, int std)
+{
+    int fd = *pfd;
+    if (EJS_IS_INVALID_FD(fd))
+    {
+        fd = open("/dev/null", O_RDWR);
+        if (EJS_IS_INVALID_FD(fd))
+        {
+            int err = errno;
+            duk_push_sprintf(ctx, "open /dev/null failed: %s", strerror(err));
+            fork_child_throw_os_sync(ctx, chan, err);
+            return -1;
+        }
+    }
+    if (dup2(fd, std) == -1)
+    {
+        close(fd);
+        int err = errno;
+        switch (std)
+        {
+        case STDOUT_FILENO:
+            duk_push_sprintf(ctx, "dup2 STDOUT failed: %s", strerror(err));
+            break;
+        case STDERR_FILENO:
+            duk_push_sprintf(ctx, "dup2 STDERR failed: %s", strerror(err));
+        default:
+            duk_push_sprintf(ctx, "dup2 STDIN failed: %s", strerror(err));
+            break;
+        }
 
+        fork_child_throw_os_sync(ctx, chan, err);
+        return -1;
+    }
+    *pfd = fd;
+    return 0;
+}
+static int fork_child_sync_ignore(duk_context *ctx, int *chan, int std_in, int std_out, int std_err)
+{
+    int fd = -1;
+    if (EJS_OS_EXEC_REDIRECT_IGNORE == std_in &&
+        fork_child_sync_dup2(ctx, chan, &fd, STDIN_FILENO))
+    {
+        return -1;
+    }
+    if (EJS_OS_EXEC_REDIRECT_IGNORE == std_out &&
+        fork_child_sync_dup2(ctx, chan, &fd, STDOUT_FILENO))
+    {
+        return -1;
+    }
+    if (EJS_OS_EXEC_REDIRECT_IGNORE == std_err &&
+        fork_child_sync_dup2(ctx, chan, &fd, STDERR_FILENO))
+    {
+        return -1;
+    }
+    if (EJS_IS_VALID_FD(fd))
+    {
+        close(fd);
+    }
+    return 0;
+}
 /**
  * The child process prepares the environment and executes
  */
@@ -108,6 +170,28 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
             fork_child_throw_os_sync(ctx, chan, err);
             return 0;
         }
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, -1, "stdin", 5);
+    int std_in = 0;
+    if (!duk_is_null_or_undefined(ctx, -1))
+    {
+        std_in = duk_require_number(ctx, -1);
+    }
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, -1, "stdout", 6);
+    int std_out = 0;
+    if (!duk_is_null_or_undefined(ctx, -1))
+    {
+        std_out = duk_require_number(ctx, -1);
+    }
+    duk_pop(ctx);
+    duk_get_prop_lstring(ctx, -1, "stderr", 6);
+    int std_err = 0;
+    if (!duk_is_null_or_undefined(ctx, -1))
+    {
+        std_err = duk_require_number(ctx, -1);
     }
     duk_pop(ctx);
 
@@ -139,6 +223,12 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         }
     }
     duk_pop(ctx);
+
+    // stdin stdout stderr
+    if (fork_child_sync_ignore(ctx, chan, std_in, std_out, std_err))
+    {
+        return 0;
+    }
 
     duk_get_prop_lstring(ctx, 0, "args", 4);
     char **argv = 0;
@@ -207,10 +297,8 @@ static void fork_child_sync(
     duk_swap_top(ctx, -3);
     duk_swap_top(ctx, -2);
     duk_pcall(ctx, 2);
-    if (chan[EJS_OS_EXEC_CHILD_READ] != -1)
-    {
-        close(chan[EJS_OS_EXEC_CHILD_READ]);
-    }
+
+    EJS_RESET_FD(chan[EJS_OS_EXEC_CHILD_READ]);
     if (chan[EJS_OS_EXEC_CHILD_WRITE] != -1)
     {
         if (duk_is_type_error(ctx, -1))
@@ -409,7 +497,7 @@ static duk_ret_t run_sync(duk_context *ctx)
     int err = ejs_pcall_function_n(ctx, run_sync_impl, &chan, 2);
     for (int i = 0; i < 4; i++)
     {
-        if (chan[i] != -1)
+        if (EJS_IS_VALID_FD(chan[i]))
         {
             close(chan[i]);
         }
@@ -431,7 +519,9 @@ static duk_ret_t lookpath_sync(duk_context *ctx)
         return 1;
     }
     struct stat info;
-    if (!stat(name, &info) && S_ISREG(info.st_mode))
+    if (!stat(name, &info) &&
+        S_ISREG(info.st_mode) &&
+        (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
     {
         if (clean)
         {
@@ -465,7 +555,9 @@ static duk_ret_t lookpath_sync(duk_context *ctx)
                 memcpy(path + i + 1, name, name_len);
                 path[len] = 0;
 
-                if (!stat(path, &info) && S_ISREG(info.st_mode))
+                if (!stat(path, &info) &&
+                    S_ISREG(info.st_mode) &&
+                    (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
                 {
                     duk_push_lstring(ctx, path, len);
                     if (!ejs_filepath_is_abs(ctx, -1))

@@ -35,7 +35,14 @@
 #define EJS_IS_INVALID_FD(fd) ((fd) == -1)
 #define EJS_CLOSE_FD(fd) \
     if ((fd) != -1)      \
-    close(fd)
+    close((fd))
+#define EJS_RESET_FD(fd) \
+    if ((fd) != -1)      \
+    {                    \
+        close((fd));     \
+        (fd) = -1;       \
+    }
+
 #define EJS_IS_VALID_FD(fd) ((fd) != -1)
 #define EJS_SYSTEM_ERROR(code) (code == -1)
 
