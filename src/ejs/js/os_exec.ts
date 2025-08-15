@@ -42,7 +42,7 @@ export enum Redirect {
     pipe = 2,
 
     /**
-     * Only valid for sync's stdout/stderr, outputting string instead of Uint8Array
+     * The effect for stdin is the same as pipe, and for stdout/stderr, it uses strings instead of Uint8Array output.
      */
     text = 3,
 }

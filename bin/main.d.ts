@@ -5025,6 +5025,84 @@ declare module "ejs/os" {
     export function mkdirTemp(opts: MkdirTempOptions): Promise<string>
 }
 /**
+ * Execute subcommands
+ */
+declare module "ejs/os/exec" {
+    /**
+     * Defines how to handle stdin/stdout/stderr of subcommands
+     */
+    export enum Redirect {
+        /**
+         * Inherited from the parent process
+         */
+        inherit = 0,
+        /**
+         * Ignore input and output
+         */
+        ignore = 1,
+        /**
+         * Read and write progress in the parent process
+         */
+        pipe = 2,
+
+        /**
+         * The effect for stdin is the same as pipe, and for stdout/stderr, it uses strings instead of Uint8Array output.
+         */
+        text = 3,
+    }
+    export interface RunSyncOption {
+        /**
+         * Startup parameters
+         */
+        args?: Array<string>
+        /**
+         * Environment variables
+         */
+        env?: Record<string, any>
+        /**
+         * Work Path
+         */
+        workdir?: string
+
+        stdout?: Redirect
+        stderr?: Redirect
+        stdin?: Redirect
+        /**
+         * Automatically write to stdin after startup
+         */
+        write?: string | ejs.BufferData
+    }
+    export interface RunSyncResult {
+        /**
+         * Exit Code
+         */
+        exit: number
+        /**
+         * When started with stdout as 'pipe' or 'text', return stdout to this
+         */
+        stdout?: Uint8Array | string
+        /**
+         * When started with stderr as 'pipe' or 'text', return stdout to this
+         */
+        stderr?: Uint8Array | string
+    }
+    /**
+     * Run a child process and wait it exit
+     * @throws OsError
+     * @param name Program to start
+     * @param args Startup parameters
+     * @param workdir Work Path
+     */
+    export function runSync(name: string, args?: Array<string>, workdir?: string): ExitResult
+    /**
+     * Run a child process and wait it exit
+     * @throws OsError
+     * @param name Program to start
+     * @param opts Additional options
+     */
+    export function runSync(name: string, opts?: RunSyncOption): RunSyncResult
+}
+/**
  * URL processing module ported from golang standard library
  */
 declare module "ejs/net/url" {
