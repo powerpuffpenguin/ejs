@@ -235,6 +235,7 @@ static int read_full(int fd, void *buf, duk_size_t buf_len)
 typedef struct
 {
     int chan[4 + 2 * 3];
+    int epoll;
 
     pid_t pid;
 
@@ -704,24 +705,39 @@ static void fork_parent_put_prop_lstring(
         break;
     }
 }
-/**
- * Parent process code after fork
- */
-static void fork_parent_sync_impl(
+static void fork_parent_wait(
     duk_context *ctx,
     run_sync_t *args)
 {
-    // parent
-    close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
-    args->chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
-    close(args->chan[EJS_OS_EXEC_CHILD_READ]);
-    args->chan[EJS_OS_EXEC_CHILD_READ] = -1;
-
-    // wait child ready
-    uint8_t header[17];
-    fork_parent_read_sync(ctx, args->chan, header, 1);
-    close(args->chan[EJS_OS_EXEC_PARENT_WRITE]);
-    args->chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
+    // wait child exit
+    int status;
+    if (waitpid(args->pid, &status, 0) == -1)
+    {
+        int err = errno;
+        ejs_throw_os_format(ctx, err, "waitpid fail: %s", strerror(err));
+    }
+    args->pid = 0;
+    if (WIFEXITED(status))
+    {
+        // get exit code
+        int exit_code = WEXITSTATUS(status);
+        duk_push_object(ctx);
+        duk_push_int(ctx, exit_code);
+        duk_put_prop_lstring(ctx, -2, "exit", 4);
+        fork_parent_put_prop_lstring(ctx, args->stdout, &args->buffer_out, "stdout", 6);
+        fork_parent_put_prop_lstring(ctx, args->stderr, &args->buffer_err, "stderr", 6);
+    }
+    else
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "WIFEXITED fail");
+        duk_throw(ctx);
+    }
+}
+static void fork_parent_pipe_wait(
+    duk_context *ctx,
+    run_sync_t *args,
+    uint8_t *header)
+{
     // wait child start
     fork_parent_read_sync(ctx, args->chan, header, 0);
     close(args->chan[EJS_OS_EXEC_PARENT_READ]);
@@ -760,27 +776,56 @@ static void fork_parent_sync_impl(
         args->chan[EJS_OS_EXEC_STDERR_WRITE] = -1;
         fork_parent_read_sync_impl(ctx, args->chan[EJS_OS_EXEC_STDERR_READ], &args->buffer_err);
     }
+    // wait
+    fork_parent_wait(ctx, args);
+}
 
-    // wait child exit
-    int status;
-    if (waitpid(args->pid, &status, 0) == -1)
+static void fork_parent_epoll_wait(
+    duk_context *ctx,
+    run_sync_t *args,
+    uint8_t *header)
+{
+    // init epoll
+    struct epoll_event ev, events[3];
+    puts("epoll");
+    ev.events = EPOLLIN;
+    // wait child start
+    fork_parent_read_sync(ctx, args->chan, header, 0);
+    close(args->chan[EJS_OS_EXEC_PARENT_READ]);
+    args->chan[EJS_OS_EXEC_PARENT_READ] = -1;
+
+    // pipe
+
+    // wait
+    fork_parent_wait(ctx, args);
+}
+/**
+ * Parent process code after fork
+ */
+static void fork_parent_sync_impl(
+    duk_context *ctx,
+    run_sync_t *args)
+{
+    // parent
+    close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
+    args->chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+    close(args->chan[EJS_OS_EXEC_CHILD_READ]);
+    args->chan[EJS_OS_EXEC_CHILD_READ] = -1;
+
+    // wait child ready
+    uint8_t header[17];
+    fork_parent_read_sync(ctx, args->chan, header, 1);
+    close(args->chan[EJS_OS_EXEC_PARENT_WRITE]);
+    args->chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
+
+    // pipe
+    if (EJS_IS_VALID_FD(args->epoll))
     {
-        ejs_throw_os_errno(ctx);
-    }
-    args->pid = 0;
-    if (WIFEXITED(status))
-    {
-        // get exit code
-        int exit_code = WEXITSTATUS(status);
-        duk_push_object(ctx);
-        duk_push_int(ctx, exit_code);
-        duk_put_prop_lstring(ctx, -2, "exit", 4);
-        fork_parent_put_prop_lstring(ctx, args->stdout, &args->buffer_out, "stdout", 6);
-        fork_parent_put_prop_lstring(ctx, args->stderr, &args->buffer_err, "stderr", 6);
+        fork_parent_epoll_wait(ctx, args, header);
     }
     else
     {
-        ejs_throw_os_errno(ctx);
+        fork_parent_pipe_wait(ctx, args, header);
     }
 }
 static void pipe_sync(duk_context *ctx, run_sync_t *args, int read)
@@ -834,6 +879,7 @@ static void pipe_sync(duk_context *ctx, run_sync_t *args, int read)
         }
     }
 }
+
 static duk_ret_t run_sync_impl(duk_context *ctx)
 {
     run_sync_t *args = duk_require_pointer(ctx, -1);
@@ -853,6 +899,29 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
     pipe_sync(ctx, args, EJS_OS_EXEC_CHILD_READ);
     pipe_sync(ctx, args, EJS_OS_EXEC_PARENT_READ);
 
+    int pipe_count = 0;
+    if (EJS_OS_EXEC_IS_PIPE(args->stdout))
+    {
+        pipe_sync(ctx, args, EJS_OS_EXEC_STDOUT_READ);
+        args->buffer_out.str = malloc(1024 + 1);
+        if (!args->buffer_out.str)
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        args->buffer_out.cap = 1024;
+        ++pipe_count;
+    }
+    if (EJS_OS_EXEC_IS_PIPE(args->stderr))
+    {
+        pipe_sync(ctx, args, EJS_OS_EXEC_STDERR_READ);
+        args->buffer_err.str = malloc(1024 + 1);
+        if (!args->buffer_err.str)
+        {
+            ejs_throw_os_errno(ctx);
+        }
+        args->buffer_err.cap = 1024;
+        ++pipe_count;
+    }
     if (EJS_OS_EXEC_IS_PIPE(args->stdin))
     {
         duk_get_prop_lstring(ctx, 0, "write", 5);
@@ -861,51 +930,13 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
         args->buffer_in.len = len;
         duk_pop(ctx);
 
-        if (EJS_OS_EXEC_IS_PIPE(args->stdout))
-        {
-            if (EJS_OS_EXEC_IS_PIPE(args->stderr))
-            {
-            }
-        }
-        else if (EJS_OS_EXEC_IS_PIPE(args->stderr))
-        {
-        }
-        else
-        {
-            // only stdin
-            pipe_sync(ctx, args, EJS_OS_EXEC_STDIN_READ);
-        }
-    }
-
-    else if (EJS_OS_EXEC_IS_PIPE(args->stdout))
-    {
-        if (EJS_OS_EXEC_IS_PIPE(args->stderr))
-        {
-        }
-        else
-        {
-            // only stdout
-            pipe_sync(ctx, args, EJS_OS_EXEC_STDOUT_READ);
-            args->buffer_out.str = malloc(1024 + 1);
-            if (!args->buffer_out.str)
-            {
-                ejs_throw_os_errno(ctx);
-            }
-            args->buffer_out.cap = 1024;
-        }
-    }
-    else if (EJS_OS_EXEC_IS_PIPE(args->stderr))
-    {
-        // only stderr
-        pipe_sync(ctx, args, EJS_OS_EXEC_STDERR_READ);
-        args->buffer_err.str = malloc(1024 + 1);
-        if (!args->buffer_err.str)
+        pipe_sync(ctx, args, EJS_OS_EXEC_STDIN_READ);
+        ++pipe_count;
+        if (pipe_count > 1 && fcntl(args->chan[EJS_OS_EXEC_STDIN_WRITE], F_SETFL, O_NONBLOCK) == -1)
         {
             ejs_throw_os_errno(ctx);
         }
-        args->buffer_err.cap = 1024;
     }
-
     pid_t pid = fork();
     if (pid < 0)
     {
@@ -920,6 +951,20 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
     else
     {
         args->pid = pid;
+
+        if (pipe_count > 1)
+        {
+#ifdef EPOLL_CLOEXEC
+            args->epoll = epoll_create1(0);
+#else
+            args->epoll = epoll_create(pipe_count);
+#endif
+            if (EJS_IS_INVALID_FD(args->epoll))
+            {
+                int err = errno;
+                ejs_throw_os_format(ctx, err, "create epoll fail: %s", strerror(err));
+            }
+        }
         fork_parent_sync_impl(ctx, args);
     }
     return 1;
@@ -932,6 +977,7 @@ static duk_ret_t run_sync(duk_context *ctx)
     {
         args.chan[i] = -1;
     }
+    args.epoll = -1;
     args.buffer_in.len = 0;
     args.buffer_in.str = 0;
     args.buffer_out.cap = args.buffer_out.len = 0;
@@ -946,6 +992,10 @@ static duk_ret_t run_sync(duk_context *ctx)
     else if (err && args.pid)
     {
         kill(args.pid, SIGKILL);
+    }
+    if (EJS_IS_VALID_FD(args.epoll))
+    {
+        close(args.epoll);
     }
     for (int i = 0; i < n; i++)
     {
@@ -991,6 +1041,7 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
         duk_push_c_lightfunc(ctx, run_sync, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "run_sync", 8);
     }
+
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
      */

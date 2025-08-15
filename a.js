@@ -16,7 +16,7 @@ var exec = require("ejs/os/exec")
 console.log(exec.runSync('node', {
     // args: ['nodejs', '-l'],
     stdin: 2,
-    // stdout: 3,
+    stdout: 3,
     // stderr: 3,
     write: "console.log(123);\nconsole.log(1+2)"
 }))
