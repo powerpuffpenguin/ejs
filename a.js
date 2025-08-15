@@ -28,7 +28,7 @@ console.log(exec.runSync('ls', {
         "KO": 123,
         "XX": true,
     },
-    stdout: 1,
+    stdout: 2,
     workdir: '/home/',
     write: "console.log(123)\n"
 }))

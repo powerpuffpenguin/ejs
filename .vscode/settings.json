@@ -115,6 +115,7 @@
         "encoding_binary.h": "c",
         "hash.h": "c",
         "crypto.h": "c",
-        "os_exec.h": "c"
+        "os_exec.h": "c",
+        "modules_init.h": "c"
     }
 }

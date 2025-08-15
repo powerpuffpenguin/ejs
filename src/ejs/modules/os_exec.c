@@ -1,4 +1,7 @@
 #include "modules_shared.h"
+
+#ifdef EJS_OS_WINDOWS
+#else
 #include "../js/os_exec.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +29,73 @@
 #define EJS_OS_EXEC_FORK_OS 3
 
 extern char **environ;
+static duk_ret_t lookpath_sync(duk_context *ctx)
+{
+    duk_bool_t clean = duk_require_boolean(ctx, 0);
+    const uint8_t *name = duk_require_string(ctx, 1);
+    if (ejs_filepath_is_abs(ctx, -1))
+    {
+        return 1;
+    }
+    struct stat info;
+    if (!stat(name, &info) &&
+        S_ISREG(info.st_mode) &&
+        (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+    {
+        if (clean)
+        {
+            ejs_filepath_abs(ctx, -1);
+        }
+        return 1;
+    }
+
+    uint8_t *s = getenv("PATH");
+    uint8_t path[MAXPATHLEN] = {0};
+    duk_size_t len;
+    duk_size_t i;
+    duk_size_t name_len;
+    duk_require_lstring(ctx, -1, &name_len);
+    while (s[0])
+    {
+#ifdef EJS_OS_WINDOWS
+        for (i = 0; s[i] && s[i] != ';'; i++)
+#else
+        for (i = 0; s[i] && s[i] != ':'; i++)
+#endif
+        {
+        }
+        if (i != 0)
+        {
+            len = i + 1 + name_len;
+            if (len < MAXPATHLEN)
+            {
+                memcpy(path, s, i);
+                path[i] = PPP_FILEPATH_SEPARATOR;
+                memcpy(path + i + 1, name, name_len);
+                path[len] = 0;
+
+                if (!stat(path, &info) &&
+                    S_ISREG(info.st_mode) &&
+                    (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+                {
+                    duk_push_lstring(ctx, path, len);
+                    if (!ejs_filepath_is_abs(ctx, -1))
+                    {
+                        ejs_filepath_abs(ctx, -1);
+                    }
+                    return 1;
+                }
+            }
+        }
+        if (!s[i])
+        {
+            break;
+        }
+        s += i + 1;
+    }
+    ejs_throw_os_format(ctx, ENOENT, "%s: %s", strerror(ENOENT), name);
+    return 1;
+}
 
 static duk_bool_t send_all(int fd, const void *buf, duk_size_t buf_len)
 {
@@ -69,6 +139,12 @@ static int read_full(int fd, void *buf, duk_size_t buf_len)
     }
     return 0;
 }
+
+typedef struct
+{
+    int chan[4];
+    duk_bool_t is_child;
+} run_sync_t;
 
 /**
  * ... string => throw
@@ -148,7 +224,7 @@ static int fork_child_sync_ignore(duk_context *ctx, int *chan, int std_in, int s
  */
 static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 {
-    int *chan = duk_require_pointer(ctx, -1);
+    run_sync_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "path", 4);
@@ -167,7 +243,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         {
             int err = errno;
             duk_push_sprintf(ctx, "%s: %s", strerror(err), workdir);
-            fork_child_throw_os_sync(ctx, chan, err);
+            fork_child_throw_os_sync(ctx, args->chan, err);
             return 0;
         }
     }
@@ -217,7 +293,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
             {
                 int err = errno;
                 duk_push_sprintf(ctx, "%s: %s=%s\n", strerror(err), key, value);
-                fork_child_throw_os_sync(ctx, chan, err);
+                fork_child_throw_os_sync(ctx, args->chan, err);
                 return 0;
             }
         }
@@ -225,7 +301,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
     duk_pop(ctx);
 
     // stdin stdout stderr
-    if (fork_child_sync_ignore(ctx, chan, std_in, std_out, std_err))
+    if (fork_child_sync_ignore(ctx, args->chan, std_in, std_out, std_err))
     {
         return 0;
     }
@@ -242,7 +318,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
             {
                 int err = errno;
                 duk_push_string(ctx, strerror(err));
-                fork_child_throw_os_sync(ctx, chan, err);
+                fork_child_throw_os_sync(ctx, args->chan, err);
                 return 0;
             }
             argv[0] = name;
@@ -259,13 +335,13 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 
     // Notify the parent process that it is ready
     uint8_t header[17] = {0};
-    send_all(chan[EJS_OS_EXEC_CHILD_WRITE], header, sizeof(header));
-    // close(chan[EJS_OS_EXEC_CHILD_WRITE]);
-    // chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+    send_all(args->chan[EJS_OS_EXEC_CHILD_WRITE], header, sizeof(header));
+    // close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
+    // args->chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
 
-    read_full(chan[EJS_OS_EXEC_CHILD_READ], header, sizeof(header));
-    close(chan[EJS_OS_EXEC_CHILD_READ]);
-    chan[EJS_OS_EXEC_CHILD_READ] = -1;
+    read_full(args->chan[EJS_OS_EXEC_CHILD_READ], header, sizeof(header));
+    close(args->chan[EJS_OS_EXEC_CHILD_READ]);
+    args->chan[EJS_OS_EXEC_CHILD_READ] = -1;
 
     if (argv)
     {
@@ -279,7 +355,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 
     int err = errno;
     duk_push_sprintf(ctx, "%s: %s", strerror(err), path);
-    fork_child_throw_os_sync(ctx, chan, err);
+    fork_child_throw_os_sync(ctx, args->chan, err);
     return 0;
 }
 /**
@@ -287,10 +363,10 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
  */
 static void fork_child_sync(
     duk_context *ctx,
-    pid_t pid, int *chan)
+    pid_t pid, run_sync_t *args)
 {
-    close(chan[EJS_OS_EXEC_PARENT_WRITE]);
-    close(chan[EJS_OS_EXEC_PARENT_READ]);
+    close(args->chan[EJS_OS_EXEC_PARENT_WRITE]);
+    close(args->chan[EJS_OS_EXEC_PARENT_READ]);
 
     // child
     duk_push_c_lightfunc(ctx, fork_child_sync_impl, 2, 2, 0);
@@ -298,28 +374,28 @@ static void fork_child_sync(
     duk_swap_top(ctx, -2);
     duk_pcall(ctx, 2);
 
-    EJS_RESET_FD(chan[EJS_OS_EXEC_CHILD_READ]);
-    if (chan[EJS_OS_EXEC_CHILD_WRITE] != -1)
+    EJS_RESET_FD(args->chan[EJS_OS_EXEC_CHILD_READ]);
+    if (args->chan[EJS_OS_EXEC_CHILD_WRITE] != -1)
     {
         if (duk_is_type_error(ctx, -1))
         {
             duk_get_prop_lstring(ctx, -1, "message", 7);
             duk_size_t s_len;
             const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
-            send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_TYPE, 0, s, s_len);
+            send_message(args->chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_TYPE, 0, s, s_len);
         }
         else if (duk_is_error(ctx, -1))
         {
             duk_get_prop_lstring(ctx, -1, "message", 7);
             duk_size_t s_len;
             const uint8_t *s = duk_require_lstring(ctx, -1, &s_len);
-            send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, s, s_len);
+            send_message(args->chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, s, s_len);
         }
         else
         {
-            send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, "unknow error", 12);
+            send_message(args->chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_ERR, 0, "unknow error", 12);
         }
-        close(chan[EJS_OS_EXEC_CHILD_WRITE]);
+        close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
     }
 }
 
@@ -406,23 +482,23 @@ static void fork_parent_read_sync(
  */
 static void fork_parent_sync_impl(
     duk_context *ctx,
-    pid_t pid, int *chan)
+    pid_t pid, run_sync_t *args)
 {
     // parent
-    close(chan[EJS_OS_EXEC_CHILD_WRITE]);
-    chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
-    close(chan[EJS_OS_EXEC_CHILD_READ]);
-    chan[EJS_OS_EXEC_CHILD_READ] = -1;
+    close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
+    args->chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+    close(args->chan[EJS_OS_EXEC_CHILD_READ]);
+    args->chan[EJS_OS_EXEC_CHILD_READ] = -1;
 
     // wait child ready
     uint8_t header[17];
-    fork_parent_read_sync(ctx, pid, chan, header, 1);
-    close(chan[EJS_OS_EXEC_PARENT_WRITE]);
-    chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
+    fork_parent_read_sync(ctx, pid, args->chan, header, 1);
+    close(args->chan[EJS_OS_EXEC_PARENT_WRITE]);
+    args->chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
     // wait child start
-    fork_parent_read_sync(ctx, pid, chan, header, 0);
-    close(chan[EJS_OS_EXEC_PARENT_READ]);
-    chan[EJS_OS_EXEC_PARENT_READ] = -1;
+    fork_parent_read_sync(ctx, pid, args->chan, header, 0);
+    close(args->chan[EJS_OS_EXEC_PARENT_READ]);
+    args->chan[EJS_OS_EXEC_PARENT_READ] = -1;
 
     // wait child exit
     int status;
@@ -445,32 +521,32 @@ static void fork_parent_sync_impl(
 }
 static duk_ret_t run_sync_impl(duk_context *ctx)
 {
-    int *chan = duk_require_pointer(ctx, -1);
-    if (pipe(chan) == -1)
+    run_sync_t *args = duk_require_pointer(ctx, -1);
+    if (pipe(args->chan) == -1)
     {
-        chan[0] = -1;
-        chan[1] = -1;
+        args->chan[0] = -1;
+        args->chan[1] = -1;
         ejs_throw_os_errno(ctx);
     }
-    if (fcntl(chan[0], F_SETFD, fcntl(chan[0], F_GETFD) | FD_CLOEXEC) == -1)
-    {
-        ejs_throw_os_errno(ctx);
-    }
-    if (fcntl(chan[1], F_SETFD, fcntl(chan[1], F_GETFD) | FD_CLOEXEC) == -1)
+    if (fcntl(args->chan[0], F_SETFD, fcntl(args->chan[0], F_GETFD) | FD_CLOEXEC) == -1)
     {
         ejs_throw_os_errno(ctx);
     }
-    if (pipe(chan + 2) == -1)
-    {
-        chan[2] = -1;
-        chan[3] = -1;
-        ejs_throw_os_errno(ctx);
-    }
-    if (fcntl(chan[2], F_SETFD, fcntl(chan[2], F_GETFD) | FD_CLOEXEC) == -1)
+    if (fcntl(args->chan[1], F_SETFD, fcntl(args->chan[1], F_GETFD) | FD_CLOEXEC) == -1)
     {
         ejs_throw_os_errno(ctx);
     }
-    if (fcntl(chan[3], F_SETFD, fcntl(chan[3], F_GETFD) | FD_CLOEXEC) == -1)
+    if (pipe(args->chan + 2) == -1)
+    {
+        args->chan[2] = -1;
+        args->chan[3] = -1;
+        ejs_throw_os_errno(ctx);
+    }
+    if (fcntl(args->chan[2], F_SETFD, fcntl(args->chan[2], F_GETFD) | FD_CLOEXEC) == -1)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    if (fcntl(args->chan[3], F_SETFD, fcntl(args->chan[3], F_GETFD) | FD_CLOEXEC) == -1)
     {
         ejs_throw_os_errno(ctx);
     }
@@ -482,24 +558,33 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
     }
     else if (pid == 0)
     {
-        fork_child_sync(ctx, pid, chan);
+        args->is_child = 1;
+        fork_child_sync(ctx, pid, args);
         exit(EXIT_FAILURE);
     }
     else
     {
-        fork_parent_sync_impl(ctx, pid, chan);
+        fork_parent_sync_impl(ctx, pid, args);
     }
     return 1;
 }
 static duk_ret_t run_sync(duk_context *ctx)
 {
-    int chan[4] = {-1, -1, -1, -1};
-    int err = ejs_pcall_function_n(ctx, run_sync_impl, &chan, 2);
+    run_sync_t args = {0};
     for (int i = 0; i < 4; i++)
     {
-        if (EJS_IS_VALID_FD(chan[i]))
+        args.chan[i] = -1;
+    }
+    int err = ejs_pcall_function_n(ctx, run_sync_impl, &args, 2);
+    if (args.is_child)
+    {
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < 4; i++)
+    {
+        if (EJS_IS_VALID_FD(args.chan[i]))
         {
-            close(chan[i]);
+            close(args.chan[i]);
         }
     }
 
@@ -510,73 +595,6 @@ static duk_ret_t run_sync(duk_context *ctx)
     return 1;
 }
 
-static duk_ret_t lookpath_sync(duk_context *ctx)
-{
-    duk_bool_t clean = duk_require_boolean(ctx, 0);
-    const uint8_t *name = duk_require_string(ctx, 1);
-    if (ejs_filepath_is_abs(ctx, -1))
-    {
-        return 1;
-    }
-    struct stat info;
-    if (!stat(name, &info) &&
-        S_ISREG(info.st_mode) &&
-        (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
-    {
-        if (clean)
-        {
-            ejs_filepath_abs(ctx, -1);
-        }
-        return 1;
-    }
-
-    uint8_t *s = getenv("PATH");
-    uint8_t path[MAXPATHLEN] = {0};
-    duk_size_t len;
-    duk_size_t i;
-    duk_size_t name_len;
-    duk_require_lstring(ctx, -1, &name_len);
-    while (s[0])
-    {
-#ifdef EJS_OS_WINDOWS
-        for (i = 0; s[i] && s[i] != ';'; i++)
-#else
-        for (i = 0; s[i] && s[i] != ':'; i++)
-#endif
-        {
-        }
-        if (i != 0)
-        {
-            len = i + 1 + name_len;
-            if (len < MAXPATHLEN)
-            {
-                memcpy(path, s, i);
-                path[i] = PPP_FILEPATH_SEPARATOR;
-                memcpy(path + i + 1, name, name_len);
-                path[len] = 0;
-
-                if (!stat(path, &info) &&
-                    S_ISREG(info.st_mode) &&
-                    (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
-                {
-                    duk_push_lstring(ctx, path, len);
-                    if (!ejs_filepath_is_abs(ctx, -1))
-                    {
-                        ejs_filepath_abs(ctx, -1);
-                    }
-                    return 1;
-                }
-            }
-        }
-        if (!s[i])
-        {
-            break;
-        }
-        s += i + 1;
-    }
-    ejs_throw_os_format(ctx, ENOENT, "%s: %s", strerror(ENOENT), name);
-    return 1;
-}
 EJS_SHARED_MODULE__DECLARE(os_exec)
 {
     /*
@@ -604,3 +622,4 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
     duk_call(ctx, 3);
     return 0;
 }
+#endif
