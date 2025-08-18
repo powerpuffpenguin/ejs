@@ -13,22 +13,21 @@
 // var hash = require("ejs/hash")
 // var crypto = require("ejs/crypto")
 var exec = require("ejs/os/exec")
-console.log(exec.runSync('node', {
-    // args: ['nodejs', '-l'],
-    stdin: 2,
-    stdout: 3,
-    // stderr: 3,
-    write: "console.log(123);\nconsole.log(1+2)"
-}))
-// console.log(exec.runSync('ls', {
-//     args: ['/home/king/project/cc/ejs/b.js', '-l'],
-//     env: {
-//         "KO": 123,
-//         "XX": true,
-//     },
+// console.log(exec.runSync('node', {
+//     // args: ['nodejs', '-l'],
 //     stdin: 2,
-//     // stdout: 3,
+//     stdout: 3,
 //     // stderr: 3,
-//     workdir: '/home/',
-//     write: "console.log(123)\n"
+//     write: "console.log(123);\nconsole.log(1+2)"
 // }))
+console.log(exec.runSync('./build/linux/x86_64/release/ejs', {
+    args: ['/home/king/project/cc/ejs/b.js', '-l'],
+    env: {
+        "KO": '123',
+    },
+    // stdin: 2,
+    // stdout: 3,
+    // stderr: 3,
+    workdir: '/home/',
+    // write: "console.log(123)\n"
+}))

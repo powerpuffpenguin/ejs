@@ -82,12 +82,17 @@ export interface RunSyncResult {
      */
     stderr?: Uint8Array
 }
-function envstring(keys: Record<string, any>): Array<Array<string>> | undefined {
+function envstring(keys: Record<string, string>): Array<Array<string>> | undefined {
     const arrs = new Array<Array<string>>()
     for (const key in keys) {
         if (Object.prototype.hasOwnProperty.call(keys, key)) {
             const val = keys[key]
-            arrs.push([key, `${val}`])
+            const t = typeof val
+            if (t === "string") {
+                arrs.push([key, val])
+            } else {
+                throw new Error(`env value muse be string: typeof env[${key}] === ${t}`);
+            }
         }
     }
     return arrs.length ? arrs : undefined
@@ -99,23 +104,9 @@ function envstring(keys: Record<string, any>): Array<Array<string>> | undefined 
  * @param name Program to start
  * @param opts Additional options
  */
-export function runSync(name: string, opts?: RunSyncOption): RunSyncResult
-/**
- * Run a child process and wait it exit
- * @throws OsError
- * @param name Program to start
- * @param args Startup parameters
- * @param workdir Work Path
- */
-export function runSync(name: string, args?: Array<string>, workdir?: string): RunSyncResult
-export function runSync(name: string, opts?: RunSyncOption | Array<string>, workdir?: string): RunSyncResult {
+export function runSync(name: string, opts?: RunSyncOption): RunSyncResult {
     if (opts) {
-        return Array.isArray(opts) ? deps.run_sync({
-            path: deps.lookpath_sync((workdir && typeof workdir === "string") ? true : false, name),
-            name: name,
-            args: opts,
-            workdir: workdir,
-        }) : deps.run_sync({
+        return deps.run_sync({
             path: deps.lookpath_sync((opts.workdir && typeof opts.workdir === "string") ? true : false, name),
             name: name,
             args: opts.args,

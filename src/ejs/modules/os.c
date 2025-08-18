@@ -985,7 +985,7 @@ static void f_writeFile_async_impl(void *userdata)
 
 static duk_ret_t f_writeFile(duk_context *ctx)
 {
-    ejs_dump_context_stdout(ctx);
+    // ejs_dump_context_stdout(ctx);
     f_writeFile_async_args_t opts;
     duk_get_prop_lstring(ctx, 0, "name", 4);
     opts.name = duk_require_string(ctx, -1);

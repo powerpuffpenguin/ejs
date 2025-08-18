@@ -5050,7 +5050,7 @@ declare module "ejs/os/exec" {
          */
         text = 3,
     }
-    export interface RunSyncOption {
+    export interface RunSyncOption<O extends Redirect, E extends Redirect> {
         /**
          * Startup parameters
          */
@@ -5058,21 +5058,21 @@ declare module "ejs/os/exec" {
         /**
          * Environment variables
          */
-        env?: Record<string, any>
+        env?: Record<string, string>
         /**
          * Work Path
          */
         workdir?: string
 
-        stdout?: Redirect
-        stderr?: Redirect
+        stdout?: O
+        stderr?: E
         stdin?: Redirect
         /**
          * Automatically write to stdin after startup
          */
         write?: string | ejs.BufferData
     }
-    export interface RunSyncResult {
+    export interface RunSyncResult<O extends Redirect, E extends Redirect> {
         /**
          * Exit Code
          */
@@ -5080,27 +5080,19 @@ declare module "ejs/os/exec" {
         /**
          * When started with stdout as 'pipe' or 'text', return stdout to this
          */
-        stdout?: Uint8Array | string
+        stdout: O extends Redirect.pipe ? Uint8Array : O extends Redirect.text ? string : undefined;
         /**
          * When started with stderr as 'pipe' or 'text', return stdout to this
          */
-        stderr?: Uint8Array | string
+        stderr: E extends Redirect.pipe ? Uint8Array : E extends Redirect.text ? string : undefined;
     }
-    /**
-     * Run a child process and wait it exit
-     * @throws OsError
-     * @param name Program to start
-     * @param args Startup parameters
-     * @param workdir Work Path
-     */
-    export function runSync(name: string, args?: Array<string>, workdir?: string): ExitResult
     /**
      * Run a child process and wait it exit
      * @throws OsError
      * @param name Program to start
      * @param opts Additional options
      */
-    export function runSync(name: string, opts?: RunSyncOption): RunSyncResult
+    export function runSync<O extends Redirect, E extends Redirect>(name: string, opts?: RunSyncOption<O, E>): RunSyncResult<O, E>
 }
 /**
  * URL processing module ported from golang standard library

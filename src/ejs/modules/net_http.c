@@ -1431,7 +1431,7 @@ static duk_ret_t on_http_client_close_impl(duk_context *ctx)
         return 0;
     }
     duk_get_prop_lstring(ctx, -1, "wsc", 3);
-    ejs_dump_context_stdout(ctx);
+    // ejs_dump_context_stdout(ctx);
     if (!duk_is_undefined(ctx, -1))
     {
         duk_call(ctx, 0);
