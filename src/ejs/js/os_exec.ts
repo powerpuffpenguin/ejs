@@ -1,6 +1,5 @@
 declare namespace deps {
-    interface RunOption {
-        path: string
+    interface RunSyncOption {
         name: string
         /**
          * Startup parameters
@@ -23,10 +22,32 @@ declare namespace deps {
          */
         write?: string | Uint8Array
     }
-    function lookpath_sync(clean: boolean, name: string): string
-    function run_sync(opts: RunOption): any
-}
+    function run_sync(opts: RunSyncOption): any
+    interface RunOption {
+        name: string
+        /**
+         * Startup parameters
+         */
+        args?: Array<string>
+        /**
+         * Environment variables
+         */
+        env?: Array<Array<string>>
+        /**
+         * Work Path
+         */
+        workdir?: string
 
+        stdout?: Redirect
+        stderr?: Redirect
+        stdin?: Redirect
+    }
+    class Command {
+
+    }
+    function run(opts: RunOption, cb: (cmd?: Command, err?: any) => void): void
+}
+import { parseArgs, parseOptionalArgs, callReturn, callVoid } from "ejs/sync";
 export enum Redirect {
     /**
      * Inherited from the parent process
@@ -107,7 +128,6 @@ function envstring(keys: Record<string, string>): Array<Array<string>> | undefin
 export function runSync(name: string, opts?: RunSyncOption): RunSyncResult {
     if (opts) {
         return deps.run_sync({
-            path: deps.lookpath_sync((opts.workdir && typeof opts.workdir === "string") ? true : false, name),
             name: name,
             args: opts.args,
             env: opts.env ? envstring(opts.env) : undefined,
@@ -121,7 +141,65 @@ export function runSync(name: string, opts?: RunSyncOption): RunSyncResult {
         })
     }
     return deps.run_sync({
-        path: deps.lookpath_sync(false, name),
         name: name,
     })
+}
+export interface RunOption {
+    /**
+     * Startup parameters
+     */
+    args?: Array<string>
+    /**
+     * Environment variables
+     */
+    env?: Record<string, any>
+    /**
+     * Work Path
+     */
+    workdir?: string
+
+    stdout?: Redirect
+    stderr?: Redirect
+    stdin?: Redirect
+}
+export class Command {
+    static run_impl(opts: deps.RunOption, cb: (cmd?: Command, err?: any) => void) {
+        deps.run(opts, (raw, err) => {
+            if (raw) {
+                let c: Command
+                try {
+                    c = new Command(raw)
+                } catch (e) {
+                    cb(undefined, e)
+                    return
+                }
+                cb(c)
+            } else {
+                cb(undefined, err)
+            }
+        })
+    }
+    private constructor(cmd: deps.Command) {
+        this.cmd_ = cmd
+    }
+    private cmd_: deps.Command
+}
+
+export function run(name: string, a: any, b: any) {
+    const args = parseOptionalArgs<RunOption, (cmd?: deps.Command, e?: any) => void>('run', a, b)
+    const opts = args.opts
+    const o: deps.RunOption = opts ? {
+        name: name,
+        args: opts.args,
+        env: opts.env ? envstring(opts.env) : undefined,
+        workdir: opts.workdir,
+
+        stdout: opts.stdout,
+        stderr: opts.stderr,
+        stdin: opts.stdin,
+    } : {
+        name: name,
+    }
+    args.opts = o as any
+    return callReturn(Command.run_impl, args as any)
 }

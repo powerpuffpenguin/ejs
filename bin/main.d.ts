@@ -5093,6 +5093,8 @@ declare module "ejs/os/exec" {
      * @param opts Additional options
      */
     export function runSync<O extends Redirect, E extends Redirect>(name: string, opts?: RunSyncOption<O, E>): RunSyncResult<O, E>
+
+
 }
 /**
  * URL processing module ported from golang standard library

@@ -117,6 +117,7 @@
         "crypto.h": "c",
         "os_exec.h": "c",
         "modules_init.h": "c",
-        "cerrno": "c"
+        "cerrno": "c",
+        "net.h": "c"
     }
 }

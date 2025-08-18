@@ -14,6 +14,8 @@
 #include "../binary.h"
 #include "../internal/c_string.h"
 #include <sys/stat.h>
+#include <event2/bufferevent.h>
+#include <event2/buffer.h>
 
 #define EJS_OS_EXEC_REDIRECT_IGNORE 1
 #define EJS_OS_EXEC_REDIRECT_PIPE 2
@@ -38,32 +40,27 @@
 #define EJS_OS_EXEC_FORK_OS 3
 
 extern char **environ;
-static duk_ret_t lookpath_sync(duk_context *ctx)
+static int lookpath(ppp_c_string_t *filepath, duk_bool_t clean)
 {
-    duk_bool_t clean = duk_require_boolean(ctx, 0);
-    const uint8_t *name = duk_require_string(ctx, 1);
-    if (ejs_filepath_is_abs(ctx, -1))
+    if (ppp_c_filepath_is_abs(filepath))
     {
-        return 1;
+        return 0;
     }
     struct stat info;
-    if (!stat(name, &info) &&
+    if (!stat(filepath->str, &info) &&
         S_ISREG(info.st_mode) &&
         (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
     {
-        if (clean)
+        if (clean && ppp_c_filepath_clean(filepath))
         {
-            ejs_filepath_abs(ctx, -1);
         }
-        return 1;
+        return 0;
     }
-
     uint8_t *s = getenv("PATH");
-    uint8_t path[MAXPATHLEN] = {0};
     duk_size_t len;
     duk_size_t i;
-    duk_size_t name_len;
-    duk_require_lstring(ctx, -1, &name_len);
+    duk_size_t name_len = filepath->len;
+    const uint8_t *name = filepath->str;
     while (s[0])
     {
 #ifdef EJS_OS_WINDOWS
@@ -76,24 +73,27 @@ static duk_ret_t lookpath_sync(duk_context *ctx)
         if (i != 0)
         {
             len = i + 1 + name_len;
-            if (len < MAXPATHLEN)
+            filepath->len = 0;
+            if (ppp_c_string_grow(filepath, len) ||
+                ppp_c_string_append(filepath, s, i) ||
+                ppp_c_string_append_char(filepath, PPP_FILEPATH_SEPARATOR) ||
+                ppp_c_string_append(filepath, name, name_len))
             {
-                memcpy(path, s, i);
-                path[i] = PPP_FILEPATH_SEPARATOR;
-                memcpy(path + i + 1, name, name_len);
-                path[len] = 0;
-
-                if (!stat(path, &info) &&
-                    S_ISREG(info.st_mode) &&
-                    (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+                return -1;
+            }
+            filepath->str[len] = 0;
+            if (!stat(filepath->str, &info) &&
+                S_ISREG(info.st_mode) &&
+                (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+            {
+                if (!ppp_c_filepath_is_abs(filepath))
                 {
-                    duk_push_lstring(ctx, path, len);
-                    if (!ejs_filepath_is_abs(ctx, -1))
+                    if (clean && ppp_c_filepath_clean(filepath))
                     {
-                        ejs_filepath_abs(ctx, -1);
+                        return -1;
                     }
-                    return 1;
                 }
+                return 0;
             }
         }
         if (!s[i])
@@ -102,8 +102,8 @@ static duk_ret_t lookpath_sync(duk_context *ctx)
         }
         s += i + 1;
     }
-    ejs_throw_os_format(ctx, ENOENT, "%s: %s", strerror(ENOENT), name);
-    return 1;
+    errno = ENOENT;
+    return -1;
 }
 
 static duk_bool_t send_all(int fd, const void *buf, duk_size_t buf_len)
@@ -133,89 +133,38 @@ static int send_message(int fd, uint8_t t, int err, const void *buf, duk_size_t 
     }
     return send_all(fd, buf, buf_len);
 }
-static int send_message_two(int fd, uint8_t t, int err,
-                            const void *one, duk_size_t one_len,
-                            const void *two, duk_size_t two_len)
+static int send_message_n(int fd, uint8_t t, int err,
+                          ppp_c_fast_string_t *buf, int buf_count)
 {
     char b[1 + 8 + 8];
     b[0] = t;
-    uint64_t len = one_len;
-    len += two_len;
+    uint64_t len = 0;
+    for (int i = 0; i < buf_count; i++)
+    {
+        if (buf[i].str && !buf[i].len)
+        {
+            buf[i].len = strlen(buf[i].str);
+        }
+        len += buf[i].len;
+    }
 
     ejs_get_binary()->little.put_uint64(b + 1, (uint64_t)err);
     ejs_get_binary()->little.put_uint64(b + 1 + 8, (uint64_t)len);
+
     if (send_all(fd, b, 1 + 8 + 8))
     {
         return -1;
     }
-    if (send_all(fd, one, one_len))
+    for (int i = 0; i < buf_count; i++)
     {
-        return -1;
+        if (send_all(fd, buf[i].str, buf[i].len))
+        {
+            return -1;
+        }
     }
-    return send_all(fd, two, two_len);
+    return 0;
 }
-static int send_message_three(int fd, uint8_t t, int err,
-                              const void *one, duk_size_t one_len,
-                              const void *two, duk_size_t two_len,
-                              const void *three, duk_size_t three_len)
-{
-    char b[1 + 8 + 8];
-    b[0] = t;
-    uint64_t len = one_len;
-    len += two_len + three_len;
 
-    ejs_get_binary()->little.put_uint64(b + 1, (uint64_t)err);
-    ejs_get_binary()->little.put_uint64(b + 1 + 8, (uint64_t)len);
-    if (send_all(fd, b, 1 + 8 + 8))
-    {
-        return -1;
-    }
-    if (send_all(fd, one, one_len))
-    {
-        return -1;
-    }
-    if (send_all(fd, two, two_len))
-    {
-        return -1;
-    }
-    return send_all(fd, three, three_len);
-}
-static int send_message_five(int fd, uint8_t t, int err,
-                             const void *one, duk_size_t one_len,
-                             const void *two, duk_size_t two_len,
-                             const void *three, duk_size_t three_len,
-                             const void *four, duk_size_t four_len,
-                             const void *five, duk_size_t five_len)
-{
-    char b[1 + 8 + 8];
-    b[0] = t;
-    uint64_t len = one_len;
-    len += two_len + three_len + four_len + five_len;
-
-    ejs_get_binary()->little.put_uint64(b + 1, (uint64_t)err);
-    ejs_get_binary()->little.put_uint64(b + 1 + 8, (uint64_t)len);
-    if (send_all(fd, b, 1 + 8 + 8))
-    {
-        return -1;
-    }
-    if (send_all(fd, one, one_len))
-    {
-        return -1;
-    }
-    if (send_all(fd, two, two_len))
-    {
-        return -1;
-    }
-    if (send_all(fd, three, three_len))
-    {
-        return -1;
-    }
-    if (send_all(fd, four, four_len))
-    {
-        return -1;
-    }
-    return send_all(fd, five, five_len);
-}
 static int read_full(int fd, void *buf, duk_size_t buf_len)
 {
     ssize_t n;
@@ -231,81 +180,42 @@ static int read_full(int fd, void *buf, duk_size_t buf_len)
     }
     return 0;
 }
-
 typedef struct
 {
     int chan[4 + 2 * 3];
-    int epoll;
-
     pid_t pid;
-
-    ppp_c_fast_string_t buffer_in;
-    ppp_c_string_t buffer_out;
-    ppp_c_string_t buffer_err;
 
     uint8_t stdin;
     uint8_t stdout;
     uint8_t stderr;
     uint8_t is_child : 1;
-} run_sync_t;
+} run_t;
 
-static void fork_child_throw_os_two_sync(
+typedef struct
+{
+    run_t run;
+
+    int epoll;
+    ppp_c_fast_string_t buffer_in;
+    ppp_c_string_t buffer_out;
+    ppp_c_string_t buffer_err;
+} run_sync_t;
+static void fork_child_throw_os_n(
     int *chan,
     int err,
-    const char *one,
-    const char *two)
+    ppp_c_fast_string_t *buf, int buf_count)
 {
-    send_message_two(
+    send_message_n(
         chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_OS,
         err,
-        one, strlen(one),
-        two, strlen(two));
+        buf, buf_count);
+
     close(chan[EJS_OS_EXEC_CHILD_WRITE]);
     chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
     close(chan[EJS_OS_EXEC_CHILD_READ]);
     chan[EJS_OS_EXEC_CHILD_READ] = -1;
 }
-static void fork_child_throw_os_three_sync(
-    int *chan,
-    int err,
-    const char *one,
-    const char *two,
-    const char *three)
-{
-    send_message_three(
-        chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_OS,
-        err,
-        one, strlen(one),
-        two, strlen(two),
-        three, strlen(three));
-    close(chan[EJS_OS_EXEC_CHILD_WRITE]);
-    chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
-    close(chan[EJS_OS_EXEC_CHILD_READ]);
-    chan[EJS_OS_EXEC_CHILD_READ] = -1;
-}
-static void fork_child_throw_os_five_sync(
-    int *chan,
-    int err,
-    const char *one,
-    const char *two,
-    const char *three,
-    const char *four,
-    const char *five)
-{
-    send_message_five(
-        chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_OS,
-        err,
-        one, strlen(one),
-        two, strlen(two),
-        three, strlen(three),
-        four, strlen(four),
-        five, strlen(five));
-    close(chan[EJS_OS_EXEC_CHILD_WRITE]);
-    chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
-    close(chan[EJS_OS_EXEC_CHILD_READ]);
-    chan[EJS_OS_EXEC_CHILD_READ] = -1;
-}
-static void fork_child_throw_os_sync(int *chan, int err, const char *str)
+static void fork_child_throw_os(int *chan, int err, const char *str)
 {
     send_message(chan[EJS_OS_EXEC_CHILD_WRITE], EJS_OS_EXEC_FORK_OS, err, str, strlen(str));
     close(chan[EJS_OS_EXEC_CHILD_WRITE]);
@@ -322,7 +232,17 @@ static int fork_child_sync_dup2(duk_context *ctx, int *chan, int *pfd, int std)
         if (EJS_IS_INVALID_FD(fd))
         {
             int err = errno;
-            fork_child_throw_os_two_sync(chan, err, "open /dev/null failed: ", strerror(err));
+            ppp_c_fast_string_t buf[] = {
+                {
+                    .str = "open /dev/null failed: ",
+                    .len = 23,
+                },
+                {
+                    .str = strerror(err),
+                    .len = 0,
+                },
+            };
+            fork_child_throw_os_n(chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
             return -1;
         }
     }
@@ -330,24 +250,33 @@ static int fork_child_sync_dup2(duk_context *ctx, int *chan, int *pfd, int std)
     {
         int err = errno;
         close(fd);
+        ppp_c_fast_string_t buf[] = {
+            {.len = 20},
+            {
+                .str = strerror(err),
+                .len = 0,
+            },
+        };
         switch (std)
         {
         case STDOUT_FILENO:
-            fork_child_throw_os_two_sync(chan, err, "dup2 STDOUT failed: ", strerror(err));
+            buf[0].str = "dup2 STDOUT failed: ";
             break;
         case STDERR_FILENO:
-            fork_child_throw_os_two_sync(chan, err, "dup2 STDERR failed: ", strerror(err));
+            buf[0].str = "dup2 STDERR failed: ";
             break;
         default:
-            fork_child_throw_os_two_sync(chan, err, "dup2 STDIN failed: ", strerror(err));
+            buf[0].str = "dup2 STDIN failed: ";
+            buf[0].len = 19;
             break;
         }
+        fork_child_throw_os_n(chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
         return -1;
     }
     *pfd = fd;
     return 0;
 }
-static int fork_child_sync_ignore(duk_context *ctx, run_sync_t *args)
+static int fork_child_sync_ignore(duk_context *ctx, run_t *args)
 {
     int fd = -1;
     if (EJS_OS_EXEC_REDIRECT_IGNORE == args->stdin &&
@@ -376,11 +305,7 @@ static int fork_child_sync_ignore(duk_context *ctx, run_sync_t *args)
  */
 static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 {
-    run_sync_t *args = duk_require_pointer(ctx, -1);
-    duk_pop(ctx);
-
-    duk_get_prop_lstring(ctx, 0, "path", 4);
-    const char *path = duk_require_string(ctx, -1);
+    run_t *args = duk_require_pointer(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "name", 4);
@@ -388,13 +313,83 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "workdir", 7);
-    if (!duk_is_null_or_undefined(ctx, -1))
+    ppp_c_string_t path = {
+        .str = name,
+        .cap = 0,
+        .len = strlen(name),
+    };
+    if (duk_is_null_or_undefined(ctx, -1))
     {
+        if (lookpath(&path, 0))
+        {
+            int err = errno;
+            ppp_c_fast_string_t buf[] = {
+                {
+                    .str = "lookpath",
+                    .len = 8,
+                },
+                {
+                    .str = name,
+                    .len = 0,
+                },
+                {
+                    .str = " failed: ",
+                    .len = 9,
+                },
+                {
+                    .str = strerror(err),
+                    .len = 1,
+                },
+            };
+            fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
+            return 0;
+        }
+    }
+    else
+    {
+        if (lookpath(&path, 1))
+        {
+            int err = errno;
+            ppp_c_fast_string_t buf[] = {
+                {
+                    .str = "lookpath",
+                    .len = 8,
+                },
+                {
+                    .str = name,
+                    .len = 0,
+                },
+                {
+                    .str = " failed: ",
+                    .len = 9,
+                },
+                {
+                    .str = strerror(err),
+                    .len = 1,
+                },
+            };
+            fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
+            return 0;
+        }
         const char *workdir = duk_require_string(ctx, -1);
         if (chdir(workdir) == -1)
         {
             int err = errno;
-            fork_child_throw_os_three_sync(args->chan, err, strerror(err), ": ", workdir);
+            ppp_c_fast_string_t buf[] = {
+                {
+                    .str = strerror(err),
+                    .len = 0,
+                },
+                {
+                    .str = ": ",
+                    .len = 2,
+                },
+                {
+                    .str = workdir,
+                    .len = 0,
+                },
+            };
+            fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
             return 0;
         }
     }
@@ -421,7 +416,29 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
             if (setenv(key, value, 1))
             {
                 int err = errno;
-                fork_child_throw_os_five_sync(args->chan, err, strerror(err), ": ", key, "=", value);
+                ppp_c_fast_string_t buf[] = {
+                    {
+                        .str = strerror(err),
+                        .len = 0,
+                    },
+                    {
+                        .str = ": ",
+                        .len = 2,
+                    },
+                    {
+                        .str = key,
+                        .len = 0,
+                    },
+                    {
+                        .str = "=",
+                        .len = 1,
+                    },
+                    {
+                        .str = value,
+                        .len = 0,
+                    },
+                };
+                fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
                 return 0;
             }
         }
@@ -441,7 +458,17 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         if (dup2(args->chan[EJS_OS_EXEC_STDIN_READ], STDIN_FILENO) == -1)
         {
             int err = errno;
-            fork_child_throw_os_two_sync(args->chan, err, "dup2 stdin failed: ", strerror(err));
+            ppp_c_fast_string_t buf[] = {
+                {
+                    .str = "dup2 stdin failed: ",
+                    .len = 19,
+                },
+                {
+                    .str = strerror(err),
+                    .len = 0,
+                },
+            };
+            fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
             return 0;
         }
     }
@@ -452,7 +479,17 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         if (dup2(args->chan[EJS_OS_EXEC_STDOUT_WRITE], STDOUT_FILENO) == -1)
         {
             int err = errno;
-            fork_child_throw_os_two_sync(args->chan, err, "dup2 stdout failed: ", strerror(err));
+            ppp_c_fast_string_t buf[] = {
+                {
+                    .str = "dup2 stdout failed: ",
+                    .len = 20,
+                },
+                {
+                    .str = strerror(err),
+                    .len = 0,
+                },
+            };
+            fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
             return 0;
         }
     }
@@ -463,7 +500,17 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         if (dup2(args->chan[EJS_OS_EXEC_STDERR_WRITE], STDERR_FILENO) == -1)
         {
             int err = errno;
-            fork_child_throw_os_two_sync(args->chan, err, "dup2 stderr failed: ", strerror(err));
+            ppp_c_fast_string_t buf[] = {
+                {
+                    .str = "dup2 stderr failed: ",
+                    .len = 20,
+                },
+                {
+                    .str = strerror(err),
+                    .len = 0,
+                },
+            };
+            fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
             return 0;
         }
     }
@@ -480,7 +527,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
             if (!argv)
             {
                 int err = errno;
-                fork_child_throw_os_sync(args->chan, err, strerror(err));
+                fork_child_throw_os(args->chan, err, strerror(err));
                 return 0;
             }
             argv[0] = name;
@@ -507,16 +554,30 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 
     if (argv)
     {
-        execve(path, argv, environ);
+        execve(ppp_c_string_c_str(&path), argv, environ);
     }
     else
     {
         char *const argv[] = {name, 0};
-        execve(path, argv, environ);
+        execve(ppp_c_string_c_str(&path), argv, environ);
     }
 
     int err = errno;
-    fork_child_throw_os_three_sync(args->chan, err, strerror(err), ": ", path);
+    ppp_c_fast_string_t buf[] = {
+        {
+            .str = strerror(err),
+            .len = 0,
+        },
+        {
+            .str = ": ",
+            .len = 2,
+        },
+        {
+            .str = path.str,
+            .len = path.len,
+        },
+    };
+    fork_child_throw_os_n(args->chan, err, buf, sizeof(buf) / sizeof(ppp_c_fast_string_t));
     return 0;
 }
 /**
@@ -524,7 +585,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
  */
 static void fork_child_sync(
     duk_context *ctx,
-    pid_t pid, run_sync_t *args)
+    pid_t pid, run_t *args)
 {
     close(args->chan[EJS_OS_EXEC_PARENT_WRITE]);
     close(args->chan[EJS_OS_EXEC_PARENT_READ]);
@@ -711,12 +772,12 @@ static void fork_parent_wait(
 {
     // wait child exit
     int status;
-    if (waitpid(args->pid, &status, 0) == -1)
+    if (waitpid(args->run.pid, &status, 0) == -1)
     {
         int err = errno;
         ejs_throw_os_format(ctx, err, "waitpid failed: %s", strerror(err));
     }
-    args->pid = 0;
+    args->run.pid = 0;
     if (WIFEXITED(status))
     {
         // get exit code
@@ -724,8 +785,8 @@ static void fork_parent_wait(
         duk_push_object(ctx);
         duk_push_int(ctx, exit_code);
         duk_put_prop_lstring(ctx, -2, "exit", 4);
-        fork_parent_put_prop_lstring(ctx, args->stdout, &args->buffer_out, "stdout", 6);
-        fork_parent_put_prop_lstring(ctx, args->stderr, &args->buffer_err, "stderr", 6);
+        fork_parent_put_prop_lstring(ctx, args->run.stdout, &args->buffer_out, "stdout", 6);
+        fork_parent_put_prop_lstring(ctx, args->run.stderr, &args->buffer_err, "stderr", 6);
     }
     else
     {
@@ -739,42 +800,42 @@ static void fork_parent_pipe_wait(
     uint8_t *header)
 {
     // wait child start
-    fork_parent_read_sync(ctx, args->chan, header, 0);
-    close(args->chan[EJS_OS_EXEC_PARENT_READ]);
-    args->chan[EJS_OS_EXEC_PARENT_READ] = -1;
+    fork_parent_read_sync(ctx, args->run.chan, header, 0);
+    close(args->run.chan[EJS_OS_EXEC_PARENT_READ]);
+    args->run.chan[EJS_OS_EXEC_PARENT_READ] = -1;
 
     // pipe
     if (args->buffer_in.len)
     {
-        close(args->chan[EJS_OS_EXEC_STDIN_READ]);
-        args->chan[EJS_OS_EXEC_STDIN_READ] = -1;
+        close(args->run.chan[EJS_OS_EXEC_STDIN_READ]);
+        args->run.chan[EJS_OS_EXEC_STDIN_READ] = -1;
         ssize_t n;
         while (args->buffer_in.len)
         {
-            n = write(args->chan[EJS_OS_EXEC_STDIN_WRITE], args->buffer_in.str, args->buffer_in.len);
+            n = write(args->run.chan[EJS_OS_EXEC_STDIN_WRITE], args->buffer_in.str, args->buffer_in.len);
             if (n < 0)
             {
-                kill(args->pid, SIGKILL);
-                args->pid = 0;
+                kill(args->run.pid, SIGKILL);
+                args->run.pid = 0;
                 break;
             }
             args->buffer_in.str += n;
             args->buffer_in.len -= n;
         }
-        close(args->chan[EJS_OS_EXEC_STDIN_WRITE]);
-        args->chan[EJS_OS_EXEC_STDIN_READ] = -1;
+        close(args->run.chan[EJS_OS_EXEC_STDIN_WRITE]);
+        args->run.chan[EJS_OS_EXEC_STDIN_READ] = -1;
     }
-    else if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDOUT_READ]))
+    else if (EJS_IS_VALID_FD(args->run.chan[EJS_OS_EXEC_STDOUT_READ]))
     {
-        close(args->chan[EJS_OS_EXEC_STDOUT_WRITE]);
-        args->chan[EJS_OS_EXEC_STDOUT_WRITE] = -1;
-        fork_parent_read_sync_impl(ctx, args->chan[EJS_OS_EXEC_STDOUT_READ], &args->buffer_out);
+        close(args->run.chan[EJS_OS_EXEC_STDOUT_WRITE]);
+        args->run.chan[EJS_OS_EXEC_STDOUT_WRITE] = -1;
+        fork_parent_read_sync_impl(ctx, args->run.chan[EJS_OS_EXEC_STDOUT_READ], &args->buffer_out);
     }
-    else if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDERR_READ]))
+    else if (EJS_IS_VALID_FD(args->run.chan[EJS_OS_EXEC_STDERR_READ]))
     {
-        close(args->chan[EJS_OS_EXEC_STDERR_WRITE]);
-        args->chan[EJS_OS_EXEC_STDERR_WRITE] = -1;
-        fork_parent_read_sync_impl(ctx, args->chan[EJS_OS_EXEC_STDERR_READ], &args->buffer_err);
+        close(args->run.chan[EJS_OS_EXEC_STDERR_WRITE]);
+        args->run.chan[EJS_OS_EXEC_STDERR_WRITE] = -1;
+        fork_parent_read_sync_impl(ctx, args->run.chan[EJS_OS_EXEC_STDERR_READ], &args->buffer_err);
     }
     // wait
     fork_parent_wait(ctx, args);
@@ -800,42 +861,42 @@ static void fork_parent_epoll_wait(
     struct epoll_event ev = {0};
 
     // stdout
-    if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDOUT_READ]))
+    if (EJS_IS_VALID_FD(args->run.chan[EJS_OS_EXEC_STDOUT_READ]))
     {
-        close(args->chan[EJS_OS_EXEC_STDOUT_WRITE]);
-        args->chan[EJS_OS_EXEC_STDOUT_WRITE] = -1;
+        close(args->run.chan[EJS_OS_EXEC_STDOUT_WRITE]);
+        args->run.chan[EJS_OS_EXEC_STDOUT_WRITE] = -1;
 
         ev.events = EPOLLIN;
-        ev.data.fd = args->chan[EJS_OS_EXEC_STDOUT_READ];
-        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->chan[EJS_OS_EXEC_STDOUT_READ], &ev) == -1)
+        ev.data.fd = args->run.chan[EJS_OS_EXEC_STDOUT_READ];
+        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->run.chan[EJS_OS_EXEC_STDOUT_READ], &ev) == -1)
         {
             int err = errno;
             ejs_throw_os_format(ctx, err, "epoll_ctl failed for stdout: %s", strerror(err));
         }
     }
     // stderr
-    if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDERR_READ]))
+    if (EJS_IS_VALID_FD(args->run.chan[EJS_OS_EXEC_STDERR_READ]))
     {
-        close(args->chan[EJS_OS_EXEC_STDERR_WRITE]);
-        args->chan[EJS_OS_EXEC_STDERR_WRITE] = -1;
+        close(args->run.chan[EJS_OS_EXEC_STDERR_WRITE]);
+        args->run.chan[EJS_OS_EXEC_STDERR_WRITE] = -1;
 
         ev.events = EPOLLIN;
-        ev.data.fd = args->chan[EJS_OS_EXEC_STDERR_READ];
-        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->chan[EJS_OS_EXEC_STDERR_READ], &ev) == -1)
+        ev.data.fd = args->run.chan[EJS_OS_EXEC_STDERR_READ];
+        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->run.chan[EJS_OS_EXEC_STDERR_READ], &ev) == -1)
         {
             int err = errno;
             ejs_throw_os_format(ctx, err, "epoll_ctl failed for stderr: %s", strerror(err));
         }
     }
     // stdin
-    if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDIN_WRITE]))
+    if (EJS_IS_VALID_FD(args->run.chan[EJS_OS_EXEC_STDIN_WRITE]))
     {
-        close(args->chan[EJS_OS_EXEC_STDIN_READ]);
-        args->chan[EJS_OS_EXEC_STDIN_READ] = -1;
+        close(args->run.chan[EJS_OS_EXEC_STDIN_READ]);
+        args->run.chan[EJS_OS_EXEC_STDIN_READ] = -1;
 
         ev.events = EPOLLOUT;
-        ev.data.fd = args->chan[EJS_OS_EXEC_STDIN_WRITE];
-        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->chan[EJS_OS_EXEC_STDIN_WRITE], &ev) == -1)
+        ev.data.fd = args->run.chan[EJS_OS_EXEC_STDIN_WRITE];
+        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->run.chan[EJS_OS_EXEC_STDIN_WRITE], &ev) == -1)
         {
             int err = errno;
             ejs_throw_os_format(ctx, err, "epoll_ctl failed for stdin: %s", strerror(err));
@@ -843,9 +904,9 @@ static void fork_parent_epoll_wait(
     }
 
     // wait child start
-    fork_parent_read_sync(ctx, args->chan, header, 0);
-    close(args->chan[EJS_OS_EXEC_PARENT_READ]);
-    args->chan[EJS_OS_EXEC_PARENT_READ] = -1;
+    fork_parent_read_sync(ctx, args->run.chan, header, 0);
+    close(args->run.chan[EJS_OS_EXEC_PARENT_READ]);
+    args->run.chan[EJS_OS_EXEC_PARENT_READ] = -1;
 
     // pipe
     struct epoll_event events[3];
@@ -868,32 +929,32 @@ static void fork_parent_epoll_wait(
         {
             if (events[i].events & (EPOLLHUP | EPOLLERR))
             {
-                if (args->chan[EJS_OS_EXEC_STDIN_WRITE] == events[i].data.fd)
+                if (args->run.chan[EJS_OS_EXEC_STDIN_WRITE] == events[i].data.fd)
                 {
                     epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                     --pipe_count;
                     close(events[i].data.fd);
-                    args->chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
+                    args->run.chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
                 }
-                else if (args->chan[EJS_OS_EXEC_STDOUT_READ] == events[i].data.fd)
+                else if (args->run.chan[EJS_OS_EXEC_STDOUT_READ] == events[i].data.fd)
                 {
                     epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                     --pipe_count;
                     close(events[i].data.fd);
-                    args->chan[EJS_OS_EXEC_STDOUT_READ] = -1;
+                    args->run.chan[EJS_OS_EXEC_STDOUT_READ] = -1;
                 }
-                else if (args->chan[EJS_OS_EXEC_STDERR_READ] == events[i].data.fd)
+                else if (args->run.chan[EJS_OS_EXEC_STDERR_READ] == events[i].data.fd)
                 {
                     epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                     --pipe_count;
                     close(events[i].data.fd);
-                    args->chan[EJS_OS_EXEC_STDERR_READ] = -1;
+                    args->run.chan[EJS_OS_EXEC_STDERR_READ] = -1;
                 }
                 continue;
             }
             // write
             if ((events[i].events & EPOLLOUT) &&
-                args->chan[EJS_OS_EXEC_STDIN_WRITE] == events[i].data.fd)
+                args->run.chan[EJS_OS_EXEC_STDIN_WRITE] == events[i].data.fd)
             {
                 if (args->buffer_in.len)
                 {
@@ -915,18 +976,18 @@ static void fork_parent_epoll_wait(
                     epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                     --pipe_count;
                     close(events[i].data.fd);
-                    args->chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
+                    args->run.chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
                 }
             }
 
             // read
             if (events[i].events & EPOLLIN)
             {
-                if (events[i].data.fd == args->chan[EJS_OS_EXEC_STDOUT_READ])
+                if (events[i].data.fd == args->run.chan[EJS_OS_EXEC_STDOUT_READ])
                 {
                     buffer = &args->buffer_out;
                 }
-                else if (events[i].data.fd == args->chan[EJS_OS_EXEC_STDERR_READ])
+                else if (events[i].data.fd == args->run.chan[EJS_OS_EXEC_STDERR_READ])
                 {
                     buffer = &args->buffer_err;
                 }
@@ -951,13 +1012,13 @@ static void fork_parent_epoll_wait(
                     epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                     --pipe_count;
                     close(events[i].data.fd);
-                    if (events[i].data.fd == args->chan[EJS_OS_EXEC_STDOUT_READ])
+                    if (events[i].data.fd == args->run.chan[EJS_OS_EXEC_STDOUT_READ])
                     {
-                        args->chan[EJS_OS_EXEC_STDOUT_READ] = -1;
+                        args->run.chan[EJS_OS_EXEC_STDOUT_READ] = -1;
                     }
                     else
                     {
-                        args->chan[EJS_OS_EXEC_STDERR_READ] = -1;
+                        args->run.chan[EJS_OS_EXEC_STDERR_READ] = -1;
                     }
                 }
                 else
@@ -981,16 +1042,16 @@ static void fork_parent_sync_impl(
     int pipe_count)
 {
     // parent
-    close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
-    args->chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
-    close(args->chan[EJS_OS_EXEC_CHILD_READ]);
-    args->chan[EJS_OS_EXEC_CHILD_READ] = -1;
+    close(args->run.chan[EJS_OS_EXEC_CHILD_WRITE]);
+    args->run.chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
+    close(args->run.chan[EJS_OS_EXEC_CHILD_READ]);
+    args->run.chan[EJS_OS_EXEC_CHILD_READ] = -1;
 
     // wait child ready
     uint8_t header[17];
-    fork_parent_read_sync(ctx, args->chan, header, 1);
-    close(args->chan[EJS_OS_EXEC_PARENT_WRITE]);
-    args->chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
+    fork_parent_read_sync(ctx, args->run.chan, header, 1);
+    close(args->run.chan[EJS_OS_EXEC_PARENT_WRITE]);
+    args->run.chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
 
     // pipe
     if (pipe_count > 1)
@@ -1002,7 +1063,7 @@ static void fork_parent_sync_impl(
         fork_parent_pipe_wait(ctx, args, header);
     }
 }
-static void pipe_sync(duk_context *ctx, run_sync_t *args, int read)
+static void pipe_sync(duk_context *ctx, int *chan, int read)
 {
     const char *fmt = 0;
     const char *tag = 0;
@@ -1031,22 +1092,22 @@ static void pipe_sync(duk_context *ctx, run_sync_t *args, int read)
         break;
     }
     int write = read + 1;
-    if (pipe(args->chan + read) == -1)
+    if (pipe(chan + read) == -1)
     {
         int err = errno;
-        args->chan[read] = -1;
-        args->chan[write] = -1;
+        chan[read] = -1;
+        chan[write] = -1;
 
         ejs_throw_os_format(ctx, err, fmt, strerror(err));
     }
     if (tag)
     {
-        if (fcntl(args->chan[read], F_SETFD, fcntl(args->chan[read], F_GETFD) | FD_CLOEXEC) == -1)
+        if (fcntl(chan[read], F_SETFD, fcntl(chan[read], F_GETFD) | FD_CLOEXEC) == -1)
         {
             int err = errno;
             ejs_throw_os_format(ctx, err, tag, strerror(errno));
         }
-        if (fcntl(args->chan[write], F_SETFD, fcntl(args->chan[write], F_GETFD) | FD_CLOEXEC) == -1)
+        if (fcntl(chan[write], F_SETFD, fcntl(chan[write], F_GETFD) | FD_CLOEXEC) == -1)
         {
             int err = errno;
             ejs_throw_os_format(ctx, err, tag, strerror(errno));
@@ -1059,32 +1120,32 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
     run_sync_t *args = duk_require_pointer(ctx, -1);
 
     duk_get_prop_lstring(ctx, 0, "stdin", 5);
-    args->stdin = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
+    args->run.stdin = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "stdout", 6);
-    args->stdout = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
+    args->run.stdout = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
     duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "stderr", 6);
-    args->stderr = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
+    args->run.stderr = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
     duk_pop(ctx);
 
-    pipe_sync(ctx, args, EJS_OS_EXEC_CHILD_READ);
-    pipe_sync(ctx, args, EJS_OS_EXEC_PARENT_READ);
+    pipe_sync(ctx, args->run.chan, EJS_OS_EXEC_CHILD_READ);
+    pipe_sync(ctx, args->run.chan, EJS_OS_EXEC_PARENT_READ);
 
     int pipe_count = 0;
-    if (EJS_OS_EXEC_IS_PIPE(args->stdout))
+    if (EJS_OS_EXEC_IS_PIPE(args->run.stdout))
     {
-        pipe_sync(ctx, args, EJS_OS_EXEC_STDOUT_READ);
+        pipe_sync(ctx, args->run.chan, EJS_OS_EXEC_STDOUT_READ);
         ++pipe_count;
     }
-    if (EJS_OS_EXEC_IS_PIPE(args->stderr))
+    if (EJS_OS_EXEC_IS_PIPE(args->run.stderr))
     {
-        pipe_sync(ctx, args, EJS_OS_EXEC_STDERR_READ);
+        pipe_sync(ctx, args->run.chan, EJS_OS_EXEC_STDERR_READ);
         ++pipe_count;
     }
-    if (EJS_OS_EXEC_IS_PIPE(args->stdin))
+    if (EJS_OS_EXEC_IS_PIPE(args->run.stdin))
     {
         duk_get_prop_lstring(ctx, 0, "write", 5);
         duk_size_t len;
@@ -1092,11 +1153,12 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
         args->buffer_in.len = len;
         duk_pop(ctx);
 
-        pipe_sync(ctx, args, EJS_OS_EXEC_STDIN_READ);
+        pipe_sync(ctx, args->run.chan, EJS_OS_EXEC_STDIN_READ);
         ++pipe_count;
-        if (pipe_count > 1 && fcntl(args->chan[EJS_OS_EXEC_STDIN_WRITE], F_SETFL, O_NONBLOCK) == -1)
+        if (pipe_count > 1 && fcntl(args->run.chan[EJS_OS_EXEC_STDIN_WRITE], F_SETFL, O_NONBLOCK) == -1)
         {
-            ejs_throw_os_errno(ctx);
+            int err = errno;
+            ejs_throw_os_format(ctx, err, "fcntl pipe stdin failed: %s", strerror(err));
         }
     }
     pid_t pid = fork();
@@ -1106,15 +1168,15 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
     }
     else if (pid == 0)
     {
-        args->is_child = 1;
-        fork_child_sync(ctx, pid, args);
+        args->run.is_child = 1;
+        fork_child_sync(ctx, pid, &args->run);
         exit(EXIT_FAILURE);
     }
     else
     {
-        args->pid = pid;
+        args->run.pid = pid;
 
-        if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDOUT_READ]))
+        if (EJS_IS_VALID_FD(args->run.chan[EJS_OS_EXEC_STDOUT_READ]))
         {
             args->buffer_out.str = malloc(1024 + 1);
             if (!args->buffer_out.str)
@@ -1123,7 +1185,7 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
             }
             args->buffer_out.cap = 1024;
         }
-        if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDERR_READ]))
+        if (EJS_IS_VALID_FD(args->run.chan[EJS_OS_EXEC_STDERR_READ]))
         {
             args->buffer_err.str = malloc(1024 + 1);
             if (!args->buffer_err.str)
@@ -1140,10 +1202,10 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
 static duk_ret_t run_sync(duk_context *ctx)
 {
     run_sync_t args = {0};
-    int n = sizeof(args.chan) / sizeof(int);
+    int n = sizeof(args.run.chan) / sizeof(int);
     for (int i = 0; i < n; i++)
     {
-        args.chan[i] = -1;
+        args.run.chan[i] = -1;
     }
     args.epoll = -1;
     args.buffer_in.len = 0;
@@ -1153,13 +1215,13 @@ static duk_ret_t run_sync(duk_context *ctx)
     args.buffer_err.cap = args.buffer_err.len = 0;
     args.buffer_err.str = 0;
     int err = ejs_pcall_function_n(ctx, run_sync_impl, &args, 2);
-    if (args.is_child)
+    if (args.run.is_child)
     {
         exit(EXIT_FAILURE);
     }
-    else if (err && args.pid)
+    else if (err && args.run.pid)
     {
-        kill(args.pid, SIGKILL);
+        kill(args.run.pid, SIGKILL);
     }
     if (EJS_IS_VALID_FD(args.epoll))
     {
@@ -1167,9 +1229,9 @@ static duk_ret_t run_sync(duk_context *ctx)
     }
     for (int i = 0; i < n; i++)
     {
-        if (EJS_IS_VALID_FD(args.chan[i]))
+        if (EJS_IS_VALID_FD(args.run.chan[i]))
         {
-            close(args.chan[i]);
+            close(args.run.chan[i]);
         }
     }
     if (args.buffer_out.cap)
@@ -1188,6 +1250,103 @@ static duk_ret_t run_sync(duk_context *ctx)
     return 1;
 }
 
+// static duk_ret_t run_finalizer(duk_context *ctx)
+// {
+//     duk_get_prop_lstring(ctx, 0, "p", 1);
+//     run_t *p = duk_require_pointer(ctx, -1);
+
+//     return 0;
+// }
+static duk_ret_t run_impl(duk_context *ctx)
+{
+    run_t *args = duk_require_pointer(ctx, -1);
+
+    duk_get_prop_lstring(ctx, 0, "stdin", 5);
+    args->stdin = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "stdout", 6);
+    args->stdout = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
+    duk_pop(ctx);
+
+    duk_get_prop_lstring(ctx, 0, "stderr", 6);
+    args->stderr = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
+    duk_pop(ctx);
+
+    pipe_sync(ctx, args->chan, EJS_OS_EXEC_CHILD_READ);
+    pipe_sync(ctx, args->chan, EJS_OS_EXEC_PARENT_READ);
+
+    int pipe_count = 0;
+    if (EJS_OS_EXEC_IS_PIPE(args->stdout))
+    {
+        pipe_sync(ctx, args->chan, EJS_OS_EXEC_STDOUT_READ);
+    }
+    if (EJS_OS_EXEC_IS_PIPE(args->stderr))
+    {
+        pipe_sync(ctx, args->chan, EJS_OS_EXEC_STDERR_READ);
+    }
+    if (EJS_OS_EXEC_IS_PIPE(args->stdin))
+    {
+        pipe_sync(ctx, args->chan, EJS_OS_EXEC_STDIN_READ);
+        if (fcntl(args->chan[EJS_OS_EXEC_STDIN_WRITE], F_SETFL, O_NONBLOCK) == -1)
+        {
+            int err = errno;
+            ejs_throw_os_format(ctx, err, "fcntl pipe stdin failed: %s", strerror(err));
+        }
+    }
+
+    pid_t pid = fork();
+    if (pid < 0)
+    {
+        ejs_throw_os_errno(ctx);
+    }
+    else if (pid == 0)
+    {
+        duk_swap_top(ctx, -2);
+        duk_pop(ctx);
+        args->is_child = 1;
+        fork_child_sync(ctx, pid, args);
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        puts("parents");
+
+        args->pid = pid;
+    }
+    return 0;
+}
+static duk_ret_t run(duk_context *ctx)
+{
+    run_t args = {0};
+    int n = sizeof(args.chan) / sizeof(int);
+    for (int i = 0; i < n; i++)
+    {
+        args.chan[i] = -1;
+    }
+    int err = ejs_pcall_function_n(ctx, run_impl, &args, 3);
+    if (args.is_child)
+    {
+        exit(EXIT_FAILURE);
+    }
+    else if (err && args.pid)
+    {
+        kill(args.pid, SIGKILL);
+    }
+    for (int i = 0; i < n; i++)
+    {
+        if (EJS_IS_VALID_FD(args.chan[i]))
+        {
+            close(args.chan[i]);
+        }
+    }
+    if (err)
+    {
+        duk_throw(ctx);
+    }
+    return 0;
+}
+
 EJS_SHARED_MODULE__DECLARE(os_exec)
 {
     /*
@@ -1203,13 +1362,12 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
 
     duk_push_object(ctx);
     {
-        duk_push_c_lightfunc(ctx, lookpath_sync, 2, 2, 0);
-        duk_put_prop_lstring(ctx, -2, "lookpath_sync", 13);
-
         duk_push_c_lightfunc(ctx, run_sync, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "run_sync", 8);
-    }
 
+        duk_push_c_lightfunc(ctx, run, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "run", 3);
+    }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
      */
