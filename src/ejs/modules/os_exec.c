@@ -441,7 +441,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         if (dup2(args->chan[EJS_OS_EXEC_STDIN_READ], STDIN_FILENO) == -1)
         {
             int err = errno;
-            fork_child_throw_os_two_sync(args->chan, err, "dup2 stdin fail: ", strerror(err));
+            fork_child_throw_os_two_sync(args->chan, err, "dup2 stdin failed: ", strerror(err));
             return 0;
         }
     }
@@ -452,7 +452,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         if (dup2(args->chan[EJS_OS_EXEC_STDOUT_WRITE], STDOUT_FILENO) == -1)
         {
             int err = errno;
-            fork_child_throw_os_two_sync(args->chan, err, "dup2 stdout fail: ", strerror(err));
+            fork_child_throw_os_two_sync(args->chan, err, "dup2 stdout failed: ", strerror(err));
             return 0;
         }
     }
@@ -463,7 +463,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
         if (dup2(args->chan[EJS_OS_EXEC_STDERR_WRITE], STDERR_FILENO) == -1)
         {
             int err = errno;
-            fork_child_throw_os_two_sync(args->chan, err, "dup2 stderr fail: ", strerror(err));
+            fork_child_throw_os_two_sync(args->chan, err, "dup2 stderr failed: ", strerror(err));
             return 0;
         }
     }
@@ -596,7 +596,7 @@ static void fork_parent_read_sync(
         if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
         {
             int err = errno;
-            ejs_throw_os_format(ctx, err, "init read pipe fail: %s", strerror(err));
+            ejs_throw_os_format(ctx, err, "init read pipe failed: %s", strerror(err));
         }
         buf[buf_len] = 0;
         duk_push_error_object(ctx, header[0] == EJS_OS_EXEC_FORK_ERR ? DUK_ERR_ERROR : DUK_ERR_TYPE_ERROR, buf);
@@ -610,7 +610,7 @@ static void fork_parent_read_sync(
         if (read_full(chan[EJS_OS_EXEC_PARENT_READ], buf, buf_len))
         {
             int err = errno;
-            ejs_throw_os_format(ctx, err, "init read pipe fail: %s", strerror(err));
+            ejs_throw_os_format(ctx, err, "init read pipe failed: %s", strerror(err));
         }
         buf[buf_len] = 0;
         ejs_throw_os(ctx, ejs_get_binary()->little.uint64(header + 1), buf);
@@ -622,7 +622,7 @@ static void fork_parent_read_sync(
             if (send_all(chan[EJS_OS_EXEC_PARENT_WRITE], header, 17))
             {
                 int err = errno;
-                ejs_throw_os_format(ctx, err, "init write pipe fail: %s", strerror(err));
+                ejs_throw_os_format(ctx, err, "init write pipe failed: %s", strerror(err));
             }
             return;
         }
@@ -645,7 +645,7 @@ static void fork_parent_read_sync_impl(duk_context *ctx, int fd, ppp_c_string_t 
             }
         }
 
-        n = read(fd, s->str, s->cap);
+        n = read(fd, s->str + s->len, s->cap - s->len);
         if (n == 0)
         {
             return;
@@ -653,7 +653,7 @@ static void fork_parent_read_sync_impl(duk_context *ctx, int fd, ppp_c_string_t 
         else if (n < 0)
         {
             int err = errno;
-            ejs_throw_os_format(ctx, err, "read pipe fail: %s", strerror(err));
+            ejs_throw_os_format(ctx, err, "read pipe failed: %s", strerror(err));
         }
         else
         {
@@ -714,7 +714,7 @@ static void fork_parent_wait(
     if (waitpid(args->pid, &status, 0) == -1)
     {
         int err = errno;
-        ejs_throw_os_format(ctx, err, "waitpid fail: %s", strerror(err));
+        ejs_throw_os_format(ctx, err, "waitpid failed: %s", strerror(err));
     }
     args->pid = 0;
     if (WIFEXITED(status))
@@ -783,18 +783,191 @@ static void fork_parent_pipe_wait(
 static void fork_parent_epoll_wait(
     duk_context *ctx,
     run_sync_t *args,
-    uint8_t *header)
+    uint8_t *header,
+    int pipe_count)
 {
-    // init epoll
-    struct epoll_event ev, events[3];
-    puts("epoll");
-    ev.events = EPOLLIN;
+    // create epoll
+#ifdef EPOLL_CLOEXEC
+    args->epoll = epoll_create1(0);
+#else
+    args->epoll = epoll_create(pipe_count);
+#endif
+    if (EJS_IS_INVALID_FD(args->epoll))
+    {
+        int err = errno;
+        ejs_throw_os_format(ctx, err, "create epoll failed: %s", strerror(err));
+    }
+    struct epoll_event ev = {0};
+
+    // stdout
+    if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDOUT_READ]))
+    {
+        close(args->chan[EJS_OS_EXEC_STDOUT_WRITE]);
+        args->chan[EJS_OS_EXEC_STDOUT_WRITE] = -1;
+
+        ev.events = EPOLLIN;
+        ev.data.fd = args->chan[EJS_OS_EXEC_STDOUT_READ];
+        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->chan[EJS_OS_EXEC_STDOUT_READ], &ev) == -1)
+        {
+            int err = errno;
+            ejs_throw_os_format(ctx, err, "epoll_ctl failed for stdout: %s", strerror(err));
+        }
+    }
+    // stderr
+    if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDERR_READ]))
+    {
+        close(args->chan[EJS_OS_EXEC_STDERR_WRITE]);
+        args->chan[EJS_OS_EXEC_STDERR_WRITE] = -1;
+
+        ev.events = EPOLLIN;
+        ev.data.fd = args->chan[EJS_OS_EXEC_STDERR_READ];
+        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->chan[EJS_OS_EXEC_STDERR_READ], &ev) == -1)
+        {
+            int err = errno;
+            ejs_throw_os_format(ctx, err, "epoll_ctl failed for stderr: %s", strerror(err));
+        }
+    }
+    // stdin
+    if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDIN_WRITE]))
+    {
+        close(args->chan[EJS_OS_EXEC_STDIN_READ]);
+        args->chan[EJS_OS_EXEC_STDIN_READ] = -1;
+
+        ev.events = EPOLLOUT;
+        ev.data.fd = args->chan[EJS_OS_EXEC_STDIN_WRITE];
+        if (epoll_ctl(args->epoll, EPOLL_CTL_ADD, args->chan[EJS_OS_EXEC_STDIN_WRITE], &ev) == -1)
+        {
+            int err = errno;
+            ejs_throw_os_format(ctx, err, "epoll_ctl failed for stdin: %s", strerror(err));
+        }
+    }
+
     // wait child start
     fork_parent_read_sync(ctx, args->chan, header, 0);
     close(args->chan[EJS_OS_EXEC_PARENT_READ]);
     args->chan[EJS_OS_EXEC_PARENT_READ] = -1;
 
     // pipe
+    struct epoll_event events[3];
+    int i, nfds;
+    ppp_c_string_t *buffer;
+    ssize_t n;
+    while (pipe_count)
+    {
+        nfds = epoll_wait(args->epoll, events, pipe_count, -1);
+        if (nfds == -1)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            int err = errno;
+            ejs_throw_os_format(ctx, err, "epoll_wait failed: %s", strerror(err));
+        }
+        for (i = 0; i < nfds; ++i)
+        {
+            if (events[i].events & (EPOLLHUP | EPOLLERR))
+            {
+                if (args->chan[EJS_OS_EXEC_STDIN_WRITE] == events[i].data.fd)
+                {
+                    epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                    --pipe_count;
+                    close(events[i].data.fd);
+                    args->chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
+                }
+                else if (args->chan[EJS_OS_EXEC_STDOUT_READ] == events[i].data.fd)
+                {
+                    epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                    --pipe_count;
+                    close(events[i].data.fd);
+                    args->chan[EJS_OS_EXEC_STDOUT_READ] = -1;
+                }
+                else if (args->chan[EJS_OS_EXEC_STDERR_READ] == events[i].data.fd)
+                {
+                    epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                    --pipe_count;
+                    close(events[i].data.fd);
+                    args->chan[EJS_OS_EXEC_STDERR_READ] = -1;
+                }
+                continue;
+            }
+            // write
+            if ((events[i].events & EPOLLOUT) &&
+                args->chan[EJS_OS_EXEC_STDIN_WRITE] == events[i].data.fd)
+            {
+                if (args->buffer_in.len)
+                {
+                    n = write(events[i].data.fd, args->buffer_in.str, args->buffer_in.len);
+                    if (n > 0)
+                    {
+                        args->buffer_in.len -= n;
+                        args->buffer_in.str += n;
+                    }
+                    else if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+                    {
+                        int err = errno;
+                        ejs_throw_os_format(ctx, err, "write pipe failed: %s", strerror(err));
+                    }
+                }
+
+                if (!args->buffer_in.len)
+                {
+                    epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                    --pipe_count;
+                    close(events[i].data.fd);
+                    args->chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
+                }
+            }
+
+            // read
+            if (events[i].events & EPOLLIN)
+            {
+                if (events[i].data.fd == args->chan[EJS_OS_EXEC_STDOUT_READ])
+                {
+                    buffer = &args->buffer_out;
+                }
+                else if (events[i].data.fd == args->chan[EJS_OS_EXEC_STDERR_READ])
+                {
+                    buffer = &args->buffer_err;
+                }
+                else
+                {
+                    continue;
+                }
+                if (buffer->len >= buffer->cap)
+                {
+                    if (ppp_c_string_grow(buffer, 128))
+                    {
+                        ejs_throw_os_errno(ctx);
+                    }
+                }
+                n = read(events[i].data.fd, buffer->str + buffer->len, buffer->cap - buffer->len);
+                if (n > 0)
+                {
+                    buffer->len += n;
+                }
+                else if (n == 0)
+                {
+                    epoll_ctl(args->epoll, EPOLL_CTL_DEL, events[i].data.fd, NULL);
+                    --pipe_count;
+                    close(events[i].data.fd);
+                    if (events[i].data.fd == args->chan[EJS_OS_EXEC_STDOUT_READ])
+                    {
+                        args->chan[EJS_OS_EXEC_STDOUT_READ] = -1;
+                    }
+                    else
+                    {
+                        args->chan[EJS_OS_EXEC_STDERR_READ] = -1;
+                    }
+                }
+                else
+                {
+                    int err = errno;
+                    ejs_throw_os_format(ctx, err, "read pipe failed: %s", strerror(err));
+                }
+            }
+        }
+    }
 
     // wait
     fork_parent_wait(ctx, args);
@@ -804,7 +977,8 @@ static void fork_parent_epoll_wait(
  */
 static void fork_parent_sync_impl(
     duk_context *ctx,
-    run_sync_t *args)
+    run_sync_t *args,
+    int pipe_count)
 {
     // parent
     close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
@@ -819,9 +993,9 @@ static void fork_parent_sync_impl(
     args->chan[EJS_OS_EXEC_PARENT_WRITE] = -1;
 
     // pipe
-    if (EJS_IS_VALID_FD(args->epoll))
+    if (pipe_count > 1)
     {
-        fork_parent_epoll_wait(ctx, args, header);
+        fork_parent_epoll_wait(ctx, args, header, pipe_count);
     }
     else
     {
@@ -835,21 +1009,21 @@ static void pipe_sync(duk_context *ctx, run_sync_t *args, int read)
     switch (read)
     {
     case EJS_OS_EXEC_CHILD_READ:
-        fmt = "pipe child fail: %s";
-        tag = "fcntl pipe child fail: %s";
+        fmt = "pipe child failed: %s";
+        tag = "fcntl pipe child failed: %s";
         break;
     case EJS_OS_EXEC_PARENT_READ:
-        fmt = "pipe parent fail: %s";
-        tag = "fcntl pipe parent fail: %s";
+        fmt = "pipe parent failed: %s";
+        tag = "fcntl pipe parent failed: %s";
         break;
     case EJS_OS_EXEC_STDIN_READ:
-        fmt = "pipe stdin fail: %s";
+        fmt = "pipe stdin failed: %s";
         break;
     case EJS_OS_EXEC_STDOUT_READ:
-        fmt = "pipe stdout fail: %s";
+        fmt = "pipe stdout failed: %s";
         break;
     case EJS_OS_EXEC_STDERR_READ:
-        fmt = "pipe stderr fail: %s";
+        fmt = "pipe stderr failed: %s";
         break;
     default:
         duk_push_error_object(ctx, DUK_ERR_ERROR, "unknow pipe %d", read);
@@ -903,23 +1077,11 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
     if (EJS_OS_EXEC_IS_PIPE(args->stdout))
     {
         pipe_sync(ctx, args, EJS_OS_EXEC_STDOUT_READ);
-        args->buffer_out.str = malloc(1024 + 1);
-        if (!args->buffer_out.str)
-        {
-            ejs_throw_os_errno(ctx);
-        }
-        args->buffer_out.cap = 1024;
         ++pipe_count;
     }
     if (EJS_OS_EXEC_IS_PIPE(args->stderr))
     {
         pipe_sync(ctx, args, EJS_OS_EXEC_STDERR_READ);
-        args->buffer_err.str = malloc(1024 + 1);
-        if (!args->buffer_err.str)
-        {
-            ejs_throw_os_errno(ctx);
-        }
-        args->buffer_err.cap = 1024;
         ++pipe_count;
     }
     if (EJS_OS_EXEC_IS_PIPE(args->stdin))
@@ -952,20 +1114,26 @@ static duk_ret_t run_sync_impl(duk_context *ctx)
     {
         args->pid = pid;
 
-        if (pipe_count > 1)
+        if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDOUT_READ]))
         {
-#ifdef EPOLL_CLOEXEC
-            args->epoll = epoll_create1(0);
-#else
-            args->epoll = epoll_create(pipe_count);
-#endif
-            if (EJS_IS_INVALID_FD(args->epoll))
+            args->buffer_out.str = malloc(1024 + 1);
+            if (!args->buffer_out.str)
             {
-                int err = errno;
-                ejs_throw_os_format(ctx, err, "create epoll fail: %s", strerror(err));
+                ejs_throw_os_errno(ctx);
             }
+            args->buffer_out.cap = 1024;
         }
-        fork_parent_sync_impl(ctx, args);
+        if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDERR_READ]))
+        {
+            args->buffer_err.str = malloc(1024 + 1);
+            if (!args->buffer_err.str)
+            {
+                ejs_throw_os_errno(ctx);
+            }
+            args->buffer_err.cap = 1024;
+        }
+
+        fork_parent_sync_impl(ctx, args, pipe_count);
     }
     return 1;
 }
