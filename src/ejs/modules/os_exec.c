@@ -106,7 +106,7 @@ static int lookpath(ppp_c_string_t *filepath, duk_bool_t clean)
     return -1;
 }
 
-static duk_bool_t send_all(int fd, const void *buf, duk_size_t buf_len)
+static int send_all(int fd, const void *buf, duk_size_t buf_len)
 {
     ssize_t written;
     while (buf_len)
@@ -450,6 +450,7 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
     {
         return 0;
     }
+
     // pipe
     if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDIN_READ]))
     {
@@ -544,22 +545,26 @@ static duk_ret_t fork_child_sync_impl(duk_context *ctx)
 
     // Notify the parent process that it is ready
     uint8_t header[17] = {0};
-    send_all(args->chan[EJS_OS_EXEC_CHILD_WRITE], header, sizeof(header));
-    // close(args->chan[EJS_OS_EXEC_CHILD_WRITE]);
-    // args->chan[EJS_OS_EXEC_CHILD_WRITE] = -1;
-
-    read_full(args->chan[EJS_OS_EXEC_CHILD_READ], header, sizeof(header));
+    if (send_all(args->chan[EJS_OS_EXEC_CHILD_WRITE], header, sizeof(header)))
+    {
+        exit(1);
+    }
+    // wait start
+    if (read_full(args->chan[EJS_OS_EXEC_CHILD_READ], header, sizeof(header)) || read(args->chan[EJS_OS_EXEC_CHILD_READ], header, 17) != 0)
+    {
+        exit(1);
+    }
     close(args->chan[EJS_OS_EXEC_CHILD_READ]);
     args->chan[EJS_OS_EXEC_CHILD_READ] = -1;
 
     if (argv)
     {
-        execve(ppp_c_string_c_str(&path), argv, environ);
+        execve(path.str, argv, environ);
     }
     else
     {
         char *const argv[] = {name, 0};
-        execve(ppp_c_string_c_str(&path), argv, environ);
+        execve(path.str, argv, environ);
     }
 
     int err = errno;
@@ -637,14 +642,24 @@ static void fork_parent_read_sync(
             duk_throw(ctx);
         }
     }
-    else if (read(chan[EJS_OS_EXEC_PARENT_READ], header, 1) != 1)
+    else
     {
-        return;
-    }
-    else if (read_full(chan[EJS_OS_EXEC_PARENT_READ], header + 1, 16))
-    {
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
-        duk_throw(ctx);
+        ssize_t n = read(chan[EJS_OS_EXEC_PARENT_READ], header, 1);
+        if (n == 0)
+        {
+            return;
+        }
+        else if (n < 0)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+            duk_throw(ctx);
+        }
+        // read error
+        if (read_full(chan[EJS_OS_EXEC_PARENT_READ], header + 1, 16))
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "init read pipe fail");
+            duk_throw(ctx);
+        }
     }
 
     switch (header[0])
