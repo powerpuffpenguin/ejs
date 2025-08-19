@@ -41,13 +41,23 @@ declare namespace deps {
         stdout?: Redirect
         stderr?: Redirect
         stdin?: Redirect
+
+        state: Uint8Array
+    }
+    class Pointer {
+        readonly __id = "pointer"
     }
     class Command {
+        readonly __id = "Command"
+        p: Pointer
 
+        start_cb?: (err?: any) => void
+        exit_cb?: (result: { exit?: number, signal?: number }) => void
     }
-    function run(opts: RunOption, cb: (cmd?: Command, err?: any) => void): void
+    function cmd(opts: RunOption): Command
+    function start(cmd: Command): Pointer
+    function destroy(cmd: Command): void
 }
-import { parseArgs, parseOptionalArgs, callReturn, callVoid } from "ejs/sync";
 export enum Redirect {
     /**
      * Inherited from the parent process
@@ -93,7 +103,11 @@ export interface RunSyncResult {
     /**
      * Exit Code
      */
-    exit: number
+    exit?: number
+    /**
+     * terminated by signal
+     */
+    signal?: number
     /**
      * When started with stdout as 'pipe', return stdout to this
      */
@@ -162,34 +176,103 @@ export interface RunOption {
     stderr?: Redirect
     stdin?: Redirect
 }
+
+export class Reader {
+
+}
+export class Writer {
+
+}
 export class Command {
-    static run_impl(opts: deps.RunOption, cb: (cmd?: Command, err?: any) => void) {
-        deps.run(opts, (raw, err) => {
-            if (raw) {
-                let c: Command
-                try {
-                    c = new Command(raw)
-                } catch (e) {
-                    cb(undefined, e)
-                    return
-                }
-                cb(c)
-            } else {
+    constructor(private cmd: deps.Command | undefined, private readonly state: Uint8Array) { }
+    stdout?: Reader
+    stderr?: Reader
+    stdin?: Writer
+    close() {
+        if (this.cmd) {
+            this.cmd = undefined
+        }
+    }
+    run(a: any) {
+        if (this.state[0]) {
+            throw new Error("Command can only be executed once run")
+        }
+        if (!this.cmd) {
+            throw new Error("command closed")
+        }
+        if (a === null || a === undefined) {
+            return new Promise<RunSyncResult>((resolve, reject) => {
+                this._run((exit, e) => {
+                    if (e === undefined) {
+                        resolve(exit!)
+                    } else {
+                        reject(e)
+                    }
+                })
+            })
+        }
+        const t = typeof a
+        if (t === "function") {
+            this._run(a)
+        } else if (t === "object" && typeof a.yield === "function") {
+            return a.yield((notify: any) => {
+                this._run((v, e) => {
+                    if (e === undefined) {
+                        notify.value(v)
+                    } else {
+                        notify.error(e)
+                    }
+                })
+            })
+        } else {
+            throw new TypeError(`parse function arguments fail: run`)
+        }
+    }
+    private _run(cb: (result?: RunSyncResult, err?: any) => void) {
+        const state = this.state
+        const cmd = this.cmd!
+
+        cmd.start_cb = (err?: any) => {
+            cmd.start_cb = undefined
+            if (err) {
+                deps.destroy(cmd)
                 cb(undefined, err)
+                return
             }
-        })
+            if (!this.cmd) {
+                cb(undefined, new Error("command closed"))
+                return
+            }
+            try {
+                // init reader writer
+
+                state[0] = 4
+                cmd.exit_cb = (result) => {
+                    cmd.exit_cb = undefined
+                    deps.destroy(cmd)
+                    cb(result)
+                }
+            } catch (e) {
+                deps.destroy(cmd)
+                cb(undefined, e)
+            }
+        }
+        try {
+            deps.start(cmd)
+        } catch (e) {
+            if (state[0]) {
+                deps.destroy(cmd)
+            }
+            throw e
+        }
     }
-    private constructor(cmd: deps.Command) {
-        this.cmd_ = cmd
-    }
-    private cmd_: deps.Command
 }
 
-export function run(name: string, a: any, b: any) {
-    const args = parseOptionalArgs<RunOption, (cmd?: deps.Command, e?: any) => void>('run', a, b)
-    const opts = args.opts
+export function run(name: string, opts?: RunOption): Command {
+    const state = new Uint8Array(1)
     const o: deps.RunOption = opts ? {
         name: name,
+        state: state,
         args: opts.args,
         env: opts.env ? envstring(opts.env) : undefined,
         workdir: opts.workdir,
@@ -199,7 +282,8 @@ export function run(name: string, a: any, b: any) {
         stdin: opts.stdin,
     } : {
         name: name,
+        state: state,
     }
-    args.opts = o as any
-    return callReturn(Command.run_impl, args as any)
+    const cmd = deps.cmd(o)
+    return new Command(cmd, state)
 }

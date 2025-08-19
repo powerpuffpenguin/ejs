@@ -5076,7 +5076,11 @@ declare module "ejs/os/exec" {
         /**
          * Exit Code
          */
-        exit: number
+        exit?: number
+        /**
+         * terminated by signal
+         */
+        signal?: number
         /**
          * When started with stdout as 'pipe' or 'text', return stdout to this
          */

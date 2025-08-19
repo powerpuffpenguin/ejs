@@ -118,6 +118,9 @@
         "os_exec.h": "c",
         "modules_init.h": "c",
         "cerrno": "c",
-        "net.h": "c"
+        "net.h": "c",
+        "memory_resource": "c",
+        "__functional_03": "c",
+        "listener.h": "c"
     }
 }
