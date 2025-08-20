@@ -31,17 +31,18 @@ var exec = require("ejs/os/exec")
 //     workdir: '/home/',
 //     // write: "console.log(123)\n"
 // }))
-var cmd = new exec.Command('./build/linux/x86_64/release/ejs', {
-    args: ['/home/king/project/cc/ejs/b.js'],
+var cmd = new exec.Command('node', {
     env: {
         "KO": '123',
     },
-    // stdin: 2,
-    stdout: 3,
-    stderr: 3,
+    stdin: 2,
+    // stdout: 3,
+    // stderr: 3,
     workdir: '/home/',
-    // write: "console.log(123)\n"
 })
+
+
+
 // var cmd = new exec.Command('ls', {
 //     args: ['/home/king/project/cc/ejs/b.js', '-l'],
 //     env: {
@@ -54,20 +55,24 @@ var cmd = new exec.Command('./build/linux/x86_64/release/ejs', {
 //     // write: "console.log(123)\n"
 // })
 var i = 0
-cmd.stdout.onMessage = function (data) {
-    console.log(new TextDecoder().decode(data))
-    if (++i == 5) {
-        cmd.close()
-    }
-}
-cmd.stdout.onClose = function (e) {
-    console.log("onClose", e === undefined ? e : e.toString())
-}
+// cmd.stdout.onMessage = function (data) {
+//     console.log(new TextDecoder().decode(data))
+//     if (++i == 5) {
+//         cmd.close()
+//     }
+// }
+// cmd.stdout.onClose = function (e) {
+//     console.log("onClose", e === undefined ? e : e.toString())
+// }
+
 cmd.run(function (exit, e) {
     console.log(exit, e === undefined ? e : e.toString())
 })
 
-
-// setTimeout(function () {
-//     console.log('timeout')
-// }, 1000 * 5)
+console.log('write:', cmd.stdin.write("console.log(123);\nconsole.log(1+2)"))
+cmd.stdin.onWritable = function () {
+    cmd.stdin.close()
+}
+cmd.stdin.onClose = function (e) {
+    console.log("onClose", e)
+}

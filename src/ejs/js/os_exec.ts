@@ -60,6 +60,7 @@ declare namespace deps {
 
         stdout_cb?: (b?: evbuffer, e?: any) => void
         stderr_cb?: (b: evbuffer, e?: any) => void
+        stdin_cb?: (e?: any) => void
     }
     function cmd(opts: RunOption): Command
     function start(cmd: Command): Pointer
@@ -76,6 +77,9 @@ declare namespace deps {
     function evbuffer_read(b: evbuffer, dst: Uint8Array): number
     function evbuffer_copy(b: evbuffer, dst: Uint8Array, skip?: number): number
     function evbuffer_drain(b: evbuffer, n: number): number
+
+    function writer_w(w: Pointer, data: string | Uint8Array, maxWriteBytes?: number): number | undefined
+    function writer_close(cmd: Pointer, w: Pointer): void
 }
 export enum Redirect {
     /**
@@ -316,7 +320,7 @@ export class Reader {
     _close(e: any): void {
         const r = this.r
         if (r) {
-            if (this.state[0] == 200) {
+            if (this.state[0] != 200) {
                 deps.reader_close(this.cmd, r)
             }
             this.r = undefined
@@ -326,9 +330,11 @@ export class Reader {
             this.actived_ = undefined
             clearImmediate(actived)
         }
-        const f = this.onCloseBind_
-        if (f) {
-            f(e)
+        if (r) {
+            const f = this.onCloseBind_
+            if (f) {
+                f(e)
+            }
         }
     }
 
@@ -446,7 +452,88 @@ export class Reader {
     }
 }
 export class Writer {
+    private _get() {
+        if (this.state[0] == 200) {
+            return
+        }
+        return this.w
+    }
+    constructor(
+        private cmd: deps.Pointer,
+        private w: deps.Pointer | undefined,
+        private readonly state: Uint8Array,
+    ) { }
+    close(e?: any) {
+        const w = this.w
+        if (w) {
+            if (this.state[0] != 200) {
+                deps.writer_close(this.cmd, w)
+            }
+            this.w = undefined
 
+            const f = this.onCloseBind_
+            if (f) {
+                f(e)
+            }
+        }
+    }
+    write(data: string | Uint8Array): number | undefined {
+        const w = this._get()
+        if (w) {
+            return deps.writer_w(w, data, this.maxWriteBytes)
+        }
+    }
+    _write() {
+        const f = this.onWritableBInd_
+        if (f) {
+            f()
+        }
+    }
+    maxWriteBytes = 1024 * 1024
+    private onWritable_?: (this: Writer) => void
+    private onWritableBInd_?: () => void
+    get onWritable() {
+        return this.onWritable_
+    }
+    set onWritable(f: any) {
+        if (f === undefined || f === null) {
+            this.onWritable_ = undefined
+            this.onWritableBInd_ = undefined
+        } else {
+            if (f === this.onWritable_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new Error("onWritable must be a function")
+            }
+            const w = this._get()
+            this.onWritableBInd_ = w ? f.bind(this) : undefined
+            this.onWritable_ = f
+        }
+    }
+
+    private onClose_?: OnCloseCallback<Writer>
+    private onCloseBind_?: (err?: any) => void
+    get onClose(): OnCloseCallback<Writer> | undefined {
+        return this.onClose_
+    }
+    set onClose(f: OnCloseCallback<Writer> | undefined) {
+        if (f === undefined || f === null) {
+            this.onClose_ = undefined
+            this.onCloseBind_ = undefined
+        } else {
+            if (f === this.onClose_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new Error("onClose must be a function")
+            }
+            const w = this._get()
+            const bind = w ? f.bind(this) : undefined
+            this.onCloseBind_ = bind
+            this.onClose_ = f
+        }
+    }
 }
 export class Command {
     constructor(name: string, opts?: RunOption) {
@@ -467,6 +554,21 @@ export class Command {
         }
         const cmd = deps.cmd(o)
         try {
+            if (cmd.stdin) {
+                this.stdin = new Writer(cmd.p, cmd.stdin, state)
+                cmd.stdin_cb = (e) => {
+                    const writer = this.stdin
+                    if (writer) {
+                        if (e === undefined) {
+                            writer._write()
+                        } else {
+                            this.stdin = undefined
+                            writer.close(e)
+                        }
+                    }
+
+                }
+            }
             if (cmd.stdout) {
                 this.stdout = new Reader(cmd.p, cmd.stdout, state)
                 cmd.stdout_cb = (r, e) => {
@@ -510,6 +612,12 @@ export class Command {
     close() {
         const cmd = this.cmd_
         if (cmd) {
+            const writer = this.stdin
+            if (writer) {
+                this.stdin = undefined
+                writer.close()
+            }
+
             let reader = this.stdout
             let e: Error | undefined
             if (reader) {

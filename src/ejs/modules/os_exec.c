@@ -1690,13 +1690,75 @@ static void on_sigchld_cb(evutil_socket_t sig, short events, void *args)
         }
     }
 }
+static duk_ret_t on_writer_impl(duk_context *ctx)
+{
+    run_command_t *cmd = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    if (!ejs_stash_get_pointer(ctx, cmd, EJS_STASH_EXEC))
+    {
+        return 0;
+    }
+    duk_get_prop_lstring(ctx, -1, "stdin_cb", 8);
+    if (!duk_is_function(ctx, -1))
+    {
+        return 0;
+    }
+    duk_call(ctx, 0);
+    return 0;
+}
 static void on_parent_stdin_cb(struct bufferevent *bev, void *args)
 {
-    puts("on_parent_stdin_cb");
+    run_command_t *cmd = args;
+    if (cmd->stdin)
+    {
+        ejs_call_callback_noresult(cmd->core->duk, on_writer_impl, cmd, NULL);
+    }
+}
+typedef struct
+{
+    run_command_t *cmd;
+    short events;
+} on_writer_event_args_t;
+static duk_ret_t on_writer_event_impl(duk_context *ctx)
+{
+    on_writer_event_args_t *args = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    if (!ejs_stash_get_pointer(ctx, args->cmd, EJS_STASH_EXEC))
+    {
+        return 0;
+    }
+    duk_get_prop_lstring(ctx, -1, "stdin_cb", 8);
+    if (!duk_is_function(ctx, -1))
+    {
+        return 0;
+    }
+
+    if (args->events & BEV_EVENT_EOF)
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "write eof");
+        duk_call(ctx, 1);
+    }
+    else if (args->events & BEV_EVENT_ERROR)
+    {
+
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "write failed");
+        duk_call(ctx, 1);
+    }
+    return 0;
 }
 static void on_parent_stdin_event_cb(struct bufferevent *bev, short events, void *args)
 {
-    puts("on_parent_stdin_event_cb");
+    run_command_t *cmd = args;
+    if (cmd->stdout)
+    {
+        on_writer_event_args_t args = {
+            .cmd = cmd,
+            .events = events,
+        };
+        ejs_call_callback_noresult(cmd->core->duk, on_writer_event_impl, &args, NULL);
+    }
 }
 typedef struct
 {
@@ -1780,7 +1842,7 @@ static duk_ret_t on_reader_event_impl(duk_context *ctx)
     else if (args->events & BEV_EVENT_ERROR)
     {
         duk_push_undefined(ctx);
-        duk_push_error_object(ctx, DUK_ERR_ERROR, "read fail");
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "read failed");
         duk_call(ctx, 2);
     }
     return 0;
@@ -1937,8 +1999,9 @@ static void fork_parent(duk_context *ctx, run_t *args, uint8_t *state)
         }
         args->chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
         bufferevent_setcb(cmd->stdin, 0, on_parent_stdin_cb, on_parent_stdin_event_cb, cmd);
+        bufferevent_enable(cmd->stdin, EV_WRITE);
         duk_push_pointer(ctx, cmd->stdin);
-        duk_put_prop_lstring(ctx, -2, "stdin", 6);
+        duk_put_prop_lstring(ctx, -2, "stdin", 5);
     }
 
     cmd->pid = args->pid;
@@ -2113,14 +2176,59 @@ static duk_ret_t reader_close(duk_context *ctx)
         bufferevent_free(cmd->stdout);
         cmd->stdout = 0;
     }
-    if (cmd->stderr == bev)
+    else if (cmd->stderr == bev)
     {
         bufferevent_free(cmd->stderr);
         cmd->stderr = 0;
     }
     return 0;
 }
+static duk_ret_t writer_w(duk_context *ctx)
+{
+    struct bufferevent *bev = duk_require_pointer(ctx, 0);
+    duk_size_t data_len;
+    const uint8_t *data = EJS_REQUIRE_CONST_LSOURCE(ctx, 1, &data_len);
+    if (!data_len)
+    {
+        duk_push_uint(ctx, 0);
+        return 1;
+    }
+    duk_size_t maxWriteBytes = duk_get_uint_default(ctx, 2, 0);
+    struct evbuffer *buf = bufferevent_get_output(bev);
+    size_t len = evbuffer_get_length(buf);
+    if (maxWriteBytes)
+    {
+        if (data_len > maxWriteBytes)
+        {
+            duk_push_error_object(ctx, DUK_ERR_ERROR, "data too large");
+            duk_throw(ctx);
+        }
+        else if (maxWriteBytes - len < data_len)
+        {
+            bufferevent_enable(bev, EV_WRITE);
+            return 0;
+        }
+    }
+    if (bufferevent_write(bev, data, data_len))
+    {
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "bufferevent_write failed");
+        duk_throw(ctx);
+    }
 
+    duk_push_uint(ctx, data_len);
+    return 1;
+}
+static duk_ret_t writer_close(duk_context *ctx)
+{
+    run_command_t *cmd = duk_require_pointer(ctx, 0);
+    struct bufferevent *bev = duk_require_pointer(ctx, 1);
+    if (cmd->stdin == bev)
+    {
+        bufferevent_free(cmd->stdin);
+        cmd->stdin = 0;
+    }
+    return 0;
+}
 EJS_SHARED_MODULE__DECLARE(os_exec)
 {
     /*
@@ -2147,6 +2255,7 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
         duk_push_c_lightfunc(ctx, destroy, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "destroy", 7);
 
+        // reader
         duk_push_c_lightfunc(ctx, reader_cb, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "reader_cb", 9);
         duk_push_c_lightfunc(ctx, reader_active, 2, 2, 0);
@@ -2163,6 +2272,11 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
         duk_put_prop_lstring(ctx, -2, "evbuffer_copy", 13);
         duk_push_c_lightfunc(ctx, _ejs_evbuffer_drain, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "evbuffer_drain", 14);
+        // writer
+        duk_push_c_lightfunc(ctx, writer_w, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "writer_w", 8);
+        duk_push_c_lightfunc(ctx, writer_close, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "writer_close", 12);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
