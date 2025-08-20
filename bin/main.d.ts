@@ -5072,6 +5072,11 @@ declare module "ejs/os/exec" {
          * Automatically write to stdin after startup
          */
         write?: string | ejs.BufferData
+
+        /**
+         * If true, the parent process exits after the child process is started.
+         */
+        exec?: boolean
     }
     export interface RunSyncResult<O extends Redirect, E extends Redirect> {
         /**

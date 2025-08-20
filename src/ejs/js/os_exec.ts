@@ -21,6 +21,11 @@ declare namespace deps {
          * When stdin is a pipe, the contents to be written to the child process
          */
         write?: string | Uint8Array
+
+        /**
+         * If true, the parent process exits after the child process is started.
+         */
+        exec?: boolean
     }
     function run_sync(opts: RunSyncOption): any
     interface RunOption {
@@ -43,6 +48,7 @@ declare namespace deps {
         stdin?: Redirect
 
         state: Uint8Array
+
     }
     class Pointer {
         readonly __id = "pointer"
@@ -80,6 +86,9 @@ declare namespace deps {
 
     function writer_w(w: Pointer, data: string | Uint8Array, maxWriteBytes?: number): number | undefined
     function writer_close(cmd: Pointer, w: Pointer): void
+
+
+    function exit(): never
 }
 export enum Redirect {
     /**
@@ -121,6 +130,11 @@ export interface RunSyncOption {
      * Automatically write to stdin after startup
      */
     write?: string | Uint8Array
+
+    /**
+     * If true, the parent process exits after the child process is started.
+     */
+    exec?: boolean
 }
 export interface RunSyncResult {
     /**
@@ -175,6 +189,7 @@ export function runSync(name: string, opts?: RunSyncOption): RunSyncResult {
             stdin: opts.stdin,
 
             write: opts.write,
+            exec: opts.exec ? true : false,
         })
     }
     return deps.run_sync({
@@ -198,6 +213,11 @@ export interface RunOption {
     stdout?: Redirect
     stderr?: Redirect
     stdin?: Redirect
+
+    /**
+     * If true, the parent process exits after the child process is started.
+     */
+    exec?: boolean
 }
 /**
  * Readable network device for reading ready data
@@ -548,6 +568,7 @@ export class Command {
             stdout: opts.stdout,
             stderr: opts.stderr,
             stdin: opts.stdin,
+
         } : {
             name: name,
             state: state,
@@ -564,6 +585,7 @@ export class Command {
                         } else {
                             this.stdin = undefined
                             writer.close(e)
+
                         }
                     }
 
@@ -689,9 +711,8 @@ export class Command {
                 return
             }
             try {
-                // init reader writer
-
                 state[0] = 4
+
                 cmd.exit_cb = (result) => {
                     cmd.exit_cb = undefined
                     this.close()

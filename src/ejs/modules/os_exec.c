@@ -198,6 +198,7 @@ typedef struct
     uint8_t stdout;
     uint8_t stderr;
     uint8_t is_child : 1;
+    uint8_t exec : 1;
 } run_t;
 
 typedef struct
@@ -858,6 +859,10 @@ static void fork_parent_wait(
     duk_context *ctx,
     run_sync_t *args)
 {
+    if (args->run.exec)
+    {
+        exit(0);
+    }
     // wait child exit
     int status;
     if (waitpid(args->run.pid, &status, 0) == -1)
@@ -1209,6 +1214,9 @@ static void pipe_sync(duk_context *ctx, int *chan, int read)
 static duk_ret_t run_sync_impl(duk_context *ctx)
 {
     run_sync_t *args = duk_require_pointer(ctx, -1);
+    duk_get_prop_lstring(ctx, 0, "exec", 4);
+    args->run.exec = duk_is_null_or_undefined(ctx, -1) ? 0 : (duk_require_boolean(ctx, -1) ? 1 : 0);
+    duk_pop(ctx);
 
     duk_get_prop_lstring(ctx, 0, "stdin", 5);
     args->run.stdin = duk_is_null_or_undefined(ctx, -1) ? 0 : duk_require_number(ctx, -1);
@@ -2229,6 +2237,12 @@ static duk_ret_t writer_close(duk_context *ctx)
     }
     return 0;
 }
+
+static duk_ret_t e_exit(duk_context *ctx)
+{
+    exit(0);
+    return 0;
+}
 EJS_SHARED_MODULE__DECLARE(os_exec)
 {
     /*
@@ -2277,6 +2291,10 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
         duk_put_prop_lstring(ctx, -2, "writer_w", 8);
         duk_push_c_lightfunc(ctx, writer_close, 2, 2, 0);
         duk_put_prop_lstring(ctx, -2, "writer_close", 12);
+
+        // exec
+        duk_push_c_lightfunc(ctx, e_exit, 0, 0, 0);
+        duk_put_prop_lstring(ctx, -2, "exit", 4);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]
