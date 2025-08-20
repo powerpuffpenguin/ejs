@@ -5025,9 +5025,10 @@ declare module "ejs/os" {
     export function mkdirTemp(opts: MkdirTempOptions): Promise<string>
 }
 /**
- * Execute subcommands
+ * Execute child process
  */
 declare module "ejs/os/exec" {
+    import { YieldContext } from "ejs/sync";
     /**
      * Defines how to handle stdin/stdout/stderr of subcommands
      */
@@ -5098,7 +5099,149 @@ declare module "ejs/os/exec" {
      */
     export function runSync<O extends Redirect, E extends Redirect>(name: string, opts?: RunSyncOption<O, E>): RunSyncResult<O, E>
 
+    /**
+     * You can use it to write data to the child process's stdin
+     */
+    export class Writer {
+        private constructor()
+        /**
+         * @param e Turn off error messages
+         */
+        close(e?: any)
+        /**
+         * Write data returns the actual number of bytes written
+         * 
+         * @param data data to write
+         * @returns If undefined is returned, it means that the write buffer is full and you need to wait for the onWritable callback before continuing to write data.
+         */
+        write(data: string | ejs.BufferData): number | undefined
+        /**
+         * Write buffer max size. If it is 0, no limit is set.
+         * @default 1024 * 1024
+         */
+        maxWriteBytes: number
+        /**
+         * Callback whenever the write buffer changes from unwritable to writable
+         */
+        onWritable?: (this: Writer) => void
 
+        /**
+         * Callback whenever the writer closed 
+         */
+        onClose: (this: Writer, e?: any) => void
+    }
+    /**
+     * Readable for reading ready data
+     */
+    export interface Readable {
+        /**
+         * Returns the currently ready data length
+         */
+        readonly length: number
+        /**
+         * Read as much data as possible into dst, returning the actual bytes read
+         * @returns the actual read data length
+         */
+        read(dst: Uint8Array): number
+        /**
+         * Copies as much data as possible to dst, returning the actual copied bytes. 
+         * This function does not cause the Readable.length property to change
+         * @returns the actual copied data length
+         */
+        copy(dst: Uint8Array, skip?: number): number
+        /**
+         * Discard data of specified length
+         * @returns the actual discarded data length
+         */
+        drain(n: number): number
+    }
+    /**
+     * You can use it to read the child process's stdout/stderr
+     */
+    export class Reader {
+        private constructor()
+        /**
+         * Read buffer
+         * @remarks
+         * If not set, a buffer of size 32k will be automatically created when reading.
+         */
+        buffer?: Uint8Array
+
+        /**
+         * Callback when a message is received. If set to undefined, it will stop receiving data.
+         * @remarks
+         * The data passed in the callback is only valid in the callback function. If you want to continue to access it after the callback ends, you should create a copy of it in the callback.
+         */
+        onMessage?: (this: Reader, data: Uint8Array) => void
+        /**
+         * Callback when there is data to read
+         */
+        onReadable?: (this: Reader, r: Readable) => void
+
+        /**
+         * Callback whenever the writer closed 
+         */
+        onClose?: (this: Reader, err?: any) => void
+    }
+    export interface RunResult {
+        /**
+         * Exit Code
+         */
+        exit?: number
+        /**
+         * terminated by signal
+         */
+        signal?: number
+    }
+    export interface RunOption {
+        /**
+         * Startup parameters
+         */
+        args?: Array<string>
+        /**
+         * Environment variables
+         */
+        env?: Record<string, any>
+        /**
+         * Work Path
+         */
+        workdir?: string
+
+        stdout?: Redirect
+        stderr?: Redirect
+        stdin?: Redirect
+    }
+    /**
+     * Used to execute a child process asynchronously
+     */
+    export class Command {
+        /**
+         * 
+         * @param name Process Command
+         * @param opts Additional process startup options
+         */
+        constructor(name: string, opts?: RunOption)
+
+        stdout?: Reader
+        stderr?: Reader
+        stdin?: Writer
+        /**
+         * Force close child process
+         */
+        close(): void
+        /**
+         * Start child process
+         */
+        run(): Promise<RunResult>
+        /**
+         * Start child process
+         */
+        run(cb: (result?: RunResult, err?: any) => void): void
+        /**
+         * Start child process
+         */
+        run(co: YieldContext): RunResult
+    }
 }
 /**
  * URL processing module ported from golang standard library
