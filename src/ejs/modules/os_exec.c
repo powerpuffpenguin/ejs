@@ -49,7 +49,7 @@
 #define EJS_OS_EXEC_STATE_EXPIRED 200
 
 extern char **environ;
-static int lookpath(ppp_c_string_t *filepath, duk_bool_t clean)
+static int lookpath(ppp_c_string_t *filepath, duk_bool_t to_abs)
 {
     if (ppp_c_filepath_is_abs(filepath))
     {
@@ -60,7 +60,7 @@ static int lookpath(ppp_c_string_t *filepath, duk_bool_t clean)
         S_ISREG(info.st_mode) &&
         (info.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
     {
-        if (clean && ppp_c_filepath_clean(filepath))
+        if (to_abs && ppp_c_filepath_abs(filepath))
         {
         }
         return 0;
@@ -97,7 +97,7 @@ static int lookpath(ppp_c_string_t *filepath, duk_bool_t clean)
             {
                 if (!ppp_c_filepath_is_abs(filepath))
                 {
-                    if (clean && ppp_c_filepath_clean(filepath))
+                    if (to_abs && ppp_c_filepath_abs(filepath))
                     {
                         return -1;
                     }
@@ -1698,21 +1698,135 @@ static void on_parent_stdin_event_cb(struct bufferevent *bev, short events, void
 {
     puts("on_parent_stdin_event_cb");
 }
+typedef struct
+{
+    run_command_t *cmd;
+    struct evbuffer *buf;
+    duk_bool_t stdout;
+} on_reader_args_t;
+static duk_ret_t on_reader_impl(duk_context *ctx)
+{
+    on_reader_args_t *args = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    if (!ejs_stash_get_pointer(ctx, args->cmd, EJS_STASH_EXEC))
+    {
+        return 0;
+    }
+    if (args->stdout)
+    {
+        duk_get_prop_lstring(ctx, -1, "stdout_cb", 9);
+    }
+    else
+    {
+        duk_get_prop_lstring(ctx, -1, "stderr_cb", 9);
+    }
+    if (!duk_is_function(ctx, -1))
+    {
+        return 0;
+    }
+    duk_push_pointer(ctx, args->buf);
+    duk_call(ctx, 1);
+    return 0;
+}
 static void on_parent_stdout_cb(struct bufferevent *bev, void *args)
 {
-    puts("on_parent_stdout_cb");
+    run_command_t *cmd = args;
+    if (cmd->stdout)
+    {
+        struct evbuffer *buf = bufferevent_get_input(bev);
+        if (evbuffer_get_length(buf))
+        {
+            on_reader_args_t args = {
+                .cmd = cmd,
+                .buf = buf,
+                .stdout = 1,
+            };
+            ejs_call_callback_noresult(cmd->core->duk, on_reader_impl, &args, NULL);
+        }
+    }
+}
+typedef struct
+{
+    run_command_t *cmd;
+    short events;
+    duk_bool_t stdout;
+} on_reader_event_args_t;
+static duk_ret_t on_reader_event_impl(duk_context *ctx)
+{
+    on_reader_event_args_t *args = duk_require_pointer(ctx, 0);
+    duk_pop(ctx);
+
+    if (!ejs_stash_get_pointer(ctx, args->cmd, EJS_STASH_EXEC))
+    {
+        return 0;
+    }
+    if (args->stdout)
+    {
+        duk_get_prop_lstring(ctx, -1, "stdout_cb", 9);
+    }
+    else
+    {
+        duk_get_prop_lstring(ctx, -1, "stderr_cb", 9);
+    }
+    if (!duk_is_function(ctx, -1))
+    {
+        return 0;
+    }
+    if (args->events & BEV_EVENT_EOF)
+    {
+        duk_call(ctx, 0);
+    }
+    else if (args->events & BEV_EVENT_ERROR)
+    {
+        duk_push_undefined(ctx);
+        duk_push_error_object(ctx, DUK_ERR_ERROR, "read fail");
+        duk_call(ctx, 2);
+    }
+    return 0;
 }
 static void on_parent_stdout_event_cb(struct bufferevent *bev, short events, void *args)
 {
-    puts("on_parent_stdout_event_cb");
+    run_command_t *cmd = args;
+    if (cmd->stdout)
+    {
+        on_reader_event_args_t args = {
+            .cmd = cmd,
+            .events = events,
+            .stdout = 1,
+        };
+        ejs_call_callback_noresult(cmd->core->duk, on_reader_event_impl, &args, NULL);
+    }
 }
 static void on_parent_stderr_cb(struct bufferevent *bev, void *args)
 {
-    puts("on_parent_stderr_cb");
+    run_command_t *cmd = args;
+    if (cmd->stderr)
+    {
+        struct evbuffer *buf = bufferevent_get_input(bev);
+        if (evbuffer_get_length(buf))
+        {
+            on_reader_args_t args = {
+                .cmd = cmd,
+                .buf = buf,
+                .stdout = 0,
+            };
+            ejs_call_callback_noresult(cmd->core->duk, on_reader_impl, &args, NULL);
+        }
+    }
 }
 static void on_parent_stderr_event_cb(struct bufferevent *bev, short events, void *args)
 {
-    puts("on_parent_stderr_event_cb");
+    run_command_t *cmd = args;
+    if (cmd->stderr)
+    {
+        on_reader_event_args_t args = {
+            .cmd = cmd,
+            .events = events,
+            .stdout = 0,
+        };
+        ejs_call_callback_noresult(cmd->core->duk, on_reader_event_impl, &args, NULL);
+    }
 }
 
 static void fork_parent(duk_context *ctx, run_t *args, uint8_t *state)
@@ -1790,6 +1904,8 @@ static void fork_parent(duk_context *ctx, run_t *args, uint8_t *state)
         }
         args->chan[EJS_OS_EXEC_STDOUT_READ] = -1;
         bufferevent_setcb(cmd->stdout, on_parent_stdout_cb, 0, on_parent_stdout_event_cb, cmd);
+        duk_push_pointer(ctx, cmd->stdout);
+        duk_put_prop_lstring(ctx, -2, "stdout", 6);
     }
     // stderr
     if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDERR_READ]))
@@ -1804,6 +1920,8 @@ static void fork_parent(duk_context *ctx, run_t *args, uint8_t *state)
         }
         args->chan[EJS_OS_EXEC_STDERR_READ] = -1;
         bufferevent_setcb(cmd->stderr, on_parent_stderr_cb, 0, on_parent_stderr_event_cb, cmd);
+        duk_push_pointer(ctx, cmd->stderr);
+        duk_put_prop_lstring(ctx, -2, "stderr", 6);
     }
     // stdin
     if (EJS_IS_VALID_FD(args->chan[EJS_OS_EXEC_STDIN_WRITE]))
@@ -1819,6 +1937,8 @@ static void fork_parent(duk_context *ctx, run_t *args, uint8_t *state)
         }
         args->chan[EJS_OS_EXEC_STDIN_WRITE] = -1;
         bufferevent_setcb(cmd->stdin, 0, on_parent_stdin_cb, on_parent_stdin_event_cb, cmd);
+        duk_push_pointer(ctx, cmd->stdin);
+        duk_put_prop_lstring(ctx, -2, "stdin", 6);
     }
 
     cmd->pid = args->pid;
@@ -1936,7 +2056,7 @@ static duk_ret_t start(duk_context *ctx)
     run_command_t *c = ejs_stash_put_pointer(ctx, EJS_STASH_EXEC);
     c->state[0] = EJS_OS_EXEC_STATE_START;
 
-    bufferevent_enable(c->r, EV_WRITE | EV_READ);
+    bufferevent_enable(c->r, EV_READ);
     bufferevent_enable(c->w, EV_WRITE);
     return 0;
 }
@@ -1945,30 +2065,62 @@ static duk_ret_t destroy(duk_context *ctx)
     run_command_t *c = ejs_stash_delete_pointer(ctx, 1, EJS_STASH_EXEC);
     c->state[0] = EJS_OS_EXEC_STATE_EXPIRED;
     run_command_free(c);
-    // ejs_dump_context_stdout(ctx);
-
-    // if (c->r)
-    // {
-    //     bufferevent_disable(c->r, EV_WRITE | EV_READ);
-    // }
-    // if (c->w)
-    // {
-    //     bufferevent_disable(c->w, EV_WRITE);
-    // }
-    // if (c->stdin)
-    // {
-    //     bufferevent_disable(c->stdin, EV_WRITE);
-    // }
-    // if (c->stderr)
-    // {
-    //     bufferevent_disable(c->stderr, EV_WRITE | EV_READ);
-    // }
-    // if (c->stdout)
-    // {
-    //     bufferevent_disable(c->stdout, EV_WRITE | EV_READ);
-    // }
     return 0;
 }
+static duk_ret_t reader_cb(duk_context *ctx)
+{
+    struct bufferevent *bev = duk_require_pointer(ctx, 0);
+    duk_bool_t enable = duk_require_boolean(ctx, 1);
+
+    if (enable)
+    {
+        bufferevent_enable(bev, EV_READ);
+        if (evbuffer_get_length(bufferevent_get_input(bev)))
+        {
+            puts("reader_cb true true");
+            duk_push_true(ctx);
+            return 1;
+        }
+        puts("reader_cb true");
+    }
+    else
+    {
+        puts("reader_cb false");
+        bufferevent_disable(bev, EV_READ);
+    }
+    return 0;
+}
+static duk_ret_t reader_active(duk_context *ctx)
+{
+    run_command_t *cmd = duk_require_pointer(ctx, 0);
+    struct bufferevent *bev = duk_require_pointer(ctx, 1);
+    if (cmd->stdout == bev)
+    {
+        on_parent_stdout_cb(bev, cmd);
+    }
+    if (cmd->stderr == bev)
+    {
+        on_parent_stderr_cb(bev, cmd);
+    }
+    return 0;
+}
+static duk_ret_t reader_close(duk_context *ctx)
+{
+    run_command_t *cmd = duk_require_pointer(ctx, 0);
+    struct bufferevent *bev = duk_require_pointer(ctx, 1);
+    if (cmd->stdout == bev)
+    {
+        bufferevent_free(cmd->stdout);
+        cmd->stdout = 0;
+    }
+    if (cmd->stderr == bev)
+    {
+        bufferevent_free(cmd->stderr);
+        cmd->stderr = 0;
+    }
+    return 0;
+}
+
 EJS_SHARED_MODULE__DECLARE(os_exec)
 {
     /*
@@ -1994,6 +2146,23 @@ EJS_SHARED_MODULE__DECLARE(os_exec)
         duk_put_prop_lstring(ctx, -2, "start", 5);
         duk_push_c_lightfunc(ctx, destroy, 1, 1, 0);
         duk_put_prop_lstring(ctx, -2, "destroy", 7);
+
+        duk_push_c_lightfunc(ctx, reader_cb, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "reader_cb", 9);
+        duk_push_c_lightfunc(ctx, reader_active, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "reader_active", 13);
+        duk_push_c_lightfunc(ctx, reader_close, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "reader_close", 12);
+
+        // evbuffer_len
+        duk_push_c_lightfunc(ctx, _ejs_evbuffer_len, 1, 1, 0);
+        duk_put_prop_lstring(ctx, -2, "evbuffer_len", 12);
+        duk_push_c_lightfunc(ctx, _ejs_evbuffer_read, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "evbuffer_read", 13);
+        duk_push_c_lightfunc(ctx, _ejs_evbuffer_copy, 3, 3, 0);
+        duk_put_prop_lstring(ctx, -2, "evbuffer_copy", 13);
+        duk_push_c_lightfunc(ctx, _ejs_evbuffer_drain, 2, 2, 0);
+        duk_put_prop_lstring(ctx, -2, "evbuffer_drain", 14);
     }
     /*
      *  Entry stack: [ require init_f exports ejs deps ]

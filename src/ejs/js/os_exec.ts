@@ -51,12 +51,31 @@ declare namespace deps {
         readonly __id = "Command"
         p: Pointer
 
+        stdout?: Pointer
+        stderr?: Pointer
+        stdin?: Pointer
+
         start_cb?: (err?: any) => void
         exit_cb?: (result: { exit?: number, signal?: number }) => void
+
+        stdout_cb?: (b?: evbuffer, e?: any) => void
+        stderr_cb?: (b: evbuffer, e?: any) => void
     }
     function cmd(opts: RunOption): Command
     function start(cmd: Command): Pointer
     function destroy(cmd: Command): void
+
+    function reader_cb(r: Pointer, ok: boolean): true | undefined
+    function reader_active(cmd: Pointer, r: Pointer): void
+    function reader_close(cmd: Pointer, r: Pointer): void
+
+    class evbuffer {
+        readonly __id = "evbuffer"
+    }
+    function evbuffer_len(b: evbuffer): number
+    function evbuffer_read(b: evbuffer, dst: Uint8Array): number
+    function evbuffer_copy(b: evbuffer, dst: Uint8Array, skip?: number): number
+    function evbuffer_drain(b: evbuffer, n: number): number
 }
 export enum Redirect {
     /**
@@ -176,28 +195,346 @@ export interface RunOption {
     stderr?: Redirect
     stdin?: Redirect
 }
-
+/**
+ * Readable network device for reading ready data
+ */
+export interface Readable {
+    /**
+     * Returns the currently ready data length
+     */
+    readonly length: number
+    /**
+     * Read as much data as possible into dst, returning the actual bytes read
+     * @returns the actual read data length
+     */
+    read(dst: Uint8Array): number
+    /**
+     * Copies as much data as possible to dst, returning the actual copied bytes. 
+     * This function does not cause the Readable.length property to change
+     * @returns the actual copied data length
+     */
+    copy(dst: Uint8Array, skip?: number): number
+    /**
+     * Discard data of specified length
+     * @returns the actual discarded data length
+     */
+    drain(n: number): number
+}
+class evbufferReadable implements Readable {
+    constructor(readonly b: deps.evbuffer) { }
+    get length(): number {
+        if (this.closed_) {
+            throw new Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
+        return deps.evbuffer_len(this.b)
+    }
+    read(dst: Uint8Array): number {
+        if (this.closed_) {
+            throw new Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
+        return deps.evbuffer_read(this.b, dst)
+    }
+    copy(dst: Uint8Array, skip?: number): number {
+        if (this.closed_) {
+            throw new Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
+        return deps.evbuffer_copy(this.b, dst, skip)
+    }
+    drain(n: number) {
+        if (this.closed_) {
+            throw new Error(`Readable has expired, it is only valid in callback function onReadable`)
+        }
+        return deps.evbuffer_drain(this.b, n)
+    }
+    private closed_ = false
+    _close() {
+        this.closed_ = true
+    }
+}
+export type OnMessageCallback<Self> = (this: Self, data: Uint8Array) => void
+export type OnReadableCallback<Self> = (this: Self, r: Readable) => void
+export type OnCloseCallback<Self> = (this: Self, err?: any) => void
 export class Reader {
+    private _get() {
+        if (this.state[0] == 200) {
+            return
+        }
+        return this.r
+    }
+    constructor(private readonly cmd: deps.Pointer,
+        private r: deps.Pointer | undefined,
+        private readonly state: Uint8Array,
+    ) { }
+    buffer?: Uint8Array
+    private _buffer(): Uint8Array {
+        let b = this.buffer
+        if (b && b.length > 0) {
+            return b
+        }
+        b = new Uint8Array(1024 * 32)
+        this.buffer = b
+        return b
+    }
+    _read(r: deps.evbuffer) {
+        const actived = this.actived_
+        if (actived) {
+            this.actived_ = undefined
+            clearImmediate(actived)
+        }
 
+        const onReadable = this.onReadableBind_
+        if (onReadable) {
+            const rb = new evbufferReadable(r)
+            onReadable(rb)
+            rb._close()
+            if (!this._get()) {
+                return
+            }
+        }
+
+        const onMessage = this.onMessageBind_
+        if (onMessage) {
+            const b = this._buffer()
+            const n = deps.evbuffer_read(r, b)
+            switch (n) {
+                case 0:
+                    break
+                case b.length:
+                    onMessage(b)
+                    break
+                default:
+                    onMessage(b.length == n ? b : b.subarray(0, n))
+                    break
+            }
+        } else if (!onReadable) {
+            const r = this._get()
+            if (r) {
+                deps.reader_cb(r, false)
+            }
+        }
+    }
+    _close(e: any): void {
+        const r = this.r
+        if (r) {
+            if (this.state[0] == 200) {
+                deps.reader_close(this.cmd, r)
+            }
+            this.r = undefined
+        }
+        const actived = this.actived_
+        if (actived) {
+            this.actived_ = undefined
+            clearImmediate(actived)
+        }
+        const f = this.onCloseBind_
+        if (f) {
+            f(e)
+        }
+    }
+
+    private onReadable_?: OnReadableCallback<Reader>
+    private onReadableBind_?: (r: Readable) => void
+    /**
+     * Callback when a message is received. If set to undefined, it will stop receiving data. 
+     */
+    get onReadable(): OnReadableCallback<Reader> | undefined {
+        return this.onReadable_
+    }
+    set onReadable(f: OnReadableCallback<Reader> | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onReadable_) {
+                return
+            }
+            const r = this._get()
+            if (r && !this.onMessage_) {
+                deps.reader_cb(r, false)
+            }
+            this.onReadable_ = undefined
+            this.onReadableBind_ = undefined
+        } else {
+            if (f === this.onReadable_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new Error("onReadable must be a function")
+            }
+            const r = this._get()
+            const bind = r ? f.bind(this) : undefined
+            if (r && !this.onMessage_) {
+                if (deps.reader_cb(r, true)) {
+                    this._active()
+                }
+            }
+            this.onReadableBind_ = bind
+            this.onReadable_ = f
+        }
+    }
+
+    private onMessage_?: OnMessageCallback<Reader>
+    private onMessageBind_?: (data: Uint8Array) => void
+    get onMessage(): OnMessageCallback<Reader> | undefined {
+        return this.onMessage_
+    }
+    set onMessage(f: OnMessageCallback<Reader> | undefined) {
+        if (f === undefined || f === null) {
+            if (!this.onMessage_) {
+                return
+            }
+            const r = this._get()
+            if (r && !this.onReadable_) {
+                deps.reader_cb(r, false)
+            }
+            this.onMessage_ = undefined
+            this.onMessageBind_ = undefined
+        } else {
+            if (f === this.onMessage_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new Error("onMessage must be a function")
+            }
+            const r = this._get()
+            const bind = r ? f.bind(this) : undefined
+            if (r && !this.onReadable_) {
+                if (deps.reader_cb(r, true)) {
+                    this._active()
+                }
+            }
+            this.onMessageBind_ = bind
+            this.onMessage_ = f
+        }
+    }
+    private actived_?: number
+    private _active() {
+        if (this.actived_) {
+            return
+        }
+        this.actived_ = setImmediate(() => {
+            const r = this._get()
+            if (!r) {
+                return
+            }
+            const actived = this.actived_
+            if (!actived) {
+                return
+            }
+            this.actived_ = undefined
+            deps.reader_active(this.cmd, r)
+        })
+    }
+    private onClose_?: OnCloseCallback<Reader>
+    private onCloseBind_?: (err?: any) => void
+    get onClose(): OnCloseCallback<Reader> | undefined {
+        return this.onClose_
+    }
+    set onClose(f: OnCloseCallback<Reader> | undefined) {
+        if (f === undefined || f === null) {
+            this.onClose_ = undefined
+            this.onCloseBind_ = undefined
+        } else {
+            if (f === this.onClose_) {
+                return
+            }
+            if (typeof f !== "function") {
+                throw new Error("onClose must be a function")
+            }
+            const r = this._get()
+            const bind = r ? f.bind(this) : undefined
+            this.onCloseBind_ = bind
+            this.onClose_ = f
+        }
+    }
 }
 export class Writer {
 
 }
 export class Command {
-    constructor(private cmd: deps.Command | undefined, private readonly state: Uint8Array) { }
+    constructor(name: string, opts?: RunOption) {
+        const state = new Uint8Array(1)
+        const o: deps.RunOption = opts ? {
+            name: name,
+            state: state,
+            args: opts.args,
+            env: opts.env ? envstring(opts.env) : undefined,
+            workdir: opts.workdir,
+
+            stdout: opts.stdout,
+            stderr: opts.stderr,
+            stdin: opts.stdin,
+        } : {
+            name: name,
+            state: state,
+        }
+        const cmd = deps.cmd(o)
+        try {
+            if (cmd.stdout) {
+                this.stdout = new Reader(cmd.p, cmd.stdout, state)
+                cmd.stdout_cb = (r, e) => {
+                    const reader = this.stdout
+                    if (reader) {
+                        if (r === undefined) {
+                            this.stdout = undefined
+                            reader._close(e)
+                        } else {
+                            reader._read(r)
+                        }
+                    }
+                }
+            }
+            if (cmd.stderr) {
+                this.stderr = new Reader(cmd.p, cmd.stderr, state)
+                cmd.stderr_cb = (r, e) => {
+                    const reader = this.stderr
+                    if (reader) {
+                        if (r === undefined) {
+                            this.stderr = undefined
+                            reader._close(e)
+                        } else {
+                            reader._read(r)
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            this.close()
+            throw e
+        }
+        this.state = state
+        this.cmd_ = cmd
+    }
+    private cmd_?: deps.Command | undefined
+    private readonly state: Uint8Array
     stdout?: Reader
     stderr?: Reader
     stdin?: Writer
     close() {
-        if (this.cmd) {
-            this.cmd = undefined
+        const cmd = this.cmd_
+        if (cmd) {
+            let reader = this.stdout
+            let e: Error | undefined
+            if (reader) {
+                this.stdout = undefined
+                e = new Error("Command already close")
+                reader._close(e)
+            }
+            reader = this.stderr
+            if (reader) {
+                this.stderr = undefined
+                if (!e) {
+                    e = new Error("Command already close")
+                }
+                reader._close(e)
+            }
+            this.cmd_ = undefined
+            this.state[0] = 200
+            deps.destroy(cmd)
         }
     }
     run(a: any) {
         if (this.state[0]) {
             throw new Error("Command can only be executed once run")
         }
-        if (!this.cmd) {
+        if (!this.cmd_) {
             throw new Error("command closed")
         }
         if (a === null || a === undefined) {
@@ -230,16 +567,16 @@ export class Command {
     }
     private _run(cb: (result?: RunSyncResult, err?: any) => void) {
         const state = this.state
-        const cmd = this.cmd!
+        const cmd = this.cmd_!
 
         cmd.start_cb = (err?: any) => {
             cmd.start_cb = undefined
             if (err) {
-                deps.destroy(cmd)
+                this.close()
                 cb(undefined, err)
                 return
             }
-            if (!this.cmd) {
+            if (!this.cmd_) {
                 cb(undefined, new Error("command closed"))
                 return
             }
@@ -249,11 +586,11 @@ export class Command {
                 state[0] = 4
                 cmd.exit_cb = (result) => {
                     cmd.exit_cb = undefined
-                    deps.destroy(cmd)
+                    this.close()
                     cb(result)
                 }
             } catch (e) {
-                deps.destroy(cmd)
+                this.close()
                 cb(undefined, e)
             }
         }
@@ -261,29 +598,10 @@ export class Command {
             deps.start(cmd)
         } catch (e) {
             if (state[0]) {
-                deps.destroy(cmd)
+                this.close()
             }
             throw e
         }
     }
 }
 
-export function run(name: string, opts?: RunOption): Command {
-    const state = new Uint8Array(1)
-    const o: deps.RunOption = opts ? {
-        name: name,
-        state: state,
-        args: opts.args,
-        env: opts.env ? envstring(opts.env) : undefined,
-        workdir: opts.workdir,
-
-        stdout: opts.stdout,
-        stderr: opts.stderr,
-        stdin: opts.stdin,
-    } : {
-        name: name,
-        state: state,
-    }
-    const cmd = deps.cmd(o)
-    return new Command(cmd, state)
-}

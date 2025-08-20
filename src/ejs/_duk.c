@@ -541,7 +541,7 @@ static duk_ret_t cb_load_module(duk_context *ctx)
 void _ejs_init_base(duk_context *ctx)
 {
     // console
-    duk_console_init(ctx, 0);
+    duk_console_init(ctx, DUK_CONSOLE_FLUSH);
 
     // node module
     duk_push_object(ctx);

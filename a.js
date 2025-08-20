@@ -31,18 +31,38 @@ var exec = require("ejs/os/exec")
 //     workdir: '/home/',
 //     // write: "console.log(123)\n"
 // }))
-var cmd = exec.run('ls', {
-    args: ['/home/king/project/cc/ejs/b.js', '-l'],
+var cmd = new exec.Command('./build/linux/x86_64/release/ejs', {
+    args: ['/home/king/project/cc/ejs/b.js'],
     env: {
         "KO": '123',
     },
     // stdin: 2,
-    // stdout: 3,
-    // stderr: 3,
+    stdout: 3,
+    stderr: 3,
     workdir: '/home/',
     // write: "console.log(123)\n"
 })
-console.log(cmd)
+// var cmd = new exec.Command('ls', {
+//     args: ['/home/king/project/cc/ejs/b.js', '-l'],
+//     env: {
+//         "KO": '123',
+//     },
+//     // stdin: 2,
+//     stdout: 3,
+//     stderr: 3,
+//     workdir: '/home/',
+//     // write: "console.log(123)\n"
+// })
+var i = 0
+cmd.stdout.onMessage = function (data) {
+    console.log(new TextDecoder().decode(data))
+    if (++i == 5) {
+        cmd.close()
+    }
+}
+cmd.stdout.onClose = function (e) {
+    console.log("onClose", e === undefined ? e : e.toString())
+}
 cmd.run(function (exit, e) {
     console.log(exit, e === undefined ? e : e.toString())
 })
