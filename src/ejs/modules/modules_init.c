@@ -5,7 +5,7 @@
 
 void __ejs_modules_init(duk_context *ctx)
 {
-    EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__TEST0, test0);
+    // EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__TEST0, test0);
 
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__ENCODING_BINARY, encoding_binary);
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__ENCODING_HEX, encoding_hex);
@@ -26,6 +26,7 @@ void __ejs_modules_init(duk_context *ctx)
 #ifdef EJS_OS_WINDOWS
 #else
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__OS_EXEC, os_exec);
+    EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__OS_WATCH, os_watch);
 #endif
 
     EJS_SHARED_MODULE__PUSH(ctx, EJS_SHARED_MODULE__NET, net);

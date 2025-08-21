@@ -12,77 +12,20 @@
 // var path = require("ejs/path")
 // var hash = require("ejs/hash")
 // var crypto = require("ejs/crypto")
-var exec = require("ejs/os/exec")
-// console.log(exec.runSync('node', {
-//     // args: ['nodejs', '-l'],
-//     stdin: 2,
-//     // stdout: 3,
-//     // stderr: 3,
-//     write: "console.log(123);\nconsole.log(1+2)",
-//     exec: true,
-// }))
-// console.log("ok")
-// // console.log(exec.runSync('./build/linux/x86_64/release/ejs', {
-// //     args: ['/home/king/project/cc/ejs/b.js', '-l'],
-// //     env: {
-// //         "KO": '123',
-// //     },
-// //     // stdin: 2,
-// //     // stdout: 3,
-// //     // stderr: 3,
-// //     workdir: '/home/',
-// //     // write: "console.log(123)\n"
-// // }))
-var cmd = new exec.Command('a.sh', {
-    env: {
-        "KO": '123',
-    },
-    stdin: 2,
-    // stdout: 3,
-    // stderr: 3,
-    // workdir: '/home/',
-    // exec: true,
-})
-
-
-
-// // var cmd = new exec.Command('ls', {
-// //     args: ['/home/king/project/cc/ejs/b.js', '-l'],
-// //     env: {
-// //         "KO": '123',
-// //     },
-// //     // stdin: 2,
-// //     stdout: 3,
-// //     stderr: 3,
-// //     workdir: '/home/',
-// //     // write: "console.log(123)\n"
-// // })
-// var i = 0
-// // cmd.stdout.onMessage = function (data) {
-// //     console.log(new TextDecoder().decode(data))
-// //     if (++i == 5) {
-// //         cmd.close()
-// //     }
-// // }
-// // cmd.stdout.onClose = function (e) {
-// //     console.log("onClose", e === undefined ? e : e.toString())
-// // }
-
-cmd.run(function (exit, e) {
-    console.log(exit, e === undefined ? e : e.toString())
-    setTimeout(function () {
-        console.log("all end")
-    }, 1000);
-})
-var ok = false
-cmd.stdin.onWritable = function () {
-    if (ok) {
-        // cmd.stdin.close()
-    } else {
-        console.log('write:', cmd.stdin.write("console.log(123);setTimeout(function(){console.log(1+2);},1000);"))
-        ok = true
+var watch = require("ejs/os/watch")
+watch.watchSync(
+    '/home/king/project/cc/ejs',
+    watch.IN_MODIFY | watch.IN_CREATE | watch.IN_DELETE,
+    function (a) {
+        if (a.mask & watch.IN_MODIFY) {
+            console.log('modify:', a.name, a.mask)
+        } else if (a.mask & watch.IN_CREATE) {
+            console.log('create:', a.name, a.mask)
+        } else if (a.mask & watch.IN_DELETE) {
+            console.log('delete:', a.name, a.mask)
+            return true
+        } else {
+            console.log("unknow", a)
+        }
     }
-}
-cmd.stdin.onClose = function (e) {
-    console.log("onClose", e)
-}
+)

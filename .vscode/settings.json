@@ -121,6 +121,8 @@
         "net.h": "c",
         "memory_resource": "c",
         "__functional_03": "c",
-        "listener.h": "c"
+        "listener.h": "c",
+        "inotify.h": "c",
+        "os_watch.h": "c"
     }
 }
