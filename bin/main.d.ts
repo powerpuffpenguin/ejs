@@ -5249,6 +5249,139 @@ declare module "ejs/os/exec" {
     }
 }
 /**
+ * Used to monitor file system events
+ */
+declare module "ejs/os/watch" {
+
+    export interface WatchEvent {
+        /**
+         * The name of the file that triggered the event
+         */
+        name: string
+        /**
+         * Triggered event mask
+         */
+        mask: number
+    }
+    /**
+     * Synchronously monitor the file system until the callback function returns any true value
+     * @remarks
+     * This is a synchronous function which means that if no file event is triggered the thread will be blocked, it will also block other asynchronous events outside of itself.
+     * 
+     * @param name The file path to monitor
+     * @param mask Mask of events to trigger
+     * @param cb The callback function when the event occurs. If the function returns any true value, the monitoring will stop
+     */
+    export function watchSync(name: string, mask: number, cb: (evt: WatchEvent) => boolean | any): void
+    /**
+     * This is an asynchronous Watcher
+     */
+    export class Watcher {
+        private constructor()
+        /**
+         * Stop monitoring and release resources
+         */
+        close(): void
+    }
+    /**
+     * Asynchronously monitor file system events. The function will return immediately and call back when an event is triggered.
+     * @remarks
+     * Returning true in the callback function will automatically release resources so you don't need to call watcher.close. You can also safely call watcher.close in the callback function, which has the same effect as returning true.
+     * 
+     * @param name The file path to monitor
+     * @param mask Mask of events to trigger
+     * @param cb The callback function when the event occurs. If the function returns any true value, the monitoring will stop
+     * @returns Watcher, you can safely call the watcher.close method at any location to stop listening
+     */
+    export function watch(name: string, mask: number, cb: (evt: WatchEvent) => boolean | any): Watcher
+
+    /**
+     * File was accessed.
+     */
+    const IN_ACCESS: number
+    /**
+     * File was modified.
+     */
+    const IN_MODIFY: number
+    /**
+     * Metadata changed.
+     */
+    const IN_ATTRIB: number
+    /**
+     * File was opened.
+     */
+    const IN_OPEN: number
+    /**
+     * Writtable file was closed. 
+     */
+    const IN_CLOSE_WRITE: number
+    /**
+     * Unwrittable file closed.
+     */
+    const IN_CLOSE_NOWRITE: number
+    /**
+     * Subfile was created.
+     */
+    const IN_CREATE: number
+    /**
+     * Subfile was deleted.
+     */
+    const IN_DELETE: number
+    /**
+     * Self was deleted.
+     */
+    const IN_DELETE_SELF: number
+    /**
+     * Self was moved.
+     */
+    const IN_MOVE_SELF: number
+    /**
+     * File was moved from X.
+     */
+    const IN_MOVED_FROM: number
+    /**
+     * File was moved to Y.
+     */
+    const IN_MOVED_TO: number
+
+    /**
+     * Close.
+     */
+    const IN_CLOSE = IN_CLOSE_WRITE | IN_CLOSE_NOWRITE
+    /**
+     * Moves.
+     */
+    const IN_MOVE = IN_MOVED_FROM | IN_MOVED_TO
+    /**
+     * All events which a program can wait on.
+     */
+    const IN_ALL_EVENTS = IN_ACCESS | IN_MODIFY | IN_ATTRIB | IN_CLOSE_WRITE
+        | IN_CLOSE_NOWRITE | IN_OPEN | IN_MOVED_FROM
+        | IN_MOVED_TO | IN_CREATE | IN_DELETE
+        | IN_DELETE_SELF | IN_MOVE_SELF
+
+    /**
+     * Do not follow a sym link.
+     */
+    const IN_DONT_FOLLOW: number
+    /**
+     * Exclude events on unlinked objects.
+     */
+    const IN_EXCL_UNLINK: number
+    // /**
+    //  * Add to the mask of an already existing watch.
+    //  */
+    // const IN_MASK_ADD: number
+    /**
+     * Only send event once.
+     */
+    const IN_ONESHOT: number
+    /**
+     * Only watch the path if it is a directory.
+     */
+    const IN_ONLYDIR: number
+}
+/**
  * URL processing module ported from golang standard library
  */
 declare module "ejs/net/url" {

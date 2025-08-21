@@ -30,7 +30,6 @@ export function watchSync(name: string, mask: number, cb: (evt: WatchEvent) => b
 
 export class Watcher {
     constructor(readonly close: () => void) { }
-
 }
 export function watch(name: string, mask: number, cb: (evt: WatchEvent) => boolean | any): Watcher {
     if (typeof cb !== "function") {
