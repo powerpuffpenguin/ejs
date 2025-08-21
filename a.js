@@ -13,7 +13,8 @@
 // var hash = require("ejs/hash")
 // var crypto = require("ejs/crypto")
 var watch = require("ejs/os/watch")
-watch.watchSync(
+var watcher
+watcher = watch.watch(
     '/home/king/project/cc/ejs',
     watch.IN_MODIFY | watch.IN_CREATE | watch.IN_DELETE,
     function (a) {
@@ -23,9 +24,13 @@ watch.watchSync(
             console.log('create:', a.name, a.mask)
         } else if (a.mask & watch.IN_DELETE) {
             console.log('delete:', a.name, a.mask)
+            watcher.close()
+            console.log("close")
             return true
         } else {
             console.log("unknow", a)
         }
     }
 )
+console.log("watcher:", watcher)
+// watcher.close()

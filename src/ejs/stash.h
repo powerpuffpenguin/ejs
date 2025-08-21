@@ -27,6 +27,7 @@
 #define EJS_STASH_ASYNC "async", 5
 
 #define EJS_STASH_EXEC "exec", 4
+#define EJS_STASH_WATCH "watch", 5
 
 #define EJS_STASH_DEFINE_OBJECT(name)        \
     duk_get_prop_lstring(ctx, -1, name);     \
